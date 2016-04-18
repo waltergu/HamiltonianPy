@@ -6,8 +6,8 @@ def test_geometry():
     test_point()
     test_bond()
     test_tiling()
-    #test_bonds()
-    #test_lattice()
+    test_bonds()
+    test_lattice()
     #test_lattice_table()
     #test_super_lattice() 
 
@@ -46,7 +46,7 @@ def test_bond():
 
 def test_tiling():
     print 'test_tiling'
-    p1=Point(id=ID(scope='WG',site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    p1=Point(id=ID(scope='WG',site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     m,n=3,3
     a1=array([1.0,0.0])
     a2=array([0.0,1.0])
@@ -58,30 +58,25 @@ def test_tiling():
 
 def test_bonds():
     print 'test_bonds'
-    p1=Point(id=ID(site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
-    m,n=2,2
+    p1=Point(id=ID(site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1,a2=array([1.0,0.0]),array([0.0,1.0])
-    for bond in bonds(cluster=[p1],vectors=[a1,a2],nneighbour=2):
+    for bond in bonds(cluster=[p1],vectors=[a1,a2],nneighbour=4):
         print bond
 
 def test_lattice():
-    p1=Point(id=0,rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    p1=Point(id=ID(site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1=array([1.0,0.0])
     a2=array([0.0,1.0])
-    m=2;n=2
+    m=20;n=20
     stime=time.time()
-    a=Lattice('L'+str(m)+str(n),[p1],translations=((a1,m),(a2,n)),vectors=[a1*m,a2*n],nneighbour=2)
+    a=Lattice('L'+str(m)+str(n),points=tiling(cluster=[p1],vectors=[a1,a2],indices=itertools.product(xrange(m),xrange(n))),vectors=[a1*m,a2*n],nneighbour=2)
     etime=time.time()
-    print etime-stime
-    for p in a.points:
-        print p
-    for bond in a.bonds:
-        print bond
+    print 'Construction time for %s*%s lattice: %s'%(m,n,etime-stime)
     a.plot(show=True)
     stime=time.time()
-    b=Lattice('C'+str(m)+str(n),[p1],translations=((a1,m),(a2,n)),nneighbour=2)
+    b=Lattice('C'+str(m)+str(n),points=tiling(cluster=[p1],vectors=[a1,a2],indices=itertools.product(xrange(m),xrange(n))),nneighbour=2)
     etime=time.time()
-    print etime-stime
+    print 'Construction time for %s*%s cluster: %s'%(m,n,etime-stime)
     b.plot(show=True)
 
 def test_lattice_table():

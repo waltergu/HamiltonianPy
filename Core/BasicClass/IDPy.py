@@ -41,7 +41,7 @@ class ID:
         '''
         Overloaded operator(==).
         '''
-        if self.__dict__==other.__dict__:
+        if str(self.__dict__)==str(other.__dict__):
             return True
         else:
             return False

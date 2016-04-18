@@ -125,12 +125,6 @@ def tiling(cluster,vectors,indices,translate_icoord=False,return_map=False):
     Parameters:
         cluster: list of Point
             The original cluster.
-        #translations: list of 3-tuple
-        #    For each tuple:
-        #        tuple[0]: 1D ndarray
-        #            The translation vector for the original cluster.
-        #        tuple[1],tuple[2]: integer
-        #            The start number and end number of slices along the corresponding vector.
         vectors: list of 1D ndarray
             The translation vectors.
         indices: any iterable object of tuple
@@ -147,27 +141,27 @@ def tiling(cluster,vectors,indices,translate_icoord=False,return_map=False):
         map: dict,optional
             The tiling map, whose key is the translated point's id and value the original point's id.
             Only when return_map is set to be True, will it be returned.
-        
     '''
     supercluster,map=[],{}
-    for point in cluster:
-        if not hasattr(point.id,'site'):
-            raise ValueError("Function tiling error: to use this function, the id of every input point must have the attribute 'site'.")
-
-    inc=max([point.id.site for point in cluster])+1
-
-    for index in indices:
-        index=array(index)
+    if len(vectors)==0:
+        supercluster=cluster
         for point in cluster:
-            id=deepcopy(point.id.__dict__)
-            id['site']=point.id.site+(product([i+1 for i in index])-1)*inc
-            new=ID(**id)
-            map[new]=map[point.id] if point.id in map else point.id
-            disp=inner(index,vectors)
-            if translate_icoord:
-                supercluster.append(Point(id=new,rcoord=point.rcoord+disp,icoord=point.icoord+disp))
-            else:
-                supercluster.append(Point(id=new,rcoord=point.rcoord+disp,icoord=point.icoord))
+            map[point.id]=point.id
+    else:
+        for point in cluster:
+            if not hasattr(point.id,'site') or not isinstance(point.id.site,tuple):
+                raise ValueError("Function tiling error: to use this function non-trivially, the id of every input point must have a tuple attribute 'site'.")
+        for index in indices:
+            for point in cluster:
+                id=deepcopy(point.id.__dict__)
+                id['site']=tuple(array(point.id.site)+array(tuple(index)+(0,)))
+                new=ID(**id)
+                map[new]=map[point.id] if point.id in map else point.id
+                disp=inner(index,vectors)
+                if translate_icoord:
+                    supercluster.append(Point(id=new,rcoord=point.rcoord+disp,icoord=point.icoord+disp))
+                else:
+                    supercluster.append(Point(id=new,rcoord=point.rcoord+disp,icoord=point.icoord))
     if return_map:
         return supercluster,map
     else:
@@ -178,7 +172,7 @@ def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=6):
     This function returns all the bonds up to the nneighbour-th order.
     Parameters:
         cluster: list of Point
-            The cluster within which the bonds are looked for. 
+            The cluster within which the bonds are looked for.
             If the parameter vectors is not None, the inter cluster bonds will also be searched.
         vectors: list of 1D ndarray, optional
             The translation vectors for the cluster.
@@ -192,7 +186,13 @@ def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=6):
             Note that the input points will be used to form the zero-th neighbour bonds, i.e. the start point and the end point is the same point.
     '''
     result=[]
-    supercluster,map=tiling(cluster=cluster,translations=[(vector,nneighbour+1) for vector in vectors],translate_icoord=True,return_map=True)
+    indices=[]
+    for i in xrange(len(vectors)):
+        indices.append(xrange(-nneighbour,nneighbour+1))
+    indices=list(itertools.product(*indices))
+    for index in indices:
+        if any(index):indices.remove(tuple([-i for i in index]))
+    supercluster,map=tiling(cluster=cluster,vectors=vectors,indices=indices,translate_icoord=True,return_map=True)
     tree=cKDTree([point.rcoord for point in supercluster])
     distances,indices=tree.query([point.rcoord for point in cluster],k=nneighbour*max_coordinate_number)
     mdists=[inf for i in xrange(nneighbour+1)]
@@ -214,7 +214,7 @@ def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=6):
                 if abs(dist-mdist)<RZERO:
                     buff=supercluster[index]
                     result.append(Bond(neighbour,spoint=cluster[i],epoint=Point(id=map[buff.id],rcoord=buff.rcoord,icoord=buff.icoord)))
-    return result    
+    return result
 
 class Point:
     '''
