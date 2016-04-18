@@ -1,10 +1,10 @@
 '''
 Geometry, including
-1) functions: azimuthd, azimuth, polard, polar, volume, is_parallel, reciprocals, tiling, bonds
+1) functions: azimuthd, azimuth, polard, polar, volume, is_parallel, reciprocals, tiling, translation, rotation, bonds, SuperLattice
 2) classes: Point, Bond, Lattice
 '''
 
-__all__=['azimuthd','azimuth','polard','polar','volume','is_parallel','reciprocals','tiling','bonds','ID','Point','Bond','Lattice']
+__all__=['azimuthd','azimuth','polard','polar','volume','is_parallel','reciprocals','tiling','translation','rotation','bonds','SuperLattice','Point','Bond','Lattice']
 
 from numpy import *
 from numpy.linalg import norm,inv
@@ -92,7 +92,7 @@ def reciprocals(vectors):
     Return the corresponding reciprocals dual to the input vectors.
     Parameters:
         vectors: 2D array-like
-    Returns:
+    Returns: 2D array-like
         The reciprocals.
     '''
     result=[]
@@ -117,103 +117,6 @@ def reciprocals(vectors):
             result.append(array(buff[2,0:ndim]*2*pi))
     else:
         raise ValueError('Reciprocals error: the number of translation vectors should not be greater than 3.')
-    return result
-
-def tiling(cluster,vectors,indices,translate_icoord=False,return_map=False):
-    '''
-    Tile a supercluster by translations of the input cluster.
-    Parameters:
-        cluster: list of Point
-            The original cluster.
-        vectors: list of 1D ndarray
-            The translation vectors.
-        indices: any iterable object of tuple
-            It iterates over the indices of the translated clusters in the tiled superlattice.
-        translate_icoord: logical, optional
-            If it is set to be False, the icoord of the translated points will not be changed.
-            Otherwise, the icoord of the translated points will be set to be equal to the vectors connecting the original points and the translated points.
-        return_map: logical, optional
-            If it is set to be False, the tiling map will not be returned.
-            Otherwise, the tiling map will be returned.
-    Returns:
-        supercluster: list of Point
-            The supercluster tiled from the translations of the input cluster.
-        map: dict,optional
-            The tiling map, whose key is the translated point's id and value the original point's id.
-            Only when return_map is set to be True, will it be returned.
-    '''
-    supercluster,map=[],{}
-    if len(vectors)==0:
-        supercluster=cluster
-        for point in cluster:
-            map[point.id]=point.id
-    else:
-        for point in cluster:
-            if not hasattr(point.id,'site') or not isinstance(point.id.site,tuple):
-                raise ValueError("Function tiling error: to use this function non-trivially, the id of every input point must have a tuple attribute 'site'.")
-        for index in indices:
-            for point in cluster:
-                id=deepcopy(point.id.__dict__)
-                id['site']=tuple(array(point.id.site)+array(tuple(index)+(0,)))
-                new=ID(**id)
-                map[new]=map[point.id] if point.id in map else point.id
-                disp=inner(index,vectors)
-                if translate_icoord:
-                    supercluster.append(Point(id=new,rcoord=point.rcoord+disp,icoord=point.icoord+disp))
-                else:
-                    supercluster.append(Point(id=new,rcoord=point.rcoord+disp,icoord=point.icoord))
-    if return_map:
-        return supercluster,map
-    else:
-        return supercluster
-
-def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=6):
-    '''
-    This function returns all the bonds up to the nneighbour-th order.
-    Parameters:
-        cluster: list of Point
-            The cluster within which the bonds are looked for.
-            If the parameter vectors is not None, the inter cluster bonds will also be searched.
-        vectors: list of 1D ndarray, optional
-            The translation vectors for the cluster.
-        nneighbour: integer, optional
-            The highest order of neighbour to be searched.
-        max_coordinate_number: int, optional
-            The max coordinate number for every neighbour.
-    Returns:
-        result: list of Bond
-            All the bonds up to the nneighbour-th order.
-            Note that the input points will be used to form the zero-th neighbour bonds, i.e. the start point and the end point is the same point.
-    '''
-    result=[]
-    indices=[]
-    for i in xrange(len(vectors)):
-        indices.append(xrange(-nneighbour,nneighbour+1))
-    indices=list(itertools.product(*indices))
-    for index in indices:
-        if any(index):indices.remove(tuple([-i for i in index]))
-    supercluster,map=tiling(cluster=cluster,vectors=vectors,indices=indices,translate_icoord=True,return_map=True)
-    tree=cKDTree([point.rcoord for point in supercluster])
-    distances,indices=tree.query([point.rcoord for point in cluster],k=nneighbour*max_coordinate_number)
-    mdists=[inf for i in xrange(nneighbour+1)]
-    for dist in concatenate(distances):
-        for i,mdist in enumerate(mdists):
-            if abs(dist-mdist)<RZERO:
-                break
-            elif dist<mdist:
-                mdists[i+1:nneighbour+1]=mdists[i:nneighbour]
-                mdists[i]=dist
-                break
-    max_mdists=mdists[nneighbour]
-    for i,(dists,inds) in enumerate(zip(distances,indices)):
-        max_dists=dists[nneighbour*max_coordinate_number-1]
-        if max_dists<max_mdists or abs(max_dists-max_mdists)<RZERO:
-            raise ValueError("Function bonds error: the max_coordinate_number(%s) should be larger."%max_coordinate_number)
-        for dist,index in zip(dists,inds):
-            for neighbour,mdist in enumerate(mdists):
-                if abs(dist-mdist)<RZERO:
-                    buff=supercluster[index]
-                    result.append(Bond(neighbour,spoint=cluster[i],epoint=Point(id=map[buff.id],rcoord=buff.rcoord,icoord=buff.icoord)))
     return result
 
 class Point:
@@ -268,6 +171,95 @@ class Point:
         Overloaded operator(!=).
         '''
         return not self==other
+
+def tiling(cluster,vectors,indices,translate_icoord=False,return_map=False):
+    '''
+    Tile a supercluster by translations of the input cluster.
+    Parameters:
+        cluster: list of Point
+            The original cluster.
+        vectors: list of 1D ndarray
+            The translation vectors.
+        indices: any iterable object of tuple
+            It iterates over the indices of the translated clusters in the tiled superlattice.
+        translate_icoord: logical, optional
+            If it is set to be False, the icoord of the translated points will not be changed.
+            Otherwise, the icoord of the translated points will be set to be equal to the vectors connecting the original points and the translated points.
+        return_map: logical, optional
+            If it is set to be False, the tiling map will not be returned.
+            Otherwise, the tiling map will be returned.
+    Returns:
+        supercluster: list of Point
+            The supercluster tiled from the translations of the input cluster.
+        map: dict,optional
+            The tiling map, whose key is the translated point's id and value the original point's id.
+            Only when return_map is set to be True, will it be returned.
+    '''
+    supercluster,map=[],{}
+    if len(vectors)==0:
+        supercluster=cluster
+        for point in cluster:
+            map[point.id]=point.id
+    else:
+        for point in cluster:
+            if not hasattr(point.id,'site') or not isinstance(point.id.site,tuple):
+                raise ValueError("Function tiling error: to use this function non-trivially, the id of every input point must have a tuple attribute 'site'.")
+        for index in indices:
+            for point in cluster:
+                id=deepcopy(point.id.__dict__)
+                id['site']=tuple(array(point.id.site)+array(tuple(index)+(0,)))
+                new=ID(**id)
+                map[new]=map[point.id] if point.id in map else point.id
+                disp=inner(index,vectors)
+                if translate_icoord:
+                    supercluster.append(Point(id=new,rcoord=point.rcoord+disp,icoord=point.icoord+disp))
+                else:
+                    supercluster.append(Point(id=new,rcoord=point.rcoord+disp,icoord=point.icoord))
+    if return_map:
+        return supercluster,map
+    else:
+        return supercluster
+
+def translation(cluster,vector):
+    '''
+    This function returns the translated cluster.
+    Parameters:
+        cluster: list of Point / list of 1D array-like
+            The original cluster.
+        vector: 1D ndarray
+            The translation vector.
+    Returns: list of Point / list of 1D array-like
+        The translated cluster.
+    '''
+    if isinstance(cluster[0],Point):
+        return [Point(id=deepcopy(point.id),rcoord=point.rcoord+vector,icoord=deepcopy(point.icoord)) for point in cluster]
+    else:
+        return [array(rcoord)+vector for rcoord in cluster]
+
+def rotation(cluster,angle=0,axis=None,center=None):
+    '''
+    This function returns the rotated cluster.
+    Parameters:
+        cluster: list of Point / list of 1D array-like
+            The original cluster.
+        angle: float
+            The rotated angle
+        axis: 1D array-like, optional
+            The rotation axis. Default the z-axis.
+            Not supported yet.
+        center: 1D array-like, optional
+            The center of the axis. Defualt the origin.
+    Returns: list of Point / list of 1D array-like
+        The rotated points or coords.
+    '''
+    result=[]
+    if center is None: center=0
+    m11=cos(angle);m21=-sin(angle);m12=-m21;m22=m11
+    m=array([[m11,m12],[m21,m22]])
+    if isinstance(cluster[0],Point):
+        return [Point(id=deepcopy(point.id),rcoord=dot(m,point.rcoord-center)+center,icoord=deepcopy(point.icoord)) for point in cluster]
+    else:
+        return [dot(m,rcoord-center)+center for rcoord in cluster]
 
 class Bond:
     '''
@@ -325,6 +317,55 @@ class Bond:
         '''
         return Bond(self.neighbour,self.epoint,self.spoint)
 
+def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=6):
+    '''
+    This function returns all the bonds up to the nneighbour-th order.
+    Parameters:
+        cluster: list of Point
+            The cluster within which the bonds are looked for.
+            If the parameter vectors is not None, the inter cluster bonds will also be searched.
+        vectors: list of 1D ndarray, optional
+            The translation vectors for the cluster.
+        nneighbour: integer, optional
+            The highest order of neighbour to be searched.
+        max_coordinate_number: int, optional
+            The max coordinate number for every neighbour.
+    Returns:
+        result: list of Bond
+            All the bonds up to the nneighbour-th order.
+            Note that the input points will be used to form the zero-th neighbour bonds, i.e. the start point and the end point is the same point.
+    '''
+    result=[]
+    indices=[]
+    for i in xrange(len(vectors)):
+        indices.append(xrange(-nneighbour,nneighbour+1))
+    indices=list(itertools.product(*indices))
+    for index in indices:
+        if any(index):indices.remove(tuple([-i for i in index]))
+    supercluster,map=tiling(cluster=cluster,vectors=vectors,indices=indices,translate_icoord=True,return_map=True)
+    tree=cKDTree([point.rcoord for point in supercluster])
+    distances,indices=tree.query([point.rcoord for point in cluster],k=nneighbour*max_coordinate_number)
+    mdists=[inf for i in xrange(nneighbour+1)]
+    for dist in concatenate(distances):
+        for i,mdist in enumerate(mdists):
+            if abs(dist-mdist)<RZERO:
+                break
+            elif dist<mdist:
+                mdists[i+1:nneighbour+1]=mdists[i:nneighbour]
+                mdists[i]=dist
+                break
+    max_mdists=mdists[nneighbour]
+    for i,(dists,inds) in enumerate(zip(distances,indices)):
+        max_dists=dists[nneighbour*max_coordinate_number-1]
+        if max_dists<max_mdists or abs(max_dists-max_mdists)<RZERO:
+            raise ValueError("Function bonds error: the max_coordinate_number(%s) should be larger."%max_coordinate_number)
+        for dist,index in zip(dists,inds):
+            for neighbour,mdist in enumerate(mdists):
+                if abs(dist-mdist)<RZERO:
+                    buff=supercluster[index]
+                    result.append(Bond(neighbour,spoint=cluster[i],epoint=Point(id=map[buff.id],rcoord=buff.rcoord,icoord=buff.icoord)))
+    return result
+
 class Lattice(object):
     '''
     This class provides a unified description of 1D, quasi 1D, 2D, quasi 2D and 3D lattice systems.
@@ -362,7 +403,10 @@ class Lattice(object):
                 This variable is used in the search for bonds.
         '''
         self.name=name
-        self.points={p.id:p for p in points}
+        self.points={}
+        for point in deepcopy(points):
+            setattr(point.id,'scope',name)
+            self.points[point.id]=point
         self.vectors=vectors
         self.reciprocals=reciprocals(self.vectors)
         self.nneighbour=nneighbour
@@ -406,3 +450,30 @@ class Lattice(object):
         else:
             plt.savefig(self.name+'.png')
         plt.close()
+
+def SuperLattice(name,sublattices,vectors=[],nneighbour=1):
+    '''
+    This function returns the union of sublattices.
+    Parameters:
+        name: string
+            The name of the super-lattice.
+        sublattices: list of Lattice
+            The sub-lattices of the super-lattice.
+        vectors: list of 1D ndarray, optional
+            The translation vectors of the super-lattice.
+        nneighbour: integer,optional
+            The highest order of neighbours.
+    Returns: Lattice
+        The super-lattice.
+    '''
+    result=object.__new__(Lattice)
+    result.name=name
+    result.points={}
+    for lattice in sublattices:
+        result.points.update(lattice.points)
+    result.vectors=vectors
+    result.reciprocals=reciprocals(vectors)
+    result.nneighbour=nneighbour
+    result.bonds=bonds(cluster=result.points.values(),vectors=vectors,nneighbour=nneighbour)
+    result.sublattices=sublattices
+    return result

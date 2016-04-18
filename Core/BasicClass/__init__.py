@@ -1,9 +1,12 @@
 from ConstantPy import *
+from IDPy import *
 from GeometryPy import *
+from TablePy import *
+
 #from BaseSpacePy import *
 #from IndexPy import *
 #from IndexPackagePy import *
-#from TablePy import *
+
 #from NamePy import *
 #from OperatorPy import *
 #from TermPy import *

@@ -1,4 +1,5 @@
 from numpy import *
+from HamiltonianPP.Core.BasicClass.IDPy import *
 from HamiltonianPP.Core.BasicClass.GeometryPy import *
 import time,itertools
 def test_geometry():
@@ -8,8 +9,7 @@ def test_geometry():
     test_tiling()
     test_bonds()
     test_lattice()
-    #test_lattice_table()
-    #test_super_lattice() 
+    test_super_lattice() 
 
 def test_functions():
     print 'test_function'
@@ -62,12 +62,14 @@ def test_bonds():
     a1,a2=array([1.0,0.0]),array([0.0,1.0])
     for bond in bonds(cluster=[p1],vectors=[a1,a2],nneighbour=4):
         print bond
+    print
 
 def test_lattice():
+    print 'test_lattice'
     p1=Point(id=ID(site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1=array([1.0,0.0])
     a2=array([0.0,1.0])
-    m=20;n=20
+    m=10;n=10
     stime=time.time()
     a=Lattice('L'+str(m)+str(n),points=tiling(cluster=[p1],vectors=[a1,a2],indices=itertools.product(xrange(m),xrange(n))),vectors=[a1*m,a2*n],nneighbour=2)
     etime=time.time()
@@ -78,20 +80,16 @@ def test_lattice():
     etime=time.time()
     print 'Construction time for %s*%s cluster: %s'%(m,n,etime-stime)
     b.plot(show=True)
-
-def test_lattice_table():
-    p1=Point(site=0,rcoord=[0.0,0.0],icoord=[0.0,0.0],struct=Fermi(norbital=2,nspin=2,nnambu=2))
-    p2=Point(site=1,rcoord=[1.0,0.0],icoord=[0.0,0.0],struct=Fermi(norbital=2,nspin=2,nnambu=2))
-    a=Lattice('C',[p1,p2],nneighbour=2)
-    print a.table(nambu=True)
+    print
 
 def test_super_lattice():
+    print 'test_super_lattice'
     m=4
     points=[None for i in xrange(4)]
-    points[0]=Point(site=0,rcoord=[0.0,0.0],icoord=[0.0,0.0],struct=Fermi(norbital=1,nspin=2,nnambu=1))
-    points[1]=Point(site=1,rcoord=[0.0,1.0],icoord=[0.0,0.0],struct=Fermi(norbital=1,nspin=2,nnambu=1))
-    points[2]=Point(site=2,rcoord=[1.0,0.0],icoord=[0.0,0.0],struct=Fermi(norbital=1,nspin=2,nnambu=1))
-    points[3]=Point(site=3,rcoord=[1.0,1.0],icoord=[0.0,0.0],struct=Fermi(norbital=1,nspin=2,nnambu=1))
+    points[0]=Point(id=ID(site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    points[1]=Point(id=ID(site=(0,0,1)),rcoord=[0.0,1.0],icoord=[0.0,0.0])
+    points[2]=Point(id=ID(site=(0,0,2)),rcoord=[1.0,0.0],icoord=[0.0,0.0])
+    points[3]=Point(id=ID(site=(0,0,3)),rcoord=[1.0,1.0],icoord=[0.0,0.0])
     a1=array([2.0,0.0])
     a2=array([0.0,2.0])
     a=SuperLattice(
@@ -101,6 +99,4 @@ def test_super_lattice():
         nneighbour=2
         )
     a.plot()
-    print a.table()
-    for lattice in a.sublattices:
-        print lattice.table()
+    print
