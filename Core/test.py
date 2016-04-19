@@ -9,9 +9,6 @@ for arg in sys.argv:
     #if arg in ('name','all'):
     #    from Test.Name import *
     #    test_name()
-    #if arg in ('indexpackage','all'):
-    #    from Test.IndexPackage import *
-    #    test_indexpackage()
     #if arg in ('operator','all'):
     #    from Test.Operator import *
     #    test_operator()

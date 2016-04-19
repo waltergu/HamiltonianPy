@@ -7,6 +7,7 @@ def test_deg_fre():
     test_fid()
     test_fermi()
     test_configuration()
+    test_indexpackage()
 
 def test_table():
     print 'test_table'
@@ -62,4 +63,29 @@ def test_configuration():
     a[PID(site=(0,0,1))]=Fermi(atom=1,norbital=1,nspin=2,nnambu=2)
     print 'a: %s'%a
     print 'a.table:%s'%a.table(nambu=True)
+    print
+
+def test_indexpackage():
+    print 'test_indexpackage'
+    a=IndexPackage(1.0,orbitals=[0,0])
+    b=IndexPackage(2.0,atoms=[0,0])
+    c=IndexPackage(3.0,spins=[0,0])
+    print 'a: %s'%a
+    print 'b: %s'%b
+    print 'c: %s'%c
+    print 'c+a+b: %s'%(c+a+b)
+    print 'c+(a+b): %s'%(c+(a+b))
+    print "a*b: %s"%(a*b)
+    print "a*b*c: %s"%(a*b*c)
+    print "a*(b*c): %s"%(a*(b*c))
+    print "a*2.0j: %s"%(a*2.0j)
+    print "sigmax('sp'): %s"%sigmax('sp')
+    print "sigmax('ob'): %s"%sigmax('ob')
+    print "sigmax('sl'): %s"%sigmax('sl')
+    print "sigmay('sp'): %s"%sigmay('sp')
+    print "sigmay('ob'): %s"%sigmay('ob')
+    print "sigmay('sl'): %s"%sigmay('sl')
+    print "sigmaz('sp'): %s"%sigmaz('sp')
+    print "sigmaz('ob'): %s"%sigmaz('ob')
+    print "sigmaz('sl')*(3+2.0j): %s"%(sigmaz('sl')*(3+2.0j))
     print

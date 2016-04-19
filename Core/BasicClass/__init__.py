@@ -4,9 +4,6 @@ from DegreeOfFreedomPy import *
 from FermionicPackagePy import *
 
 #from BaseSpacePy import *
-#from IndexPy import *
-#from IndexPackagePy import *
-
 #from NamePy import *
 #from OperatorPy import *
 #from TermPy import *
