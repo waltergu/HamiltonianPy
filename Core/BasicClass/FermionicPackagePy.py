@@ -1,55 +1,16 @@
 '''
-Configurations of the internal degrees of freedom in a lattice, including:
-1) constants: ANNIHILATION, CREATION
-2) classes: Index, Internal, FID, Fermi,
+Fermionic degree of freedom package, including:
+1) constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY
+2) classes: FID, Fermi
 '''
 
-__all__=['ANNIHILATION','CREATION','Index','Internal','FID','Fermi']
+__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi']
 
-from collections import namedtuple,OrderedDict
-
-class Index(tuple):
-    '''
-    Index.
-    '''
-    def __new__(cls,pid,iid):
-        '''
-        Constructor.
-        Parameters:
-            pid: PID
-                The point index, i.e. the spatial part in a lattice of the index
-            iid: namedtuple
-                The internal index, i.e. the internal part in a point of the index.
-        '''
-        self=super(Index,cls).__new__(cls,pid+iid)
-        self.__dict__=pid._asdict()
-        self.__dict__.update(iid._asdict())
-        return self
-
-    def __repr__(self):
-        '''
-        Convert an instance to string.
-        '''
-        return ''.join(['Index(','=%r, '.join(self.__dict__.keys()),'=%r)'])%self
-
-    def replace(self,**karg):
-        '''
-        Return a new Index object with specified fields replaced with new values.
-        '''
-        result=tuple.__new__(Index,map(karg.pop,self.__dict__.keys(),self))
-        if karg:
-            raise ValueError('Index replace error: it got unexpected field names: %r'%karg.keys())
-        result.__dict__=OrderedDict()
-        for key,value in zip(self.__dict__.keys(),result):
-            result.__dict__[key]=value
-        return result
-
-class Internal(object):
-    '''
-    This class is the base class for all internal degrees of freedom in a point.
-    '''
+from DegreeOfFreedomPy import *
+from collections import namedtuple
 
 ANNIHILATION,CREATION=0,1
+DEFAULT_FERMIONIC_PRIORITY=['scope','nambu','spin','site','orbital']
 
 class FID(namedtuple('FID',['orbital','spin','nambu'])):
     '''
@@ -74,7 +35,7 @@ FID.__new__.__defaults__=(0,0,ANNIHILATION)
 
 class Fermi(Internal):
     '''
-    This class defines the fermionic degrees of freedom in a point.
+    This class defines the internal fermionic degrees of freedom in a single point.
     Attributes:
         atom: integer, default value 0
             The atom species on this point.
@@ -97,18 +58,19 @@ class Fermi(Internal):
             nspin: integer, optional
                 Number of spins.
             nnambu: integer, optional.
-                A number to indicate whether or not the Nambu space is used. 1 means no and 2 means yes.
+                A number to indicate whether or not the Nambu space is used.
+                1 means no and 2 means yes.
         '''
         self.atom=atom
         self.norbital=norbital
         self.nspin=nspin
-        self.nnambu=nnmabu
+        self.nnambu=nnambu
 
-    def __str__(self):
+    def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return 'Atom,norbital,nspin,nnambu: '+str(self.atom)+', '+str(self.norbital)+', '+str(self.nspin)+', '+str(self.nnambu)
+        return 'Fermi(Atom=%s, norbital=%s, nspin=%s, nnambu=%s)'%(self.atom,self.norbital,self.nspin,self.nnambu)
 
     def __eq__(self,other):
         '''
@@ -118,7 +80,7 @@ class Fermi(Internal):
 
     def table(self,pid,nambu=False,key=None):
         '''
-        This method returns a Table instance that contains all the allowed indices.
+        This method returns a Table instance that contains all the allowed indices constructed from an input pid and the internal degrees of freedom.
         Parameters:
             pid: PID
                 The spatial part of the indices.
@@ -126,9 +88,8 @@ class Fermi(Internal):
                 A flag to tag whether or not the nambu space is used.
             key: function
                 The key function used to sort the indices.
-        Returns:
-            result: Table
-                The index-sequence table.
+        Returns: Table
+            The index-sequence table.
         '''
         result=[]
         if nambu:
@@ -150,36 +111,22 @@ class Fermi(Internal):
         This methods is the oversimplified version of returning the sequence of a input state with orbital, spin and nambu index assigned.
         Note: the priority to generate the sequence cannot be modified by the users and is always "NSO".
         '''
-        if nambu in (0,1):
+        if fid.nambu in (0,1):
             return fid.orbital+fid.spin*self.norbital+fid.nambu*self.norbital*self.nspin
         else:
-            raise ValueError("Point seq_state error: the nambu index must be 0 or 1.")
+            raise ValueError("Fermi seq_state error: the nambu index must be 0 or 1.")
 
     def state_index(self,seq_state):
         '''
-        This methods returns the the orbital, spin and nambu index of a state whose sequence equals the input seq_state.
+        This methods returns an instance of FID that contains the orbital, spin and nambu index of a state whose sequence equals the input seq_state.
         Parameters:
             seq_state: integer
                 The sequence of the state.
-        Returns:
-            A dict in the form {'spin':...,'orbital':...,'nambu':...}
+        Returns: FID
+            The corresponding FID.
         Note: This method should be used in pairs with the method seq_state to ensure the correct sequence-index correspondence.
         '''
         spin=seq_state%(self.norbital*self.nspin)/self.norbital
         orbital=seq_state%(self.norbital*self.nspin)%self.norbital
         nambu=seq_state/(self.norbital*self.nspin)
         return FID(spin=spin,orbital=orbital,nambu=nambu)
-
-class Configuration(dict):
-    '''
-    '''
-    def __init__(self,dict=None,priority=None):
-        '''
-        Constructor.
-        '''
-        if dict is not None:
-            self.update(dict)
-        self.priority=priority
-
-    def table(self):
-        pass

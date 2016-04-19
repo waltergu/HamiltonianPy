@@ -1,7 +1,7 @@
 from ConstantPy import *
-from IDPy import *
 from GeometryPy import *
-from TablePy import *
+from DegreeOfFreedomPy import *
+from FermionicPackagePy import *
 
 #from BaseSpacePy import *
 #from IndexPy import *
