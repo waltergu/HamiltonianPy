@@ -3,9 +3,9 @@ for arg in sys.argv:
     if arg in ('name','all'):
         from Test.Name import *
         test_name()
-    if arg in ('index','all'):
-        from Test.Index import *
-        test_index()
+    if arg in ('configuration','all'):
+        from Test.Configuration import *
+        test_configuration()
     if arg in ('table','all'):
         from Test.Table import *
         test_table()

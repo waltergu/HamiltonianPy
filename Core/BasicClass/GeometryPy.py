@@ -1,15 +1,15 @@
 '''
 Geometry, including
 1) functions: azimuthd, azimuth, polard, polar, volume, is_parallel, reciprocals, tiling, translation, rotation, bonds, SuperLattice
-2) classes: Point, Bond, Lattice
+2) classes: PID, Point, Bond, Lattice
 '''
 
-__all__=['azimuthd','azimuth','polard','polar','volume','is_parallel','reciprocals','tiling','translation','rotation','bonds','SuperLattice','Point','Bond','Lattice']
+__all__=['azimuthd','azimuth','polard','polar','volume','is_parallel','reciprocals','tiling','translation','rotation','bonds','SuperLattice','PID','Point','Bond','Lattice']
 
 from numpy import *
 from numpy.linalg import norm,inv
 from ConstantPy import RZERO
-from IDPy import ID
+from collections import namedtuple
 from scipy.spatial import cKDTree
 from copy import deepcopy
 import matplotlib.pyplot as plt
@@ -119,32 +119,45 @@ def reciprocals(vectors):
         raise ValueError('Reciprocals error: the number of translation vectors should not be greater than 3.')
     return result
 
+class PID(namedtuple('PID',['scope','site'])):
+    '''
+    The ID of a point.
+    Attributes:
+        scope: any hashable object, recommend string
+            The scope in which the point lives.
+            Usually, it is same to the name of the cluster/sublattice/lattice the point belongs to.
+        site: any hashable object, recommend tuple
+            The site index of the point.
+    '''
+
+PID.__new__.__defaults__=(None,)*len(PID._fields)
+
 class Point:
     '''
     Point.
     Attributes:
-        id: ID
-            The specific id of a point.
+        pid: PID
+            The specific ID of a point.
         rcoord: 1D ndarray
             The coordinate in real space.
         icoord: 1D ndarray
             The coordinate in lattice space.
     '''
 
-    def __init__(self,id,rcoord=None,icoord=None):
+    def __init__(self,pid,rcoord=None,icoord=None):
         '''
         Constructor.
         Parameters:
-            id: ID
-                The specific id of a point
+            pid: PID
+                The specific ID of a point
             rcoord: 1D array-like
                 The coordinate in real space.
             icoord: 1D array-like,optional
                 The coordinate in lattice space.
         '''
-        if not isinstance(id,ID):
-            raise ValueError("Point constructor error: the 'id' parameter must be an instance of ID.")
-        self.id=id
+        if not isinstance(pid,PID):
+            raise ValueError("Point constructor error: the 'pid' parameter must be an instance of PID.")
+        self.pid=pid
         self.rcoord=array([]) if rcoord is None else array(rcoord)
         self.icoord=array([]) if icoord is None else array(icoord)
 
@@ -152,19 +165,19 @@ class Point:
         '''
         Convert an instance to string.
         '''
-        return 'id,rcoord,icoord: %s, %s, %s'%(self.id,self.rcoord,self.icoord)
+        return 'pid,rcoord,icoord: %s, %s, %s'%(self.pid,self.rcoord,self.icoord)
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return '<Point>id,rcoord,icoord: %s, %s, %s'%(self.id,self.rcoord,self.icoord)
+        return '<Point>pid,rcoord,icoord: %s, %s, %s'%(self.pid,self.rcoord,self.icoord)
 
     def __eq__(self,other):
         '''
         Overloaded operator(==).
         '''
-        return self.id==other.id and norm(self.rcoord-other.rcoord)<RZERO and norm(self.icoord-other.icoord)<RZERO
+        return self.pid==other.pid and norm(self.rcoord-other.rcoord)<RZERO and norm(self.icoord-other.icoord)<RZERO
     
     def __ne__(self,other):
         '''
@@ -192,29 +205,29 @@ def tiling(cluster,vectors,indices,translate_icoord=False,return_map=False):
         supercluster: list of Point
             The supercluster tiled from the translations of the input cluster.
         map: dict,optional
-            The tiling map, whose key is the translated point's id and value the original point's id.
+            The tiling map, whose key is the translated point's pid and value the original point's pid.
             Only when return_map is set to be True, will it be returned.
     '''
     supercluster,map=[],{}
     if len(vectors)==0:
         supercluster=cluster
         for point in cluster:
-            map[point.id]=point.id
+            map[point.pid]=point.pid
     else:
         for point in cluster:
-            if not hasattr(point.id,'site') or not isinstance(point.id.site,tuple):
-                raise ValueError("Function tiling error: to use this function non-trivially, the id of every input point must have a tuple attribute 'site'.")
+            if not hasattr(point.pid,'site') or not isinstance(point.pid.site,tuple):
+                raise ValueError("Function tiling error: to use this function non-trivially, the pid of every input point must have a tuple attribute 'site'.")
         for index in indices:
             for point in cluster:
-                id=deepcopy(point.id.__dict__)
-                id['site']=tuple(array(point.id.site)+array(tuple(index)+(0,)))
-                new=ID(**id)
-                map[new]=map[point.id] if point.id in map else point.id
+                pid=deepcopy(point.pid.__dict__)
+                pid['site']=tuple(array(point.pid.site)+array(tuple(index)+(0,)))
+                new=PID(**pid)
+                map[new]=map[point.pid] if point.pid in map else point.pid
                 disp=inner(index,vectors)
                 if translate_icoord:
-                    supercluster.append(Point(id=new,rcoord=point.rcoord+disp,icoord=point.icoord+disp))
+                    supercluster.append(Point(pid=new,rcoord=point.rcoord+disp,icoord=point.icoord+disp))
                 else:
-                    supercluster.append(Point(id=new,rcoord=point.rcoord+disp,icoord=point.icoord))
+                    supercluster.append(Point(pid=new,rcoord=point.rcoord+disp,icoord=point.icoord))
     if return_map:
         return supercluster,map
     else:
@@ -232,7 +245,7 @@ def translation(cluster,vector):
         The translated cluster.
     '''
     if isinstance(cluster[0],Point):
-        return [Point(id=deepcopy(point.id),rcoord=point.rcoord+vector,icoord=deepcopy(point.icoord)) for point in cluster]
+        return [Point(pid=deepcopy(point.pid),rcoord=point.rcoord+vector,icoord=deepcopy(point.icoord)) for point in cluster]
     else:
         return [array(rcoord)+vector for rcoord in cluster]
 
@@ -257,7 +270,7 @@ def rotation(cluster,angle=0,axis=None,center=None):
     m11=cos(angle);m21=-sin(angle);m12=-m21;m22=m11
     m=array([[m11,m12],[m21,m22]])
     if isinstance(cluster[0],Point):
-        return [Point(id=deepcopy(point.id),rcoord=dot(m,point.rcoord-center)+center,icoord=deepcopy(point.icoord)) for point in cluster]
+        return [Point(pid=deepcopy(point.pid),rcoord=dot(m,point.rcoord-center)+center,icoord=deepcopy(point.icoord)) for point in cluster]
     else:
         return [dot(m,rcoord-center)+center for rcoord in cluster]
 
@@ -363,7 +376,7 @@ def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=6):
             for neighbour,mdist in enumerate(mdists):
                 if abs(dist-mdist)<RZERO:
                     buff=supercluster[index]
-                    result.append(Bond(neighbour,spoint=cluster[i],epoint=Point(id=map[buff.id],rcoord=buff.rcoord,icoord=buff.icoord)))
+                    result.append(Bond(neighbour,spoint=cluster[i],epoint=Point(pid=map[buff.pid],rcoord=buff.rcoord,icoord=buff.icoord)))
     return result
 
 class Lattice(object):
@@ -405,8 +418,8 @@ class Lattice(object):
         self.name=name
         self.points={}
         for point in deepcopy(points):
-            setattr(point.id,'scope',name)
-            self.points[point.id]=point
+            point.pid=point.pid._replace(scope=name)
+            self.points[point.pid]=point
         self.vectors=vectors
         self.reciprocals=reciprocals(self.vectors)
         self.nneighbour=nneighbour

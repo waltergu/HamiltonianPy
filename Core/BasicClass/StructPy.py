@@ -3,62 +3,8 @@ The inner structure of a point.
 '''
 from IndexPy import *
 from TablePy import *
-class Struct(object):
-    '''
-    This class is the base class for all inner stuctures of a point.
-    '''
-    def __init__(self,**karg):
-        '''
-        Constructor.
-        '''
-        for key in karg:
-            setattr(self,key,karg[key])
-
-    def __ne__(self,other):
-        '''
-        Overloaded operator(!=).
-        '''
-        return not self==other
 
 class Fermi(Struct):
-    '''
-    This class defines the fermi structure of a point.
-    Attributes:
-        atom: integer, default value 0
-            The atom species on this point.
-        norbital: integer, default value 1
-            Number of orbitals.
-        nspin: integer, default value 2
-            Number of spins.
-        nnambu: integer, default value 1.
-            An integer to indicate whether or not using the Nambu space. 1 means no and 2 means yes.
-    '''
-    def __init__(self,atom=0,norbital=1,nspin=2,nnambu=1):
-        '''
-        Constructor.
-            atom: integer, optional
-                The atom species.
-            norbital: integer, optional
-                Number of orbitals.
-            nspin: integer, optional
-                Number of spins.
-            nnambu: integer, optional.
-                A number to indicate whether or not the Nambu space is used. 1 means no and 2 means yes.
-        '''
-        super(Fermi,self).__init__(atom=atom,norbital=norbital,nspin=nspin,nnambu=nnambu)
-
-    def __str__(self):
-        '''
-        Convert an instance to string.
-        '''
-        return 'Atom,norbital,nspin,nnambu: '+str(self.atom)+', '+str(self.norbital)+', '+str(self.nspin)+', '+str(self.nnambu)
-
-    def __eq__(self,other):
-        '''
-        Overloaded operator(==).
-        '''
-        return self.atom==other.atom and self.norbital==other.norbital and self.nspin==other.nspin and self.nnambu==other.nnambu
-
     def table(self,scope,site,nambu=False,priority=None):
         '''
         This method returns a Table instance that contains all the allowed indices which can be defined on this structure.

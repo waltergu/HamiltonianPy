@@ -1,5 +1,4 @@
 from numpy import *
-from HamiltonianPP.Core.BasicClass.IDPy import *
 from HamiltonianPP.Core.BasicClass.GeometryPy import *
 import time,itertools
 def test_geometry():
@@ -29,15 +28,15 @@ def test_functions():
 
 def test_point():
     print 'test_point'
-    a=Point(id=ID(site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
-    b=Point(id=ID(site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    a=Point(pid=PID(site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    b=Point(pid=PID(site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     print '%s==%s: %s'%(b,a,b==a)
     print '%s is %s: %s'%(b,a,b is a)
     print
 
 def test_bond():
     print 'test_bond'
-    a=Bond(0,Point(id=ID(site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0]),Point(id=ID(site=1),rcoord=[0.0,1.0],icoord=[0.0,0.0]))
+    a=Bond(0,Point(pid=PID(site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0]),Point(pid=PID(site=1),rcoord=[0.0,1.0],icoord=[0.0,0.0]))
     print 'a:\n%s'%a
     print 'a.rcoord: %s'%a.rcoord
     print 'a.icoord: %s'%a.icoord
@@ -46,7 +45,7 @@ def test_bond():
 
 def test_tiling():
     print 'test_tiling'
-    p1=Point(id=ID(scope='WG',site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    p1=Point(pid=PID(scope='WG',site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     m,n=3,3
     a1=array([1.0,0.0])
     a2=array([0.0,1.0])
@@ -58,7 +57,7 @@ def test_tiling():
 
 def test_bonds():
     print 'test_bonds'
-    p1=Point(id=ID(site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    p1=Point(pid=PID(site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1,a2=array([1.0,0.0]),array([0.0,1.0])
     for bond in bonds(cluster=[p1],vectors=[a1,a2],nneighbour=4):
         print bond
@@ -66,7 +65,7 @@ def test_bonds():
 
 def test_lattice():
     print 'test_lattice'
-    p1=Point(id=ID(site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    p1=Point(pid=PID(site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1=array([1.0,0.0])
     a2=array([0.0,1.0])
     m=10;n=10
@@ -86,10 +85,10 @@ def test_super_lattice():
     print 'test_super_lattice'
     m=4
     points=[None for i in xrange(4)]
-    points[0]=Point(id=ID(site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
-    points[1]=Point(id=ID(site=(0,0,1)),rcoord=[0.0,1.0],icoord=[0.0,0.0])
-    points[2]=Point(id=ID(site=(0,0,2)),rcoord=[1.0,0.0],icoord=[0.0,0.0])
-    points[3]=Point(id=ID(site=(0,0,3)),rcoord=[1.0,1.0],icoord=[0.0,0.0])
+    points[0]=Point(pid=PID(site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    points[1]=Point(pid=PID(site=(0,0,1)),rcoord=[0.0,1.0],icoord=[0.0,0.0])
+    points[2]=Point(pid=PID(site=(0,0,2)),rcoord=[1.0,0.0],icoord=[0.0,0.0])
+    points[3]=Point(pid=PID(site=(0,0,3)),rcoord=[1.0,1.0],icoord=[0.0,0.0])
     a1=array([2.0,0.0])
     a2=array([0.0,2.0])
     a=SuperLattice(
