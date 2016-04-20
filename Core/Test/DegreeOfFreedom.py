@@ -1,6 +1,6 @@
 from HamiltonianPP.Core.BasicClass.GeometryPy import *
 from HamiltonianPP.Core.BasicClass.DegreeOfFreedomPy import *
-from HamiltonianPP.Core.BasicClass.FermionicPackagePy import *
+from HamiltonianPP.Core.BasicClass.FermionicPackage import *
 def test_deg_fre():
     test_table()
     test_index()

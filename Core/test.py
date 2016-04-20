@@ -6,30 +6,27 @@ for arg in sys.argv:
     if arg in ('degfre','all'):
         from Test.DegreeOfFreedom import *
         test_deg_fre()
-    #if arg in ('name','all'):
-    #    from Test.Name import *
-    #    test_name()
-    #if arg in ('operator','all'):
-    #    from Test.Operator import *
-    #    test_operator()
-    #if arg in ('basespace','all'):
-    #    from Test.BaseSpace import *
-    #    test_basespace()
+    if arg in ('basespace','all'):
+        from Test.BaseSpace import *
+        test_basespace()
+    if arg in ('engineapp','all'):
+        from Test.EngineApp import *
+        test_engineapp()
+    if arg in ('operator','all'):
+        from Test.Operator import *
+        test_operator()
+    if arg in ('term','all'):
+        from Test.Term import *
+        test_term()
+
+
     #if arg in ('basise','all'):
     #    from Test.BasisE import *
     #    test_basise()
-    #if arg in ('quadratic','all'):
-    #    from Test.Quadratic import *
-    #    test_quadratic()
-    #if arg in ('hubbard','all'):
-    #    from Test.Hubbard import *
-    #    test_hubbard()
     #if arg in ('optrep','all'):
     #    from Test.OperatorRepresentation import *
     #    test_opt_rep()
-    #if arg in ('engineapp','all'):
-    #    from Test.EngineApp import *
-    #    test_engineapp()
+
     #if arg in ('lanczos','all'):
     #    from Test.Lanczos import *
     #    test_lanczos()

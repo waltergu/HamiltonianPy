@@ -1,8 +1,77 @@
 '''
-Engine and App.
+Engine and App, including:
+1) classes: Name, Engine, App
 '''
-from NamePy import *
+
+__all__=['Name','Engine','App']
+
+from collections import OrderedDict
 import time
+
+class Name:
+    '''
+    This class provides an engine with a name.
+    Attributes:
+        prefix: string
+            Description of the engine.
+        suffix: string
+            Additional remarks of the engine.
+        _alter: OrderedDict
+            It contains the contant parameters of the engine.
+        _const: OrderedDict
+            It contains the alterable parameters of the engine.
+    '''
+    
+    def __init__(self,prefix='',suffix=''):
+        self.prefix=prefix
+        self.suffix=suffix
+        self._const=OrderedDict()
+        self._alter=OrderedDict()
+    
+    def __str__(self):
+        return self.full
+
+    def update(self,const=None,alter=None):
+        if const is not None:
+            self._const.update(const)
+        if alter is not None:
+            self._alter.update(alter)
+
+    @property
+    def const(self):
+        '''
+        This method returns a string containing only contant parameters as the name of the engine.
+        '''
+        result=self.prefix+'_'
+        for obj in self._const.itervalues():
+            result+=repr(obj)+'_'
+        result+=self.suffix
+        return result
+
+    @property
+    def alter(self):
+        '''
+        This method returns a string containing only alterable parameters as the name of the engine.
+        '''
+        result=self.prefix+'_'
+        for obj in self._alter.itervalues():
+            result+=repr(obj)+'_'
+        result+=self.suffix
+        return result
+
+    @property
+    def full(self):
+        '''
+        This method returns a string containing both contant parameters and alterable parameters as the name of the engine.
+        '''
+        result=self.prefix+'_'
+        for obj in self._const.itervalues():
+            result+=repr(obj)+'_'
+        for obj in self._alter.itervalues():
+            result+=repr(obj)+'_'
+        result+=self.suffix
+        return result
+
 class Engine(object):
     '''
     This class is the base class for all Hamiltonian-oriented classes.
@@ -25,7 +94,7 @@ class Engine(object):
         '''
         This method automatically initialize the attributes of an Engine instance.
         '''
-        result=object.__new__(cls,*arg,**karg)
+        result=object.__new__(cls)
         result.din=karg['din'] if 'din' in karg else '.'
         result.dout=karg['dout'] if 'dout' in karg else '.'
         result.name=Name(prefix=karg['name'],suffix=result.__class__.__name__) if 'name' in karg else Name(suffix=result.__class__.__name__)
@@ -34,9 +103,6 @@ class Engine(object):
         result.waiting_list=[]
         result.apps={}
         return result
-
-    def __init__(self,*arg,**karg):
-        pass
 
     def addapps(self,name=None,app=None):
         '''
@@ -106,7 +172,7 @@ class App(object):
         '''
         This method automatically initialize the attributes of an App instance.
         '''
-        result=object.__new__(cls,*arg,**karg)
+        result=object.__new__(cls)
         result.plot=karg['plot'] if 'plot' in karg else True
         result.show=karg['show'] if 'show' in karg else True
         result.parallel=karg['parallel'] if 'parallel' in karg else False
@@ -114,6 +180,3 @@ class App(object):
         result.save_data=karg['save_data'] if 'save_data' in karg else True
         if 'run' in karg: result.run=karg['run']
         return result
-
-    def __init__(self,*arg,**karg):
-        pass

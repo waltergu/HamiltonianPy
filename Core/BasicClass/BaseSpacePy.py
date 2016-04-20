@@ -1,11 +1,17 @@
 '''
-BaseSpace, including KSpace and TSpace.
+BaseSpace, including
+1) classes: BaseSpace
+2) functions: KSpace, line_1d, rectangle_gxm, rectangle_gym, rectangle_bz, square_gxm, square_gym, square_bz, hexagon_gkm, hexagon_bz, TSpace.
 '''
-from BasicGeometryPy import *
+
+__all__=['BaseSpace', 'KSpace', 'line_1d', 'rectangle_gxm', 'rectangle_gym', 'rectangle_bz', 'square_gxm', 'square_gym', 'square_bz', 'hexagon_gkm', 'hexagon_bz', 'TSpace']
+
+from numpy import *
 from numpy.linalg import inv
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 import itertools
+
 class BaseSpace:
     '''
     This class provides a unified description of all kinds of parameter spaces.

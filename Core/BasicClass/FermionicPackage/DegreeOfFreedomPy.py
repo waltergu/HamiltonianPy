@@ -8,7 +8,7 @@ Fermionic degree of freedom package, including:
 __all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','IndexPackage','IndexPackageList','sigmax','sigmay','sigmaz']
 
 from numpy import *
-from DegreeOfFreedomPy import *
+from ..DegreeOfFreedomPy import *
 from copy import deepcopy
 from collections import namedtuple
 

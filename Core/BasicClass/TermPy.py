@@ -1,8 +1,11 @@
 '''
 Term.
 '''
-from numpy import *
+
+__all__=['Term']
+
 from copy import deepcopy
+
 class Term(object):
     '''
     This class is the base class for all kinds of terms contained in a Hamiltonian.
