@@ -9,7 +9,6 @@ __all__=['OperatorF','F_Linear','F_Quadratic','F_Hubbard']
 from numpy import *
 from DegreeOfFreedomPy import ANNIHILATION,CREATION
 from ..OperatorPy import *
-from copy import deepcopy
 
 class OperatorF(Operator):
     '''
@@ -17,11 +16,11 @@ class OperatorF(Operator):
     Attributes:
     mode: string
         The tag used to distinguish operators with different types or ranks.
-    indices: list of Index
+    indices: tuple of Index
         The associated indices of the operator, whose length should be equal to the operator's rank;
-    rcoords: list of 1D ndarray
+    rcoords: tuple of 1D ndarray
         The associated real coordinates of the operator.
-    icoords: list of 1D ndarray
+    icoords: tuple of 1D ndarray
         The associated lattice coordinates of the operator.
     seqs: tuple of integer
         The associated sequences of the operator, whose length should be equal to the operator's rank.
@@ -44,13 +43,9 @@ class OperatorF(Operator):
     def __init__(self,mode,value,indices,rcoords,icoords,seqs):
         self.mode=mode
         self.value=value
-        self.indices=indices
-        self.rcoords=[]
-        for obj in rcoords:
-            self.rcoords.append(array(obj))
-        self.icoords=[]
-        for obj in icoords:
-            self.icoords.append(array(obj))
+        self.indices=tuple(indices)
+        self.rcoords=tuple([array(obj) for obj in rcoords])
+        self.icoords=tuple([array(obj) for obj in icoords])
         self.seqs=tuple(seqs)
         self.set_id()
 
@@ -58,37 +53,20 @@ class OperatorF(Operator):
         '''
         Convert an instance to string.
         '''
-        result=[]
-        result.append('mode=%s'%self.mode)
-        result.append('value=%s'%self.value)
-        result.append('indices=%s'%self.indices)
-        result.append('rcoords=%s'%self.rcoords)
-        result.append('icoords=%s'%self.icoords)
-        result.append('seqs='+str(self.seqs))
-        return 'Operator('+', '.join(result)+')'
+        return 'Operator(mode=%s, value=%s, indices=%s, rcoords=%s, icoords=%s, seqs=%s)'%(self.mode,self.value,self.indices,self.rcoords,self.icoords,self.seqs)
 
     def set_id(self):
         '''
         Set the unique id of this operator.
         '''
-        result=[]
-        result.append(self.mode)
-        result.append(tuple(self.indices))
-        result.append(str(self.rcoords))
-        result.append(str(self.icoords))
-        result.append(self.seqs)
-        self.id=tuple(result)
+        self.id=(self.mode,self.indices,str(self.rcoords),str(self.icoords),self.seqs)
 
     @property
     def dagger(self):
         '''
         The dagger, i.e. the Hermitian conjugate of an operator.
         '''
-        indices=[]
-        for obj in self.indices:
-            indices.append(obj.replace(nambu=1-obj.nambu))
-        indices.reverse()
-        return OperatorF(mode=self.mode,value=conjugate(self.value),indices=indices,rcoords=list(reversed(self.rcoords)),icoords=list(reversed(self.icoords)),seqs=reversed(list(self.seqs)))
+        return OperatorF(mode=self.mode,value=conjugate(self.value),indices=reversed([obj.replace(nambu=1-obj.nambu) for obj in self.indices]),rcoords=reversed(list(self.rcoords)),icoords=reversed(list(self.icoords)),seqs=reversed(list(self.seqs)))
 
     @property
     def rank(self):

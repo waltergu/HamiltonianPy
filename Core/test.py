@@ -15,9 +15,9 @@ for arg in sys.argv:
     if arg in ('operator','all'):
         from Test.Operator import *
         test_operator()
-    if arg in ('term','all'):
-        from Test.Term import *
-        test_term()
+    #if arg in ('term','all'):
+    #    from Test.Term import *
+    #    test_term()
 
 
     #if arg in ('basise','all'):

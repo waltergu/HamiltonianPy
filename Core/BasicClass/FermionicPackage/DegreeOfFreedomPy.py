@@ -9,7 +9,7 @@ __all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','I
 
 from numpy import *
 from ..DegreeOfFreedomPy import *
-from copy import deepcopy
+from copy import copy
 from collections import namedtuple
 
 ANNIHILATION,CREATION=0,1
@@ -140,11 +140,11 @@ class IndexPackage:
     Attributes:
         value: float or complex
             The overall coefficient of the index pack.
-        atoms: 1D ndarray of integers with len==2
+        atoms: tuple of integers with len==2
             The atom indices for the quadratic term.
-        orbitals: 1D ndarray of integers with len==2
+        orbitals: tuple of integers with len==2
             The orbital indices for the quadratic term.
-        spins: 1D ndarray of integers with len==2
+        spins: tuple of integers with len==2
             The spin indices for the quadratic term.
     '''
     
@@ -171,18 +171,18 @@ class IndexPackage:
                 The spin indices.
         '''
         self.value=value
-        if atom1 is not None and atom2 is not None: self.atoms=array([atom1,atom2])
-        if orbital1 is not None and orbital2 is not None: self.orbitals=array([orbital1,orbital2])
-        if spin1 is not None and spin2 is not None: self.spins=array([spin1,spin2])
+        if atom1 is not None and atom2 is not None: self.atoms=(atom1,atom2)
+        if orbital1 is not None and orbital2 is not None: self.orbitals=(orbital1,orbital2)
+        if spin1 is not None and spin2 is not None: self.spins=(spin1,spin2)
         if atoms is not None:
-            if len(atoms)==2: self.atoms=array(atoms)
-            elif len(atoms)==1: self.atoms=array([atoms[0],atoms[0]])
+            if len(atoms)==2: self.atoms=tuple(atoms)
+            elif len(atoms)==1: self.atoms=(atoms[0],atoms[0])
         if orbitals is not None:
-            if len(orbitals)==2: self.orbitals=array(orbitals)
-            elif len(orbitals)==1: self.orbitals=array([orbitals[0],orbitals[0]])
+            if len(orbitals)==2: self.orbitals=tuple(orbitals)
+            elif len(orbitals)==1: self.orbitals=([orbitals[0],orbitals[0]])
         if spins is not None:
-            if len(spins)==2: self.spins=array(spins)
-            elif len(spins)==1: self.spins=array([spins[0],spins[0]])
+            if len(spins)==2: self.spins=tuple(spins)
+            elif len(spins)==1: self.spins=([spins[0],spins[0]])
 
     def __repr__(self):
         '''
@@ -191,11 +191,11 @@ class IndexPackage:
         temp=[]
         temp.append('value=%s'%self.value)
         if hasattr(self,'atoms'):
-            temp.append('atoms=%s'%self.atoms)
+            temp.append('atoms='+str(self.atoms))
         if hasattr(self,'orbitals'):
-            temp.append('orbitals=%s'%self.orbitals)
+            temp.append('orbitals='+str(self.orbitals))
         if hasattr(self,'spins'):
-            temp.append('spins=%s'%self.spins)
+            temp.append('spins='+str(self.spins))
         return ''.join(['IndexPackage(',', '.join(temp),')'])
 
     def __add__(self,other):
@@ -203,11 +203,11 @@ class IndexPackage:
         Overloaded operator(+), which supports the addition of an IndexPackage instance with an IndexPackage/IndexPackageList instance.
         '''
         result=IndexPackageList()
-        result.append(deepcopy(self))
+        result.append(self)
         if isinstance(other,IndexPackage):
-            result.append(deepcopy(other))
+            result.append(other)
         elif isinstance(other,IndexPackageList):
-            result.extend(deepcopy(other))
+            result.extend(other)
         else:
             raise ValueError("IndexPackage '+' error: the 'other' parameter must be of class IndexPackage or IndexPackageList.")
         return result
@@ -218,26 +218,26 @@ class IndexPackage:
         '''
         if isinstance(other,IndexPackage):
             result=IndexPackage(self.value*other.value)
-            if hasattr(self,'atoms'): result.atoms=copy(self.atoms)
-            if hasattr(self,'orbitals'): result.orbitals=copy(self.orbitals)
-            if hasattr(self,'spins'): result.spins=copy(self.spins)
+            if hasattr(self,'atoms'): result.atoms=self.atoms
+            if hasattr(self,'orbitals'): result.orbitals=self.orbitals
+            if hasattr(self,'spins'): result.spins=self.spins
             if hasattr(other,'atoms'):
                 if not hasattr(result,'atoms'):
-                    result.atoms=copy(other.atoms)
+                    result.atoms=other.atoms
                 else:
                     raise ValueError("IndexPackage '*' error: 'self' and 'other' cannot simultaneously have the 'atoms' attribute.")
             if hasattr(other,'orbitals'):
                 if not hasattr(result,'orbitals'):
-                    result.orbitals=copy(other.orbitals)
+                    result.orbitals=other.orbitals
                 else:
                     raise ValueError("IndexPackage '*' error: 'self' and 'other' cannot simultaneously have the 'orbitals' attribute.")
             if hasattr(other,'spins'):
                 if not hasattr(result,'spins'):
-                    result.spins=copy(other.spins)
+                    result.spins=other.spins
                 else:
                     raise ValueError("IndexPackage '*' error: 'self' and 'other' cannot simultaneously have the 'spins' attribute.")
         else:
-            result=deepcopy(self)
+            result=copy(self)
             result.value=self.value*other
         return IndexPackageList(result)
     
@@ -270,17 +270,17 @@ class IndexPackageList(list):
         '''
         Convert an instance to string.
         '''
-        return ','.join(['IndexPackage %s: %s'%(i,obj) for i,obj in enumerate(self)])
+        return 'IndexPackageList('+', '.join([str(obj) for obj in self])
                 
     def __add__(self,other):
         '''
         Overloaded operator(+), which supports the addition of an IndexPackageList instance with an IndexPackage/IndexPackageList instance.
         '''
-        result=IndexPackageList(*deepcopy(self))
+        result=IndexPackageList(*self)
         if isinstance(other,IndexPackage):
-            result.append(deepcopy(other))
+            result.append(other)
         elif isinstance(other,IndexPackageList):
-            result.extend(deepcopy(other))
+            result.extend(other)
         else:
             raise ValueError("IndexPackageList '+' error: the 'other' parameter must be of class IndexPackage or IndexPackageList.")
         return result

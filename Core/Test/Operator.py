@@ -61,11 +61,11 @@ def test_operator():
     f+=c
     f+=c
     f+=d
-    print '2*c+d: %s'%f
+    print '2*c+d:\n%s'%f
     f*=2.0
-    print '4*c+2*d: %s'%f
+    print '4*c+2*d:\n%s'%f
     f-=2*d
-    print '4*c: %s'%f
+    print '4*c:\n%s'%f
     print 'c: %s'%c
     print 'd: %s'%d
     print

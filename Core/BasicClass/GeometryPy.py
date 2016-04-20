@@ -11,7 +11,7 @@ from numpy.linalg import norm,inv
 from ConstantPy import RZERO
 from collections import namedtuple
 from scipy.spatial import cKDTree
-from copy import deepcopy
+from copy import copy,deepcopy
 import matplotlib.pyplot as plt
 import itertools 
 
@@ -161,17 +161,11 @@ class Point:
         self.rcoord=array([]) if rcoord is None else array(rcoord)
         self.icoord=array([]) if icoord is None else array(icoord)
 
-    def __str__(self):
-        '''
-        Convert an instance to string.
-        '''
-        return 'pid,rcoord,icoord: %s, %s, %s'%(self.pid,self.rcoord,self.icoord)
-
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return '<Point>pid,rcoord,icoord: %s, %s, %s'%(self.pid,self.rcoord,self.icoord)
+        return 'Point(pid=%s, rcoord=%s, icoord=%s)'%(self.pid,self.rcoord,self.icoord)
 
     def __eq__(self,other):
         '''
@@ -245,7 +239,7 @@ def translation(cluster,vector):
         The translated cluster.
     '''
     if isinstance(cluster[0],Point):
-        return [Point(pid=deepcopy(point.pid),rcoord=point.rcoord+vector,icoord=deepcopy(point.icoord)) for point in cluster]
+        return [Point(pid=point.pid,rcoord=point.rcoord+vector,icoord=deepcopy(point.icoord)) for point in cluster]
     else:
         return [array(rcoord)+vector for rcoord in cluster]
 
@@ -270,7 +264,7 @@ def rotation(cluster,angle=0,axis=None,center=None):
     m11=cos(angle);m21=-sin(angle);m12=-m21;m22=m11
     m=array([[m11,m12],[m21,m22]])
     if isinstance(cluster[0],Point):
-        return [Point(pid=deepcopy(point.pid),rcoord=dot(m,point.rcoord-center)+center,icoord=deepcopy(point.icoord)) for point in cluster]
+        return [Point(pid=point.pid,rcoord=dot(m,point.rcoord-center)+center,icoord=deepcopy(point.icoord)) for point in cluster]
     else:
         return [dot(m,rcoord-center)+center for rcoord in cluster]
 
@@ -294,11 +288,11 @@ class Bond:
         self.spoint=spoint
         self.epoint=epoint
 
-    def __str__(self):
+    def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return 'Neighbour: %s\nSpoint -:- %s\nEpoint -:- %s'%(self.neighbour,self.spoint,self.epoint)
+        return 'Bond(%s, %s, %s)'%(self.neighbour,self.spoint,self.epoint)
     
     @property
     def rcoord(self):
@@ -417,7 +411,7 @@ class Lattice(object):
         '''
         self.name=name
         self.points={}
-        for point in deepcopy(points):
+        for point in copy(points):
             point.pid=point.pid._replace(scope=name)
             self.points[point.pid]=point
         self.vectors=vectors
@@ -430,10 +424,7 @@ class Lattice(object):
         '''
         Convert an instance to string.
         '''
-        result=''
-        for bond in self.bonds:
-            result+='%s\n'%bond
-        return result
+        return '\n'.join([str(bond) for bond in self.bonds])
 
     def plot(self,show=True):
         '''

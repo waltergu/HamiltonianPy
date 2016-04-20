@@ -81,10 +81,7 @@ class OperatorCollection(dict):
         '''
         Convert an instance to string.
         '''
-        result=[]
-        for i,obj in enumerate(self.values()):
-           result.append('[%s]: %s'%(i,obj))
-        return '\n'.join(result)
+        return '\n'.join(['[%s]:%s'%(i,obj) for i,obj in enumerate(self.values())])
 
     def __add__(self,other):
         '''

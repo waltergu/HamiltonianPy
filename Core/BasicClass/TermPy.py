@@ -4,24 +4,24 @@ Term.
 
 __all__=['Term']
 
-from copy import deepcopy
+from copy import copy
 
 class Term(object):
     '''
     This class is the base class for all kinds of terms contained in a Hamiltonian.
     Attributes:
+        id: string
+            The specific id of the term.
         mode: string
             The type of the term.
-        tag: string
-            The tag specifying the term used for dictionary lookup.
         value: scalar of 1D array-like of float, complex
             The overall coefficient(s) of the term.
         modulate: function
             A function used to alter the value of the term.
     '''
-    def __init__(self,mode,tag,value,modulate=None):
+    def __init__(self,id,mode,value,modulate=None):
+        self.id=id
         self.mode=mode
-        self.tag=tag
         self.value=value
         if not modulate is None:
             self.modulate=modulate
@@ -30,7 +30,7 @@ class Term(object):
         '''
         Overloaded operator(*) which supports the left multiplication with a scalar.
         '''
-        result=deepcopy(self)
+        result=copy(self)
         if isinstance(result.value,list):
             result.value=[value*other for value in result.value]
         else:

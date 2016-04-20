@@ -23,17 +23,17 @@ class Quadratic(Term):
             When it is a function, it can return bond dependent indexpackages as needed.
         amplitude: function which returns float or complex
             This function can return bond dependent and index dependent coefficient as needed.
-            The returned value will be multiplied in addition to the attribute value as the final coefficient.
+    Note: The final coefficient comes from three parts, the value of itself, the value of the indexpacakge, and the value amplitude returns.
     '''
     
-    def __init__(self,mode,tag,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpackages=None,amplitude=None,modulate=None):
+    def __init__(self,id,mode,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpackages=None,amplitude=None,modulate=None):
         '''
         Constructor.
         Parameters:
+            id: string
+                The specific id of the term.
             mode: string
                 The type of the term.
-            tag: string
-                The tag specifying the term used for dictionary lookup.
             value: float or complex
                 The overall coefficient of the term.
             neighbour: integer, optional
@@ -43,7 +43,7 @@ class Quadratic(Term):
                 When the parameter indexpackages is a function, these parameters will be omitted.
             indexpackages: IndexPackageList or function
                 1) IndexPackageList:
-                    It will be multiplied by an instance of IndexPackage constructed from atoms, orbitals and spins as self.indexpackages. 
+                    It will be multiplied by an instance of IndexPackage constructed from atoms, orbitals and spins as the final indexpackages. 
                 2) function:
                     It must return an instance of IndexPackageList and take an instance of Bond as its only argument.
             amplitude: function
@@ -51,7 +51,7 @@ class Quadratic(Term):
             modulate: function
                 It must return a float or complex and its arguments are unlimited.
         '''
-        super(Quadratic,self).__init__(mode,tag,value,modulate)
+        super(Quadratic,self).__init__(id,mode,value,modulate)
         self.neighbour=neighbour
         if indexpackages is not None:
             if isinstance(indexpackages,IndexPackageList):
@@ -64,27 +64,31 @@ class Quadratic(Term):
             self.indexpackages=IndexPackageList(IndexPackage(1,atoms=atoms,orbitals=orbitals,spins=spins))
         self.amplitude=amplitude
 
-    def __str__(self):
+    def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        result='Mode & tag: '+self.mode+' & '+self.tag+'\n'+'Value: '+str(self.value)+'\n'
-        if isinstance(self.indexpackages,IndexPackageList):
-            result+=str(self.indexpackages)
+        result=[]
+        result.append('id=%s'%self.id)
+        result.append('mode=%s'%self.mode)
+        result.append('value=%s'%self.value)
+        result.append('indexpackages=%s'%self.indexpackages)
+        if self.amplitude is not None:
+            result.append('amplitude=%s'%self.amplitude)
         if hasattr(self,'modulate'):
-            result+='Modulate function: '+str(self.modulate)+'\n'
-        return result
+            result.append('modulate=%s'%self.modulate)
+        return 'Quadratic('+', '.join(result)+')'
 
     def __add__(self,other):
         '''
         Overloaded operator(+), which supports the addition of a Quadratic instance with a Quadratic/QuadraticList instance.
         '''
         result=QuadraticList()
-        result.append(deepcopy(self))
+        result.append(self)
         if isinstance(other,Quadratic):
-            result.append(deepcopy(other))
+            result.append(other)
         elif isinstance(other,QuadraticList):
-            result.extend(deepcopy(other))
+            result.extend(other)
         else:
             raise ValueError('Quadratic "+" error: the other parameter must be an instance of Quadratic or QuadraticList.')
         return result
@@ -94,7 +98,7 @@ class Quadratic(Term):
         Overloaded operator(+), i.e. +self.
         '''
         result=QuadraticList()
-        result.append(deepcopy(self))
+        result.append(self)
         return result
 
     def mesh(self,bond,half=True,dtype=complex128):
@@ -157,23 +161,23 @@ class Quadratic(Term):
                         if abs(result[i,j]-conjugate(result[j,i]))<RZERO: result[i,j]=0
         return result
 
-def Hopping(tag,value,neighbour=1,atoms=[],orbitals=[],spins=[],indexpackages=None,amplitude=None,modulate=None):
+def Hopping(id,value,neighbour=1,atoms=[],orbitals=[],spins=[],indexpackages=None,amplitude=None,modulate=None):
     '''
     A specified function to construct a hopping term.
     '''
-    return Quadratic('hp',tag,value,neighbour,atoms,orbitals,spins,indexpackages,amplitude,modulate)
+    return Quadratic(id,'hp',value,neighbour,atoms,orbitals,spins,indexpackages,amplitude,modulate)
 
-def Onsite(tag,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpackages=None,amplitude=None,modulate=None):
+def Onsite(id,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpackages=None,amplitude=None,modulate=None):
     '''
     A specified function to construct an onsite term.
     '''
-    return Quadratic('st',tag,value,neighbour,atoms,orbitals,spins,indexpackages,amplitude,modulate)
+    return Quadratic(id,'st',value,neighbour,atoms,orbitals,spins,indexpackages,amplitude,modulate)
 
-def Pairing(tag,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpackages=None,amplitude=None,modulate=None):
+def Pairing(id,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpackages=None,amplitude=None,modulate=None):
     '''
     A specified function to construct an pairing term.
     '''
-    return Quadratic('pr',tag,value,neighbour,atoms,orbitals,spins,indexpackages,amplitude,modulate)
+    return Quadratic(id,'pr',value,neighbour,atoms,orbitals,spins,indexpackages,amplitude,modulate)
 
 class QuadraticList(list):
     '''
@@ -191,20 +195,17 @@ class QuadraticList(list):
         '''
         Convert an instance to string.
         '''
-        result=''
-        for i,v in enumerate(self):
-            result+='Node '+str(i)+':\n'+str(v)
-        return result
+        return '\n'.join(['Node[%s]:%s'%(i,obj) for i,obj in enumerate(self)])
 
     def __add__(self,other):
         '''
         Overloaded operator(+), which supports the addition of a QuadraticList instance with a Quadratic/QuadraticList instance.
         '''
-        result=deepcopy(self)
+        result=copy(self)
         if isinstance(other,Quadratic):
-            result.append(deepcopy(other))
+            result.append(other)
         elif isinstance(other,QuadraticList):
-            result.extend(deepcopy(other))
+            result.extend(other)
         else:
             raise ValueError('QuadraticList "+" error: the other parameter must be an instance of Quadratic or QuadraticList.')
         return result
@@ -290,11 +291,11 @@ class Hubbard(Term):
             The atom index of the point where the Hubbard interactions are defined.
     '''
 
-    def __init__(self,tag,value,atom=None,modulate=None):
+    def __init__(self,id,value,atom=None,modulate=None):
         '''
         Constructor.
         '''
-        super(Hubbard,self).__init__('hb',tag,value,modulate)
+        super(Hubbard,self).__init__('hb',id,value,modulate)
         if atom is not None: self.atom=atom
 
     def __str__(self):
@@ -303,7 +304,7 @@ class Hubbard(Term):
         '''
         result=''
         if hasattr(self,'atom'): result+='Atom: '+str(self.atom)+'\n'
-        result+='Tag,value: '+self.tag+','+str(self.value)+'\n'
+        result+='id,value: '+self.id+','+str(self.value)+'\n'
         return result
 
     def __add__(self,other):
