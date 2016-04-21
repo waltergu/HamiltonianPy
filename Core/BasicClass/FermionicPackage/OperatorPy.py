@@ -59,7 +59,7 @@ class OperatorF(Operator):
         '''
         Set the unique id of this operator.
         '''
-        self.id=(self.mode,self.indices,str(self.rcoords),str(self.icoords),self.seqs)
+        self.id=tuple([str(i) for i in concatenate(self.rcoords)])+self.seqs
 
     @property
     def dagger(self):
@@ -95,16 +95,16 @@ def F_Linear(value,indices,rcoords,icoords,seqs):
     '''
     A specialized constructor to create an Operator instance with mode='f_linear'.
     '''
-    return Operator('f_linear',value,indices,rcoords,icoords,seqs)
+    return OperatorF('f_linear',value,indices,rcoords,icoords,seqs)
 
 def F_Quadratic(value,indices,rcoords,icoords,seqs):
     '''
     A specialized constructor to create an Operator instance with mode='f_quadratic'.
     '''
-    return Operator('f_quadratic',value,indices,rcoords,icoords,seqs)
+    return OperatorF('f_quadratic',value,indices,rcoords,icoords,seqs)
 
 def F_Hubbard(value,indices,rcoords,icoords,seqs):
     '''
     A specialized constructor to create an Operator instance with mode='f_hubbard'.
     '''
-    return Operator('f_hubbard',value,indices,rcoords,icoords,seqs)
+    return OperatorF('f_hubbard',value,indices,rcoords,icoords,seqs)

@@ -213,9 +213,7 @@ def tiling(cluster,vectors,indices,translate_icoord=False,return_map=False):
                 raise ValueError("Function tiling error: to use this function non-trivially, the pid of every input point must have a tuple attribute 'site'.")
         for index in indices:
             for point in cluster:
-                pid=deepcopy(point.pid.__dict__)
-                pid['site']=tuple(array(point.pid.site)+array(tuple(index)+(0,)))
-                new=PID(**pid)
+                new=point.pid._replace(site=tuple(array(point.pid.site)+array(tuple(index)+(0,))))
                 map[new]=map[point.pid] if point.pid in map else point.pid
                 disp=inner(index,vectors)
                 if translate_icoord:
@@ -370,7 +368,8 @@ def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=6):
             for neighbour,mdist in enumerate(mdists):
                 if abs(dist-mdist)<RZERO:
                     buff=supercluster[index]
-                    result.append(Bond(neighbour,spoint=cluster[i],epoint=Point(pid=map[buff.pid],rcoord=buff.rcoord,icoord=buff.icoord)))
+                    if buff.pid!=map[buff.pid] or cluster[i].pid<=buff.pid:
+                        result.append(Bond(neighbour,spoint=cluster[i],epoint=Point(pid=map[buff.pid],rcoord=buff.rcoord,icoord=buff.icoord)))
     return result
 
 class Lattice(object):

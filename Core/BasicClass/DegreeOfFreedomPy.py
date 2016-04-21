@@ -117,6 +117,18 @@ class Index(tuple):
         self.__dict__.update(iid._asdict())
         return self
 
+    def __copy__(self):
+        '''
+        Copy.
+        '''
+        return self.replace(**self.__dict__)
+
+    def __deepcopy__(self,memo):
+        '''
+        Deep copy.
+        '''
+        return self.replace(**self.__dict__)
+
     def __repr__(self):
         '''
         Convert an instance to string.
@@ -167,7 +179,7 @@ class Internal(object):
             The index-sequence table.
         Note: this method must be overridden by its child class if it is to be used.
         '''
-        raise ValueError("Internal table error: this method must be overridden by child classes.")
+        raise ValueError("%s table error: it is not implemented."%self.__class__.__name__)
 
 class Configuration(dict):
     '''

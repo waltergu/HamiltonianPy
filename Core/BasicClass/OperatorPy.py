@@ -23,7 +23,8 @@ class Operator(object):
         Set the unique id of this operator.
         Note: this method must be overridden by its child class if it is to be used.
         '''
-        raise ValueError("Operator set_id error: this method must be overridden by child classes.")
+        #self.id=id(self)
+        raise ValueError("%s set_id error: it is not implemented."%self.__class__.__name__)
 
     def __add__(self,other):
         '''

@@ -1,10 +1,7 @@
 def configuration(parent_package='',top_path=None):
     from numpy.distutils.misc_util import Configuration
-    config=Configuration('Core',parent_package,top_path)
-    #config.add_subpackage('BasicAlgorithm')
-    config.add_subpackage('BasicClass')
-    config.add_subpackage('CoreAlgorithm')
-    #config.add_subpackage('Test')
+    config=Configuration('CoreAlgorithm',parent_package,top_path)
+    #config.add_extension('VCA_Fortran',['VCA_Fortran.f90'])
     return config
 
 if __name__ == '__main__':
