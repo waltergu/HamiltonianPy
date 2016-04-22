@@ -7,7 +7,7 @@ BaseSpace, including
 __all__=['BaseSpace', 'KSpace', 'line_1d', 'rectangle_gxm', 'rectangle_gym', 'rectangle_bz', 'square_gxm', 'square_gym', 'square_bz', 'hexagon_gkm', 'hexagon_bz', 'TSpace']
 
 from numpy import *
-from numpy.linalg import inv
+from numpy.linalg import norm,inv
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 import itertools

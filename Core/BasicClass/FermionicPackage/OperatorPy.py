@@ -59,7 +59,7 @@ class OperatorF(Operator):
         '''
         Set the unique id of this operator.
         '''
-        self.id=tuple([str(i) for i in concatenate(self.rcoords)])+self.seqs
+        self.id=self.indices+tuple(['%f'%i for i in concatenate(self.rcoords)])
 
     @property
     def dagger(self):

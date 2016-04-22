@@ -23,7 +23,6 @@ class Operator(object):
         Set the unique id of this operator.
         Note: this method must be overridden by its child class if it is to be used.
         '''
-        #self.id=id(self)
         raise ValueError("%s set_id error: it is not implemented."%self.__class__.__name__)
 
     def __add__(self,other):
@@ -126,7 +125,7 @@ class OperatorCollection(dict):
                 else:
                     del self[id]                
             else:
-                self[other.id]=other
+                self[id]=other
         elif isinstance(other,OperatorCollection):
             for obj in other.values():
                 self.__iadd__(obj)
@@ -151,7 +150,7 @@ class OperatorCollection(dict):
             else:
                 temp=copy(other)
                 temp.value*=-1
-                self[other.id]=temp
+                self[id]=temp
         elif isinstance(other,OperatorCollection):
             for obj in other.values():
                 self.__isub__(obj)
