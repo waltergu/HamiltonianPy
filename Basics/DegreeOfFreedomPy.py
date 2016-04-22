@@ -207,3 +207,19 @@ class Configuration(dict):
         Return a Table instance that contains all the allowed indices which can be defined on a lattice.
         '''
         return union([value.table(key,**karg) for key,value in self.iteritems()],key=lambda index: index.to_tuple(priority=self.priority))
+
+    def enlarged(self,map):
+        '''
+        Return an enlarged configuration (several copies of the values with new keys) according to map.
+        Parameters:
+            map: dict
+                Its items (key,value) has the following meaning:
+                    key: new key in the enlarged configuration;
+                    value: old key in the original configuration.
+        Returns: Configuration
+            The enlarged configuration.
+        '''
+        result=copy(self)
+        for key,value in map.iteritems():
+            result[key]=result[value]
+        return result            

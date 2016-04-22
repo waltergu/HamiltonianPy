@@ -1,5 +1,5 @@
 from numpy import *
-from HamiltonianPP.Core.BasicClass.BaseSpacePy import *
+from HamiltonianPP.Basics.BaseSpacePy import *
 def test_basespace():
     test_kspace()
 

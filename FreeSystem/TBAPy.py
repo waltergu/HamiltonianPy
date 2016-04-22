@@ -1,15 +1,20 @@
 '''
-Tight binding approximation.
+Tight Binding Approximation for fermionic systems, including:
+1) classes: TBA
+2) functions: TBAEB, TBADOS, TBACP, TBACN
 '''
-from ..BasicClass import *
-#from ..BasicAlgorithm.BerryCurvaturePy import *
+
+__all__=['TBA','TBAEB','TBADOS','TBACP','TBACN']
+
+from ..Math.BerryCurvaturePy import *
+from ..Basics import *
 from numpy import *
 from scipy.linalg import eigh
 import matplotlib.pyplot as plt 
 
 class TBA(Engine):
     '''
-    This class provides a general algorithm to calculate physical quantities of non-interacting systems based on the tight-binding approximation.
+    This class provides a general algorithm to calculate physical quantities of non-interacting fermionic systems based on the tight-binding approximation.
     The BdG systems, i.e. phenomenological superconducting systems based on mean-field theory are also supported in a unified way.
     Attributes:
         filling: float
@@ -37,6 +42,19 @@ class TBA(Engine):
     def __init__(self,filling=0,mu=0,lattice=None,config=None,terms=None,nambu=False,**karg):
         '''
         Constructor.
+        Parameters:
+            filling: float
+                The filling factor of the system.
+            mu: float
+                The chemical potential of the system.
+            lattice: Lattice
+                The lattice of the system.
+            config: Configuration
+                The configuration of degrees of freedom.
+            terms: list of Term
+                The terms of the system.
+            nambu: logical
+                A flag to tag whether the Nambu space is used.
         '''
         self.filling=filling
         self.mu=mu
@@ -189,4 +207,3 @@ def TBACN(engine,app):
 
 def TBAGF(engine,app):
     pass
-    

@@ -1,7 +1,7 @@
-from HamiltonianPP.Core.BasicClass.GeometryPy import *
-from HamiltonianPP.Core.BasicClass.DegreeOfFreedomPy import *
-from HamiltonianPP.Core.BasicClass.OperatorPy import *
-from HamiltonianPP.Core.BasicClass.FermionicPackage import *
+from HamiltonianPP.Basics.GeometryPy import *
+from HamiltonianPP.Basics.DegreeOfFreedomPy import *
+from HamiltonianPP.Basics.OperatorPy import *
+from HamiltonianPP.Basics.FermionicPackage import *
 def test_operator():
     print 'test_operator'
     a=OperatorF(

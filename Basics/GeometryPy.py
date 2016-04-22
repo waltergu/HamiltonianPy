@@ -155,8 +155,10 @@ class Point:
             icoord: 1D array-like,optional
                 The coordinate in lattice space.
         '''
-        if not isinstance(pid,PID):
-            raise ValueError("Point constructor error: the 'pid' parameter must be an instance of PID.")
+        #if not isinstance(pid,PID):
+        #    print '%s'%(pid,)
+        #    print '%s'%pid.__class__.__name__
+        #    raise ValueError("Point constructor error: the 'pid' parameter must be an instance of PID.")
         self.pid=pid
         self.rcoord=array([]) if rcoord is None else array(rcoord)
         self.icoord=array([]) if icoord is None else array(icoord)
@@ -215,7 +217,7 @@ def tiling(cluster,vectors,indices,translate_icoord=False,return_map=False):
             for point in cluster:
                 new=point.pid._replace(site=tuple(array(point.pid.site)+array(tuple(index)+(0,))))
                 map[new]=map[point.pid] if point.pid in map else point.pid
-                disp=inner(index,vectors)
+                disp=dot(index,vectors)
                 if translate_icoord:
                     supercluster.append(Point(pid=new,rcoord=point.rcoord+disp,icoord=point.icoord+disp))
                 else:
@@ -425,7 +427,7 @@ class Lattice(object):
         '''
         return '\n'.join([str(bond) for bond in self.bonds])
 
-    def plot(self,show=True):
+    def plot(self,show=True,pid_on=False):
         '''
         Plot the lattice points and bonds. Only 2D or quasi 1D systems are supported.
         '''
@@ -439,7 +441,16 @@ class Lattice(object):
             elif nb==3: color='b'
             else: color=str(nb*1.0/self.nneighbour)
             if nb==0:
-                plt.scatter(bond.spoint.rcoord[0],bond.spoint.rcoord[1])
+                x,y=bond.spoint.rcoord[0],bond.spoint.rcoord[1]
+                plt.scatter(x,y)
+                if pid_on:
+                    pid=bond.spoint.pid
+                    if pid.scope==None:
+                        tag=''
+                    else:
+                        tag=str(pid.scope)
+                    tag+=str(pid.site)
+                    plt.text(x-0.2,y+0.1,tag,fontsize=10,color='blue')
             else:
                 if bond.is_intra_cell():
                     plt.plot([bond.spoint.rcoord[0],bond.epoint.rcoord[0]],[bond.spoint.rcoord[1],bond.epoint.rcoord[1]],color=color)

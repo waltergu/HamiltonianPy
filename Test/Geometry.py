@@ -1,5 +1,5 @@
 from numpy import *
-from HamiltonianPP.Core.BasicClass.GeometryPy import *
+from HamiltonianPP.Basics.GeometryPy import *
 import time,itertools
 def test_geometry():
     test_functions()
@@ -83,7 +83,7 @@ def test_lattice():
 
 def test_super_lattice():
     print 'test_super_lattice'
-    m=4
+    m=2
     points=[None for i in xrange(4)]
     points[0]=Point(pid=PID(site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     points[1]=Point(pid=PID(site=(0,0,1)),rcoord=[0.0,1.0],icoord=[0.0,0.0])
@@ -97,5 +97,5 @@ def test_super_lattice():
         vectors=[a1*m,a2],
         nneighbour=2
         )
-    a.plot()
+    a.plot(pid_on=True)
     print

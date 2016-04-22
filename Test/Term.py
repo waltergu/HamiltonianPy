@@ -1,8 +1,8 @@
-from HamiltonianPP.Core.BasicClass.GeometryPy import *
-from HamiltonianPP.Core.BasicClass.DegreeOfFreedomPy import *
-from HamiltonianPP.Core.BasicClass.OperatorPy import *
-from HamiltonianPP.Core.BasicClass.TermPy import *
-from HamiltonianPP.Core.BasicClass.FermionicPackage import *
+from HamiltonianPP.Basics.GeometryPy import *
+from HamiltonianPP.Basics.DegreeOfFreedomPy import *
+from HamiltonianPP.Basics.OperatorPy import *
+from HamiltonianPP.Basics.TermPy import *
+from HamiltonianPP.Basics.FermionicPackage import *
 def test_term():
     test_quadratic()
     test_hubbard()
