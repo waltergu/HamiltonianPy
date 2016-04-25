@@ -1,19 +1,26 @@
 '''
-Operator representation.
+Operator representation, including
+1) functions: opt_rep
 '''
+
+__all__=['opt_rep']
+
+from numpy import *
+from DegreeOfFreedomPy import *
 from OperatorPy import *
-from BasisEPy import *
+from BasisFPy import *
 from scipy.sparse import *
 from numba import jit
+
 def opt_rep(operator,basis,transpose=False,dtype=complex128):
     '''
     This function returns the csr_formed or csc_formed sparse matrix representation of an operator on the occupation number basis.
     Parameters:
-        operator: Operator
-            Three kinds of operators are supported, e_linear, e_quadratic and e_hubbard.
-        basis: BasisE or list of BasisE
-            When operator.rank==1 it is a list of BasisE with len==2. Otherwise it is an instance of BasisE.
-            When the input operator represents a pairing term, basis.mode must be "EG" because of the non-conservation of particle numbers.
+        operator: OperatorF
+            Three kinds of operators are supported, f_linear, f_quadratic and f_hubbard.
+        basis: BasisF or list of BasisF
+            When operator.rank==1 it is a list of BasisF with len==2. Otherwise it is an instance of BasisF.
+            When the input operator represents a pairing term, basis.mode must be "FG" because of the non-conservation of particle numbers.
         transpose: logical, optional
             A flag to tag which form of sparse matrix the result is used. True for csr-formed and False for csc-formed.
         dtype: dtype, optional
@@ -101,7 +108,7 @@ def opt_rep_2(operator,basis,transpose,dtype=complex128):
         opt_rep_2_10(data,indices,indptr,nbasis,basis_table,seq1,seq2)
     elif operator.indices[0].nambu==ANNIHILATION and operator.indices[1].nambu==CREATION:
         opt_rep_2_01(data,indices,indptr,nbasis,basis_table,seq1,seq2)
-    elif opetator.indices[0].nambu==ANNIHILATION and operator.indices[1].nambu==ANNIHILATION:
+    elif operator.indices[0].nambu==ANNIHILATION and operator.indices[1].nambu==ANNIHILATION:
         opt_rep_2_00(data,indices,indptr,nbasis,basis_table,seq1,seq2)
     else:
         opt_rep_2_11(data,indices,indptr,nbasis,basis_table,seq1,seq2)

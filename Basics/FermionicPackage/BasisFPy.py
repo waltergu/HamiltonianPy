@@ -130,7 +130,6 @@ def basis_table_es(up,down,dtype=int64):
     result.sort()
     return result
 
-#@jit
 def basis_rep(seq_basis,basis_table):
     '''
     This function returns the binary basis representation whose sequence in basis_table is seq_basis.

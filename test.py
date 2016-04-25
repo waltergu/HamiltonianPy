@@ -33,16 +33,16 @@ for arg in sys.argv:
     if arg in ('basisf','all'):
         from Test.BasisF import *
         test_basisf()
+    if arg in ('optrep','all'):
+        from Test.OperatorRepresentation import *
+        test_opt_rep()
+    if arg in ('lanczos','all'):
+        from Test.Lanczos import *
+        test_lanczos()
+    if arg in ('ed','all'):
+        from Test.ED import *
+        test_ed()
 
-    #if arg in ('optrep','all'):
-    #    from Test.OperatorRepresentation import *
-    #    test_opt_rep()
-    #if arg in ('lanczos','all'):
-    #    from Test.Lanczos import *
-    #    test_lanczos()
-    #if arg in ('onr','all'):
-    #    from Test.ONR import *
-    #    test_onr()
     #if arg in ('vca','all'):
     #    from Test.VCA import *
     #    test_vca()
