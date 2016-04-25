@@ -1,7 +1,7 @@
-from Hamiltonian.Core.CoreAlgorithm.SCMFPy import *
-from Hamiltonian.Core.BasicClass.LatticePy import *
-from Hamiltonian.Core.BasicClass.BaseSpacePy import *
-from Hamiltonian.DataBase.Hexagon import *
+from HamiltonianPP.Basics import *
+from HamiltonianPP.DataBase.Hexagon import *
+from HamiltonianPP.FreeSystem.SCMFPy import *
+from HamiltonianPP.FreeSystem.TBAPy import *
 
 def haldane_hopping(bond):
     theta=azimuthd(bond.rcoord)
@@ -9,24 +9,26 @@ def haldane_hopping(bond):
         result=1
     else:
         result=-1
-    if bond.spoint.struct.atom==1:
-        result=-result
     return result
 
 def test_scmf():
     U=3.13
     t1=-1.0
     t2=0.1
-    H2=HexagonDataBase('H2',norbital=1,nspin=2,nnambu=1)
+    H2=HexagonDataBase(name='H2',scope='H2_SCMF')
     h2=SCMF(
         parameters= {'U':U},
         name=       'H2_SCMF',
         lattice=    Lattice(name='H2',points=H2.points,vectors=H2.vectors,nneighbour=2),
+        config=     Configuration(
+                        {p.pid:Fermi(atom=0,norbital=1,nspin=2,nnambu=1) if p.pid.site[2]%2==0 else Fermi(atom=1,norbital=1,nspin=2,nnambu=1) for p in H2.points},
+                        priority=DEFAULT_FERMIONIC_PRIORITY
+                        ),
         mu=         0,
         filling=    0.5,
         terms=      [
                     Hopping('t1',t1),
-                    Hopping('t2',t2*1j,amplitude=haldane_hopping,neighbour=2),
+                    Hopping('t2',t2*1j,indexpackages=sigmaz('sl'),amplitude=haldane_hopping,neighbour=2),
                     #Onsite('stagger',0.2,indexpackages=sigmaz('sl'))
                     ],
         orders=     [

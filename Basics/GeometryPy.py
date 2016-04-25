@@ -155,10 +155,8 @@ class Point:
             icoord: 1D array-like,optional
                 The coordinate in lattice space.
         '''
-        #if not isinstance(pid,PID):
-        #    print '%s'%(pid,)
-        #    print '%s'%pid.__class__.__name__
-        #    raise ValueError("Point constructor error: the 'pid' parameter must be an instance of PID.")
+        if not isinstance(pid,PID):
+            raise ValueError("Point constructor error: the 'pid' parameter must be an instance of PID.")
         self.pid=pid
         self.rcoord=array([]) if rcoord is None else array(rcoord)
         self.icoord=array([]) if icoord is None else array(icoord)
@@ -324,7 +322,7 @@ class Bond:
         '''
         return Bond(self.neighbour,self.epoint,self.spoint)
 
-def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=6):
+def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=8):
     '''
     This function returns all the bonds up to the nneighbour-th order.
     Parameters:
@@ -394,7 +392,7 @@ class Lattice(object):
             The max coordinate number for every neighbour.
     '''
 
-    def __init__(self,name,points,vectors=[],nneighbour=1,max_coordinate_number=6):
+    def __init__(self,name,points,vectors=[],nneighbour=1,max_coordinate_number=8):
         '''
         Constructor.
         Parameters:

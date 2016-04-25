@@ -6,7 +6,7 @@ Triangular lattice data base, including:
 __all__=['TriangleDataBase']
 
 from numpy import array,sqrt
-from Basics.GeometryPy import *
+from ..Basics.GeometryPy import *
 
 class TriangleDataBase:
     '''
@@ -52,9 +52,3 @@ class TriangleDataBase:
             self.points.append(Point(pid=PID(scope=scope,site=(0,0,11)),rcoord=[2.5,sqrt(3.0)/2],icoord=[0.0,0.0]))
             self.vectors.append(array([0.0,2*sqrt(3.0)]))
             self.vectors.append(array([3.0,sqrt(3.0)]))
-
-if __name__=='__main__':
-      for name in ['T1','T12']:
-        buff=TriangleDataBase(name=name,scope=name)
-        l=Lattice(name=name,points=buff.points,vectors=buff.vectors)
-        l.plot()

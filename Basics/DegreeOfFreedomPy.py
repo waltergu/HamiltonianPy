@@ -222,4 +222,4 @@ class Configuration(dict):
         result=copy(self)
         for key,value in map.iteritems():
             result[key]=result[value]
-        return result            
+        return result

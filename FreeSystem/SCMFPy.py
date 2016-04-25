@@ -1,8 +1,19 @@
 '''
-Simple self-consistent mean field theory.
+Self-consistent mean field theory for fermionic systems, including:
+1) classes: OP, SCMF
 '''
+
+__all__=['op','SCMF']
+
+from numpy import *
+from ..Basics import *
 from TBAPy import *
+from copy import deepcopy
+from collections import OrderedDict
 from scipy.optimize import broyden1,broyden2
+from scipy.linalg import eigh
+import time
+
 class op:
     '''
     '''
@@ -13,7 +24,7 @@ class op:
 class SCMF(TBA):
     '''
     '''
-    def __init__(self,filling=0,mu=0,temperature=0,lattice=None,terms=None,orders=None,nambu=False,**karg):
+    def __init__(self,filling=0,mu=0,temperature=0,lattice=None,config=None,terms=None,orders=None,nambu=False,**karg):
         '''
         Constructor.
         '''
@@ -21,11 +32,12 @@ class SCMF(TBA):
         self.mu=mu
         self.temperature=temperature
         self.lattice=lattice
+        self.config=config
         self.terms=terms
         self.orders=orders
         self.nambu=nambu
         self.generators={}
-        self.generators['h']=Generator(bonds=lattice.bonds,table=lattice.table(nambu),terms=terms+orders,nambu=nambu,half=True)
+        self.generators['h']=Generator(bonds=lattice.bonds,table=config.table(nambu=nambu),config=config,terms=terms+orders)
         self.name.update(const=self.generators['h'].parameters['const'])
         self.name.update(alter=self.generators['h'].parameters['alter'])
         self.ops=OrderedDict()
@@ -37,10 +49,10 @@ class SCMF(TBA):
             v=order.value
             m=zeros((nmatrix,nmatrix),dtype=complex128)
             buff=deepcopy(order);buff.value=1
-            for opt in Generator(bonds=self.lattice.bonds,table=self.lattice.table(self.nambu),terms=[buff],nambu=self.nambu,half=True).operators:
+            for opt in Generator(bonds=self.lattice.bonds,table=self.config.table(nambu=self.nambu),config=self.config,terms=[buff]).operators.values():
                 m[opt.seqs]+=opt.value
             m+=conjugate(m.T)
-            self.ops[order.tag]=op(v,m)
+            self.ops[order.id]=op(v,m)
 
     def update_ops(self,kspace=None):
         self.generators['h'].update(**{key:self.ops[key].value for key in self.ops.keys()})
@@ -48,7 +60,7 @@ class SCMF(TBA):
         self.set_mu(kspace)
         f=(lambda e,mu: 1 if e<=mu else 0) if abs(self.temperature)<RZERO else (lambda e,mu: 1/(exp((e-mu)/self.temperature)+1))
         nmatrix=len(self.generators['h'].table)
-        nspin=self.lattice.points.values()[0].struct.nspin
+        nspin=self.config.values()[0].nspin
         buff=zeros((nmatrix,nmatrix),dtype=complex128)
         for matrix in self.matrices(kspace):
             eigs,eigvecs=eigh(matrix)

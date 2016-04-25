@@ -3,6 +3,9 @@ for arg in sys.argv:
     if arg in ('geometry','all'):
         from Test.Geometry import *
         test_geometry()
+    if arg in ('database','all'):
+        from Test.DataBase import *
+        test_database()
     if arg in ('degfre','all'):
         from Test.DegreeOfFreedom import *
         test_deg_fre()
@@ -24,18 +27,13 @@ for arg in sys.argv:
     if arg in ('flqt','all'):
         from Test.FLQT import *
         test_flqt()
-    #if arg in ('scmf','all'):
-    #    from Test.SCMF import *
-    #    test_scmf()
+    if arg in ('scmf','all'):
+        from Test.SCMF import *
+        test_scmf()
+    if arg in ('basisf','all'):
+        from Test.BasisF import *
+        test_basisf()
 
-    if arg in ('hexagon','all'):
-        from Test.Hexagon import *
-        test_hexagon()
-
-
-    #if arg in ('basise','all'):
-    #    from Test.BasisE import *
-    #    test_basise()
     #if arg in ('optrep','all'):
     #    from Test.OperatorRepresentation import *
     #    test_opt_rep()
