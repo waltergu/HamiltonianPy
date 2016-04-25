@@ -223,6 +223,7 @@ class GFC(App):
         self.error=error
         self.gse=0
         self.coeff=array([])
+        self.hs=array([])
 
 class GF(App):
     '''

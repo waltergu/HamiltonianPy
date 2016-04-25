@@ -5,7 +5,7 @@ import itertools
 def test_ed():
     U=8.0
     t=-1.0
-    m=2;n=5
+    m=2;n=2
     p1=Point(pid=PID(scope='WG'+str(m)+str(n),site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1=array([1.0,0.0])
     a2=array([0.0,1.0])

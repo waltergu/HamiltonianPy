@@ -118,13 +118,13 @@ class ED(Engine):
 
     def set_matrix(self):
         '''
-        Set the csc_matrix representation of the Hamiltonian.
+        Set the csr_matrix representation of the Hamiltonian.
         '''
         self.matrix=csr_matrix((self.basis.nbasis,self.basis.nbasis),dtype=complex128)
         for operator in self.operators['h'].values():
             self.matrix+=opt_rep(operator,self.basis,transpose=False)
         self.matrix+=conjugate(transpose(self.matrix))
-        self.matrix=transpose(self.matrix)
+        self.matrix=self.matrix.T
 
     def gf(self,omega=None):
         '''
@@ -154,12 +154,15 @@ def EDGFC(engine,app):
     nopt=len(engine.operators['sp'])
     if os.path.isfile(engine.din+'/'+engine.name.full+'_coeff.dat'):
         with open(engine.din+'/'+engine.name.full+'_coeff.dat','rb') as fin:
-            app.gse=fromfile(fin,count=1)
-            app.coeff=fromfile(fin,dtype=complex128)
-        if len(app.coeff)==nopt*nopt*2*3*app.nstep:
-            app.coeff=app.coeff.reshape((nopt,nopt,2,3,app.nstep))
+            app.gse=fromfile(fin,dtype=float64,count=1)
+            app.coeff=fromfile(fin,dtype=complex128,count=2*nopt**2*app.nstep)
+            app.hs=fromfile(fin,dtype=complex128)
+        if len(app.coeff)==2*nopt**2*app.nstep and len(app.hs)==2*nopt*2*app.nstep:
+            app.coeff=app.coeff.reshape((2,nopt,nopt,app.nstep))
+            app.hs=app.hs.reshape((2,nopt,2,app.nstep))
             return
-    app.coeff=zeros((nopt,nopt,2,3,app.nstep),dtype=complex128)
+    app.coeff=zeros((2,nopt,nopt,app.nstep),dtype=complex128)
+    app.hs=zeros((2,nopt,2,app.nstep),dtype=complex128)
     engine.set_matrix()
     print "EDGFC: matrix (%s %s*%s operators with in total %s non-zeros) set OK."%(len(engine.operators['h']),engine.matrix.shape[0],engine.matrix.shape[1],engine.matrix.nnz)
     if app.method in ('user',):
@@ -168,7 +171,6 @@ def EDGFC(engine,app):
         app.gse,gs=eigsh(engine.matrix,k=1,which='SA',return_eigenvectors=True,tol=app.error)
     print 'gse:',app.gse
     if engine.basis.basis_type.lower() in ('fs','fp'): engine.matrix=None
-
     print 'electron part'
     states,norms,lczs=[],[],[]
     ed=ed_eh(engine,nambu=CREATION,spin=0)
@@ -183,13 +185,11 @@ def EDGFC(engine,app):
         for i,(temp,lcz) in enumerate(zip(norms,lczs)):
             if not lcz.cut:
                 for j,state in enumerate(states):
-                    app.coeff[j,i,0,0,k]=vdot(state,lcz.new)*temp
+                    app.coeff[0,j,i,k]=vdot(state,lcz.new)*temp
                 lcz.iter()
     for i,lcz in enumerate(lczs):
-        for j in xrange(nopt):
-            app.coeff[j,i,0,1,0:len(lcz.a)]=array(lcz.a)
-            app.coeff[j,i,0,2,0:len(lcz.b)]=array(lcz.b)
-
+        app.hs[0,i,0,0:len(lcz.a)]=array(lcz.a)
+        app.hs[0,i,1,0:len(lcz.b)]=array(lcz.b)
     print 'hole part'
     states,norms,lczs=[],[],[]
     ed=ed_eh(engine,nambu=ANNIHILATION,spin=0)
@@ -204,17 +204,16 @@ def EDGFC(engine,app):
         for i,(temp,lcz) in enumerate(zip(norms,lczs)):
             if not lcz.cut:
                 for j,state in enumerate(states):
-                    app.coeff[i,j,1,0,k]=vdot(state,lcz.new)*temp
+                    app.coeff[1,i,j,k]=vdot(state,lcz.new)*temp
                 lcz.iter()
     for i,lcz in enumerate(lczs):
-        for j in xrange(nopt):
-            app.coeff[i,j,1,1,0:len(lcz.a)]=array(lcz.a)
-            app.coeff[i,j,1,2,0:len(lcz.b)]=array(lcz.b)
-
+        app.hs[1,i,0,0:len(lcz.a)]=array(lcz.a)
+        app.hs[1,i,1,0:len(lcz.b)]=array(lcz.b)
     if app.save_data:
         with open(engine.din+'/'+engine.name.full+'_coeff.dat','wb') as fout:
             array(app.gse).tofile(fout)
             app.coeff.tofile(fout)
+            app.hs.tofile(fout)
 
 def ed_eh(self,nambu,spin):
     if self.basis.basis_type.lower()=='fg':
@@ -242,6 +241,62 @@ def ed_eh(self,nambu,spin):
         result.set_matrix()
         return result
 
+def EDGF(engine,app):
+    nmatrix=engine.apps['GFC'].nstep
+    gse=engine.apps['GFC'].gse
+    coeff=engine.apps['GFC'].coeff
+    hs=engine.apps['GFC'].hs
+    nopt=len(engine.operators['sp'])
+    app.gf[...]=0.0
+    buff=zeros((3,nmatrix),dtype=complex128)
+    b=zeros(nmatrix,dtype=complex128)
+    for h in xrange(2):
+        for i in xrange(nopt):
+            b[...]=0;b[0]=1
+            buff[0,1:]=hs[h,i,1,0:nmatrix-1]*(-1)**(h+1)
+            buff[1,:]=app.omega-(hs[h,i,0,:]-gse)*(-1)**h
+            buff[2,:]=hs[h,i,1,:]*(-1)**(h+1)
+            temp=solve_banded((1,1),buff,b,overwrite_ab=True,overwrite_b=True,check_finite=False)
+            for j in xrange(nopt):
+                app.gf[i,j]+=inner(coeff[h,i,j,:],temp)
+
+def EDDOS(engine,app):
+    engine.cache.pop('gf_mesh',None)
+    erange=linspace(app.emin,app.emax,num=app.ne)
+    result=zeros((app.ne,2))
+    result[:,0]=erange
+    result[:,1]=-2*imag(trace(engine.gf_mesh(erange[:]+engine.mu+1j*app.eta),axis1=1,axis2=2))
+    if app.save_data:
+        savetxt(engine.dout+'/'+engine.name.full+'_DOS.dat',result)
+    if app.plot:
+        plt.title(engine.name.full+'_DOS')
+        plt.plot(result[:,0],result[:,1])
+        if app.show:
+            plt.show()
+        else:
+            plt.savefig(engine.dout+'/'+engine.name.full+'_DOS.png')
+        plt.close()
+
+def EDEB(engine,app):
+    result=zeros((app.path.rank.values()[0],app.ns+1))
+    if len(app.path.rank)==1 and len(app.path.mesh.values()[0].shape)==1:
+        result[:,0]=app.path.mesh.values()[0]
+    else:
+        result[:,0]=array(xrange(app.path.rank.values()[0]))
+    for i,paras in enumerate(app.path('+')):
+        engine.update(**paras)
+        engine.set_matrix()
+        result[i,1:]=eigsh(engine.matrix,k=app.ns,which='SA',return_eigenvectors=False)
+    if app.save_data:
+        savetxt(engine.dout+'/'+engine.name.const+'_EB.dat',result)
+    if app.plot:
+        plt.title(engine.name.const+'_EB')
+        plt.plot(result[:,0],result[:,1:])
+        if app.show:
+            plt.show()
+        else:
+            plt.savefig(engine.dout+'/'+engine.name.const+'_EB.png')
+        plt.close()
 '''
 def EDGFC(engine,app):
     nopt=len(engine.operators['sp'])
@@ -297,58 +352,3 @@ def EDGFC(engine,app):
             array(app.gse).tofile(fout)
             app.coeff.tofile(fout)
 '''
-
-def EDGF(engine,app):
-    nmatrix=engine.apps['GFC'].nstep
-    gse=engine.apps['GFC'].gse
-    coeff=engine.apps['GFC'].coeff
-    nopt=len(engine.operators['sp'])
-    app.gf[...]=0.0
-    buff=zeros((3,nmatrix),dtype=complex128)
-    b=zeros(nmatrix,dtype=complex128)
-    for i in xrange(nopt):
-        for j in xrange(nopt):
-            for h in xrange(2):
-                b[...]=0;b[0]=1
-                buff[0,1:]=coeff[i,j,h,2,0:nmatrix-1]*(-1)**(h+1)
-                buff[1,:]=app.omega-(coeff[i,j,h,1,:]-gse)*(-1)**h
-                buff[2,:]=coeff[i,j,h,2,:]*(-1)**(h+1)
-                app.gf[i,j]+=inner(coeff[i,j,h,0,:],solve_banded((1,1),buff,b,overwrite_ab=True,overwrite_b=True,check_finite=False))
-
-def EDDOS(engine,app):
-    engine.cache.pop('gf_mesh',None)
-    erange=linspace(app.emin,app.emax,num=app.ne)
-    result=zeros((app.ne,2))
-    result[:,0]=erange
-    result[:,1]=-2*imag(trace(engine.gf_mesh(erange[:]+engine.mu+1j*app.eta),axis1=1,axis2=2))
-    if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.full+'_DOS.dat',result)
-    if app.plot:
-        plt.title(engine.name.full+'_DOS')
-        plt.plot(result[:,0],result[:,1])
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig(engine.dout+'/'+engine.name.full+'_DOS.png')
-        plt.close()
-
-def EDEB(engine,app):
-    result=zeros((app.path.rank.values()[0],app.ns+1))
-    if len(app.path.rank)==1 and len(app.path.mesh.values()[0].shape)==1:
-        result[:,0]=app.path.mesh.values()[0]
-    else:
-        result[:,0]=array(xrange(app.path.rank.values()[0]))
-    for i,paras in enumerate(app.path('+')):
-        engine.update(**paras)
-        engine.set_matrix()
-        result[i,1:]=eigsh(engine.matrix,k=app.ns,which='SA',return_eigenvectors=False)
-    if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.const+'_EB.dat',result)
-    if app.plot:
-        plt.title(engine.name.const+'_EB')
-        plt.plot(result[:,0],result[:,1:])
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig(engine.dout+'/'+engine.name.const+'_EB.png')
-        plt.close()
