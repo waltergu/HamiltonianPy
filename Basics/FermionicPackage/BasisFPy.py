@@ -1,6 +1,11 @@
 '''
-Basis of electrons systems in the occupation number representation.
+Basis of fermionic systems in the occupation number representation, including:
+1) classes: BasisF
+2) function: basis_rep, seq_basis
 '''
+
+__all__=['BasisF','basis_rep','seq_basis']
+
 from numpy import *
 from math import factorial
 from itertools import combinations
@@ -8,7 +13,7 @@ from numba import jit
 
 class BasisF:
     '''
-    Basis of electron systems in the occupation number representation. 
+    Basis of fermionic systems in the occupation number representation. 
     It provides a unified description of the three often-encountered cases:
     1) particle-non-conserved systems,
     2) particle-conserved systems and 
@@ -16,9 +21,9 @@ class BasisF:
     Attributes:
         basis_type: string
             A flag to tag the type of the three kinds of fore-mentioned systems:
-                'EG': particle-non-conserved systems
-                'EP': particle-conserved systems
-                'ES': spin-conserved systems
+                'FG': particle-non-conserved systems
+                'FP': particle-conserved systems
+                'FS': spin-conserved systems
         nstate: 1D ndarray of integers
             An array containing the numbers of states.
         nparticle: 1D ndarray of integers
@@ -55,22 +60,22 @@ class BasisF:
             dtype: dtype
                 The data type of the attribute basis_table.
         Note: 
-            If more than needed parameters to generate a certain kind a basis are assigned, this method obeys the following priority to create the instance: "EP" > "ES" > "EG".
+            If more than needed parameters to generate a certain kind a basis are assigned, this method obeys the following priority to create the instance: "FP" > "FS" > "FG".
         '''
         if len(tuple)==2:
-            self.basis_type="EP"
+            self.basis_type="FP"
             self.nstate=array(tuple[0])
             self.nparticle=array(tuple[1])
             self.basis_table=basis_table_ep(tuple[0],tuple[1],dtype=dtype)
             self.nbasis=len(self.basis_table)
         elif len(up)==2 and len(down)==2:
-            self.basis_type="ES"
+            self.basis_type="FS"
             self.nstate=array([up[0],down[0]])
             self.nparticle=array([up[1],down[1]])
             self.basis_table=basis_table_es(up,down,dtype=dtype)
             self.nbasis=len(self.basis_table)
         else:
-            self.basis_type="EG"
+            self.basis_type="FG"
             self.nstate=array(nstate)
             self.nparticle=array([])
             self.basis_table=array([])
@@ -81,7 +86,7 @@ class BasisF:
         Convert an instance to string.
         '''
         result=''
-        if self.basis_type=='EG':
+        if self.basis_type=='FG':
             for i in xrange(self.nbasis):
                 result+=str(i)+': '+'{0:b}'.format(i)+'\n'
         else:
