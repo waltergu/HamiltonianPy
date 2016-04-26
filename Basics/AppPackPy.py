@@ -201,10 +201,12 @@ class GFC(App):
     '''
     The coefficients of Green's functions.
     '''
-    def __init__(self,nstep=200,method='python',vtype='rd',error=0,**karg):
+    def __init__(self,v0=None,nstep=200,method='python',vtype='rd',error=0,**karg):
         '''
         Constructor.
         Parameters:
+            v0: 1D ndarray,optional
+                The initial state to begin with the Lanczos iteration for the groundstate.
             nstep: integer, optional
                 The max number of steps for the Lanczos iteration.
             method: string,optional
@@ -217,6 +219,7 @@ class GFC(App):
             error: float, optional
                 The error used to terminate the iteration.
         '''
+        self.v0=v0
         self.nstep=nstep
         self.method=method
         self.vtype=vtype

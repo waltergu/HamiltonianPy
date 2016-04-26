@@ -168,9 +168,9 @@ def EDGFC(engine,app):
     t1=time.time()
     print "EDGFC: matrix(%s*%s) containing %s operators and %s non-zeros set in %fs."%(engine.matrix.shape[0],engine.matrix.shape[1],len(engine.operators['h']),engine.matrix.nnz,t1-t0)
     if app.method in ('user',):
-        app.gse,gs=Lanczos(engine.matrix,vtype=app.vtype,zero=app.error).eig(job='v',precision=app.error)    
+        app.gse,app.v0=Lanczos(engine.matrix,v0=app.v0,vtype=app.vtype,zero=app.error).eig(job='v',precision=app.error)    
     else:
-        app.gse,gs=eigsh(engine.matrix,k=1,which='SA',return_eigenvectors=True,tol=app.error)
+        app.gse,app.v0=eigsh(engine.matrix,k=1,which='SA',v0=app.v0,return_eigenvectors=True,tol=app.error)
     t2=time.time()    
     print 'EDGFC: GSE(=%f) calculated in %fs'%(app.gse,t2-t1)
     if engine.basis.basis_type.lower() in ('fs','fp'): engine.matrix=None
@@ -180,17 +180,18 @@ def EDGFC(engine,app):
         t0=time.time()
         print '{0:13}'.format('Electron part' if h==0 else '  Hole part'),
         sys.stdout.flush()
+        t1=time.time()
         ed=ed_eh(engine,nambu=1-h,spin=0)
         states,norms,lczs=[],[],[]
-        t1=time.time()
         for i,opt in enumerate(sorted(engine.operators['sp'].values(),key=lambda operator: operator.seqs[0])):
+            if i==nopt/2 and engine.nspin==2 and engine.basis.basis_type.lower()=='fs': ed=ed_eh(engine,nambu=1-h,spin=1)
             mat=opt_rep(opt.dagger if h==0 else opt,[engine.basis,ed.basis],transpose=True)
-            state=mat.dot(gs)
+            state=mat.dot(app.v0)
             states.append(state)
             temp=norm(state)
             norms.append(temp)
-            lczs.append(Lanczos(ed.matrix,state/temp))
-            print ('\b'*26 if i>0 else '')+'{0:25}'.format('  %s/%s(%es)'%(i,nopt,time.time()-t1)),
+            lczs.append(Lanczos(ed.matrix,v0=state/temp))
+            print ('\b'*26 if i>0 else '')+'{0:25}'.format(' %s/%s(%es)'%(i,nopt,time.time()-t1)),
             sys.stdout.flush()
         t2=time.time()
         print '\b'*26+"{0:e}".format(t2-t1).center(14),
@@ -199,12 +200,13 @@ def EDGFC(engine,app):
             for i,(temp,lcz) in enumerate(zip(norms,lczs)):
                 if not lcz.cut:
                     for j,state in enumerate(states):
-                        if h==0:
-                            app.coeff[h,j,i,k]=vdot(state,lcz.new)*temp
-                        else:
-                            app.coeff[h,i,j,k]=vdot(state,lcz.new)*temp
+                        if engine.basis.basis_type.lower() in ('fp','fg') or engine.nspin==1 or ((i<nopt/2 and j<nopt/2) or (i>=nopt/2 and j>=nopt/2)):
+                            if h==0:
+                                app.coeff[h,j,i,k]=vdot(state,lcz.new)*temp
+                            else:
+                                app.coeff[h,i,j,k]=vdot(state,lcz.new)*temp
                     lcz.iter()
-            print ('\b'*26 if k>0 else '')+'{0:25}'.format('  %s/%s(%es)'%(k,app.nstep,time.time()-t2)),
+            print ('\b'*26 if k>0 else '')+'{0:25}'.format(' %s/%s(%es)'%(k,app.nstep,time.time()-t2)),
             sys.stdout.flush()
         t3=time.time()
         print '\b'*26+"{0:e}".format(t3-t2).center(14),

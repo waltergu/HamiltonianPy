@@ -24,13 +24,13 @@ class Lanczos:
         cut: logical
             A flag to tag whether the iteration has been cut off.
     '''
-    def __init__(self,matrix,vector=None,vtype='rd',zero=10**-10,dtype=complex128):
+    def __init__(self,matrix,v0=None,vtype='rd',zero=10**-10,dtype=complex128):
         '''
         Constructor.
         Parameters:
             matrix: csr_matrix
                 The csr-formed sparse Hermitian matrix.
-            vector: 1D ndarray,optional
+            v0: 1D ndarray,optional
                 The initial vector to begin with the Lanczos iterations. 
                 It must be normalized already.
             vtype: string,optional
@@ -43,7 +43,7 @@ class Lanczos:
         '''
         self.matrix=matrix
         self.zero=zero
-        if vector is None:
+        if v0 is None:
             if vtype.lower()=='rd':
                 self.new=zeros(matrix.shape[0],dtype=dtype)
                 self.new[:]=random.rand(matrix.shape[0])
@@ -51,7 +51,7 @@ class Lanczos:
                 self.new=ones(matrix.shape[0],dtype=dtype)
             self.new[:]=self.new[:]/norm(self.new)
         else:
-            self.new=vector
+            self.new=v0
         self.old=copy(self.new)
         self.cut=False
         self.a=[]
