@@ -14,7 +14,7 @@ from scipy.sparse.linalg import eigsh
 from scipy.linalg import norm,solve_banded,solveh_banded
 from copy import deepcopy
 import matplotlib.pyplot as plt
-import os.path,sys
+import os.path,sys,time
 
 class ED(Engine):
     '''
@@ -163,52 +163,58 @@ def EDGFC(engine,app):
             return
     app.coeff=zeros((2,nopt,nopt,app.nstep),dtype=complex128)
     app.hs=zeros((2,nopt,2,app.nstep),dtype=complex128)
+    t0=time.time()
     engine.set_matrix()
-    print "EDGFC: matrix (%s %s*%s operators with in total %s non-zeros) set OK."%(len(engine.operators['h']),engine.matrix.shape[0],engine.matrix.shape[1],engine.matrix.nnz)
+    t1=time.time()
+    print "EDGFC: matrix(%s*%s) containing %s operators and %s non-zeros set in %fs."%(engine.matrix.shape[0],engine.matrix.shape[1],len(engine.operators['h']),engine.matrix.nnz,t1-t0)
     if app.method in ('user',):
         app.gse,gs=Lanczos(engine.matrix,vtype=app.vtype,zero=app.error).eig(job='v',precision=app.error)    
     else:
         app.gse,gs=eigsh(engine.matrix,k=1,which='SA',return_eigenvectors=True,tol=app.error)
-    print 'gse:',app.gse
+    t2=time.time()    
+    print 'EDGFC: GSE(=%f) calculated in %fs'%(app.gse,t2-t1)
     if engine.basis.basis_type.lower() in ('fs','fp'): engine.matrix=None
-    print 'electron part'
-    states,norms,lczs=[],[],[]
-    ed=ed_eh(engine,nambu=CREATION,spin=0)
-    for opt in sorted(engine.operators['sp'].values(),key=lambda operator: operator.seqs[0]):
-        mat=opt_rep(opt.dagger,[engine.basis,ed.basis],transpose=True)
-        state=mat.dot(gs)
-        states.append(state)
-        temp=norm(state)
-        norms.append(temp)
-        lczs.append(Lanczos(ed.matrix,state/temp))
-    for k in xrange(app.nstep):
-        for i,(temp,lcz) in enumerate(zip(norms,lczs)):
-            if not lcz.cut:
-                for j,state in enumerate(states):
-                    app.coeff[0,j,i,k]=vdot(state,lcz.new)*temp
-                lcz.iter()
-    for i,lcz in enumerate(lczs):
-        app.hs[0,i,0,0:len(lcz.a)]=array(lcz.a)
-        app.hs[0,i,1,0:len(lcz.b)]=array(lcz.b)
-    print 'hole part'
-    states,norms,lczs=[],[],[]
-    ed=ed_eh(engine,nambu=ANNIHILATION,spin=0)
-    for opt in sorted(engine.operators['sp'].values(),key=lambda operator: operator.seqs[0]):
-        mat=opt_rep(opt,[engine.basis,ed.basis],transpose=True)
-        state=mat.dot(gs)
-        states.append(state)
-        temp=norm(state)
-        norms.append(temp)
-        lczs.append(Lanczos(ed.matrix,state/temp))
-    for k in xrange(app.nstep):
-        for i,(temp,lcz) in enumerate(zip(norms,lczs)):
-            if not lcz.cut:
-                for j,state in enumerate(states):
-                    app.coeff[1,i,j,k]=vdot(state,lcz.new)*temp
-                lcz.iter()
-    for i,lcz in enumerate(lczs):
-        app.hs[1,i,0,0:len(lcz.a)]=array(lcz.a)
-        app.hs[1,i,1,0:len(lcz.b)]=array(lcz.b)
+    print '-'*57
+    print '{0:13}{1:14}{2:14}{3:14}'.format('Time(seconds)','   Preparation','    Iteration','       Total')
+    for h in xrange(2):
+        t0=time.time()
+        print '{0:13}'.format('Electron part' if h==0 else '  Hole part'),
+        sys.stdout.flush()
+        ed=ed_eh(engine,nambu=1-h,spin=0)
+        states,norms,lczs=[],[],[]
+        t1=time.time()
+        for i,opt in enumerate(sorted(engine.operators['sp'].values(),key=lambda operator: operator.seqs[0])):
+            mat=opt_rep(opt.dagger if h==0 else opt,[engine.basis,ed.basis],transpose=True)
+            state=mat.dot(gs)
+            states.append(state)
+            temp=norm(state)
+            norms.append(temp)
+            lczs.append(Lanczos(ed.matrix,state/temp))
+            print ('\b'*26 if i>0 else '')+'{0:25}'.format('  %s/%s(%es)'%(i,nopt,time.time()-t1)),
+            sys.stdout.flush()
+        t2=time.time()
+        print '\b'*26+"{0:e}".format(t2-t1).center(14),
+        sys.stdout.flush()
+        for k in xrange(app.nstep):
+            for i,(temp,lcz) in enumerate(zip(norms,lczs)):
+                if not lcz.cut:
+                    for j,state in enumerate(states):
+                        if h==0:
+                            app.coeff[h,j,i,k]=vdot(state,lcz.new)*temp
+                        else:
+                            app.coeff[h,i,j,k]=vdot(state,lcz.new)*temp
+                    lcz.iter()
+            print ('\b'*26 if k>0 else '')+'{0:25}'.format('  %s/%s(%es)'%(k,app.nstep,time.time()-t2)),
+            sys.stdout.flush()
+        t3=time.time()
+        print '\b'*26+"{0:e}".format(t3-t2).center(14),
+        sys.stdout.flush()
+        for i,lcz in enumerate(lczs):
+            app.hs[h,i,0,0:len(lcz.a)]=array(lcz.a)
+            app.hs[h,i,1,0:len(lcz.b)]=array(lcz.b)
+        t4=time.time()
+        print "{0:e}".format(t4-t0).center(14)
+    print '-'*57
     if app.save_data:
         with open(engine.din+'/'+engine.name.full+'_coeff.dat','wb') as fout:
             array(app.gse).tofile(fout)
@@ -257,8 +263,7 @@ def EDGF(engine,app):
             buff[1,:]=app.omega-(hs[h,i,0,:]-gse)*(-1)**h
             buff[2,:]=hs[h,i,1,:]*(-1)**(h+1)
             temp=solve_banded((1,1),buff,b,overwrite_ab=True,overwrite_b=True,check_finite=False)
-            for j in xrange(nopt):
-                app.gf[i,j]+=inner(coeff[h,i,j,:],temp)
+            app.gf[i,:]+=dot(coeff[h,i,:,:],temp)
 
 def EDDOS(engine,app):
     engine.cache.pop('gf_mesh',None)
@@ -297,58 +302,3 @@ def EDEB(engine,app):
         else:
             plt.savefig(engine.dout+'/'+engine.name.const+'_EB.png')
         plt.close()
-'''
-def EDGFC(engine,app):
-    nopt=len(engine.operators['sp'])
-    if os.path.isfile(engine.din+'/'+engine.name.full+'_coeff.dat'):
-        with open(engine.din+'/'+engine.name.full+'_coeff.dat','rb') as fin:
-            app.gse=fromfile(fin,count=1)
-            app.coeff=fromfile(fin,dtype=complex128)
-        if len(app.coeff)==nopt*nopt*2*3*app.nstep:
-            app.coeff=app.coeff.reshape((nopt,nopt,2,3,app.nstep))
-            return
-    app.coeff=zeros((nopt,nopt,2,3,app.nstep),dtype=complex128)
-    engine.set_matrix()
-    print "EDGFC: matrix (%s %s*%s operators with in total %s non-zeros) set OK."%(len(engine.operators['h']),engine.matrix.shape[0],engine.matrix.shape[1],engine.matrix.nnz)
-    if app.method in ('user',):
-        app.gse,gs=Lanczos(engine.matrix,vtype=app.vtype,zero=app.error).eig(job='v',precision=app.error)    
-    else:
-        app.gse,gs=eigsh(engine.matrix,k=1,which='SA',return_eigenvectors=True,tol=app.error)
-    print 'gse:',app.gse
-    if engine.basis.basis_type.lower() in ('fs','fp'): engine.matrix=None
-    for h in xrange(2):
-        if h==0: print 'Electron part:'
-        else: print 'Hole part:' 
-        for j,optb in enumerate(sorted(engine.operators['sp'].values(),key=lambda operator: operator.seqs[0])):
-            for i,opta in enumerate(sorted(engine.operators['sp'].values(),key=lambda operator: operator.seqs[0])):
-                if engine.basis.basis_type.lower()=='fs' and engine.nspin==2 and optb.indices[0].spin!=opta.indices[0].spin : continue
-                mask=False
-                if j==i and j==0 : mask=True
-                if engine.basis.basis_type.lower()=='fs' and engine.nspin==2 and j==i and j==nopt/2: mask=True
-                if h==0:
-                    if mask: ed=ed_eh(engine,optb.indices[0].replace(nambu=1-optb.indices[0].nambu))
-                    matj=opt_rep(optb.dagger,[engine.basis,ed.basis],transpose=True)
-                    mati=opt_rep(opta.dagger,[engine.basis,ed.basis],transpose=True)
-                else:
-                    if mask: ed=ed_eh(engine,optb.indices[0])
-                    matj=opt_rep(opta,[engine.basis,ed.basis],transpose=True)
-                    mati=opt_rep(optb,[engine.basis,ed.basis],transpose=True)
-                statei=mati.dot(gs)
-                statej=matj.dot(gs)
-                normj=norm(statej)
-                statej[:]=statej[:]/normj
-                lcz=Lanczos(ed.matrix,statej)
-                for k in xrange(app.nstep):
-                    if not lcz.cut:
-                        app.coeff[i,j,h,0,k]=vdot(statei,statej)*normj
-                        lcz.iter()
-                app.coeff[i,j,h,1,0:len(lcz.a)]=array(lcz.a)
-                app.coeff[i,j,h,2,0:len(lcz.b)]=array(lcz.b)
-                print j*nopt+i,'...',
-                sys.stdout.flush()
-        print
-    if app.save_data:
-        with open(engine.din+'/'+engine.name.full+'_coeff.dat','wb') as fout:
-            array(app.gse).tofile(fout)
-            app.coeff.tofile(fout)
-'''

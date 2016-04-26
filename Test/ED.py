@@ -5,7 +5,7 @@ import itertools
 def test_ed():
     U=8.0
     t=-1.0
-    m=2;n=2
+    m=2;n=5
     p1=Point(pid=PID(scope='WG'+str(m)+str(n),site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1=array([1.0,0.0])
     a2=array([0.0,1.0])
@@ -28,6 +28,6 @@ def test_ed():
                         ]
         )
     a.addapps('GFC',GFC(nstep=100,save_data=False,vtype='RD',run=EDGFC))
-    a.addapps('DOS',DOS(emin=-5,emax=5,ne=401,eta=0.05,save_data=False,run=EDDOS,show=True))
+    a.addapps('DOS',DOS(emin=-5,emax=5,ne=401,eta=0.05,save_data=False,run=EDDOS,plot=True,show=True))
     #a.addapps('EB',EB(path=BaseSpace({'tag':'U','mesh':linspace(0.0,5.0,100)}),ns=6,save_data=False,run=EDEB))
     a.runapps()
