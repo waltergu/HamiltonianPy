@@ -24,7 +24,7 @@ class Lanczos:
         cut: logical
             A flag to tag whether the iteration has been cut off.
     '''
-    def __init__(self,matrix,v0=None,vtype='rd',zero=10**-10,dtype=complex128):
+    def __init__(self,matrix,v0=None,check_normalization=True,vtype='rd',zero=10**-10,dtype=complex128):
         '''
         Constructor.
         Parameters:
@@ -33,6 +33,8 @@ class Lanczos:
             v0: 1D ndarray,optional
                 The initial vector to begin with the Lanczos iterations. 
                 It must be normalized already.
+            check_nomalization: logical, optional
+                When it is True, the input v0 will be check to see whether it is normalized.
             vtype: string,optional
                 A flag to tell what type of initial vectors to use when the parameter vector is None.
                 'rd' means a random vector while 'sy' means a symmetric vector.
@@ -51,6 +53,10 @@ class Lanczos:
                 self.new=ones(matrix.shape[0],dtype=dtype)
             self.new[:]=self.new[:]/norm(self.new)
         else:
+            if check_normalization:
+                temp=norm(v0)
+                if abs(temp-v0)>zero:
+                    raise ValueError('Lanczos constructor error: v0(norm=%s) is not normalized.'%temp)
             self.new=v0
         self.old=copy(self.new)
         self.cut=False

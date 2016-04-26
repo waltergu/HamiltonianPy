@@ -190,7 +190,7 @@ def EDGFC(engine,app):
             states.append(state)
             temp=norm(state)
             norms.append(temp)
-            lczs.append(Lanczos(ed.matrix,v0=state/temp))
+            lczs.append(Lanczos(ed.matrix,v0=state/temp,check_normalization=False))
             print ('\b'*26 if i>0 else '')+'{0:25}'.format(' %s/%s(%es)'%(i,nopt,time.time()-t1)),
             sys.stdout.flush()
         t2=time.time()
