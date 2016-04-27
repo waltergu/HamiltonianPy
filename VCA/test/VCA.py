@@ -2,7 +2,7 @@
 VCA test.
 '''
 
-__all__=['test_vca_square']
+__all__=['test_vca']
 
 from numpy import *
 from HamiltonianPP.Basics import *
@@ -10,7 +10,7 @@ from HamiltonianPP.ED import *
 from HamiltonianPP.VCA import *
 import itertools
 
-def test_vca_square():
+def test_vca():
     print 'test_vca'
     U=8.0
     t=-1.0

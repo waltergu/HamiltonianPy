@@ -2,14 +2,14 @@
 ED test.
 '''
 
-__all__=['test_ed_square']
+__all__=['test_ed']
 
 from numpy import *
 from HamiltonianPP.Basics import *
 from HamiltonianPP.ED.EDPy import *
 import itertools
 
-def test_ed_square():
+def test_ed():
     print 'test_ed'
     U=0.0
     t=-1.0
