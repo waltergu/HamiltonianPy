@@ -1,3 +1,9 @@
+'''
+SCMF test.
+'''
+
+__all__=['test_scmf']
+
 from HamiltonianPP.Basics import *
 from HamiltonianPP.DataBase.Hexagon import *
 from HamiltonianPP.FreeSystem.SCMFPy import *

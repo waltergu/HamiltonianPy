@@ -1,4 +1,11 @@
+'''
+EngineApp test.
+'''
+
+__all__=['test_engineapp']
+
 from HamiltonianPP.Basics.EngineAppPy import *
+
 def test_engineapp():
     print 'test_engineapp'
     a=Name('Hexagon','CPT')

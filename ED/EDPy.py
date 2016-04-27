@@ -7,8 +7,8 @@ Exat diagonalization, including:
 __all__=['ED','EDGFC','EDGF','EDDOS','EDEB']
 
 from numpy import *
-from ..Math import *
 from ..Basics import *
+from ..Math import Lanczos
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
 from scipy.linalg import norm,solve_banded,solveh_banded

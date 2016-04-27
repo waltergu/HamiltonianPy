@@ -1,6 +1,13 @@
+'''
+Geometry test.
+'''
+
+__all__=['test_geometry']
+
 from numpy import *
 from HamiltonianPP.Basics.GeometryPy import *
 import time,itertools
+
 def test_geometry():
     test_functions()
     test_point()

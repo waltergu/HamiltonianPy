@@ -1,5 +1,12 @@
+'''
+BaseSpace test.
+'''
+
+__all__=['test_basespace']
+
 from numpy import *
 from HamiltonianPP.Basics.BaseSpacePy import *
+
 def test_basespace():
     test_kspace()
 

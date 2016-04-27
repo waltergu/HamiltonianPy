@@ -1,8 +1,15 @@
+'''
+Term test.
+'''
+
+__all__=['test_term']
+
 from HamiltonianPP.Basics.GeometryPy import *
 from HamiltonianPP.Basics.DegreeOfFreedomPy import *
 from HamiltonianPP.Basics.OperatorPy import *
 from HamiltonianPP.Basics.TermPy import *
 from HamiltonianPP.Basics.FermionicPackage import *
+
 def test_term():
     test_quadratic()
     test_hubbard()

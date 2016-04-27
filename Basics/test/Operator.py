@@ -1,7 +1,14 @@
+'''
+Operator test.
+'''
+
+__all__=['test_operator']
+
 from HamiltonianPP.Basics.GeometryPy import *
 from HamiltonianPP.Basics.DegreeOfFreedomPy import *
 from HamiltonianPP.Basics.OperatorPy import *
 from HamiltonianPP.Basics.FermionicPackage import *
+
 def test_operator():
     print 'test_operator'
     a=OperatorF(

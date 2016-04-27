@@ -1,7 +1,14 @@
+'''
+OperatorRepresentation test.
+'''
+
+__all__=['test_opt_rep']
+
 from numpy import *
 from HamiltonianPP.Basics import *
 import itertools
 import time
+
 def test_opt_rep():
     print 'test_opt_rep'
     m=2;n=2;nloop=500

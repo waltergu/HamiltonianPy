@@ -1,6 +1,13 @@
+'''
+TBA test.
+'''
+
+__all__=['test_tba']
+
 from numpy import *
 from HamiltonianPP.Basics import *
 from HamiltonianPP.FreeSystem.TBAPy import *
+
 def test_tba():
     print 'test_tba'
     p1=Point(pid=PID(scope='WG',site=0),rcoord=[0.0],icoord=[0.0])

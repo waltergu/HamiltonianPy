@@ -1,7 +1,14 @@
+'''
+FLQT test.
+'''
+
+__all__=['test_flqt']
+
 from numpy import *
 from HamiltonianPP.Basics import *
 from HamiltonianPP.FreeSystem.TBAPy import TBAEB
 from HamiltonianPP.FreeSystem.FLQTPy import *
+
 def test_flqt():
     print 'test_flqt'
     N,mu1,mu2=50,0.0,3.0

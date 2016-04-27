@@ -1,50 +1,15 @@
+from Test.Math import *
+from Test.Basics import *
+from Test.DataBase import *
+from Test.FreeSystem import *
+from Test.ED import*
+from Test.VCA import *
 import sys
+
 for arg in sys.argv:
-    if arg in ('geometry','all'):
-        from Test.Geometry import *
-        test_geometry()
-    if arg in ('database','all'):
-        from Test.DataBase import *
-        test_database()
-    if arg in ('degfre','all'):
-        from Test.DegreeOfFreedom import *
-        test_deg_fre()
-    if arg in ('basespace','all'):
-        from Test.BaseSpace import *
-        test_basespace()
-    if arg in ('engineapp','all'):
-        from Test.EngineApp import *
-        test_engineapp()
-    if arg in ('operator','all'):
-        from Test.Operator import *
-        test_operator()
-    if arg in ('term','all'):
-        from Test.Term import *
-        test_term()
-    if arg in ('tba','all'):
-        from Test.TBA import *
-        test_tba()
-    if arg in ('flqt','all'):
-        from Test.FLQT import *
-        test_flqt()
-    if arg in ('scmf','all'):
-        from Test.SCMF import *
-        test_scmf()
-    if arg in ('basisf','all'):
-        from Test.BasisF import *
-        test_basisf()
-    if arg in ('optrep','all'):
-        from Test.OperatorRepresentation import *
-        test_opt_rep()
-    if arg in ('lanczos','all'):
-        from Test.Lanczos import *
-        test_lanczos()
-    if arg in ('ed','all'):
-        from Test.ED import *
-        test_ed()
-    if arg in ('vca','all'):
-        from Test.VCA import *
-        test_vca()
-    #if arg in ('vcacct','all'):
-    #    from Test.VCACCT import *
-    #    test_vcacct()
+    test_basics(arg)
+    test_math(arg)
+    test_database(arg)
+    test_fre_sys(arg)
+    test_ed(arg)
+    test_vca(arg)

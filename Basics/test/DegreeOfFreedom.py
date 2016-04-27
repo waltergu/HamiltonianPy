@@ -1,6 +1,13 @@
+'''
+Degree of freedom test.
+'''
+
+__all__=['test_deg_fre']
+
 from HamiltonianPP.Basics.GeometryPy import *
 from HamiltonianPP.Basics.DegreeOfFreedomPy import *
 from HamiltonianPP.Basics.FermionicPackage import *
+
 def test_deg_fre():
     test_table()
     test_index()
