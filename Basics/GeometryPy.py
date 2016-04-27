@@ -179,7 +179,7 @@ class Point:
         '''
         return not self==other
 
-def tiling(cluster,vectors,indices,translate_icoord=False,return_map=False):
+def tiling(cluster,vectors,indices,scope=None,translate_icoord=False,flatten_site=False,return_map=False):
     '''
     Tile a supercluster by translations of the input cluster.
     Parameters:
@@ -189,9 +189,14 @@ def tiling(cluster,vectors,indices,translate_icoord=False,return_map=False):
             The translation vectors.
         indices: any iterable object of tuple
             It iterates over the indices of the translated clusters in the tiled superlattice.
+        scope: string, optional
+            The new scope of the pids of the supercluster's points.
+            If it is None, the scope keeps unchanged.
         translate_icoord: logical, optional
             If it is set to be False, the icoord of the translated points will not be changed.
             Otherwise, the icoord of the translated points will be set to be equal to the vectors connecting the original points and the translated points.
+        flatten_site: logical, optional
+            When it is True, the site attribute of the pid of the supercluster's points will be "flattened".
         return_map: logical, optional
             If it is set to be False, the tiling map will not be returned.
             Otherwise, the tiling map will be returned.
@@ -204,22 +209,32 @@ def tiling(cluster,vectors,indices,translate_icoord=False,return_map=False):
     '''
     supercluster,map=[],{}
     if len(vectors)==0:
-        supercluster=cluster
         for point in cluster:
-            map[point.pid]=point.pid
+            pid=point.pid if scope is None else point.pid._replace(scope=scope)
+            supercluster.append(Point(pid=pid,rcoord=point.rcoord,icoord=point.icoord))
+            map[pid]=point.pid
     else:
         for point in cluster:
-            if not hasattr(point.pid,'site') or not isinstance(point.pid.site,tuple):
+            if not isinstance(point.pid.site,tuple):
                 raise ValueError("Function tiling error: to use this function non-trivially, the pid of every input point must have a tuple attribute 'site'.")
         for index in indices:
             for point in cluster:
-                new=point.pid._replace(site=tuple(array(point.pid.site)+array(tuple(index)+(0,))))
-                map[new]=map[point.pid] if point.pid in map else point.pid
+                new=point.pid._replace(scope=scope if scope is not None else point.pid.scope,site=tuple(array(point.pid.site)+array(tuple(index)+(0,))))
+                map[new]=point.pid
                 disp=dot(index,vectors)
                 if translate_icoord:
                     supercluster.append(Point(pid=new,rcoord=point.rcoord+disp,icoord=point.icoord+disp))
                 else:
                     supercluster.append(Point(pid=new,rcoord=point.rcoord+disp,icoord=point.icoord))
+    if flatten_site:
+        new_map={}
+        supercluster.sort(key=lambda point: point.pid)
+        for i,point in enumerate(supercluster):
+            old=point.pid
+            new=old._replace(site=(0,)*(len(old.site)-1)+(i,))
+            point.pid=new
+            new_map[new]=map[old]
+        map=new_map
     if return_map:
         return supercluster,map
     else:
