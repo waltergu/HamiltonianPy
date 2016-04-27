@@ -24,8 +24,8 @@ def test_table():
 
 def test_index():
     print 'test_index'
-    a=Index(pid=PID(site=(0,0,0)),iid=FID(spin=1))
-    b=Index(pid=PID(site=(0,0,1)),iid=FID(nambu=CREATION))
+    a=Index(pid=PID(site=0),iid=FID(spin=1))
+    b=Index(pid=PID(site=1),iid=FID(nambu=CREATION))
     c=b.replace(nambu=1-b.nambu)
     print 'a:',a
     print 'b:',b
@@ -48,8 +48,8 @@ def test_fermi():
     print 'a: %s'%a
     print 'b: %s'%b
     print 'a!=b: %s'%(a!=b)
-    print 'a.table(nambu=False): %s'%a.table(pid=PID(site=(0,0,0)),nambu=False)
-    print 'a.table(nambu=True): %s'%a.table(pid=PID(site=(0,0,0)),nambu=True)
+    print 'a.table(nambu=False): %s'%a.table(pid=PID(site=0),nambu=False)
+    print 'a.table(nambu=True): %s'%a.table(pid=PID(site=0),nambu=True)
     for i in xrange(a.norbital*a.nspin*a.nnambu):
         fid=a.state_index(i)
         print 'a.state_index(%s): '%i,fid
@@ -59,8 +59,8 @@ def test_fermi():
 def test_configuration():
     print 'test_configuration'
     a=Configuration(priority=DEFAULT_FERMIONIC_PRIORITY)
-    a[PID(site=(0,0,0))]=Fermi(atom=0,norbital=1,nspin=2,nnambu=2)
-    a[PID(site=(0,0,1))]=Fermi(atom=1,norbital=1,nspin=2,nnambu=2)
+    a[PID(site=0)]=Fermi(atom=0,norbital=1,nspin=2,nnambu=2)
+    a[PID(site=1)]=Fermi(atom=1,norbital=1,nspin=2,nnambu=2)
     print 'a: %s'%a
     print 'a.table:%s'%a.table(nambu=True)
     print

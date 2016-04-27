@@ -6,7 +6,7 @@ def test_flqt():
     print 'test_flqt'
     N,mu1,mu2=50,0.0,3.0
 
-    p1=Point(pid=PID(scope='flqt',site=(0,0)),rcoord=[0.0],icoord=[0.0])
+    p1=Point(pid=PID(scope='flqt',site=0),rcoord=[0.0],icoord=[0.0])
     a1=array([1.0])
 
     #points=[p1]

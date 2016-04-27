@@ -2,6 +2,7 @@ from HamiltonianPP.Basics.FermionicPackage.BasisFPy import *
 from numba import jit
 import time
 def test_basisf():
+    print 'test_basisf'
     stime=time.time()
     m=12;n=6;nloop=100
     a=BasisF(up=(m,n),down=(m,n))
@@ -10,6 +11,7 @@ def test_basisf():
         test_while2(a.nbasis,a.basis_table)
     etime=time.time()
     print etime-stime
+    print
 
 @jit
 def test_while1(nbasis,basis_table):

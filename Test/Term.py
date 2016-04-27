@@ -9,8 +9,8 @@ def test_term():
 
 def test_quadratic():
     print 'test_quadratic'
-    p1=Point(pid=PID(site=(0,0,0),scope='WG'),rcoord=[0.0,0.0],icoord=[0.0,0.0])
-    p2=Point(pid=PID(site=(0,0,1),scope='WG'),rcoord=[1.0,0.0],icoord=[0.0,0.0])
+    p1=Point(pid=PID(site=0,scope='WG'),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    p2=Point(pid=PID(site=1,scope='WG'),rcoord=[1.0,0.0],icoord=[0.0,0.0])
     bond=Bond(neighbour=1,spoint=p1,epoint=p2)
 
     config=Configuration(priority=DEFAULT_FERMIONIC_PRIORITY)
@@ -42,7 +42,7 @@ def test_quadratic():
 
 def test_hubbard():
     print 'test_hubbard'
-    p1=Point(PID(site=(0,0,0),scope="WG"),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    p1=Point(PID(site=0,scope="WG"),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     config=Configuration(priority=DEFAULT_FERMIONIC_PRIORITY)
     config[p1.pid]=Fermi(norbital=2,nspin=2,nnambu=1)
     l=Lattice(name="WG",points=[p1])

@@ -12,6 +12,7 @@ def haldane_hopping(bond):
     return result
 
 def test_scmf():
+    print 'test_scmf'
     U=3.13
     t1=-1.0
     t2=0.1
@@ -21,7 +22,7 @@ def test_scmf():
         name=       'H2_SCMF',
         lattice=    Lattice(name='H2',points=H2.points,vectors=H2.vectors,nneighbour=2),
         config=     Configuration(
-                        {p.pid:Fermi(atom=0,norbital=1,nspin=2,nnambu=1) if p.pid.site[2]%2==0 else Fermi(atom=1,norbital=1,nspin=2,nnambu=1) for p in H2.points},
+                        {p.pid:Fermi(atom=0,norbital=1,nspin=2,nnambu=1) if p.pid.site%2==0 else Fermi(atom=1,norbital=1,nspin=2,nnambu=1) for p in H2.points},
                         priority=DEFAULT_FERMIONIC_PRIORITY
                         ),
         mu=         0,
@@ -40,3 +41,4 @@ def test_scmf():
     h2.addapps('EB',EB(hexagon_gkm(nk=100),save_data=False,plot=True,show=True,run=TBAEB))
     h2.addapps('CN',CN(KSpace(reciprocals=h2.lattice.reciprocals,nk=200),d=10**-6,save_data=False,plot=False,show=True,run=TBACN))
     h2.runapps()
+    print

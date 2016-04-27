@@ -126,7 +126,7 @@ class PID(namedtuple('PID',['scope','site'])):
         scope: any hashable object, recommend string
             The scope in which the point lives.
             Usually, it is same to the name of the cluster/sublattice/lattice the point belongs to.
-        site: any hashable object, recommend tuple
+        site: any hashable object, recommend tuple of int or int
             The site index of the point.
     '''
 
@@ -179,24 +179,18 @@ class Point:
         '''
         return not self==other
 
-def tiling(cluster,vectors,indices,scope=None,translate_icoord=False,flatten_site=False,return_map=False):
+def tiling(cluster,vectors=[],indices=[],flatten_site=True,return_map=False):
     '''
     Tile a supercluster by translations of the input cluster.
     Parameters:
         cluster: list of Point
             The original cluster.
-        vectors: list of 1D ndarray
+        vectors: list of 1D ndarray, optional
             The translation vectors.
-        indices: any iterable object of tuple
+        indices: any iterable object of tuple, optional
             It iterates over the indices of the translated clusters in the tiled superlattice.
-        scope: string, optional
-            The new scope of the pids of the supercluster's points.
-            If it is None, the scope keeps unchanged.
-        translate_icoord: logical, optional
-            If it is set to be False, the icoord of the translated points will not be changed.
-            Otherwise, the icoord of the translated points will be set to be equal to the vectors connecting the original points and the translated points.
         flatten_site: logical, optional
-            When it is True, the site attribute of the pid of the supercluster's points will be "flattened".
+            When it is True, the site attribute of the pid of the supercluster's points will be "flattened", i.e. it will be transformed form a tuple to an integer.
         return_map: logical, optional
             If it is set to be False, the tiling map will not be returned.
             Otherwise, the tiling map will be returned.
@@ -210,30 +204,26 @@ def tiling(cluster,vectors,indices,scope=None,translate_icoord=False,flatten_sit
     supercluster,map=[],{}
     if len(vectors)==0:
         for point in cluster:
-            pid=point.pid if scope is None else point.pid._replace(scope=scope)
-            supercluster.append(Point(pid=pid,rcoord=point.rcoord,icoord=point.icoord))
-            map[pid]=point.pid
+            supercluster.append(point)
+            map[point.pid]=point.pid
     else:
-        for point in cluster:
-            if not isinstance(point.pid.site,tuple):
-                raise ValueError("Function tiling error: to use this function non-trivially, the pid of every input point must have a tuple attribute 'site'.")
         for index in indices:
             for point in cluster:
-                new=point.pid._replace(scope=scope if scope is not None else point.pid.scope,site=tuple(array(point.pid.site)+array(tuple(index)+(0,))))
-                map[new]=point.pid
-                disp=dot(index,vectors)
-                if translate_icoord:
-                    supercluster.append(Point(pid=new,rcoord=point.rcoord+disp,icoord=point.icoord+disp))
+                if isinstance(point.pid.site,int):
+                    site=((index,) if isinstance(index,int) else tuple(index))+(point.pid.site,)
                 else:
-                    supercluster.append(Point(pid=new,rcoord=point.rcoord+disp,icoord=point.icoord))
+                    site=((index,) if isinstance(index,int) else tuple(index))+tuple(point.pid.site)
+                new=point.pid._replace(site=site)
+                map[new]=point.pid
+                disp=dot(site[0:len(vectors)],vectors)
+                supercluster.append(Point(pid=new,rcoord=point.rcoord+disp,icoord=point.icoord))
     if flatten_site:
         new_map={}
         supercluster.sort(key=lambda point: point.pid)
         for i,point in enumerate(supercluster):
-            old=point.pid
-            new=old._replace(site=(0,)*(len(old.site)-1)+(i,))
+            new=point.pid._replace(site=i)
+            new_map[new]=map[point.pid]
             point.pid=new
-            new_map[new]=map[old]
         map=new_map
     if return_map:
         return supercluster,map
@@ -362,7 +352,23 @@ def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=8):
     indices=list(itertools.product(*indices))
     for index in indices:
         if any(index):indices.remove(tuple([-i for i in index]))
-    supercluster,map=tiling(cluster=cluster,vectors=vectors,indices=indices,translate_icoord=True,return_map=True)
+    supercluster,map=[],{}
+    for index in indices:
+        for point in cluster:
+            if isinstance(point.pid.site,tuple):
+                if any(index):
+                    site=((index,) if isinstance(index,int) else tuple(index))+tuple(point.pid.site)
+                else:
+                    site=point.pid.site
+            else:
+                if any(index):
+                    site=((index,) if isinstance(index,int) else tuple(index))+(point.pid.site,)
+                else:
+                    site=point.pid.site
+            new=point.pid._replace(site=site)
+            map[new]=point.pid
+            disp=dot(index,vectors)
+            supercluster.append(Point(pid=new,rcoord=point.rcoord+disp,icoord=point.icoord+disp))
     tree=cKDTree([point.rcoord for point in supercluster])
     distances,indices=tree.query([point.rcoord for point in cluster],k=nneighbour*max_coordinate_number)
     mdists=[inf for i in xrange(nneighbour+1)]
@@ -459,10 +465,9 @@ class Lattice(object):
                 if pid_on:
                     pid=bond.spoint.pid
                     if pid.scope==None:
-                        tag=''
+                        tag=str(pid.site)
                     else:
-                        tag=str(pid.scope)
-                    tag+=str(pid.site)
+                        tag=str(pid.scope)+'*'+str(pid.site)
                     plt.text(x-0.2,y+0.1,tag,fontsize=10,color='blue')
             else:
                 if bond.is_intra_cell():

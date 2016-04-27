@@ -7,8 +7,8 @@ def test_operator():
     a=OperatorF(
         mode=       'f_quadratic',
         value=      1.0j,
-        indices=    [   Index(PID(site=(0,0,1)),FID(orbital=0,spin=0,nambu=CREATION)),
-                        Index(PID(site=(0,0,1)),FID(orbital=0,spin=0))
+        indices=    [   Index(PID(site=1),FID(orbital=0,spin=0,nambu=CREATION)),
+                        Index(PID(site=1),FID(orbital=0,spin=0))
                     ],
         rcoords=    [[0.0,0.0]],
         icoords=    [[0.0,0.0]],
@@ -17,8 +17,8 @@ def test_operator():
     b=OperatorF(
         mode=       'f_quadratic',
         value=      2.0,
-        indices=    [   Index(PID(site=(0,0,0)),FID(orbital=0,spin=0)),
-                        Index(PID(site=(1,0,0)),FID(orbital=0,spin=0,nambu=CREATION))
+        indices=    [   Index(PID(site=0),FID(orbital=0,spin=0)),
+                        Index(PID(site=0),FID(orbital=0,spin=0,nambu=CREATION))
                     ],
         rcoords=    [[1.0,0.0]],
         icoords=    [[0.0,0.0]],
@@ -32,8 +32,8 @@ def test_operator():
     c=OperatorF(
         mode=       'f_quadratic',
         value=      1.0j,
-        indices=    [   Index(PID(site=(0,0,1)),FID(orbital=0,spin=0)),
-                        Index(PID(site=(0,0,1)),FID(orbital=0,spin=0,nambu=CREATION))
+        indices=    [   Index(PID(site=1),FID(orbital=0,spin=0)),
+                        Index(PID(site=1),FID(orbital=0,spin=0,nambu=CREATION))
                     ],
         rcoords=    [[0.0,0.0]],
         icoords=    [[0.0,0.0]],
@@ -42,8 +42,8 @@ def test_operator():
     d=OperatorF(
         mode=       'f_quadratic',
         value=      2.0,
-        indices=    [   Index(PID(site=(0,0,1)),FID(orbital=0,spin=0)),
-                        Index(PID(site=(0,0,1)),FID(orbital=0,spin=0,nambu=CREATION))
+        indices=    [   Index(PID(site=1),FID(orbital=0,spin=0)),
+                        Index(PID(site=1),FID(orbital=0,spin=0,nambu=CREATION))
                     ],
         rcoords=    [[1.0,0.0]],
         icoords=    [[0.0,0.0]],
