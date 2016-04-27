@@ -41,20 +41,19 @@ class ED(Engine):
             The configuration of the degrees of freedom on the lattice.
         terms: list of Term
             The terms of the system.
-            The weiss terms are not included in this list.
         nambu: logical
             A flag to tag whether the anomalous Green's function are computed.
         generators: dict of Generator
             It has only one entries:
             1) 'h': Generator
-                The generator for the Hamiltonian including Weiss terms.
+                The generator for the Hamiltonian.
         operators: dict of OperatorCollection
             It has two entries:
             1) 'h': OperatorCollection
                 The 'half' of the operators for the Hamiltonian, including Weiss terms.
             3) 'sp': OperatorCollection
                 The single-particle operators in the lattice.
-                When nspin is 1 and basis.basis_type is 'es', only spin-down single particle operators are included.
+                When nspin is 1 and basis.basis_type is 'FS', only spin-down single particle operators are included.
         matrix: csr_matrix
             The sparse matrix representation of the cluster Hamiltonian.
         cache: dict
@@ -103,9 +102,11 @@ class ED(Engine):
 
     def set_operators_single_particle(self):
         self.operators['sp']=OperatorCollection()
-        table=self.config.table(nambu=self.nambu) if self.nspin==2 else subset(self.config.table(nambu=self.nambu),mask=lambda index: True if index.spin==0 else False)
+        temp=self.config.table(nambu=self.nambu)
+        table=temp if self.nspin==2 else subset(temp,mask=lambda index: True if index.spin==0 else False)
         for index,sequence in table.iteritems():
-            self.operators['sp']+=F_Linear(1,indices=[index],rcoords=[self.lattice.points[PID(scope=index.scope,site=index.site)].rcoord],icoords=[self.lattice.points[PID(scope=index.scope,site=index.site)].icoord],seqs=[sequence])
+            pid=PID(scope=index.scope,site=index.site)
+            self.operators['sp']+=F_Linear(1,indices=[index],rcoords=[self.lattice.points[pid].rcoord],icoords=[self.lattice.points[pid].icoord],seqs=[sequence])
 
     def update(self,**karg):
         '''
@@ -201,10 +202,7 @@ def EDGFC(engine,app):
                 if not lcz.cut:
                     for j,state in enumerate(states):
                         if engine.basis.basis_type.lower() in ('fp','fg') or engine.nspin==1 or ((i<nopt/2 and j<nopt/2) or (i>=nopt/2 and j>=nopt/2)):
-                            if h==0:
-                                app.coeff[h,j,i,k]=vdot(state,lcz.new)*temp
-                            else:
-                                app.coeff[h,i,j,k]=vdot(state,lcz.new)*temp
+                            app.coeff[h,i,j,k]=vdot(state,lcz.new)*temp
                     lcz.iter()
             print ('\b'*26 if k>0 else '')+'{0:25}'.format(' %s/%s(%es)'%(k,app.nstep,time.time()-t2)),
             sys.stdout.flush()
@@ -265,7 +263,10 @@ def EDGF(engine,app):
             buff[1,:]=app.omega-(hs[h,i,0,:]-gse)*(-1)**h
             buff[2,:]=hs[h,i,1,:]*(-1)**(h+1)
             temp=solve_banded((1,1),buff,b,overwrite_ab=True,overwrite_b=True,check_finite=False)
-            app.gf[i,:]+=dot(coeff[h,i,:,:],temp)
+            if h==0:
+                app.gf[:,i]+=dot(coeff[h,i,:,:],temp)
+            else:
+                app.gf[i,:]+=dot(coeff[h,i,:,:],temp)
 
 def EDDOS(engine,app):
     engine.cache.pop('gf_mesh',None)

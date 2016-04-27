@@ -1,12 +1,24 @@
-from ONRPy import *
+'''
+Variational cluster approach, including:
+1) classes: VCA
+2) functions: VCAEB, VCAFF, VCACP, VCAFS, VCADOS, VCAGP, VCAGPS, VCACN, VCATEB, VCAOP
+'''
+
+__all__=['VCA','VCAEB','VCAFF','VCACP','VCAFS','VCADOS','VCAGP','VCAGPS','VCACN','VCATEB','VCAOP']
+
+from numpy import *
 from VCA_Fortran import *
-from Hamiltonian.Core.BasicAlgorithm.IntegrationPy import *
-from Hamiltonian.Core.BasicAlgorithm.BerryCurvaturePy import *
+from ..Basics import *
+from ..ED import *
+from ..Math import berry_curvature
 from numpy.linalg import det,inv
 from scipy import interpolate
 from scipy.integrate import quad
 from scipy.optimize import newton,brenth,brentq,broyden1,broyden2
-class VCA(ONR):
+from copy import deepcopy
+import matplotlib.pyplot as plt
+
+class VCA(ED):
     '''
     This class implements the algorithm of the variational cluster approach of an electron system.
     Attributes:
@@ -18,17 +30,21 @@ class VCA(ONR):
             The chemical potential.
             It makes sense only when ensemble is 'c'.
             It must be zero for grand canonical ensemble since the chemical potential has already been included in the Hamiltonian in this case.
-        basis: BasisE
+        basis: BasisF
             The occupation number basis of the system.
-            When ensemble is 'c', basis.basis_type must be 'ES' or 'EP' and when ensemble is 'g', basis.basis_type must be 'EG'.
+            When ensemble is 'c', basis.basis_type must be 'FS' or 'FP' and when ensemble is 'g', basis.basis_type must be 'FG'.
         nspin: integer
-            It makes sense only when basis.basis_type is 'ES'.
+            It makes sense only when basis.basis_type is 'FS'.
             It should be 1 or 2.
             When it is set to be 1, only spin-down parts of the Green's function is computed and when it is set to be 2, both spin-up and spin-down parts of the Green's function is computed.
         cell: Lattice
             The unit cell of the system.
+        celfig: Configuration
+            The configuration of the degrees of freedom on the unit cell.
         lattice: Lattice
             The cluster the system uses.
+        config: Configuration
+            The configuration of the degrees of freedom on the lattice.
         terms: list of Term
             The terms of the system.
             The weiss terms are not included in this list.
@@ -44,43 +60,41 @@ class VCA(ONR):
                 The generator for the perturbation coming from the inter-cluster single-particle terms.
             3) 'pt_w': Generator
                 The generator for the perturbation cominig from the Weiss terms.
-        operators: dict of OperatorList
+        operators: dict of OperatorCollection
             It has four entries:
-            1) 'h': OperatorList
-                The 'half' of the operators for the cluster Hamiltonian,including Weiss terms.
-            2) 'pt': OperatorList
+            1) 'h': OperatorCollection
+                The 'half' of the operators for the cluster Hamiltonian, including Weiss terms.
+            2) 'pt': OperatorCollection
                 The 'half' of the operators for the perturbation, including Weiss terms.
-            3) 'sp': OperatorList
+            3) 'sp': OperatorCollection
                 The single-particle operators in the cluster.
-                When nspin is 1 and basis.basis_type is 'es', only spin-down single particle operators are included.
-            4) 'csp': OperatorList
+                When nspin is 1 and basis.basis_type is 'FS', only spin-down single particle operators are included.
+            4) 'csp': OperatorCollection
                 The single-particle operators in the unit cell.
-                When nspin is 1 and basis.basis_type is 'es', only spin-down single particle operators are included.
+                When nspin is 1 and basis.basis_type is 'FS', only spin-down single particle operators are included.
         clmap: dict
-            This dict is used to restore the translation symmetry broken by the explicit tilling of the original lattice.
+            This dict is used to restore the translation symmetry broken by the explicit tiling of the original lattice.
             It has two entries:
             1) 'seqs': 2D ndarray of integers
-                clmap['seq'][i,j] stores the index sequence with respect to operators['sp'] of the j-th cluster-single-particle operator that corresponds to unit-cell-single-particle operator whose index sequence with respsect to operators['csp'] is i after the periodization;
             2) 'coords': 3D ndarray of floats
-                clmap['seq'][i,j] stores the rcoords of the j-th cluster-single-particle operator that corresponds to unit-cell-single-particle operator whose index sequence with respsect to operator['csp'] is i after the periodization;
         matrix: csr_matrix
             The sparse matrix representation of the cluster Hamiltonian.
         cache: dict
             The cache during the process of calculation, usually to store some meshes.
     Supported methods include:
-        1) VCAEB: calculates the energy bands.
-        2) VCADOS: calculates the density of states.
-        3) VCACP: calculates the chemical potential, behaves bad.
-        4) VCAFF: calculates the filling factor.
-        4) VCACN: calculates the Chern number and Berry curvature.
-        5) VCAGP: calculates the grand potential.
-        6) VCAGPS: calculates the grand potential surface.
-        7) VCATEB: calculates the topological Hamiltonian's spectrum.
-        8) VCAOP: calculates the order parameter.
-        9) VCAFS: calculates the Fermi surface.
+        1)  VCAEB: calculates the energy bands.
+        2)  VCADOS: calculates the density of states.
+        3)  VCACP: calculates the chemical potential, behaves bad.
+        4)  VCAFF: calculates the filling factor.
+        5)  VCACN: calculates the Chern number and Berry curvature.
+        6)  VCAGP: calculates the grand potential.
+        7)  VCAGPS: calculates the grand potential surface.
+        8)  VCATEB: calculates the topological Hamiltonian's spectrum.
+        9)  VCAOP: calculates the order parameter.
+        10) VCAFS: calculates the Fermi surface.
     '''
 
-    def __init__(self,ensemble='c',filling=0.5,mu=0,basis=None,nspin=1,cell=None,lattice=None,terms=None,weiss=None,nambu=False,**karg):
+    def __init__(self,ensemble='c',filling=0.5,mu=0,basis=None,nspin=1,cell=None,celfig=None,lattice=None,config=None,terms=None,weiss=None,nambu=False,**karg):
         '''
         Constructor.
         '''
@@ -92,33 +106,32 @@ class VCA(ONR):
         elif self.ensemble.lower()=='g':
             self.name.update(alter={'mu':self.mu})
         self.basis=basis
-        self.nspin=nspin if basis.basis_type=='ES' else 2
+        self.nspin=nspin if basis.basis_type=='FS' else 2
         self.cell=cell
+        self.celfig=celfig if celfig is not None else Configuration({key:config[key] for key in cell.points.keys()},priority=config.priority)
         self.lattice=lattice
+        self.config=config
         self.terms=terms
         self.weiss=weiss
         self.nambu=nambu
         self.generators={}
         self.generators['h']=Generator(
                     bonds=      [bond for bond in lattice.bonds if bond.is_intra_cell()],
-                    table=      lattice.table(nambu=False),
-                    terms=      terms if weiss is None else terms+weiss,
-                    nambu=      False,
-                    half=       True
+                    table=      config.table(nambu=False),
+                    config=     config,
+                    terms=      terms if weiss is None else terms+weiss
                     )
         self.generators['pt_h']=Generator(
                     bonds=      [bond for bond in lattice.bonds if not bond.is_intra_cell()],
-                    table=      lattice.table(nambu=nambu) if self.nspin==2 else subset(lattice.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
+                    table=      config.table(nambu=nambu) if self.nspin==2 else subset(config.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
+                    config=     config,
                     terms=      [term for term in terms if isinstance(term,Quadratic)],
-                    nambu=      nambu,
-                    half=       True
                     )
         self.generators['pt_w']=Generator(
                     bonds=      [bond for bond in lattice.bonds if bond.is_intra_cell()],
-                    table=      lattice.table(nambu=nambu) if self.nspin==2 else subset(lattice.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
+                    table=      config.table(nambu=nambu) if self.nspin==2 else subset(config.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
+                    config=     config,
                     terms=      None if weiss is None else [term*(-1) for term in weiss],
-                    nambu=      nambu,
-                    half=       True
                     )
         self.name.update(const=self.generators['h'].parameters['const'])
         self.name.update(alter=self.generators['h'].parameters['alter'])
@@ -138,19 +151,20 @@ class VCA(ONR):
         self.set_operators_cell_single_particle()
 
     def set_operators_perturbation(self):
-        self.operators['pt']=OperatorList()
+        self.operators['pt']=OperatorCollection()
         table=self.generators['pt_h'].table 
-        for opt in self.generators['pt_h'].operators:
-            if opt.indices[1] in table: self.operators['pt'].append(opt)
-        for opt in self.generators['pt_w'].operators:
-            if opt.indices[1] in table: self.operators['pt'].append(opt)
+        for opt in self.generators['pt_h'].operators.values():
+            if opt.indices[1] in table: self.operators['pt']+=opt
+        for opt in self.generators['pt_w'].operators.values():
+            if opt.indices[1] in table: self.operators['pt']+=opt
 
     def set_operators_cell_single_particle(self):
-        self.operators['csp']=OperatorList()
-        table=self.cell.table(nambu=self.nambu) if self.nspin==2 else subset(self.cell.table(nambu=self.nambu),mask=lambda index: True if index.spin==0 else False)
+        self.operators['csp']=OperatorCollection()
+        temp=self.celfig.table(nambu=self.nambu)
+        table=temp if self.nspin==2 else subset(temp,mask=lambda index: True if index.spin==0 else False)
         for index,seq in table.iteritems():
-            self.operators['csp'].append(E_Linear(1,indices=[index],rcoords=[self.cell.points[index.scope+str(index.site)].rcoord],icoords=[self.cell.points[index.scope+str(index.site)].icoord],seqs=[seq]))
-        self.operators['csp'].sort(key=lambda opt: opt.seqs[0])
+            pid=PID(scope=index.scope,site=index.site)
+            self.operators['csp']+=F_Linear(1,indices=[index],rcoords=[self.cell.points[pid].rcoord],icoords=[self.cell.points[pid].icoord],seqs=[seq])
 
     def update(self,**karg):
         '''
@@ -166,18 +180,20 @@ class VCA(ONR):
         '''
         Prepare self.clmap.
         '''
-        nsp,ncsp,ndim=len(self.operators['sp']),len(self.operators['csp']),len(self.operators['csp'][0].rcoords[0])
+        nsp,ncsp,ndim=len(self.operators['sp']),len(self.operators['csp']),len(self.operators['csp'].values()[0].rcoords[0])
         buff=[]
         for i in xrange(ncsp):
-            buff.append(OperatorList())
-        for optl in self.operators['sp']:
-            for i,optc in enumerate(self.operators['csp']):
+            buff.append(OperatorCollection())
+        optsl=sorted(self.operators['sp'].values(),key=lambda operator: operator.seqs[0])
+        optsc=sorted(self.operators['csp'].values(),key=lambda operator: operator.seqs[0])
+        for optl in optsl:
+            for i,optc in enumerate(optsc):
                 if optl.indices[0].orbital==optc.indices[0].orbital and optl.indices[0].spin==optc.indices[0].spin and optl.indices[0].nambu==optc.indices[0].nambu and has_integer_solution(optl.rcoords[0]-optc.rcoords[0],self.cell.vectors):
-                    buff[i].append(optl)
+                    buff[i]+=optl
                     break
         self.clmap['seqs'],self.clmap['coords']=zeros((ncsp,nsp/ncsp),dtype=int64),zeros((ncsp,nsp/ncsp,ndim),dtype=float64)
         for i in xrange(ncsp):
-            for j,optj in enumerate(buff[i]):
+            for j,optj in enumerate(sorted(buff[i].values(),key=lambda operator: operator.seqs[0])):
                 self.clmap['seqs'][i,j],self.clmap['coords'][i,j,:]=optj.seqs[0]+1,optj.rcoords[0]
 
     def pt(self,k):
@@ -186,7 +202,7 @@ class VCA(ONR):
         '''
         ngf=len(self.operators['sp'])
         result=zeros((ngf,ngf),dtype=complex128)
-        for opt in self.operators['pt']:
+        for opt in self.operators['pt'].values():
             result[opt.seqs]+=opt.value*(1 if len(k)==0 else exp(-1j*inner(k,opt.icoords[0])))
         return result+conjugate(result.T)
 
@@ -431,7 +447,7 @@ def VCAOP(engine,app):
     for i,term in enumerate(app.terms):
         buff=deepcopy(term);buff.value=1
         m=zeros((nmatrix,nmatrix),dtype=complex128)
-        for opt in Generator(bonds=engine.lattice.bonds,table=engine.lattice.table(engine.nambu),terms=[buff],nambu=engine.nambu,half=True).operators:
+        for opt in Generator(bonds=engine.lattice.bonds,table=engine.config.table(nambu=engine.nambu),config=engine.config,terms=[buff]).operators.values():
             m[opt.seqs]+=opt.value
         m+=conjugate(m.T)
         app.ms[i,:,:]=m
@@ -439,4 +455,4 @@ def VCAOP(engine,app):
     for i,m in enumerate(app.ms):
         app.ops[i]=quad(fx,0,float(inf),args=(m))[0]/app.BZ.rank['k']/nmatrix*2/pi
     for term,op in zip(app.terms,app.ops):
-        print term.tag+':',op
+        print term.id+':',op

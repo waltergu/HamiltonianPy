@@ -3,9 +3,9 @@ from HamiltonianPP.Basics import *
 from HamiltonianPP.ED.EDPy import *
 import itertools
 def test_ed():
-    U=8.0
+    U=0.0
     t=-1.0
-    m=2;n=5
+    m=2;n=2
     p1=Point(pid=PID(scope='WG'+str(m)+str(n),site=(0,0,0)),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1=array([1.0,0.0])
     a2=array([0.0,1.0])
@@ -20,14 +20,14 @@ def test_ed():
             mu=         U/2,
             basis=      BasisF(up=(m*n,m*n/2),down=(m*n,m*n/2)),
             #basis=      BasisF((2*m*n,m*n)),
-            nspin=      2,
+            nspin=      1,
             lattice=    Lattice(name='WG'+str(m)+str(n),points=points),
             config=     config,
             terms=[     Hopping('t',t,neighbour=1),
                         Hubbard('U',U,modulate=lambda **karg:karg['U'])
                         ]
         )
-    a.addapps('GFC',GFC(nstep=100,save_data=False,vtype='RD',run=EDGFC))
-    a.addapps('DOS',DOS(emin=-5,emax=5,ne=401,eta=0.05,save_data=False,run=EDDOS,plot=True,show=True))
+    a.addapps('GFC',GFC(nstep=4,save_data=False,vtype='RD',run=EDGFC))
+    a.addapps('DOS',DOS(emin=-5,emax=5,ne=501,eta=0.05,save_data=False,run=EDDOS,plot=True,show=True))
     #a.addapps('EB',EB(path=BaseSpace({'tag':'U','mesh':linspace(0.0,5.0,100)}),ns=6,save_data=False,run=EDEB))
     a.runapps()

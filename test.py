@@ -42,10 +42,9 @@ for arg in sys.argv:
     if arg in ('ed','all'):
         from Test.ED import *
         test_ed()
-
-    #if arg in ('vca','all'):
-    #    from Test.VCA import *
-    #    test_vca()
+    if arg in ('vca','all'):
+        from Test.VCA import *
+        test_vca()
     #if arg in ('vcacct','all'):
     #    from Test.VCACCT import *
     #    test_vcacct()
