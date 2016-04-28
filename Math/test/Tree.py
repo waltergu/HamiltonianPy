@@ -7,6 +7,7 @@ __all__=['test_tree']
 from HamiltonianPP.Math.TreePy import *
 
 def test_tree():
+    print 'test_tree'
     A=Tree()
     A['L0-0']=Node(1.0)
     print 'A: %s'%A
@@ -42,3 +43,4 @@ def test_tree():
 
     D['L1-1'].update(111.0)
     print "A['L1-1']: %s"%A['L1-1']
+    print

@@ -14,3 +14,6 @@ def test_math(arg):
     if arg in ('tree','math','all'):
         from HamiltonianPP.Math.test.Tree import *
         test_tree()
+    if arg in ('mps','math','all'):
+        from HamiltonianPP.Math.test.MPS import *
+        test_mps()

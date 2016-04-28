@@ -61,15 +61,15 @@ class Tensor(ndarray):
         '''
         if isinstance(para,tuple):
             if len(labels)!=len(para):
-                raise ValueError("Tensor construction error: the number of labels and the dimension of tensors should be equal.")
+                raise ValueError("Tensor construction error: the number of labels(%s) and the dimension(%s) of tensors are not equal."%(len(labels),para.ndim))
             result=ndarray.__new__(cls,shape=para,*args,**kargs)
         elif isinstance(para,cls):
-            if len(labels)!=ndim(para):
-                raise ValueError("Tensor construction error: the number of labels and the dimension of tensors should be equal.")
+            if len(labels)!=para.ndim:
+                raise ValueError("Tensor construction error: the number of labels(%s) and the dimension(%s) of tensors are not equal."%(len(labels),para.ndim))
             result=para
         else:
-            if len(labels)!=ndim(para):
-                raise ValueError("Tensor construction error: the number of labels and the dimension of tensors should be equal.")
+            if len(labels)!=para.ndim:
+                raise ValueError("Tensor construction error: the number of labels(%s) and the dimension(%s) of tensors are not equal."%(len(labels),para.ndim))
             result=asarray(para,*args,**kargs).view(cls)
         result.labels=labels
         return result
