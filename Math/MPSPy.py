@@ -115,17 +115,17 @@ class GMPS(MPS):
         Gammas,Lambdas,labels=[],[],[]
         for i,M in enumerate(self.ms):
             L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
-            if i==0:
-                old=1
-            else:
-                old=new
             u,new,v=M.svd([L,S],'_'+str(R),[R])
-            print new
             labels.append((S,R))
-            Gammas.append(asarray(u)/asarray(old)[:,newaxis])
-            Lambdas.append(asarray(new))
+            if i==0:
+                Gammas.append(asarray(u))
+            else:
+                Gammas.append(asarray(u)/asarray(old)[:,newaxis])
+            old=new
             if i<len(self.ms)-1:
+                Lambdas.append(asarray(new))
                 self.ms[i+1]=contract(v*asarray(new),self.ms[i+1])
+                self.ms[i+1].relabel([R],['_'+R])
         return VMPS(Gammas,Lambdas,labels)
 
     def to_mmps(self):
@@ -161,14 +161,14 @@ class VMPS(MPS):
                     label[1]: any hashable object
                         The link label of the Gamma matrix
         '''
-        if len(gs)!=len(ls)+1:
-            raise ValueError('VMPS construction error: there should be one more Gamma matrices(%s) than the Lambda matrices(%s).'%(len(gs),len(ls)))
-        if len(gs)!=len(labels):
-            raise ValueError('VMPS construction error: the number of Gamma matrices(%s) is not equal to that of the labels(%s).'%(len(ms),len(labels)))
+        if len(Gammas)!=len(Lambdas)+1:
+            raise ValueError('VMPS construction error: there should be one more Gamma matrices(%s) than the Lambda matrices(%s).'%(len(Gammas),len(Lambdas)))
+        if len(Gammas)!=len(labels):
+            raise ValueError('VMPS construction error: the number of Gamma matrices(%s) is not equal to that of the labels(%s).'%(len(Gammas),len(labels)))
         self.Gammas=[]
         self.Lambdas=[]
         temp,buff=[None]*3,[]
-        for i,(Gamma,label) in enumerate(Gammas,labels):
+        for i,(Gamma,label) in enumerate(zip(Gammas,labels)):
             if Gamma.ndim!=3:
                 raise ValueError('VMPS construction error: all Gamma matrices should be 3 dimensional.')
             S,R=label

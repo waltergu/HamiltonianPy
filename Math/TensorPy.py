@@ -130,18 +130,27 @@ class Tensor(ndarray):
         else:
             raise ValueError("Tensor axis error: the input label(%s) is not in fact a legal label."%label)
 
-    def relabel(self,labels):
+    def relabel(self,news,olds=None):
         '''
         Change the labels of the tensor and return the new one.
         Parameters:
-            labels: list of hashable objects
+            news: list of hashable objects
                 The new labels of the tensor's axes.
+            olds: list of hashable objects
+                The old labels of the tensor's axes.
         Returns: Tensor
             The new tensor with the new labels.
         '''
-        if self.ndim!=len(labels):
-            raise ValueError("Tensor construction error: the number of lables and the dimension of tensors should be equal.")
-        self.labels=labels
+        if olds is None:
+            if self.ndim!=len(news):
+                raise ValueError("Tensor relabel error: the number of lables and the dimension of tensors should be equal.")
+            self.labels=news
+        else:
+            if len(news)!=len(olds):
+                raise ValueError("Tensor relabel error: the number of new labels(%s) and old labels(%s) are not equal."%(len(news),len(olds)))
+            for old,new in zip(olds,news):
+                index=self.labels.index(old)
+                self.labels[index]=new
         return self
 
     def reorder(self,paras):
@@ -204,6 +213,7 @@ class Tensor(ndarray):
         Returns:
             U,S,V: Tensor
         '''
+        #print 'self.labels:%s'%self.labels
         axes1,axes2,shape1,shape2=[],[],(),()
         for label in labels1:
             index=self.labels.index(label)
@@ -215,9 +225,10 @@ class Tensor(ndarray):
             shape2+=(self.shape[index],)
         if [i for i in xrange(len(self.labels)) if (i not in axes1) and (i not in axes2)]:
             raise ValueError('Tensor svd error: all axis should be divided into two group to perform the svd.')
-        m=self.transpose(axes1+axes2).reshape((product(shape1),)+(product(shape2),))
+        m=asarray(self).transpose(axes1+axes2).reshape((product(shape1),)+(product(shape2),))
         u,s,v=svd(m,full_matrices=False)
         U=Tensor(u.reshape(shape1+(-1,)),labels=labels1+[new])
         S=Tensor(s,labels=[new])
         V=Tensor(v.reshape((-1,)+shape2),labels=[new]+labels2)
+        #print 'self.labels:%s'%self.labels
         return U,S,V

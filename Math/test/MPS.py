@@ -24,5 +24,6 @@ def test_mps():
     print
     
     c=b.to_vmps()
+    print "b:%s"%b
     print b.state
     print c.state
