@@ -22,3 +22,7 @@ def test_mps():
     print 'b:\n%s'%b
     print 'b.state: %s'%b.state
     print
+    
+    c=b.to_vmps()
+    print b.state
+    print c.state

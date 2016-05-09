@@ -112,7 +112,21 @@ class GMPS(MPS):
         '''
         Convert to the VMPS representation.
         '''
-        pass
+        Gammas,Lambdas,labels=[],[],[]
+        for i,M in enumerate(self.ms):
+            L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
+            if i==0:
+                old=1
+            else:
+                old=new
+            u,new,v=M.svd([L,S],'_'+str(R),[R])
+            print new
+            labels.append((S,R))
+            Gammas.append(asarray(u)/asarray(old)[:,newaxis])
+            Lambdas.append(asarray(new))
+            if i<len(self.ms)-1:
+                self.ms[i+1]=contract(v*asarray(new),self.ms[i+1])
+        return VMPS(Gammas,Lambdas,labels)
 
     def to_mmps(self):
         '''
