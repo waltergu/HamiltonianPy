@@ -13,25 +13,44 @@ def test_mps():
     N=4
     ms,labels=[],[]
     for i in xrange(N):
-        labels.append(('B%s'%(i-1 if i>0 else N-1),'S%s'%i,'B%s'%i))
-        ms.append(array([[[1,0],[0,1]],[[1,0],[0,1]]]))
-    a=GMPS(ms,labels)
+        labels.append(('END' if i==0 else 'B%s'%(i-1),'S%s'%i,'END' if i==N-1 else 'B%s'%i))
+        if i==0:
+            ms.append(array([[[1,0],[0,1]]]))
+        elif i==N-1:
+            ms.append(array([[[0],[1]],[[1],[0]]]))
+        else:
+            ms.append(array([[[1,0],[0,1]],[[1,0],[0,1]]]))
+    a=MPS(ms,labels)
     print 'a:\n%s'%a
     print 'a.state: %s'%a.state
-    b=GMPS([array([[[1,0],[0,1]]]),array([[[0],[1]],[[1],[0]]])],labels=[('B1','S0','B0'),('B0','S1','B1')])
+    print '-------------------'
+
+    b=a.to_left(normalization=True)
     print 'b:\n%s'%b
-    print 'b.state: %s'%b.state
-    print
+    print 'b.state:%s'%b.state
+    print 'b.is_canonical:%s'%(b.is_canonical())
+    print '-------------------'
+
+    c=b.to_right(normalization=False)
+    print 'c:\n%s'%c
+    print 'c.state:%s'%c.state
+    print 'c.is_canonical:%s'%(c.is_canonical())
+    print '-------------------'
+
     
-    c=b.to_vmps()
-    print "b:%s"%b
-    print b.state
-    print b.norm
-    print c.state
-    print
+    #d=c.to_vidal()
+    #print 'd:\n%s\n'%d
+    #print 'd.state:%s'%d.state
+    #print '-------------------'
+
+    #e=d.to_mixed(cut=N)
+    #print 'e:\n%s\n'%e
+    #print 'e.state:%s'%e.state
+    #print '-------------------'
     
-    for i in xrange(2):
-        d=c.to_mmps(i)
-        print 'd[%s]:%s'%(i,d)
-        print 'state:%s'%d.state
-        print
+    #f=d.to_mixed(cut=0)
+    #print 'f:\n%s\n'%f
+    #print 'f.state:%s'%f.state
+    #print '-------------------'
+
+
