@@ -213,7 +213,6 @@ class Tensor(ndarray):
         Returns:
             U,S,V: Tensor
         '''
-        #print 'self.labels:%s'%self.labels
         axes1,axes2,shape1,shape2=[],[],(),()
         for label in labels1:
             index=self.labels.index(label)
@@ -230,5 +229,4 @@ class Tensor(ndarray):
         U=Tensor(u.reshape(shape1+(-1,)),labels=labels1+[new])
         S=Tensor(s,labels=[new])
         V=Tensor(v.reshape((-1,)+shape2),labels=[new]+labels2)
-        #print 'self.labels:%s'%self.labels
         return U,S,V

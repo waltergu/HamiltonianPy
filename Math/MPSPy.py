@@ -63,14 +63,16 @@ class GMPS(MPS):
         Parameters:
             ms: list of 3d ndarray
                 The matrices.
-            labels: list of 2 tuples
+            labels: list of 3 tuples
                 The labels of the axis of the matrices.
                 Its length should be equal to that of ms.
                 For each label in labels, 
                     label[0]: any hashable object
-                        The site label of the matrix
+                        The left link label of the matrix.
                     label[1]: any hashable object
-                        The link label of the matrix
+                        The site label of the matrix.
+                    label[2]: any hashable object
+                        The right link label of the matrix.
         '''
         if len(ms)!=len(labels):
             raise ValueError('GMPS construction error: the number of matrices(%s) is not equal to that of the labels(%s).'%(len(ms),len(labels)))
@@ -79,11 +81,7 @@ class GMPS(MPS):
         for i,(m,label) in enumerate(zip(ms,labels)):
             if m.ndim!=3:
                 raise ValueError('GMPS construction error: all input matrices should be 3 dimensional.')
-            S,R=label
-            if i==0:
-                L=labels[len(labels)-1][1]
-            else:
-                L=temp[self.R]
+            L,S,R=label
             temp[self.L]=L
             temp[self.S]=S
             temp[self.R]=R
@@ -108,6 +106,21 @@ class GMPS(MPS):
                 result=contract(result,m)
         return asarray(result).ravel()
 
+    @property
+    def norm(self):
+        '''
+        The norm of the matrix product state.
+        '''
+        for i,M in enumerate(self.ms):
+            L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
+            if i==0:
+                temp=M
+            else:
+                temp=contract(v*asarray(s)[:,newaxis],M)
+                temp.relabel(news=[L],olds=['_'+L])
+            u,s,v=temp.svd([L,S],'_'+str(R),[R])
+        return (asarray(v)*asarray(s)[:,newaxis])[0,0]
+
     def to_vmps(self):
         '''
         Convert to the VMPS representation.
@@ -115,8 +128,13 @@ class GMPS(MPS):
         Gammas,Lambdas,labels=[],[],[]
         for i,M in enumerate(self.ms):
             L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
-            u,new,v=M.svd([L,S],'_'+str(R),[R])
-            labels.append((S,R))
+            if i==0:
+                temp=M
+            else:
+                temp=contract(v*asarray(old)[:,newaxis],M)
+                temp.relabel(news=[L],olds=['_'+L])
+            u,new,v=temp.svd([L,S],'_'+str(R),[R])
+            labels.append((L,S,R))
             if i==0:
                 Gammas.append(asarray(u))
             else:
@@ -124,15 +142,30 @@ class GMPS(MPS):
             old=new
             if i<len(self.ms)-1:
                 Lambdas.append(asarray(new))
-                self.ms[i+1]=contract(v*asarray(new),self.ms[i+1])
-                self.ms[i+1].relabel([R],['_'+R])
         return VMPS(Gammas,Lambdas,labels)
 
-    def to_mmps(self):
+    def to_mmps(self,cut):
         '''
         Convert to the MMPS representation.
         '''
-        pass
+        As,Lambda,Bs,labels=[],None,[],[]
+        for i,M in enumerate(self.ms):
+            L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
+            if i==0:
+                temp=M
+            else:
+                temp=contract(v*asarray(s)[:,newaxis],M)
+                temp.relabel(news=[L],olds=['_'+L])
+            labels.append((L,S,R))
+            if i<cut:
+                u,s,v=temp.svd([L,S],'_'+str(R),[R])
+                As.append(asarray(u))
+            else:
+                print temp.labels
+                u,s,v=temp.svd([L],'_'+str(R),[S,R])
+                if i==cut:Lambda=s
+                Bs.append(asarray(v))
+        return MMPS(As,Lambda,Bs,labels)
 
 class VMPS(MPS):
     '''
@@ -152,14 +185,16 @@ class VMPS(MPS):
                 The Gamma matrices on the site.
             Lamdas: list of 1d ndarray
                 The Lambda matrices (singular values) on the link.
-            labels: list of 2 tuples
+            labels: list of 3 tuples
                 The labels of the axis of the Gamma matrices.
                 Its length should be equal to that of Gammas.
                 For each label in labels, 
                     label[0]: any hashable object
-                        The site label of the Gamma matrix
+                        The left link label of the matrix.
                     label[1]: any hashable object
-                        The link label of the Gamma matrix
+                        The site label of the matrix.
+                    label[2]: any hashable object
+                        The right link label of the matrix.
         '''
         if len(Gammas)!=len(Lambdas)+1:
             raise ValueError('VMPS construction error: there should be one more Gamma matrices(%s) than the Lambda matrices(%s).'%(len(Gammas),len(Lambdas)))
@@ -171,13 +206,9 @@ class VMPS(MPS):
         for i,(Gamma,label) in enumerate(zip(Gammas,labels)):
             if Gamma.ndim!=3:
                 raise ValueError('VMPS construction error: all Gamma matrices should be 3 dimensional.')
-            S,R=label
+            L,S,R=label
             if i<len(Gammas)-1:
                 buff.append(R)
-            if i==0:
-                L=labels[len(labels)-1][1]
-            else:
-                L=temp[self.R]
             temp[self.L]=L
             temp[self.S]=S
             temp[self.R]=R
@@ -211,11 +242,30 @@ class VMPS(MPS):
                 result=contract(result,self.Lambdas[i-1],Gamma)
         return asarray(result).ravel()
 
-    def to_mmps(self):
+    def to_mmps(self,cut):
         '''
         Convert to the MMPS representation.
         '''
-        pass
+        As,Lambda,Bs,labels=[],None,[],[]
+        shape=[1]*3
+        for i,Gamma in enumerate(self.Gammas):
+            L,S,R=Gamma.labels[self.L],Gamma.labels[self.S],Gamma.labels[self.R]
+            labels.append((L,S,R))
+            if i<cut:
+                if i==0:
+                    As.append(Gamma)
+                else:
+                    shape[self.S]=len(self.Lambdas[i-1])
+                    As.append(asarray(Gamma)*asarray(self.Lambdas[i-1]).reshape(shape))
+            else:
+                if i==cut:
+                    Lambda=asarray(self.Lambdas[i-1])
+                if i<len(self.Lambdas):
+                    shape[self.S]=len(self.Lambdas[i])
+                    Bs.append(asarray(Gamma)*asarray(self.Lambdas[i]).reshape(shape))
+                else:
+                    Bs.append(asarray(Gamma))
+        return MMPS(As,Lambda,Bs,labels)
 
 class MMPS(MPS):
     '''
@@ -236,41 +286,32 @@ class MMPS(MPS):
                 The A matrices and B matrices.
             Lambda: 1d ndarray
                 The Lambda matrix on the connecting link.
-            labels: list of 2 tuples
+            labels: list of 3 tuples
                 The labels of the axis of the A/B matrices.
                 Its length should be equal to the sum of that of As and Bs.
                 For each label in labels, 
                     label[0]: any hashable object
-                        The site label of the A/B matrix
+                        The left link label of the matrix.
                     label[1]: any hashable object
-                        The link label of the A/B matrix
+                        The site label of the matrix.
+                    label[2]: any hashable object
+                        The right link label of the matrix.
         '''
         if len(As)+len(Bs)!=len(labels):
             raise ValueError('MMPS construction error: the total number of A/B matrices(%s) is not equal to that of the labels(%s).'%(len(As)+len(Bs),len(labels)))
-        self.As=[]
-        temp=[None]*3
-        for i,(A,label) in enumerate(zip(As,labels[0:len(As)])):
-            if A.ndim!=3:
-                raise ValueError('MMPS construction error: all A matrices should be 3 dimensional.')
-            S,R=label
-            if i==0:
-                L=labels[len(labels)-1][1]
-            else:
-                L=temp[self.R]
+        buff,temp=[],[None]*3
+        for i,(M,label) in enumerate(zip(As+Bs,labels)):
+            if M.ndim!=3:
+                raise ValueError('MMPS construction error: all A/B matrices should be 3 dimensional.')
+            L,S,R=label
             temp[self.L]=L
             temp[self.S]=S
             temp[self.R]=R
-            self.As.append(Tensor(A,labels=deepcopy(temp)))
-        self.Lambda=None if Lambda is None else Tensor(Lambda,labels=deepcopy([R]))
-        self.Bs=[]
-        for B,label in zip(Bs,labels[len(As):]):
-            if B.ndim!=3:
-                raise ValueError('MMPS construction error: all A matrices should be 3 dimensional.')
-            L,S,R=temp[self.R],label[0],label[1]
-            temp[self.L]=L
-            temp[self.S]=S
-            temp[self.R]=R
-            self.Bs.append(Tensor(B,labels=deepcopy(temp)))
+            buff.append(Tensor(M,labels=deepcopy(temp)))
+        self.As=buff[:len(As)]
+        self.Bs=buff[len(As):]
+        print labels[len(As)][0]
+        self.Lambda=None if Lambda is None else Tensor(Lambda,labels=[deepcopy(labels[len(As)][0])])
 
     def __str__(self):
         '''
