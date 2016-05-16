@@ -54,7 +54,7 @@ def test_hubbard():
     config[p1.pid]=Fermi(norbital=2,nspin=2,nnambu=1)
     l=Lattice(name="WG",points=[p1])
     table=config.table(nambu=True)
-    a=+Hubbard('U,U,J',[20.0,12.0,5.0])
+    a=+Hubbard('UUJJ',[20.0,12.0,5.0,5.0])
     print 'a: %s'%a
     opts=OperatorCollection()
     for bond in l.bonds:

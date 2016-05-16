@@ -41,7 +41,7 @@ def test_vca():
                         Hubbard('U',U)
                         ],
             nambu=      False,
-            weiss=[     Onsite('afm',0.0,indexpackages=sigmaz('sp'),amplitude=lambda bond: 1 if bond.spoint.pid.site in (0,3) else -1,modulate=lambda **karg:karg['afm'])]
+            weiss=[     Onsite('afm',0.2,indexpackages=sigmaz('sp'),amplitude=lambda bond: 1 if bond.spoint.pid.site in (0,3) else -1,modulate=lambda **karg:karg['afm'])]
             )
     #a.addapps(app=GFC(nstep=200,save_data=False,vtype='RD',run=EDGFC))
     #a.addapps(app=GP(BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),rank1=128,n=64,run=VCAGP))

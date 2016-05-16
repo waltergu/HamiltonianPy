@@ -269,10 +269,11 @@ class Hubbard(Term):
     Attributes:
         value: float or 1D array-like, inherited from Term
             float: single-orbital Hubbard interaction.
-            1D array-like: multi-orbital Hubbard interaction and the length must be 3.
-                value[0]: intra-orbital interaction 
+            1D array-like: multi-orbital Hubbard interaction and the length must be 4.
+                value[0]: intra-orbital interaction
                 value[1]: inter-orbital interaction
-                value[2]: spin-flip and pair-hopping interaction
+                value[2]: spin-flip interaction
+                value[3]: pair-hopping interaction
         atom: integer 
             The atom index of the point where the Hubbard interactions are defined.
     '''
@@ -349,7 +350,7 @@ class Hubbard(Term):
                     k=j
                     l=i
                     result[i,j,k,l]=self.value/2 if nv==1 else self.value[0]/2
-            if nv==3:
+            if nv==4:
                 for h in xrange(dgr.norbital):
                     for g in xrange(dgr.norbital):
                       if g!=h:
@@ -379,7 +380,7 @@ class Hubbard(Term):
                         j=dgr.seq_state(FID(g,0,ANNIHILATION))
                         k=dgr.seq_state(FID(h,0,ANNIHILATION))
                         l=dgr.seq_state(FID(h,1,ANNIHILATION))
-                        result[i,j,k,l]=self.value[2]
+                        result[i,j,k,l]=self.value[3]
         return result
 
 class HubbardList(list):

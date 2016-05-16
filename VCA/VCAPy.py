@@ -12,7 +12,9 @@ from ..Basics import *
 from ..ED import *
 from ..Math import berry_curvature
 from numpy.linalg import det,inv
+from scipy.linalg import eigh
 from scipy import interpolate
+from scipy.sparse import csr_matrix
 from scipy.integrate import quad
 from scipy.optimize import newton,brenth,brentq,broyden1,broyden2
 from copy import deepcopy
@@ -61,15 +63,17 @@ class VCA(ED):
             3) 'pt_w': Generator
                 The generator for the perturbation cominig from the Weiss terms.
         operators: dict of OperatorCollection
-            It has four entries:
+            It has five entries:
             1) 'h': OperatorCollection
                 The 'half' of the operators for the cluster Hamiltonian, including Weiss terms.
-            2) 'pt': OperatorCollection
-                The 'half' of the operators for the perturbation, including Weiss terms.
-            3) 'sp': OperatorCollection
+            2) 'pt_h': OperatorCollection
+                The 'half' of the operators for the perturbation. Not including Weiss terms.
+            3) 'pt_w': OperatorCollection
+                The 'half' of the operators for the perturbation of Weiss terms.
+            4) 'sp': OperatorCollection
                 The single-particle operators in the cluster.
                 When nspin is 1 and basis.basis_type is 'FS', only spin-down single particle operators are included.
-            4) 'csp': OperatorCollection
+            5) 'csp': OperatorCollection
                 The single-particle operators in the unit cell.
                 When nspin is 1 and basis.basis_type is 'FS', only spin-down single particle operators are included.
         clmap: dict
@@ -119,7 +123,13 @@ class VCA(ED):
                     bonds=      [bond for bond in lattice.bonds if bond.is_intra_cell()],
                     table=      config.table(nambu=False),
                     config=     config,
-                    terms=      terms if weiss is None else terms+weiss
+                    terms=      terms
+                    )
+        self.generators['h_w']=Generator(
+                    bonds=      [bond for bond in lattice.bonds],
+                    table=      config.table(nambu=False),
+                    config=     config,
+                    terms=      weiss
                     )
         self.generators['pt_h']=Generator(
                     bonds=      [bond for bond in lattice.bonds if not bond.is_intra_cell()],
@@ -128,7 +138,7 @@ class VCA(ED):
                     terms=      [term for term in terms if isinstance(term,Quadratic)],
                     )
         self.generators['pt_w']=Generator(
-                    bonds=      [bond for bond in lattice.bonds if bond.is_intra_cell()],
+                    bonds=      [bond for bond in lattice.bonds],
                     table=      config.table(nambu=nambu) if self.nspin==2 else subset(config.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
                     config=     config,
                     terms=      None if weiss is None else [term*(-1) for term in weiss],
@@ -150,13 +160,18 @@ class VCA(ED):
         self.set_operators_single_particle()
         self.set_operators_cell_single_particle()
 
+    def set_operators_hamiltonian(self):
+        self.operators['h']=self.generators['h'].operators+self.generators['h_w'].operators
+
     def set_operators_perturbation(self):
-        self.operators['pt']=OperatorCollection()
-        table=self.generators['pt_h'].table 
+        table=self.generators['pt_h'].table
+        self.operators['pt_h']=OperatorCollection()
         for opt in self.generators['pt_h'].operators.values():
-            if opt.indices[1] in table: self.operators['pt']+=opt
+            if opt.indices[1] in table: self.operators['pt_h']+=opt
+        table=self.generators['pt_w'].table 
+        self.operators['pt_w']=OperatorCollection()
         for opt in self.generators['pt_w'].operators.values():
-            if opt.indices[1] in table: self.operators['pt']+=opt
+            if opt.indices[1] in table: self.operators['pt_w']+=opt
 
     def set_operators_cell_single_particle(self):
         self.operators['csp']=OperatorCollection()
@@ -202,8 +217,10 @@ class VCA(ED):
         '''
         ngf=len(self.operators['sp'])
         result=zeros((ngf,ngf),dtype=complex128)
-        for opt in self.operators['pt'].values():
+        for opt in self.operators['pt_h'].values():
             result[opt.seqs]+=opt.value*(1 if len(k)==0 else exp(-1j*inner(k,opt.icoords[0])))
+        for opt in self.operators['pt_w'].values():
+            result[opt.seqs]+=opt.value
         return result+conjugate(result.T)
 
     def pt_mesh(self,kmesh):
