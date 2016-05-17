@@ -55,12 +55,14 @@ class VCA(ED):
         nambu: logical
             A flag to tag whether the anomalous Green's function are computed.
         generators: dict of Generator
-            It has three entries:
+            It has four entries:
             1) 'h': Generator
-                The generator for the cluster Hamiltonian including Weiss terms.
-            2) 'pt_h': Generator
+                The generator for the cluster Hamiltonian, not including Weiss terms.
+            2) 'h_w': Generator
+                The generator for the cluster Hamiltonian of Weiss terms.
+            3) 'pt_h': Generator
                 The generator for the perturbation coming from the inter-cluster single-particle terms.
-            3) 'pt_w': Generator
+            4) 'pt_w': Generator
                 The generator for the perturbation cominig from the Weiss terms.
         operators: dict of OperatorCollection
             It has five entries:
