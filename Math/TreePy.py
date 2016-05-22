@@ -11,9 +11,9 @@ class Tree(dict):
     Attributes:
         root: hashable object
             The Tree's root node.
-        parent_dict: dict
+        _parent: dict
             The lookup dict for parents.
-        children_dict: dict
+        _children: dict
             The lookup dict for children.
     '''
 
@@ -31,8 +31,8 @@ class Tree(dict):
                 The data of the root node.
         '''
         self.root=None
-        self.parent_dict={}
-        self.children_dict={}
+        self._parent={}
+        self._children={}
         if root is not None:
             self.add_leaf(None,root,data)
 
@@ -53,12 +53,12 @@ class Tree(dict):
             else:
                 raise ValueError('Tree add_leaf error: the parent for the first leaf of the tree must be None.')
         elif parent in self:
-            self.children_dict[parent].append(leaf)
+            self._children[parent].append(leaf)
         else:
             raise ValueError('Tree add_leaf error: the parent of the leaf does not exist.')
-        self.parent_dict[leaf]=parent
+        self._parent[leaf]=parent
         super(Tree,self).__setitem__(leaf,data)
-        self.children_dict[leaf]=[]
+        self._children[leaf]=[]
 
     def __setitem__(self,node,data):
         '''
@@ -87,15 +87,15 @@ class Tree(dict):
             if self.root is None:
                 self.root=subtree.root
                 self.update(subtree)
-                self.parent_dict.update(subtree.parent_dict)
-                self.children_dict.update(subtree.children_dict)
+                self._parent.update(subtree._parent)
+                self._children.update(subtree._children)
             elif parent in self:
                 if len(set(subtree.keys())&set(self.keys()))==0:
                     self.update(subtree)
-                    self.parent_dict.update(subtree.parent_dict)
-                    self.children_dict.update(subtree.children_dict)
-                    self.parent_dict[subtree.root]=parent
-                    self.children_dict[parent].append(subtree.root)
+                    self._parent.update(subtree._parent)
+                    self._children.update(subtree._children)
+                    self._parent[subtree.root]=parent
+                    self._children[parent].append(subtree.root)
                 else:
                     raise ValueError('Tree add_subtree error: the subtree to be added cannot share any same node with the parent tree.')
             else:
@@ -114,17 +114,30 @@ class Tree(dict):
             self.root=None
             for key in self.keys():
                 self.pop(key,None)
-                self.parent_dict.pop(key,None)
-                self.children_dict.pop(key,None)
+                self._parent.pop(key,None)
+                self._children.pop(key,None)
         else:
-            self.children_dict[self.parent(node)].remove(node)
-            del self.parent_dict[node]
+            self._children[self._parent[node]].remove(node)
+            del self._parent[node]
             temp=[]
             for key in self.expand(node=node,mode=Tree.DEPTH,return_form=Tree.NODE):
                 temp.append(key)
             for key in temp:
                 self.pop(key,None)
-                self.children_dict.pop(key,None)
+                self._children.pop(key,None)
+
+    def move_subtree(self,node,parent):
+        '''
+        Move a subtree to a child of a new parent.
+        Parameters:
+            node: hashable object
+                The root node of the to-be-moved subtree.
+            parent: hashable object
+                The new parent of the the subtree.
+        '''
+        self._children[self._parent[node]].remove(node)
+        self._parent[node]=parent
+        self._children[parent].append(node)
 
     def parent(self,node):
         '''
@@ -135,7 +148,7 @@ class Tree(dict):
         Returns: hashable object
             The parent.
         '''
-        return self.parent_dict[node]
+        return self._parent[node]
 
     def children(self,node):
         '''
@@ -146,7 +159,7 @@ class Tree(dict):
         Returns: list of hashable object
             The list of the children.
         '''
-        return self.children_dict[node]
+        return self._children[node]
 
     def siblings(self,node):
         '''
@@ -158,7 +171,7 @@ class Tree(dict):
             The list of the siblings.
         '''
         if node!=self.root:
-            return [key for key in self.children_dict[self.parent_dict[node]] if key!=node]
+            return [key for key in self._children[self._parent[node]] if key!=node]
         else:
             return []
 
@@ -175,8 +188,8 @@ class Tree(dict):
         result.root=node
         for node,data in self.expand(node=node,return_form=Tree.PAIR):
             super(Tree,result).__setitem__(node,data)
-            result.parent_dict[node]=self.parent_dict[node]
-            result.children_dict[node]=self.children_dict[node]
+            result._parent[node]=self._parent[node]
+            result._children[node]=self._children[node]
         return result
 
     def expand(self,node=None,mode=DEPTH,return_form=PAIR):
@@ -204,7 +217,7 @@ class Tree(dict):
                 yield queue[0][1]
             else:
                 yield queue[0]
-            expansion=[(i,self[i]) for i in self.children_dict[queue[0][0]]]
+            expansion=[(i,self[i]) for i in self._children[queue[0][0]]]
             if mode is self.DEPTH:
                 queue=expansion+queue[1:]
             elif mode is self.WIDTH:
