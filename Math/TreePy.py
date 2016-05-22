@@ -1,126 +1,78 @@
 '''
 Tree structure, including:
-1) classes: Node, Tree
+1) classes: Tree
 '''
 
-__all__=['Node','Tree']
-
-class Node(object):
-    '''
-    Node class.
-    Attributes:
-        data: any type
-            The data stored in the Node.
-        parent: hashable object
-            The tag of the Node's parent.
-        childre: list of hashable objects
-            List of the tags of the Node's children.
-    '''
-
-    def __init__(self,data,parent=None):
-        '''
-        Constructor.
-        Parameters:
-            data: any type
-                The data stored in the Node.
-            parent: hashable object, optional, default None
-                The tag of the Node's parent.
-        '''
-        self.data=data
-        self.parent=parent
-        self.children=[]
-
-    def __repr__(self):
-        '''
-        Convert an instance to string.
-        '''
-        return 'Node(data=%s)'%str(self.data)
-
-    def set_parent(self,parent):
-        '''
-        Set the Node's parent.
-        Parameters:
-            parent: hashable object
-                The tag of the Node's parent.
-        '''
-        self.parent=parent
-        
-    def add_child(self,child):
-        '''
-        Add a child of the Node.
-        Parameters:
-            child: hashable object
-                The tag of the child to be added.
-        '''
-        self.children.append(child)
-
-    def remove_child(self,child):
-        '''
-        Remove a child of the Node.
-        Parameters:
-            child: hashable object
-                The tag of the child to be removed.
-        '''
-        self.children.remove(child)
-
-    def update(self,data):
-        '''
-        Update the data stored in the Node.
-        Parameters:
-            data: any data
-                The new data.
-        '''
-        self.data=data
+__all__=['Tree']
 
 class Tree(dict):
     '''
     Tree class.
     Attributes:
         root: hashable object
-            The tag of the Tree's root node.
+            The Tree's root node.
+        parent_dict: dict
+            The lookup dict for parents.
+        children_dict: dict
+            The lookup dict for children.
     '''
 
+    ROOT=None
     (DEPTH,WIDTH)=list(range(2))
-    (NID,NODE,PAIR)=list(range(3))
+    (NODE,DATA,PAIR)=list(range(3))
 
-    def __init__(self,nid=None,node=None):
+    def __init__(self,root=None,data=None):
         '''
         Constructor.
         Parameters:
-            nid: hashable object, optional, default None
-                The tag of the Tree's root node.
-            node: Node, optional, default None
-                The root node.
+            root: hashable object, optional
+                The Tree's root node.
+            data: any object, optional
+                The data of the root node.
         '''
         self.root=None
-        if nid is not None:
-            self[nid]=node
+        self.parent_dict={}
+        self.children_dict={}
+        if root is not None:
+            self.add_leaf(None,root,data)
 
-    def __setitem__(self,nid,node):
+    def add_leaf(self,parent,leaf,data=None):
         '''
-        Set a node by <Node>[nid]=node method.
+        Add a leaf for the tree.
         Parameters:
-            nid: hashable object
-                The tag of the node.
-            node: Node
-                The node.
+            parent: hashable object
+                The parent of the new leaf.
+            leaf: hashable object
+                The new leaf.
+            data: any object, optional
+                The data of the new leaf.
         '''
-        if isinstance(node,Node):
-            if self.root is None:
-                self.root=nid
-                super(Tree,self).__setitem__(nid,node)
-            elif node.parent in self:
-                if nid not in self:
-                    self[node.parent].add_child(nid)
-                    super(Tree,self).__setitem__(nid,node)
-                elif self[nid].parent==node.parent and self[nid].children==node.children:
-                    super(Tree,self).__setitem__(nid,node)
-                else:
-                    raise ValueError('Tree __setitem__ error: if the node to be added has a same nid as one of those already stored in the tree, its parent and children cannot be changed.')
+        if self.root is None:
+            if parent is None:
+                self.root=leaf
             else:
-                raise ValueError('Tree __setitem__ error: the parent of the node does not exist.')
+                raise ValueError('Tree add_leaf error: the parent for the first leaf of the tree must be None.')
+        elif parent in self:
+            self.children_dict[parent].append(leaf)
         else:
-            raise ValueError('Tree __setitem__ error: the new item must be an instance of Node.')
+            raise ValueError('Tree add_leaf error: the parent of the leaf does not exist.')
+        self.parent_dict[leaf]=parent
+        super(Tree,self).__setitem__(leaf,data)
+        self.children_dict[leaf]=[]
+
+    def __setitem__(self,node,data):
+        '''
+        Set the data of an existing node.
+        Parameters:
+            node: hashable object
+                The node.
+            para: any object
+                The data of the node.
+        '''
+        if node in self:
+            self[node]=data
+        else:
+            raise ValueError('Tree __setitem__ error: the node of the tree does not exist.')
 
     def add_subtree(self,subtree,parent=None):
         '''
@@ -129,117 +81,130 @@ class Tree(dict):
             subtree: Tree
                 The subtree to be added.
             parent: hashable object
-                The tag of the subree's root node's parent.
+                The parent of the subtree's root.
         '''
         if isinstance(subtree,Tree):
             if self.root is None:
                 self.root=subtree.root
                 self.update(subtree)
+                self.parent_dict.update(subtree.parent_dict)
+                self.children_dict.update(subtree.children_dict)
             elif parent in self:
                 if len(set(subtree.keys())&set(self.keys()))==0:
-                    self[parent].add_child(subtree.root)
                     self.update(subtree)
-                    self[subtree.root].set_parent(parent)
+                    self.parent_dict.update(subtree.parent_dict)
+                    self.children_dict.update(subtree.children_dict)
+                    self.parent_dict[subtree.root]=parent
+                    self.children_dict[parent].append(subtree.root)
                 else:
-                    raise ValueError('Tree add_subtree error: the subtree to be added cannot have a node whose nid is same to one of those already stored in the tree.')
+                    raise ValueError('Tree add_subtree error: the subtree to be added cannot share any same node with the parent tree.')
             else:
-                raise ValueError('Tree add_subtree error: the parent of the node does not exist.')
+                raise ValueError('Tree add_subtree error: the parent of the subtree does not exist.')
         else:
             raise ValueError('Tree add_subtree error: the first parameter must be an instance of Tree.')
 
-    def remove_subtree(self,nid):
+    def remove_subtree(self,node):
         '''
         Remove a subtree.
         Parameters:
-            nid: hashable object
-                The tag of the to-be-removed subtree's root node.
+            node: hashable object
+                The root node of the to-be-removed subtree.
         '''
-        if self[nid].parent is None:
+        if node==self.root:
             self.root=None
             for key in self.keys():
                 self.pop(key,None)
+                self.parent_dict.pop(key,None)
+                self.children_dict.pop(key,None)
         else:
-            self.parent(nid).remove_child(nid)
-            for key in self.expand(nid=nid,mode=Tree.DEPTH,return_form=Tree.NID):
+            self.children_dict[self.parent(node)].remove(node)
+            del self.parent_dict[node]
+            temp=[]
+            for key in self.expand(node=node,mode=Tree.DEPTH,return_form=Tree.NODE):
+                temp.append(key)
+            for key in temp:
                 self.pop(key,None)
+                self.children_dict.pop(key,None)
 
-    def parent(self,nid):
+    def parent(self,node):
         '''
-        Return the parent node of whose tag is nid.
+        Return the parent of a node.
         Parameters:
-            nid: hashable object
-                The tag of whose parent is inquired.
-        Returns: Node
-            The parent node.
+            node: hashable object
+                The node whose parent is inquired.
+        Returns: hashable object
+            The parent.
         '''
-        return self[self[nid].parent]
+        return self.parent_dict[node]
 
-    def children(self,nid):
+    def children(self,node):
         '''
-        Return a list of the child nodes of whose tag is nid.
+        Return a list of a node's children.
         Parameters:
-            nid: hashable object
-                The tag of whose children are inquired.
-        Returns: list of Node
-            The list of child nodes.
+            node: hashable object
+                The node whose children are inquired.
+        Returns: list of hashable object
+            The list of the children.
         '''
-        return [self[child] for child in self[nid].children]
+        return self.children_dict[node]
 
-    def siblings(self,nid):
+    def siblings(self,node):
         '''
-        Return a list of the sibling nodes (i.e. the nodes sharing the same parent) of whose tag is nid.
+        Return a list of the siblings (i.e. the nodes sharing the same parent) of a node.
         Parameters:
-            nid: hashable object
-                The tag of whose siblings are inquired.
-        Returns: list of Node
-            The list of the sibling nodes.
+            node: hashable object
+                The node whose siblings are inquired.
+        Returns: list of hashable object
+            The list of the siblings.
         '''
-        if nid!=self.root:
-            return [self[key] for key in self.parent(nid).children if key!=nid]
+        if node!=self.root:
+            return [key for key in self.children_dict[self.parent_dict[node]] if key!=node]
         else:
             return []
 
-    def subtree(self,nid):
+    def subtree(self,node):
         '''
-        Return a subtree whose root node's tag is nid.
+        Return a subtree whose root is node.
         Parameters:
-            nid: hashable object
-                The tag of the subtree's root node.
+            node: hashable object
+                The root node of the subtree.
         Returns: Tree
             The subtree.
         '''
         result=Tree()
-        result.root=nid
-        for key,node in self.expand(nid=nid):
-            result.update({key:node})
+        result.root=node
+        for node,data in self.expand(node=node,return_form=Tree.PAIR):
+            super(Tree,result).__setitem__(node,data)
+            result.parent_dict[node]=self.parent_dict[node]
+            result.children_dict[node]=self.children_dict[node]
         return result
 
-    def expand(self,nid=None,mode=DEPTH,return_form=PAIR):
+    def expand(self,node=None,mode=DEPTH,return_form=PAIR):
         '''
         Expand the Tree.
         Parameters:
-            nid: hashable object,optional, default None
-                The tag of the node with which to begin to expand the Tree.
-                If it is None, the expansion begins with the root node by default.
-            mode: Tree.DEPTH/Tree.WIDTH, optional, default Tree.DEPTH
+            node: hashable object,optional
+                The node with which to begin to expand the Tree.
+                If it is None, the expansion begins with the root by default.
+            mode: Tree.DEPTH/Tree.WIDTH, optional
                 The flag to choose depth-first expansion or width-first expansion.
-            return_form: Tree.PAIR/Tree.NID/Tree.NODE,optional, default Tree.PAIR
+            return_form: Tree.PAIR/Tree.NODE/Tree.DATA, optional
                 The flag to set the form of the returned iterator.
         Returns: iterator
-            if return_form==Tree.PAIR, the returned iterator runs over tuples in the form (nid,node);
-            if return_form==Tree.NID, the returned iterator runs over the tags of the node in the tree;
+            if return_form==Tree.PAIR, the returned iterator runs over tuples in the form (node,data);
+            if return_form==Tree.DATA, the returned iterator runs over the data of the node in the tree;
             if return_form==Tree.NODE, the returned iterator runs over the nodes in the tree.
         '''
-        nid=self.root if (nid is None) else nid
-        queue=[(nid,self[nid])]
+        node=self.root if (node is None) else node
+        queue=[(node,self[node])]
         while queue:
-            if return_form==self.NID:
+            if return_form==self.NODE:
                 yield queue[0][0]
-            elif return_form==self.NODE:
+            elif return_form==self.DATA:
                 yield queue[0][1]
             else:
                 yield queue[0]
-            expansion=[(i,self[i]) for i in queue[0][1].children]
+            expansion=[(i,self[i]) for i in self.children_dict[queue[0][0]]]
             if mode is self.DEPTH:
                 queue=expansion+queue[1:]
             elif mode is self.WIDTH:
