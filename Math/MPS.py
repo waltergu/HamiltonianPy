@@ -7,7 +7,7 @@ Matrix product state, including:
 __all__=['LLINK','SITE','RLINK','MPSBase','Vidal','MPS']
 
 from numpy import *
-from TensorPy import *
+from Tensor import *
 from copy import deepcopy
 
 LLINK,SITE,RLINK=0,1,2

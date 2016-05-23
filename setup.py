@@ -1,6 +1,6 @@
 def configuration(parent_package='',top_path=None):
     from numpy.distutils.misc_util import Configuration
-    config=Configuration('HamiltonianPP',parent_package,top_path,version='0.0.0',author='waltergu',author_email='waltergu@126.com')
+    config=Configuration('HamiltonianPy',parent_package,top_path,version='0.0.0',author='waltergu',author_email='waltergu@126.com')
     config.add_subpackage('Math')
     config.add_subpackage('Basics')
     config.add_subpackage('DataBase')

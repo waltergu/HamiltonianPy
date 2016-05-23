@@ -5,9 +5,9 @@ VCA test.
 __all__=['test_vca']
 
 from numpy import *
-from HamiltonianPP.Basics import *
-from HamiltonianPP.ED import *
-from HamiltonianPP.VCA import *
+from HamiltonianPy.Basics import *
+from HamiltonianPy.ED import *
+from HamiltonianPy.VCA import *
 import itertools
 
 def test_vca():

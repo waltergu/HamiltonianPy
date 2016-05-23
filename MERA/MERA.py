@@ -6,7 +6,7 @@ Multi-scale entanglement renormalization ansatz, including:
 __all__=['MERA']
 
 from numpy import *
-from ..Math.TreePy import *
+from ..Math.Tree import *
 import matplotlib.pyplot as plt 
 
 class MERA(Tree):

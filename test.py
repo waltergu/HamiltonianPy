@@ -14,4 +14,4 @@ for arg in sys.argv:
     test_fre_sys(arg)
     test_ed(arg)
     test_vca(arg)
-    test_mera(arg)
+    #test_mera(arg)

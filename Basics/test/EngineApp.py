@@ -4,7 +4,7 @@ EngineApp test.
 
 __all__=['test_engineapp']
 
-from HamiltonianPP.Basics.EngineAppPy import *
+from HamiltonianPy.Basics.EngineApp import *
 
 def test_engineapp():
     print 'test_engineapp'

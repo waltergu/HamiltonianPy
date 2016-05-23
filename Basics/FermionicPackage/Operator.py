@@ -7,8 +7,8 @@ Fermionic Operator, including:
 __all__=['OperatorF','F_Linear','F_Quadratic','F_Hubbard']
 
 from numpy import *
-from DegreeOfFreedomPy import ANNIHILATION,CREATION
-from ..OperatorPy import *
+from DegreeOfFreedom import ANNIHILATION,CREATION
+from ..Operator import *
 
 class OperatorF(Operator):
     '''

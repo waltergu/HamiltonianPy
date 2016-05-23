@@ -5,7 +5,7 @@ App pack, including:
 
 __all__=['EB','DOS','OP','FF','CP','FS','GP','GPS','CN','GFC','GF']
 
-from EngineAppPy import *
+from EngineApp import *
 from numpy import *
 
 class EB(App):

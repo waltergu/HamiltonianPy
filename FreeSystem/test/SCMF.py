@@ -4,10 +4,10 @@ SCMF test.
 
 __all__=['test_scmf']
 
-from HamiltonianPP.Basics import *
-from HamiltonianPP.DataBase.Hexagon import *
-from HamiltonianPP.FreeSystem.SCMFPy import *
-from HamiltonianPP.FreeSystem.TBAPy import *
+from HamiltonianPy.Basics import *
+from HamiltonianPy.DataBase.Hexagon import *
+from HamiltonianPy.FreeSystem.SCMF import *
+from HamiltonianPy.FreeSystem.TBA import *
 
 def haldane_hopping(bond):
     theta=azimuthd(bond.rcoord)

@@ -5,7 +5,7 @@ OperatorRepresentation test.
 __all__=['test_opt_rep']
 
 from numpy import *
-from HamiltonianPP.Basics import *
+from HamiltonianPy.Basics import *
 import itertools
 import time
 

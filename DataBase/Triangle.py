@@ -6,7 +6,7 @@ Triangular lattice data base, including:
 __all__=['TriangleDataBase']
 
 from numpy import array,sqrt
-from ..Basics.GeometryPy import *
+from ..Basics.Geometry import *
 
 class TriangleDataBase:
     '''

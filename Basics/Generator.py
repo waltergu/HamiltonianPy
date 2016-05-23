@@ -4,8 +4,8 @@ Generator.
 
 __all__=['Generator']
 
-from ConstantPy import *
-from OperatorPy import *
+from Constant import *
+from Operator import *
 from numpy import *
 from numpy.linalg import norm
 from collections import OrderedDict

@@ -4,8 +4,8 @@ HexagonDataBase test.
 
 __all__=['test_hexagon']
 
-from HamiltonianPP.Basics import Lattice
-from HamiltonianPP.DataBase import *
+from HamiltonianPy.Basics import Lattice
+from HamiltonianPy.DataBase import *
 
 def test_hexagon():
     print 'test_hexagon'

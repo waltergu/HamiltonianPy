@@ -6,9 +6,9 @@ Operator representation, including
 __all__=['opt_rep']
 
 from numpy import *
-from DegreeOfFreedomPy import *
-from OperatorPy import *
-from BasisFPy import *
+from DegreeOfFreedom import *
+from Operator import *
+from BasisF import *
 from scipy.sparse import *
 from numba import jit
 

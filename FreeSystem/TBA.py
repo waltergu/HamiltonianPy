@@ -6,7 +6,7 @@ Tight Binding Approximation for fermionic systems, including:
 
 __all__=['TBA','TBAEB','TBADOS','TBACP','TBACN']
 
-from ..Math.BerryCurvaturePy import *
+from ..Math.BerryCurvature import *
 from ..Basics import *
 from numpy import *
 from scipy.linalg import eigh

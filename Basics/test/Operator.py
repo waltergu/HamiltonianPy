@@ -4,10 +4,10 @@ Operator test.
 
 __all__=['test_operator']
 
-from HamiltonianPP.Basics.GeometryPy import *
-from HamiltonianPP.Basics.DegreeOfFreedomPy import *
-from HamiltonianPP.Basics.OperatorPy import *
-from HamiltonianPP.Basics.FermionicPackage import *
+from HamiltonianPy.Basics.Geometry import *
+from HamiltonianPy.Basics.DegreeOfFreedom import *
+from HamiltonianPy.Basics.Operator import *
+from HamiltonianPy.Basics.FermionicPackage import *
 
 def test_operator():
     print 'test_operator'

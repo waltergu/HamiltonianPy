@@ -5,9 +5,9 @@ FLQT test.
 __all__=['test_flqt']
 
 from numpy import *
-from HamiltonianPP.Basics import *
-from HamiltonianPP.FreeSystem.TBAPy import TBAEB
-from HamiltonianPP.FreeSystem.FLQTPy import *
+from HamiltonianPy.Basics import *
+from HamiltonianPy.FreeSystem.TBA import TBAEB
+from HamiltonianPy.FreeSystem.FLQT import *
 
 def test_flqt():
     print 'test_flqt'

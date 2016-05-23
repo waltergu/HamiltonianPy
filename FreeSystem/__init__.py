@@ -1,3 +1,3 @@
-from TBAPy import *
-from FLQTPy import *
-from SCMFPy import *
+from TBA import *
+from FLQT import *
+from SCMF import *

@@ -5,8 +5,8 @@ TBA test.
 __all__=['test_tba']
 
 from numpy import *
-from HamiltonianPP.Basics import *
-from HamiltonianPP.FreeSystem.TBAPy import *
+from HamiltonianPy.Basics import *
+from HamiltonianPy.FreeSystem.TBA import *
 
 def test_tba():
     print 'test_tba'

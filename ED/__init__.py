@@ -1,1 +1,1 @@
-from EDPy import *
+from ED import *

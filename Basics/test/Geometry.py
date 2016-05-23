@@ -5,7 +5,7 @@ Geometry test.
 __all__=['test_geometry']
 
 from numpy import *
-from HamiltonianPP.Basics.GeometryPy import *
+from HamiltonianPy.Basics.Geometry import *
 import time,itertools
 
 def test_geometry():

@@ -7,12 +7,12 @@ Fermionic terms, including:
 __all__=['Quadratic','QuadraticList','Hopping','Onsite','Pairing','Hubbard','HubbardList']
 
 from numpy import *
-from ..ConstantPy import *
-from ..TermPy import *
-from ..DegreeOfFreedomPy import *
-from ..OperatorPy import * 
-from DegreeOfFreedomPy import *
-from OperatorPy import * 
+from ..Constant import *
+from ..Term import *
+from ..DegreeOfFreedom import *
+from ..Operator import * 
+from DegreeOfFreedom import *
+from Operator import * 
 
 class Quadratic(Term):
     '''

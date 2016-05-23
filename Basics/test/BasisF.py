@@ -3,7 +3,7 @@ BasisF test.
 '''
 __all__=['test_basisf']
 
-from HamiltonianPP.Basics.FermionicPackage.BasisFPy import *
+from HamiltonianPy.Basics.FermionicPackage.BasisF import *
 from numba import jit
 import time
 

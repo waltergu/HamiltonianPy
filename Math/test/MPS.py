@@ -5,8 +5,8 @@ MPS test.
 __all__=['test_mps']
 
 from numpy import *
-from HamiltonianPP.Math.TensorPy import *
-from HamiltonianPP.Math.MPSPy import *
+from HamiltonianPy.Math.Tensor import *
+from HamiltonianPy.Math.MPS import *
 
 def test_mps():
     print 'test_mps'

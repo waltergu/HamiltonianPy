@@ -8,12 +8,12 @@ __all__=['azimuthd','azimuth','polard','polar','volume','is_parallel','reciproca
 
 from numpy import *
 from numpy.linalg import norm,inv
-from ConstantPy import RZERO
+from Constant import RZERO
 from collections import namedtuple
 from scipy.spatial import cKDTree
 from copy import copy,deepcopy
 import matplotlib.pyplot as plt
-import itertools 
+import itertools
 
 def azimuthd(self):
     '''

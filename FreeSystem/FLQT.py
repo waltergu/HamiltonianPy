@@ -7,7 +7,7 @@ Floquet algorithm, including:
 __all__=['FLQT','FLQTEB']
 
 from numpy import *
-from TBAPy import *
+from TBA import *
 from scipy.linalg import expm2,eig
 import matplotlib.pyplot as plt
 

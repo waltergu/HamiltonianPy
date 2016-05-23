@@ -1,1 +1,1 @@
-from MERAPy import *
+from MERA import *

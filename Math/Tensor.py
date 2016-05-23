@@ -68,7 +68,7 @@ class Tensor(ndarray):
                 raise ValueError("Tensor construction error: the number of labels(%s) and the dimension(%s) of tensors are not equal."%(len(labels),para.ndim))
             result=para
         else:
-            if len(labels)!=para.ndim:
+            if len(labels)!=asarray(para).ndim:
                 raise ValueError("Tensor construction error: the number of labels(%s) and the dimension(%s) of tensors are not equal."%(len(labels),para.ndim))
             result=asarray(para,*args,**kargs).view(cls)
         result.labels=labels

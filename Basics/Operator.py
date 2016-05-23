@@ -4,7 +4,7 @@ Operator and OperatorCollection.
 
 __all__=['Operator','OperatorCollection']
 
-from ConstantPy import *
+from Constant import *
 from copy import copy
 
 class Operator(object):

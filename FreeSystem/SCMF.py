@@ -7,7 +7,7 @@ __all__=['op','SCMF']
 
 from numpy import *
 from ..Basics import *
-from TBAPy import *
+from TBA import *
 from copy import deepcopy
 from collections import OrderedDict
 from scipy.optimize import broyden1,broyden2

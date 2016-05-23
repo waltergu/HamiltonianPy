@@ -5,7 +5,7 @@ Lanczos test.
 __all__=['test_lanczos']
 
 from numpy import *
-from HamiltonianPP.Math.LanczosPy import *
+from HamiltonianPy.Math.Lanczos import *
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
 

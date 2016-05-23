@@ -1,4 +1,4 @@
-from VCAPy import *
+from VCA import *
 from scipy.linalg import block_diag
 class VCACCT(VCA):
     '''

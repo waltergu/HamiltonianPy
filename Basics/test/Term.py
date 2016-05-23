@@ -4,11 +4,11 @@ Term test.
 
 __all__=['test_term']
 
-from HamiltonianPP.Basics.GeometryPy import *
-from HamiltonianPP.Basics.DegreeOfFreedomPy import *
-from HamiltonianPP.Basics.OperatorPy import *
-from HamiltonianPP.Basics.TermPy import *
-from HamiltonianPP.Basics.FermionicPackage import *
+from HamiltonianPy.Basics.Geometry import *
+from HamiltonianPy.Basics.DegreeOfFreedom import *
+from HamiltonianPy.Basics.Operator import *
+from HamiltonianPy.Basics.Term import *
+from HamiltonianPy.Basics.FermionicPackage import *
 
 def test_term():
     test_quadratic()

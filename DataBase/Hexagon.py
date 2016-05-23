@@ -6,7 +6,7 @@ Hexagonal lattice data base, including:
 __all__=['HexagonDataBase']
 
 from numpy import *
-from ..Basics.GeometryPy import *
+from ..Basics.Geometry import *
 
 class HexagonDataBase:
     '''
