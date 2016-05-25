@@ -1,14 +1,18 @@
 '''
+Quantum number, including:
+1) classes: QuantumNumber, U1, QuantumNumberCollection
 '''
 
 from collections import OrderedDict
 
-__all__=[]
+__all__=['QuantumNumber','U1','QuantumNumberCollection']
 
 class QuantumNumber(tuple):
     '''
     '''
     def __new__(cls,para):
+        '''
+        '''
         if not isinstance(para,OrderedDict):
             raise ValueError('QuantumNumber __new__ error: the parameter must be an OrderedDict.')
         self=super(QuantumNumber,cls).__new__(cls,para.values())
@@ -31,7 +35,22 @@ class QuantumNumber(tuple):
         '''
         Convert an instance to string.
         '''
-        return ''.join(['QuantumNumber(','=%r, '.join(self.__dict__.keys()),'=%r)'])%self
+        return ''.join(['%s('%self.__class__.__name__,'=%r, '.join(self.__dict__.keys()),'=%r)'])%self
+
+    def __add__(self):
+        '''
+        '''
+        raise NotImplementedError()
+
+    def __mul__(self):
+        '''
+        '''
+        raise NotImplementedError()
+
+    def __rmul__(self,other):
+        '''
+        '''
+        return self.__mul__(other)
 
     def replace(self,**karg):
         '''
@@ -45,10 +64,58 @@ class QuantumNumber(tuple):
             result.__dict__[key]=value
         return result
 
-    #def direct_sum(self,other):
-    #    result=super(QuantumNumber,self).__add__(other)
-    #    result.__dict__.update(self.__dict__)
-    #    result.__dict__.update(other.__dict__)
+    def direct_sum(self,other):
+        '''
+        '''
+        result=tuple.__new__(self.__class__,tuple.__add__(self,other))
+        result.__dict__.update(self.__dict__)
+        result.__dict__.update(other.__dict__)
 
 class U1(QuantumNumber):
-    pass
+    '''
+    '''
+    def __add__(self,other):
+        '''
+        '''
+        pass
+
+class QuantumNumberSet(set):
+    '''
+    '''
+    def __init__(self):
+        '''
+        '''
+        self.edges={}
+        
+
+    def __add__(self,other):
+        '''
+        '''
+        pass
+
+    def __radd__(self,other):
+        '''
+        '''
+        pass
+
+    def __iadd__(self,other):
+        '''
+        '''
+        pass
+
+    def __mul__(self,other):
+        '''
+        '''
+        pass
+
+    def __rmul__(self,other):
+        '''
+        '''
+        return self.__mul__(other)
+
+    def __imul__(self,other):
+        '''
+        '''
+        pass
+
+class QuantumNumberFlow()

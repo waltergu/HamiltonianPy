@@ -29,3 +29,6 @@ def test_basics(arg):
     if arg in ('optrep','basics','all'):
         from HamiltonianPy.Basics.test.OperatorRepresentation import *
         test_opt_rep()
+    if arg in ('quantumnumber','basics','all'):
+        from HamiltonianPy.Basics.test.QuantumNumber import *
+        test_quantum_number()
