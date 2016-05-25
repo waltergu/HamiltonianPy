@@ -147,6 +147,8 @@ class VCA(ED):
                     )
         self.name.update(const=self.generators['h'].parameters['const'])
         self.name.update(alter=self.generators['h'].parameters['alter'])
+        self.name.update(const=self.generators['h_w'].parameters['const'])
+        self.name.update(alter=self.generators['h_w'].parameters['alter'])
         self.operators={}
         self.set_operators()
         self.clmap={}

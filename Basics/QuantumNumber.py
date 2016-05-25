@@ -118,4 +118,5 @@ class QuantumNumberSet(set):
         '''
         pass
 
-class QuantumNumberFlow()
+class QuantumNumberFlow(dict):
+    pass
