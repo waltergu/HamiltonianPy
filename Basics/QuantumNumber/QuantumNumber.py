@@ -1,11 +1,11 @@
 '''
 Quantum number, including:
-1) classes: QuantumNumber, U1, QuantumNumberCollection
+1) classes: QuantumNumber, U1, QuantumNumberSet
 '''
 
 from collections import OrderedDict
 
-__all__=['QuantumNumber','U1','QuantumNumberCollection']
+__all__=['QuantumNumber','U1','QuantumNumberSet']
 
 class QuantumNumber(tuple):
     '''
@@ -68,8 +68,10 @@ class QuantumNumber(tuple):
         '''
         '''
         result=tuple.__new__(self.__class__,tuple.__add__(self,other))
+        result.__dict__=OrderedDict()
         result.__dict__.update(self.__dict__)
         result.__dict__.update(other.__dict__)
+        return result
 
 class U1(QuantumNumber):
     '''
@@ -77,7 +79,18 @@ class U1(QuantumNumber):
     def __add__(self,other):
         '''
         '''
-        pass
+        temp=OrderedDict()
+        for key in self.__dict__:
+            temp[key]=getattr(self,key)+getattr(other,key)
+        return U1(temp)
+
+    def __mul__(self,other):
+        '''
+        '''
+        temp=OrderedDict()
+        for key in self.__dict__:
+            temp[key]=getattr(self,key)*other
+        return U1(temp)
 
 class QuantumNumberSet(set):
     '''
@@ -94,6 +107,7 @@ class QuantumNumberSet(set):
         pass
 
     def __radd__(self,other):
+        pass
         '''
         '''
         pass
