@@ -20,6 +20,8 @@ class QuantumNumber(tuple):
             The keys correspond to the names.
     '''
     U1,Z2=('U1','Z2')
+    repr_forms=['FULL','SIMPLE','ORIGINAL']
+    repr_form=repr_forms[0]
 
     def __new__(cls,para):
         '''
@@ -61,16 +63,31 @@ class QuantumNumber(tuple):
         '''
         return self.replace(**self.values)
 
+    @classmethod
+    def set_repr_form(cls,para):
+        '''
+        Set the form __repr__ will use.
+        '''
+        if para in cls.repr_forms:
+            cls.repr_form=para
+        else:
+            raise ValueError('QuantumNumber set_repr_form error: %s is not one of the supported forms (%s).'%(para,', '.join(cls.repr_forms)))
+
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        temp=[]
-        for key in self.values:
-            temp.append(key)
-            temp.append(self.values[key])
-            temp.append(self.types[key])
-        return ''.join(['%s('%self.__class__.__name__,','.join(['%s=%r(%s)']*len(self)),')'])%tuple(temp)
+        if self.repr_form==self.repr_forms[0]:
+            temp=[]
+            for key in self.values:
+                temp.append(key)
+                temp.append(self.values[key])
+                temp.append(self.types[key])
+            return ''.join([self.__class__.__name__,'(',','.join(['%s=%r(%s)']*len(self)),')'])%tuple(temp)
+        elif self.repr_form==self.repr_forms[1]:
+            return ''.join([self.__class__.__name__,'(',','.join(['%s']*len(self)),')'])%self
+        else:
+            return tuple.__repr__(self)
 
     def __add__(self,other):
         '''
@@ -84,9 +101,7 @@ class QuantumNumber(tuple):
             if type==self.U1:
                 value=getattr(self,key)+getattr(other,key)
             elif type==self.Z2:
-                if getattr(self,key)!=getattr(other,key):
-                    raise ValueError("QuantumNumber '+' error: only equal Z2 quantum numbers can be added.")
-                value=getattr(self,key)
+                value=(getattr(self,key)+getattr(other,key))%2
             temp.append((key,value,type))
         return QuantumNumber(temp)
 
@@ -128,7 +143,7 @@ class QuantumNumber(tuple):
         result.types.update(other.types)
         return result
 
-class QuantumNumberCollection(set):
+class QuantumNumberCollection(OrderedDict):
     '''
     Quantum number collection.
     Attributes:
@@ -137,7 +152,7 @@ class QuantumNumberCollection(set):
     '''
     trace_history=True
 
-    def __new__(cls,para=[],map={}):
+    def __init__(self,para=[],map={}):
         '''
         Constructor.
         Parameters:
@@ -146,29 +161,35 @@ class QuantumNumberCollection(set):
             map: dict
                 The history information of quantum numbers.
         '''
-        self=set.__new__(cls,para)
-        self.map=map if QuantumNumberCollection.trace_history else {}
-        return self
+        OrderedDict.__init__(self)
+        for key in para:
+            self[key]=None
+        self.map=map if QuantumNumberCollection.trace_history else {}        
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        pass
+        return ''.join(['QuantumNumberCollection(',','.join([str(qn) for qn in self]),')'])
 
     def __add__(self,other):
         '''
         Overloaded addition(+) operator.
         '''
-        temp,buff=[],{}
-        other=[other] if isinstance(other,QuantumNumer) else other
-        for qn1 in self:
-            for qn2 in other:
-                sum=qn1+qn2
-                if sum not in buff:
-                    temp.append(sum)
-                    buff[sum]=[]
-                buff[sum].append((qn1,qn2))
+        temp,buff=[],OrderedDict()
+        other=[other] if isinstance(other,QuantumNumber) else other
+        if len(self)==0:
+            temp=other
+        elif len(other)==0:
+            temp=self
+        else:
+            for qn1 in self:
+                for qn2 in other:
+                    sum=qn1+qn2
+                    if sum not in buff:
+                        temp.append(sum)
+                        buff[sum]=[]
+                    buff[sum].append((qn1,qn2))
         return QuantumNumberCollection(temp,buff)
 
     def __radd__(self,other):
