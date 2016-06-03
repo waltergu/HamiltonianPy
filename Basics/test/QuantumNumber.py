@@ -9,13 +9,16 @@ from collections import OrderedDict
 
 def test_quantum_number():
     print 'test_quantum_number'
-    a=U1(OrderedDict(NE=2,Sz=-2))
-    b=U1(OrderedDict(NE=1,Sz=-1))
+    a=QuantumNumber([('NE',2,'U1'),('Sz',-2,'U1')])
+    b=QuantumNumber([('NE',1,'U1'),('Sz',-1,'U1')])
     print 'a:%s'%(a,)
     print 'b:%s'%(b,)
     print 'a+b:%s'%(a+b,)
-    print 'a*2:%s'%(a*2,)
-    c=U1(OrderedDict(S=11))
+    c=QuantumNumber([('SP',-1,'Z2')])
     print 'c:%s'%(c,)
-    print 'b.direct_sum(c):%s'%(b.direct_sum(c),)
+    d=a.direct_sum(c)
+    print 'd(a.direct_sum(c)):%s'%(d,)
+    e=d.replace(NE=11)
+    print 'e(d.replace(NE=11)):%s'%(e,)
+    print 'd+e:%s'%(d+e,)
     print

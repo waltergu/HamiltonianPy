@@ -1,54 +1,104 @@
 '''
 Quantum number, including:
-1) classes: QuantumNumber, U1, QuantumNumberSet
+1) classes: QuantumNumber, QuantumNumberCollection
 '''
 
 from collections import OrderedDict
 
-__all__=['QuantumNumber','U1','QuantumNumberSet']
+__all__=['QuantumNumber','QuantumNumberCollection']
 
 class QuantumNumber(tuple):
     '''
+    Quantum number.
+    It is a generalization of namedtuple.
+    Attributes:
+        values: OrderedDict
+            The values of the quantum number.
+            The keys correspond to the names.
+        types: OrderedDict
+            The types of the quantum number.
+            The keys correspond to the names.
     '''
+    U1,Z2=('U1','Z2')
+
     def __new__(cls,para):
         '''
+        Constructor.
+        Parameters:
+            para: list of 3-tuple.
+                For each tuple, it should be in the form of (name,value,type):
+                    name: string
+                        The name of the quantum number.
+                    value: int
+                        The value of the quantum number.
+                    type: 'U1' or 'Z2'
+                        The type of the quantum number.
         '''
-        if not isinstance(para,OrderedDict):
-            raise ValueError('QuantumNumber __new__ error: the parameter must be an OrderedDict.')
-        self=super(QuantumNumber,cls).__new__(cls,para.values())
-        self.__dict__=para
+        values,types=OrderedDict(),OrderedDict()
+        for name,value,type in para:
+            values[name]=value
+            types[name]=type
+        self=super(QuantumNumber,cls).__new__(cls,values.values())
+        self.values=values
+        self.types=types
         return self
+
+    def __getattr__(self,key):
+        '''
+        Overloaded dot(.) operator.
+        '''
+        return self.values[key]
 
     def __copy__(self):
         '''
         Copy.
         '''
-        return self.replace(**self.__dict__)
+        return self.replace(**self.values)
 
     def __deepcopy__(self,memo):
         '''
         Deep copy.
         '''
-        return self.replace(**self.__dict__)
+        return self.replace(**self.values)
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return ''.join(['%s('%self.__class__.__name__,'=%r, '.join(self.__dict__.keys()),'=%r)'])%self
+        temp=[]
+        for key in self.values:
+            temp.append(key)
+            temp.append(self.values[key])
+            temp.append(self.types[key])
+        return ''.join(['%s('%self.__class__.__name__,','.join(['%s=%r(%s)']*len(self)),')'])%tuple(temp)
 
-    def __add__(self):
+    def __add__(self,other):
         '''
+        Overloaded addition(+) operator, which supports the addition of two quantum numbers.
         '''
-        raise NotImplementedError()
+        temp=[]
+        for key in self.values:
+            if self.types[key]!=other.types[key]:
+                raise ValueError("QuantumNumber '+' error: different types of quantum numbers cannot be added.")
+            type=self.types[key]
+            if type==self.U1:
+                value=getattr(self,key)+getattr(other,key)
+            elif type==self.Z2:
+                if getattr(self,key)!=getattr(other,key):
+                    raise ValueError("QuantumNumber '+' error: only equal Z2 quantum numbers can be added.")
+                value=getattr(self,key)
+            temp.append((key,value,type))
+        return QuantumNumber(temp)
 
     def __mul__(self):
         '''
+        Overloaded multiplication(*) operator.
         '''
         raise NotImplementedError()
 
     def __rmul__(self,other):
         '''
+        Overloaded multiplication(*) operator.
         '''
         return self.__mul__(other)
 
@@ -56,81 +106,73 @@ class QuantumNumber(tuple):
         '''
         Return a new QuantumNumber object with specified fields replaced with new values.
         '''
-        result=tuple.__new__(QuantumNumber,map(karg.pop,self.__dict__.keys(),self))
+        result=tuple.__new__(QuantumNumber,map(karg.pop,self.values.keys(),self))
         if karg:
             raise ValueError('QuantumNumber replace error: it got unexpected field names: %r'%karg.keys())
-        result.__dict__=OrderedDict()
-        for key,value in zip(self.__dict__.keys(),result):
-            result.__dict__[key]=value
+        result.values=OrderedDict()
+        for key,value in zip(self.values.keys(),result):
+            result.values[key]=value
+        result.types=self.types
         return result
 
     def direct_sum(self,other):
         '''
+        Direct sum of two quantum numbers.
         '''
         result=tuple.__new__(self.__class__,tuple.__add__(self,other))
-        result.__dict__=OrderedDict()
-        result.__dict__.update(self.__dict__)
-        result.__dict__.update(other.__dict__)
+        result.values=OrderedDict()
+        result.values.update(self.values)
+        result.values.update(other.values)
+        result.types=OrderedDict()
+        result.types.update(self.types)
+        result.types.update(other.types)
         return result
 
-class U1(QuantumNumber):
+class QuantumNumberCollection(set):
     '''
+    Quantum number collection.
+    Attributes:
+        map: dict
+            The history information of quantum numbers.
     '''
-    def __add__(self,other):
-        '''
-        '''
-        temp=OrderedDict()
-        for key in self.__dict__:
-            temp[key]=getattr(self,key)+getattr(other,key)
-        return U1(temp)
+    trace_history=True
 
-    def __mul__(self,other):
+    def __new__(cls,para=[],map={}):
         '''
+        Constructor.
+        Parameters:
+            para: list of QuantumNumber
+                The quantum numbers.
+            map: dict
+                The history information of quantum numbers.
         '''
-        temp=OrderedDict()
-        for key in self.__dict__:
-            temp[key]=getattr(self,key)*other
-        return U1(temp)
+        self=set.__new__(cls,para)
+        self.map=map if QuantumNumberCollection.trace_history else {}
+        return self
 
-class QuantumNumberSet(set):
-    '''
-    '''
-    def __init__(self):
+    def __repr__(self):
         '''
-        '''
-        self.edges={}
-        
-
-    def __add__(self,other):
-        '''
+        Convert an instance to string.
         '''
         pass
+
+    def __add__(self,other):
+        '''
+        Overloaded addition(+) operator.
+        '''
+        temp,buff=[],{}
+        other=[other] if isinstance(other,QuantumNumer) else other
+        for qn1 in self:
+            for qn2 in other:
+                sum=qn1+qn2
+                if sum not in buff:
+                    temp.append(sum)
+                    buff[sum]=[]
+                buff[sum].append((qn1,qn2))
+        return QuantumNumberCollection(temp,buff)
 
     def __radd__(self,other):
-        pass
         '''
+        Overloaded addition(+) operator.
         '''
-        pass
-
-    def __iadd__(self,other):
-        '''
-        '''
-        pass
-
-    def __mul__(self,other):
-        '''
-        '''
-        pass
-
-    def __rmul__(self,other):
-        '''
-        '''
-        return self.__mul__(other)
-
-    def __imul__(self,other):
-        '''
-        '''
-        pass
-
-class QuantumNumberFlow(dict):
-    pass
+        return self.__add__(other)
