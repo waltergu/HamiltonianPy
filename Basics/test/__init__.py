@@ -6,3 +6,4 @@ from Operator import *
 from EngineApp import *
 from BasisF import *
 from OperatorRepresentation import *
+from QuantumNumber import *

@@ -5,6 +5,7 @@ from Test.FreeSystem import *
 from Test.ED import*
 from Test.VCA import *
 from Test.MERA import *
+from Test.DMRG import *
 import sys
 
 for arg in sys.argv:
@@ -14,4 +15,5 @@ for arg in sys.argv:
     test_fre_sys(arg)
     test_ed(arg)
     test_vca(arg)
+    test_dmrg(arg)
     #test_mera(arg)

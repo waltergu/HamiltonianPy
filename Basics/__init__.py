@@ -8,4 +8,5 @@ from EngineApp import *
 from AppPack import *
 from Generator import *
 from FermionicPackage import *
-
+from SpinPackage import *
+from QuantumNumber import *
