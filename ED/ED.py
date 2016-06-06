@@ -9,6 +9,7 @@ __all__=['ED','EDGFC','EDGF','EDDOS','EDEB']
 from numpy import *
 from ..Basics import *
 from ..Math import Lanczos
+from scipy.linalg import eigh
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
 from scipy.linalg import norm,solve_banded,solveh_banded
@@ -170,9 +171,14 @@ def EDGFC(engine,app):
     print "EDGFC: matrix(%s*%s) containing %s operators and %s non-zeros set in %fs."%(engine.matrix.shape[0],engine.matrix.shape[1],len(engine.operators['h']),engine.matrix.nnz,t1-t0)
     if app.method in ('user',):
         app.gse,app.v0=Lanczos(engine.matrix,v0=app.v0,vtype=app.vtype,zero=app.error).eig(job='v',precision=app.error)    
-    else:
+    elif app.method in ('python',):
         app.gse,app.v0=eigsh(engine.matrix,k=1,which='SA',v0=app.v0,return_eigenvectors=True,tol=app.error)
-    t2=time.time()    
+    elif app.method in ('dense',):
+        w,v=eigh(engine.matrix.todense())
+        app.gse,app.v0=w[0],v[:,0]
+    else:
+        raise ValueError('EDGFC error: mehtod(%s) not supported.'%(app.method))
+    t2=time.time()
     print 'EDGFC: GSE(=%f) calculated in %fs'%(app.gse,t2-t1)
     if engine.basis.basis_type.lower() in ('fs','fp'): engine.matrix=None
     print '-'*57

@@ -192,6 +192,7 @@ class VCA(ED):
         for generator in self.generators.itervalues():
             generator.update(**karg)
         self.name.update(alter=self.generators['h'].parameters['alter'])
+        self.name.update(alter=self.generators['h_w'].parameters['alter'])
         self.set_operators_hamiltonian()
         self.set_operators_perturbation()
 
