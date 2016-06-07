@@ -4,7 +4,7 @@ Spin degree of freedom package, including:
 2) classes: SID, Spin, SpinMatrix
 '''
 
-__all__=['DEFAULT_SPIN_PRIORITY','SID'.'Spin','SpinMatrix']
+__all__=['DEFAULT_SPIN_PRIORITY','SID','Spin','SpinMatrix']
 
 from ..DegreeOfFreedom import *
 from numpy import *
@@ -16,7 +16,7 @@ class SID(namedtuple('SID',['S'])):
     '''
     Internal spin ID.
     Attributes:
-        S: integer
+        S: integer or half integer
             The total spin.
     '''
 
@@ -31,15 +31,17 @@ class Spin(Internal):
     '''
     This class defines the internal spin degrees of freedom in a single point.
     Attributes:
-        S: integer
+        S: integer or half integer
             The total spin.
     '''
     def __init__(self,S):
         '''
         Constructor.
-            S: integer
+            S: integer or half integer
                 The total spin.
         '''
+        if abs(2*S-int(2*S))>10**-6:
+            raise ValueError('Spin construction error: S(%s) is not an integer or half integer.')
         self.S=S
 
     def __repr__(self):
@@ -74,7 +76,7 @@ class SpinMatrix(ndarray):
         Constructor.
         Parameters:
             id: 2-tuple
-                id[0]: integer
+                id[0]: integer or half integer
                     The total spin.
                 id[1]: 'X','x','Y','y','Z','z','+','-'
                     This parameter specifies the matrix.
@@ -83,12 +85,12 @@ class SpinMatrix(ndarray):
         '''
         if isinstance(id,tuple):
             delta=lambda i,j: 1 if i==j else 0
-            temp=(id[0]/2.0)*(id[0]/2.0+1)
-            result=zeros((id[0]+1,id[0]+1),dtype=dtype).view(cls)
-            for i in xrange(id[0]+1):
-                m=id[0]/2.0-i
-                for j in xrange(id[0]+1):
-                    n=id[0]/2.0-j
+            temp=(id[0])*(id[0]+1)
+            result=zeros((int(id[0]*2)+1,int(id[0]*2)+1),dtype=dtype).view(cls)
+            for i in xrange(int(id[0]*2)+1):
+                m=id[0]-i
+                for j in xrange(int(id[0]*2)+1):
+                    n=id[0]-j
                     if id[1] in ('X','x'):
                         result[i,j]=(delta(i+1,j)+delta(i,j+1))*sqrt(temp-m*n)/2
                     elif id[1] in ('Y','y'):

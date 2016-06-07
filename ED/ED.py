@@ -124,7 +124,7 @@ class ED(Engine):
         '''
         self.matrix=csr_matrix((self.basis.nbasis,self.basis.nbasis),dtype=complex128)
         for operator in self.operators['h'].values():
-            self.matrix+=opt_rep(operator,self.basis,transpose=False)
+            self.matrix+=f_opt_rep(operator,self.basis,transpose=False)
         self.matrix+=conjugate(transpose(self.matrix))
         self.matrix=self.matrix.T
 
@@ -192,7 +192,7 @@ def EDGFC(engine,app):
         states,norms,lczs=[],[],[]
         for i,opt in enumerate(sorted(engine.operators['sp'].values(),key=lambda operator: operator.seqs[0])):
             if i==nopt/2 and engine.nspin==2 and engine.basis.basis_type.lower()=='fs': ed=ed_eh(engine,nambu=1-h,spin=1)
-            mat=opt_rep(opt.dagger if h==0 else opt,[engine.basis,ed.basis],transpose=True)
+            mat=f_opt_rep(opt.dagger if h==0 else opt,[engine.basis,ed.basis],transpose=True)
             state=mat.dot(app.v0)
             states.append(state)
             temp=norm(state)

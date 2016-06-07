@@ -7,6 +7,6 @@ from Term import *
 from EngineApp import *
 from AppPack import *
 from Generator import *
+from QuantumNumber import *
 from FermionicPackage import *
 from SpinPackage import *
-from QuantumNumber import *

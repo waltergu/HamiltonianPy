@@ -17,18 +17,30 @@ def test_basics(arg):
     if arg in ('degfre','basics','all'):
         from HamiltonianPy.Basics.test.DegreeOfFreedom import *
         test_deg_fre()
-    if arg in ('operator','basics','all'):
-        from HamiltonianPy.Basics.test.Operator import *
-        test_operator()
-    if arg in ('term','basics','all'):
-        from HamiltonianPy.Basics.test.Term import *
-        test_term()
-    if arg in ('basisf','basics','all'):
-        from HamiltonianPy.Basics.test.BasisF import *
-        test_basisf()
-    if arg in ('optrep','basics','all'):
-        from HamiltonianPy.Basics.test.OperatorRepresentation import *
-        test_opt_rep()
     if arg in ('quantumnumber','basics','all'):
-        from HamiltonianPy.Basics.test.QuantumNumber import *
+        from HamiltonianPy.Basics.QuantumNumber.test import *
         test_quantum_number()
+    if arg in ('fdegfre','fermionic','basics','all'):
+        from HamiltonianPy.Basics.FermionicPackage.test.DegreeOfFreedom import *
+        test_fermionic_deg_fre()
+    if arg in ('operatorf','fermionic','basics','all'):
+        from HamiltonianPy.Basics.FermionicPackage.test.Operator import *
+        test_operatorf()
+    if arg in ('fterm','fermionic','basics','all'):
+        from HamiltonianPy.Basics.FermionicPackage.test.Term import *
+        test_fermionic_term()
+    if arg in ('basisf','fermionic','basics','all'):
+        from HamiltonianPy.Basics.FermionicPackage.test.BasisF import *
+        test_basisf()
+    if arg in ('foptrep','fermionic','basics','all'):
+        from HamiltonianPy.Basics.FermionicPackage.test.OperatorRepresentation import *
+        test_f_opt_rep()
+    if arg in ('sdegfre','spin','basics','all'):
+        from HamiltonianPy.Basics.SpinPackage.test.DegreeOfFreedom import *
+        test_spin_deg_fre()
+    if arg in ('operators','spin','basics','all'):
+        from HamiltonianPy.Basics.SpinPackage.test.Operator import *
+        test_operators()
+    if arg in ('soptrep','spin','basics','all'):
+        from HamiltonianPy.Basics.SpinPackage.test.OperatorRepresentation import *
+        test_s_opt_rep()

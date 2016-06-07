@@ -1,9 +1,9 @@
 '''
 Operator representation, including:
-1) functions: opt_rep
+1) functions: f_opt_rep
 '''
 
-__all__=['opt_rep']
+__all__=['f_opt_rep']
 
 from numpy import *
 from DegreeOfFreedom import *
@@ -12,7 +12,7 @@ from BasisF import *
 from scipy.sparse import *
 from numba import jit
 
-def opt_rep(operator,basis,transpose=False,dtype=complex128):
+def f_opt_rep(operator,basis,transpose=False,dtype=complex128):
     '''
     This function returns the csr_formed or csc_formed sparse matrix representation of an operator on the occupation number basis.
     Parameters:
@@ -33,20 +33,20 @@ def opt_rep(operator,basis,transpose=False,dtype=complex128):
     '''
     if operator.rank==1:
         if len(basis)==2:
-            return opt_rep_1(operator,basis[0],basis[1],transpose,dtype=dtype)
+            return f_opt_rep_1(operator,basis[0],basis[1],transpose,dtype=dtype)
         else:
-            raise ValueError("Opt_rep error: when the operator's rank is 1 there must be two groups of basis.")
+            raise ValueError("f_opt_rep error: when the operator's rank is 1 there must be two groups of basis.")
     elif operator.rank==2:
-        return opt_rep_2(operator,basis,transpose,dtype=dtype)
+        return f_opt_rep_2(operator,basis,transpose,dtype=dtype)
     elif operator.rank==4:
         if operator.is_normal_ordered():
-            return opt_rep_4(operator,basis,transpose,dtype=dtype)
+            return f_opt_rep_4(operator,basis,transpose,dtype=dtype)
         else:
-            raise ValueError("Opt_rep error: when the operator's rank is 4, it must be normal ordered.")
+            raise ValueError("f_opt_rep error: when the operator's rank is 4, it must be normal ordered.")
     else:
-        raise ValueError("Opt_rep error: only operators with rank=1,2,4 are supported.")
+        raise ValueError("f_opt_rep error: only operators with rank=1,2,4 are supported.")
 
-def opt_rep_1(operator,basis1,basis2,transpose,dtype=complex128):
+def f_opt_rep_1(operator,basis1,basis2,transpose,dtype=complex128):
     nbasis1=basis1.nbasis
     nbasis2=basis2.nbasis
     data=zeros(nbasis1,dtype=dtype)
@@ -56,16 +56,16 @@ def opt_rep_1(operator,basis1,basis2,transpose,dtype=complex128):
     basis_table1=basis1.basis_table
     basis_table2=basis2.basis_table
     if operator.indices[0].nambu==CREATION:
-        opt_rep_1_1(data,indices,indptr,nbasis1,nbasis2,basis_table1,basis_table2,seq)
+        f_opt_rep_1_1(data,indices,indptr,nbasis1,nbasis2,basis_table1,basis_table2,seq)
     else:
-        opt_rep_1_0(data,indices,indptr,nbasis1,nbasis2,basis_table1,basis_table2,seq)
+        f_opt_rep_1_0(data,indices,indptr,nbasis1,nbasis2,basis_table1,basis_table2,seq)
     if transpose==False:
         return csr_matrix((data*operator.value,indices,indptr),shape=(nbasis1,nbasis2))
     else:
         return csr_matrix((data*operator.value,indices,indptr),shape=(nbasis1,nbasis2)).T
 
 @jit
-def opt_rep_1_1(data,indices,indptr,nbasis1,nbasis2,basis_table1,basis_table2,seq):
+def f_opt_rep_1_1(data,indices,indptr,nbasis1,nbasis2,basis_table1,basis_table2,seq):
     ndata=0
     for i in xrange(nbasis1):
         indptr[i]=ndata
@@ -81,7 +81,7 @@ def opt_rep_1_1(data,indices,indptr,nbasis1,nbasis2,basis_table1,basis_table2,se
     indptr[nbasis1]=ndata
 
 @jit
-def opt_rep_1_0(data,indices,indptr,nbasis1,nbasis2,basis_table1,basis_table2,seq):
+def f_opt_rep_1_0(data,indices,indptr,nbasis1,nbasis2,basis_table1,basis_table2,seq):
     ndata=0
     for i in xrange(nbasis1):
         indptr[i]=ndata
@@ -96,7 +96,7 @@ def opt_rep_1_0(data,indices,indptr,nbasis1,nbasis2,basis_table1,basis_table2,se
             ndata+=1
     indptr[nbasis1]=ndata
 
-def opt_rep_2(operator,basis,transpose,dtype=complex128):
+def f_opt_rep_2(operator,basis,transpose,dtype=complex128):
     nbasis=basis.nbasis
     data=zeros(nbasis,dtype=dtype)
     indices=zeros(nbasis,dtype=int32)
@@ -105,20 +105,20 @@ def opt_rep_2(operator,basis,transpose,dtype=complex128):
     seq2=operator.seqs[1]
     basis_table=basis.basis_table
     if operator.indices[0].nambu==CREATION and operator.indices[1].nambu==ANNIHILATION:
-        opt_rep_2_10(data,indices,indptr,nbasis,basis_table,seq1,seq2)
+        f_opt_rep_2_10(data,indices,indptr,nbasis,basis_table,seq1,seq2)
     elif operator.indices[0].nambu==ANNIHILATION and operator.indices[1].nambu==CREATION:
-        opt_rep_2_01(data,indices,indptr,nbasis,basis_table,seq1,seq2)
+        f_opt_rep_2_01(data,indices,indptr,nbasis,basis_table,seq1,seq2)
     elif operator.indices[0].nambu==ANNIHILATION and operator.indices[1].nambu==ANNIHILATION:
-        opt_rep_2_00(data,indices,indptr,nbasis,basis_table,seq1,seq2)
+        f_opt_rep_2_00(data,indices,indptr,nbasis,basis_table,seq1,seq2)
     else:
-        opt_rep_2_11(data,indices,indptr,nbasis,basis_table,seq1,seq2)
+        f_opt_rep_2_11(data,indices,indptr,nbasis,basis_table,seq1,seq2)
     if transpose==False:
         return csr_matrix((data*operator.value,indices,indptr),shape=(nbasis,nbasis))
     else:
         return csr_matrix((data*operator.value,indices,indptr),shape=(nbasis,nbasis)).T
 
 @jit
-def opt_rep_2_10(data,indices,indptr,nbasis,basis_table,seq1,seq2):
+def f_opt_rep_2_10(data,indices,indptr,nbasis,basis_table,seq1,seq2):
     ndata=0
     for i in xrange(nbasis):
         indptr[i]=ndata
@@ -138,7 +138,7 @@ def opt_rep_2_10(data,indices,indptr,nbasis,basis_table,seq1,seq2):
     indptr[nbasis]=ndata
 
 @jit
-def opt_rep_2_01(data,indices,indptr,nbasis,basis_table,seq1,seq2):
+def f_opt_rep_2_01(data,indices,indptr,nbasis,basis_table,seq1,seq2):
     ndata=0
     for i in xrange(nbasis):
         indptr[i]=ndata
@@ -158,7 +158,7 @@ def opt_rep_2_01(data,indices,indptr,nbasis,basis_table,seq1,seq2):
     indptr[nbasis]=ndata
 
 @jit
-def opt_rep_2_00(data,indices,indptr,nbasis,basis_table,seq1,seq2):
+def f_opt_rep_2_00(data,indices,indptr,nbasis,basis_table,seq1,seq2):
     ndata=0
     for i in xrange(nbasis):
         indptr[i]=ndata
@@ -178,7 +178,7 @@ def opt_rep_2_00(data,indices,indptr,nbasis,basis_table,seq1,seq2):
     indptr[nbasis]=ndata
 
 @jit
-def opt_rep_2_11(data,indices,indptr,nbasis,basis_table,seq1,seq2):
+def f_opt_rep_2_11(data,indices,indptr,nbasis,basis_table,seq1,seq2):
     ndata=0
     for i in xrange(nbasis):
         indptr[i]=ndata
@@ -197,7 +197,7 @@ def opt_rep_2_11(data,indices,indptr,nbasis,basis_table,seq1,seq2):
                 ndata+=1
     indptr[nbasis]=ndata
 
-def opt_rep_4(operator,basis,transpose,dtype=complex128):
+def f_opt_rep_4(operator,basis,transpose,dtype=complex128):
     nbasis=basis.nbasis
     data=zeros(nbasis,dtype=dtype)
     indices=zeros(nbasis,dtype=int32)
@@ -207,14 +207,14 @@ def opt_rep_4(operator,basis,transpose,dtype=complex128):
     seq3=operator.seqs[2]
     seq4=operator.seqs[3]
     basis_table=basis.basis_table
-    opt_rep_4_1100(data,indices,indptr,nbasis,basis_table,seq1,seq2,seq3,seq4)
+    f_opt_rep_4_1100(data,indices,indptr,nbasis,basis_table,seq1,seq2,seq3,seq4)
     if transpose==False:
         return csr_matrix((data*operator.value,indices,indptr),shape=(nbasis,nbasis))
     else:
         return csr_matrix((data*operator.value,indices,indptr),shape=(nbasis,nbasis)).T
 
 @jit
-def opt_rep_4_1100(data,indices,indptr,nbasis,basis_table,seq1,seq2,seq3,seq4):
+def f_opt_rep_4_1100(data,indices,indptr,nbasis,basis_table,seq1,seq2,seq3,seq4):
     ndata=0
     for i in xrange(nbasis):
         indptr[i]=ndata

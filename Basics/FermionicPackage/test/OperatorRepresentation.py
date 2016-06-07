@@ -1,16 +1,16 @@
 '''
-OperatorRepresentation test.
+Fermionic operator representation test.
 '''
 
-__all__=['test_opt_rep']
+__all__=['test_f_opt_rep']
 
 from numpy import *
 from HamiltonianPy.Basics import *
 import itertools
 import time
 
-def test_opt_rep():
-    print 'test_opt_rep'
+def test_f_opt_rep():
+    print 'test_f_opt_rep'
     m=2;n=2;nloop=500
     p=Point(pid=PID(site=0,scope="WG"),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1=array([1.0,0.0]);a2=array([0.0,1.0])
@@ -36,8 +36,8 @@ def test_opt_rep():
 #    print basis
     stime=time.time()
     for i in xrange(nloop):
-        opt_rep(opts.values()[0],basis,transpose=False)
-#        print opt_rep(opts[0],basis,transpose=False)
+        f_opt_rep(opts.values()[0],basis,transpose=False)
+#        print f_opt_rep(opts[0],basis,transpose=False)
     etime=time.time()
     print etime-stime
     print

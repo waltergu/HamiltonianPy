@@ -1,16 +1,16 @@
 '''
-Operator test.
+OperatorF test.
 '''
 
-__all__=['test_operator']
+__all__=['test_operatorf']
 
 from HamiltonianPy.Basics.Geometry import *
 from HamiltonianPy.Basics.DegreeOfFreedom import *
 from HamiltonianPy.Basics.Operator import *
 from HamiltonianPy.Basics.FermionicPackage import *
 
-def test_operator():
-    print 'test_operator'
+def test_operatorf():
+    print 'test_operatorf'
     a=OperatorF(
         mode=       'f_quadratic',
         value=      1.0j,

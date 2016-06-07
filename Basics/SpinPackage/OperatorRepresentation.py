@@ -5,6 +5,7 @@ Operator representation, including:
 
 __all__=['s_opt_rep']
 
+from numpy import *
 from scipy.sparse import kron
 
 def s_opt_rep(operator,table):
