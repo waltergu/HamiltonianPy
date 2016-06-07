@@ -14,16 +14,16 @@ class OperatorF(Operator):
     '''
     This class gives a unified description of fermionic operators with different ranks.
     Attributes:
-    mode: string
-        The tag used to distinguish operators with different types or ranks.
-    indices: tuple of Index
-        The associated indices of the operator, whose length should be equal to the operator's rank;
-    rcoords: tuple of 1D ndarray
-        The associated real coordinates of the operator.
-    icoords: tuple of 1D ndarray
-        The associated lattice coordinates of the operator.
-    seqs: tuple of integer
-        The associated sequences of the operator, whose length should be equal to the operator's rank.
+        mode: string
+            The tag used to distinguish operators with different types or ranks.
+        indices: tuple of Index
+            The associated indices of the operator, whose length should be equal to the operator's rank.
+        rcoords: tuple of 1D ndarray
+            The associated real coordinates of the operator.
+        icoords: tuple of 1D ndarray
+            The associated lattice coordinates of the operator.
+        seqs: tuple of integer
+            The associated sequences of the operator, whose length should be equal to the operator's rank.
     Note:
     1) The lengths of rcoords and icoords are not forced to be equal to the operator's rank because:
         (1) some of its rank-1 terms may share the same rcoord or icoord, and 

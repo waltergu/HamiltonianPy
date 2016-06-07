@@ -1,5 +1,5 @@
 '''
-Operator representation, including:
+Fermionic operator representation, including:
 1) functions: f_opt_rep
 '''
 
