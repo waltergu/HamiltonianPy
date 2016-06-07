@@ -321,14 +321,14 @@ def sigmay(mode):
     '''
     result=IndexPackageList()
     if mode.lower()=='sp':
-        result.append(IndexPackage(1.0j,spin1=0,spin2=1))
-        result.append(IndexPackage(-1.0j,spin1=1,spin2=0))
+        result.append(IndexPackage(-1.0j,spin1=0,spin2=1))
+        result.append(IndexPackage(1.0j,spin1=1,spin2=0))
     elif mode.lower()=='ob':
-        result.append(IndexPackage(1.0j,orbital1=0,orbital2=1))
-        result.append(IndexPackage(-1.0j,orbital1=1,orbital2=0))
+        result.append(IndexPackage(-1.0j,orbital1=0,orbital2=1))
+        result.append(IndexPackage(1.0j,orbital1=1,orbital2=0))
     elif mode.lower()=='sl':
-        result.append(IndexPackage(1.0j,atom1=0,atom2=1))
-        result.append(IndexPackage(-1.0j,atom1=1,atom2=0))
+        result.append(IndexPackage(-1.0j,atom1=0,atom2=1))
+        result.append(IndexPackage(1.0j,atom1=1,atom2=0))
     else:
         raise ValueError("SigmaY error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
     return result
@@ -339,14 +339,14 @@ def sigmaz(mode):
     '''
     result=IndexPackageList()
     if mode.lower()=='sp':
-        result.append(IndexPackage(-1.0,spin1=0,spin2=0))
-        result.append(IndexPackage(1.0,spin1=1,spin2=1))
+        result.append(IndexPackage(1.0,spin1=0,spin2=0))
+        result.append(IndexPackage(-1.0,spin1=1,spin2=1))
     elif mode.lower()=='ob':
-        result.append(IndexPackage(-1.0,orbital1=0,orbital2=0))
-        result.append(IndexPackage(1.0,orbital1=1,orbital2=1))
+        result.append(IndexPackage(1.0,orbital1=0,orbital2=0))
+        result.append(IndexPackage(-1.0,orbital1=1,orbital2=1))
     elif mode.lower()=='sl':
-        result.append(IndexPackage(-1.0,atom1=0,atom2=0))
-        result.append(IndexPackage(1.0,atom1=1,atom2=1))
+        result.append(IndexPackage(1.0,atom1=0,atom2=0))
+        result.append(IndexPackage(-1.0,atom1=1,atom2=1))
     else:
         raise ValueError("SigmaZ error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
     return result
