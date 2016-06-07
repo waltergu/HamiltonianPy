@@ -1,5 +1,5 @@
 '''
-Operator representation, including
+Operator representation, including:
 1) functions: opt_rep
 '''
 

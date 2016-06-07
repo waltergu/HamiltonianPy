@@ -1,0 +1,18 @@
+'''
+Operator representation, including:
+1) functions: s_opt_rep
+'''
+
+__all__=['s_opt_rep']
+
+from scipy.sparse import kron
+
+def s_opt_rep(operator,table):
+    temp=[eye(index.S+1) for index in sorted(table.keys(),key=table.get)]
+    for spin,seq in zip(operator.spins,operator.seqs):
+        temp[seq]=asarray(spin)
+    result=operator.value
+    for matrix in temp:
+        result=kron(result,matrix,format='csr')
+        result.eliminate_zeros()
+    return result
