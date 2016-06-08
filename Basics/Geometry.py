@@ -1,7 +1,7 @@
 '''
 Geometry, including
-1) functions: azimuthd, azimuth, polard, polar, volume, is_parallel, reciprocals, tiling, translation, rotation, bonds, SuperLattice
-2) classes: PID, Point, Bond, Lattice
+1) functions: azimuthd, azimuth, polard, polar, volume, is_parallel, reciprocals, tiling, translation, rotation, bonds
+2) classes: PID, Point, Bond, Lattice, SuperLattice
 '''
 
 __all__=['azimuthd','azimuth','polard','polar','volume','is_parallel','reciprocals','tiling','translation','rotation','bonds','SuperLattice','PID','Point','Bond','Lattice']
@@ -14,6 +14,7 @@ from scipy.spatial import cKDTree
 from copy import copy,deepcopy
 import matplotlib.pyplot as plt
 import itertools
+import warnings
 
 def azimuthd(self):
     '''
@@ -327,23 +328,27 @@ class Bond:
         '''
         return Bond(self.neighbour,self.epoint,self.spoint)
 
-def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=8):
+def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=8,return_mdists=False):
     '''
-    This function returns all the bonds up to the nneighbour-th order.
+    This function returns all the bonds and optionally the minimum distances up to the nneighbour-th order within the cluster.
+    When vector is not empty, periodic boundary condition is assumed and the bonds across the boundaries of the cluster are also included.
     Parameters:
         cluster: list of Point
             The cluster within which the bonds are looked for.
-            If the parameter vectors is not None, the inter cluster bonds will also be searched.
         vectors: list of 1D ndarray, optional
             The translation vectors for the cluster.
         nneighbour: integer, optional
             The highest order of neighbour to be searched.
         max_coordinate_number: int, optional
             The max coordinate number for every neighbour.
+        return_mdists: logical, optional
+            When it is set to be True, the nneighbour-th minimum distances will alse be returned.
     Returns:
         result: list of Bond
             All the bonds up to the nneighbour-th order.
             Note that the input points will be used to form the zero-th neighbour bonds, i.e. the start point and the end point is the same point.
+        mdists: list of float, optional
+            The nneighbour-th minimum distances within the cluster.
     '''
     result=[]
     indices=[]
@@ -380,10 +385,11 @@ def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=8):
                 mdists[i+1:nneighbour+1]=mdists[i:nneighbour]
                 mdists[i]=dist
                 break
-    max_mdists=mdists[nneighbour]
+    mdists=[mdist for mdist in mdists if mdist is not inf]
+    max_mdist=max(mdists)
     for i,(dists,inds) in enumerate(zip(distances,indices)):
-        max_dists=dists[nneighbour*max_coordinate_number-1]
-        if max_dists<max_mdists or abs(max_dists-max_mdists)<RZERO:
+        max_dist=dists[nneighbour*max_coordinate_number-1]
+        if max_dist<max_mdist or abs(max_dist-max_mdist)<RZERO:
             raise ValueError("Function bonds error: the max_coordinate_number(%s) should be larger."%max_coordinate_number)
         for dist,index in zip(dists,inds):
             for neighbour,mdist in enumerate(mdists):
@@ -391,7 +397,10 @@ def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=8):
                     buff=supercluster[index]
                     if buff.pid!=map[buff.pid] or cluster[i].pid<=buff.pid:
                         result.append(Bond(neighbour,spoint=cluster[i],epoint=Point(pid=map[buff.pid],rcoord=buff.rcoord,icoord=buff.icoord)))
-    return result
+    if return_mdists:
+        return result,mdists
+    else:
+        return result
 
 class Lattice(object):
     '''
@@ -409,9 +418,12 @@ class Lattice(object):
             The highest order of neighbours;
         bonds: list of Bond
             The bonds of the lattice system.
+        mdists: list of float
+            The minimum distances within this lattice.
         max_coordinate_number: int
             The max coordinate number for every neighbour.
     '''
+    max_coordinate_number=8
 
     def __init__(self,name,points,vectors=[],nneighbour=1,max_coordinate_number=8):
         '''
@@ -429,16 +441,18 @@ class Lattice(object):
                 The max coordinate number for every neighbour.
                 This variable is used in the search for bonds.
         '''
+        Lattice.max_coordinate_number=max_coordinate_number
         self.name=name
         self.points={}
         for point in copy(points):
-            point.pid=point.pid._replace(scope=name)
+            if name!=point.pid.scope:
+                warnings.warn('Lattice construction warning: the scope(%s) of the point and the name of the lattice(%s) do not match each other. By default, the scope of the point will be replaced by the name of the lattice.'%(point.pid.scope,name))
+                point.pid=point.pid._replace(scope=name)
             self.points[point.pid]=point
         self.vectors=vectors
         self.reciprocals=reciprocals(self.vectors)
         self.nneighbour=nneighbour
-        self.max_coordinate_number=max_coordinate_number
-        self.bonds=bonds(points,vectors,nneighbour,max_coordinate_number)
+        self.bonds,self.mdists=bonds(points,vectors,nneighbour,max_coordinate_number,return_mdists=True)
 
     def __str__(self):
         '''
@@ -455,6 +469,7 @@ class Lattice(object):
         plt.title(self.name)
         for bond in self.bonds:
             nb=bond.neighbour
+            if nb<0: nb=self.nneighbour+1
             if nb==1: color='k'
             elif nb==2: color='r'
             elif nb==3: color='b'
@@ -483,29 +498,123 @@ class Lattice(object):
             plt.savefig(self.name+'.png')
         plt.close()
 
-def SuperLattice(name,sublattices,vectors=[],nneighbour=1):
+    def attached_points(self):
+        '''
+        Return the points whose scope is different from the name of the lattice.
+        '''
+        return {k:p for k,p in self.points.items() if k.scope!=self.name}
+
+    def attached_bonds(self):
+        '''
+        Return the bonds whose spoint or epoint has a different scope from the name of the lattice.
+        '''
+        return [b for b in self.bonds if b.spoint.pid.scope!=self.name or b.epoint.pid.scope!=self.name]
+
+    def expand(self,points,vectors=[]):
+        '''
+        Expand a lattice by points.
+        Parameters:
+            points: list of point
+                The points used to expand the original lattice.
+            vectors: list of 1D ndarray, optional
+                The translation vectors of the expanded lattice.
+        '''
+        for point in copy(points):
+            if point.pid.scope!=self.name:
+                warnings.warn('Lattice expand warning: the scope(%s) of the point and the name of the lattice(%s) do not match each other. By default, the scope of the point will be replaced by the name of the lattice.'%(point.pid.scope,self.name))
+                point.pid=point.pid._replace(scope=self.name)
+            self.points[point.pid]=point
+        self.vectors=vectors
+        self.reciprocals=reciprocals(vectors)
+        temp=self.attached_bonds()
+        self.bonds,self.mdists=bonds(
+            cluster=        [p for k,p in self.points.items() if k.scope==self.name],
+            vectors=        self.vectors,
+            nneighbour=     self.nneighbour,
+            return_mdists=  True
+            )
+        self.bonds.extend(temp)
+
+    def attach(self,points,r=None,search_intra_points_bonds=False):
+        '''
+        Attach points to the original lattice.
+        Parameters:
+            points: list of points
+                The points to be attached to the original lattice.
+            mdist: float, optional
+                The maximum distance within which new bonds due to the attachment will be searched.
+            search_intra_points_bonds: logical, optional
+                When it is True, the bonds with distances less than mdist intra the attached points will also be searched.
+        '''
+        for point in points:
+            if point.pid.scope==self.name:
+                raise ValueError('Lattice attach error: the attached points must have different scopes from the name of the original lattice.')
+        r=(max(self.mdists) if r is None else r)+RZERO
+        temp=[pid for pid in self.points.keys() if pid.scope==self.name]
+        map={i:pid for i,pid in enumerate(temp)}
+        tree=cKDTree([self.points[pid].rcoord for pid in temp])
+        indices=tree.query_ball_point([point.rcoord for point in points],r)
+        bonds=[]
+        for i,index in enumerate(indices):
+            epoint=points[i]
+            for j in index:
+                spoint=self.points[map[j]]
+                dist=norm(spoint.rcoord-epoint.rcoord)
+                for k,mdist in enumerate(self.mdists):
+                    if abs(mdist-dist)<RZERO:
+                        neighbour=k
+                        break
+                else:
+                    neighbour=-1
+                bonds.append(Bond(neighbour,spoint,epoint))
+        if search_intra_points_bonds:
+            tree=cKDTree([point.rcoord for point in points])
+            indices=tree.query_pairs(r)
+            for i,j in indices:
+                spoint,epoint=points[i],points[j]
+                dist=norm(spoint.rcoord-epoint.rcoord)
+                for k,mdist in enumerate(self.mdists):
+                    if abs(mdist-dist)<RZERO:
+                        neighbour=k
+                        break
+                else:
+                    neighbour=-1
+                bonds.append(Bond(neighbour,spoint,epoint))
+        for point in points:
+            bonds.append(Bond(0,point,point))
+        self.points.update({point.pid:point for point in points})
+        self.bonds.extend(bonds)
+
+class SuperLattice(Lattice):
     '''
-    This function returns the union of sublattices.
-    Parameters:
-        name: string
-            The name of the super-lattice.
+    This class is the union of sublattices.
+    Attributes:
         sublattices: list of Lattice
-            The sub-lattices of the super-lattice.
-        vectors: list of 1D ndarray, optional
-            The translation vectors of the super-lattice.
-        nneighbour: integer,optional
-            The highest order of neighbours.
-    Returns: Lattice
-        The super-lattice.
+            The sublattices of the superlattice.
     '''
-    result=object.__new__(Lattice)
-    result.name=name
-    result.points={}
-    for lattice in sublattices:
-        result.points.update(lattice.points)
-    result.vectors=vectors
-    result.reciprocals=reciprocals(vectors)
-    result.nneighbour=nneighbour
-    result.bonds=bonds(cluster=result.points.values(),vectors=vectors,nneighbour=nneighbour)
-    result.sublattices=sublattices
-    return result
+
+    def __init__(self,name,sublattices,vectors=[],nneighbour=1):
+        '''
+        Constructor.
+        Parameters:
+            name: string
+                The name of the super-lattice.
+            sublattices: list of Lattice
+                The sublattices of the superlattice.
+            vectors: list of 1D ndarray, optional
+                The translation vectors of the superlattice.
+            nneighbour: integer,optional
+                The highest order of neighbours.
+        '''
+        self.name=name
+        self.sublattices=sublattices
+        self.points={}
+        for lattice in sublattices:
+            self.points.update({k:p for k,p in lattice.points.items() if k.scope==lattice.name})
+        self.vectors=vectors
+        self.reciprocals=reciprocals(vectors)
+        self.nneighbour=nneighbour
+        self.bonds,self.mdists=bonds(cluster=self.points.values(),vectors=vectors,nneighbour=nneighbour,return_mdists=True)
+        for lattice in sublattices:
+            self.points.update(lattice.attached_points())
+            self.bonds.extend(lattice.attached_bonds())

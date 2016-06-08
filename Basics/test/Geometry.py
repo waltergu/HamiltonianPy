@@ -15,6 +15,7 @@ def test_geometry():
     test_tiling()
     test_bonds()
     test_lattice()
+    test_lattice_expand_attach()
     test_super_lattice() 
 
 def test_functions():
@@ -66,26 +67,45 @@ def test_bonds():
     print 'test_bonds'
     p1=Point(pid=PID(site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1,a2=array([1.0,0.0]),array([0.0,1.0])
-    for bond in bonds(cluster=[p1],vectors=[a1,a2],nneighbour=4):
+    bs,mdists=bonds(cluster=[p1],vectors=[a1,a2],nneighbour=4,return_mdists=True)
+    for bond in bs:
         print bond
+    print 'mdists:%s'%mdists
     print
 
 def test_lattice():
     print 'test_lattice'
-    p1=Point(pid=PID(site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    m=10;n=10
+    name='L'+str(m)+str(n)
+    p1=Point(pid=PID(scope=name,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1=array([1.0,0.0])
     a2=array([0.0,1.0])
-    m=10;n=10
     stime=time.time()
-    a=Lattice('L'+str(m)+str(n),points=tiling(cluster=[p1],vectors=[a1,a2],indices=itertools.product(xrange(m),xrange(n))),vectors=[a1*m,a2*n],nneighbour=2)
+    a=Lattice(name,points=tiling(cluster=[p1],vectors=[a1,a2],indices=itertools.product(xrange(m),xrange(n))),vectors=[a1*m,a2*n],nneighbour=2)
     etime=time.time()
     print 'Construction time for %s*%s lattice: %s'%(m,n,etime-stime)
     a.plot(show=True)
     stime=time.time()
-    b=Lattice('C'+str(m)+str(n),points=tiling(cluster=[p1],vectors=[a1,a2],indices=itertools.product(xrange(m),xrange(n))),nneighbour=2)
+    b=Lattice(name,points=tiling(cluster=[p1],vectors=[a1,a2],indices=itertools.product(xrange(m),xrange(n))),nneighbour=2)
     etime=time.time()
     print 'Construction time for %s*%s cluster: %s'%(m,n,etime-stime)
     b.plot(show=True)
+    print
+
+def test_lattice_expand_attach():
+    print 'test_lattice_expand_attach'
+    name='WG'
+    p=Point(pid=PID(scope=name,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    a1,a2=array([1.0,0.0]),array([0.0,1.0])
+    for m in xrange(4):
+        if m==0:
+            a=Lattice(name,points=[p],vectors=[a1,a2],nneighbour=2)
+            a.attach([Point(pid=PID(scope='bath',site=0),rcoord=[-0.5,-0.3],icoord=[0.0,0.0])],r=1.0)
+            a.attach([Point(pid=PID(scope='bath',site=1),rcoord=[-0.5,0.3],icoord=[0.0,0.0])],r=1.0)
+        else:
+            bp=Point(pid=PID(scope=name,site=m),rcoord=a1*m,icoord=[0.0,0.0])
+            a.expand([bp],vectors=[a1*(m+1),a2])
+        a.plot(pid_on=True)
     print
 
 def test_super_lattice():

@@ -9,8 +9,9 @@ from ..Basics import *
 class Block(object):
     '''
     '''
-    def __init__(self,length,basis,H):
+    def __init__(self,length,lattice,basis,H):
         self.length=length
+        self.lattice=lattice
         self.basis=basis
         self.H=H
 
@@ -21,4 +22,18 @@ class IDMRG(engine):
         self.name=name
         self.lattice=lattice
         self.config=config
+        self.table=config.table
+        self.term=term
+        self.sys=Block()
+        self.env=Block()
+
+    def proceed(self):
+        self.enlarge_lattice()
+        self.find_operators()
+        self.set_matrix()
+        self.find_gs()
+        self.truncate()
+
+    def enlarge_lattice(self):
+        sp,ep=self.lattice.point.values[0],self.lattice.point.values[0]
         
