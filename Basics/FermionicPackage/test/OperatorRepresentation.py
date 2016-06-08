@@ -21,9 +21,9 @@ def test_f_opt_rep():
     l=Lattice(name="WG",points=points)
     l.plot(pid_on=True)
     table=config.table(nambu=True)
-    a=+Hopping('t',1.0,neighbour=1,indexpackages=sigmaz("SP"))
-    b=+Onsite('mu',1.0,neighbour=0,indexpackages=sigmaz("SP"))
-    c=+Pairing('delta',1.0,neighbour=1,indexpackages=sigmaz("SP"))
+    a=+Hopping('t',1.0,neighbour=1,indexpacks=sigmaz("SP"))
+    b=+Onsite('mu',1.0,neighbour=0,indexpacks=sigmaz("SP"))
+    c=+Pairing('delta',1.0,neighbour=1,indexpacks=sigmaz("SP"))
     opts=OperatorCollection()
     for bond in l.bonds:
         opts+=a.operators(bond,table,config)

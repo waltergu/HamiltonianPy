@@ -13,7 +13,7 @@ def test_fermionic_deg_fre():
     test_fid()
     test_fermi()
     test_configuration()
-    test_indexpackage()
+    test_indexpack()
 
 def test_index():
     print 'test_index'
@@ -58,11 +58,11 @@ def test_configuration():
     print 'a.table:%s'%a.table(nambu=True)
     print
 
-def test_indexpackage():
-    print 'test_indexpackage'
-    a=IndexPackage(1.0,orbitals=[0,0])
-    b=IndexPackage(2.0,atoms=[0,0])
-    c=IndexPackage(3.0,spins=[0,0])
+def test_indexpack():
+    print 'test_indexpack'
+    a=FermiPack(1.0,orbitals=[0,0])
+    b=FermiPack(2.0,atoms=[0,0])
+    c=FermiPack(3.0,spins=[0,0])
     print 'a: %s'%a
     print 'b: %s'%b
     print 'c: %s'%c

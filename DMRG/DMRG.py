@@ -15,7 +15,7 @@ class Block(object):
         self.basis=basis
         self.H=H
 
-class IDMRG(engine):
+class IDMRG(Engine):
     '''
     '''
     def __init__(self,name,lattice,config,term,**karg):

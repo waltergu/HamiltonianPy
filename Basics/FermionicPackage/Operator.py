@@ -41,8 +41,11 @@ class OperatorF(Operator):
     '''
     
     def __init__(self,mode,value,indices,rcoords,icoords,seqs):
+        '''
+        Constructor.
+        '''
+        super(OperatorF,self).__init__(value)
         self.mode=mode
-        self.value=value
         self.indices=tuple(indices)
         self.rcoords=tuple([array(obj) for obj in rcoords])
         self.icoords=tuple([array(obj) for obj in icoords])

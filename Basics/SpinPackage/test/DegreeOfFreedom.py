@@ -13,6 +13,7 @@ def test_spin_deg_fre():
     test_sid()
     test_spin()
     test_spin_matrix()
+    test_spin_pack()
 
 def test_sid():
     print 'test_sid'
@@ -34,4 +35,13 @@ def test_spin_matrix():
     print SpinMatrix((N,'z'),dtype=float64)
     print SpinMatrix((N,'+'),dtype=float64)
     print SpinMatrix((N,'-'),dtype=float64)
+    print
+
+def test_spin_pack():
+    print 'test_spin_pack'
+    a=SpinPack(1.0,pack=('x','x'))
+    print 'a: %s'%a
+    print 'a*2: %s'%(a*2)
+    print '2*a: %s'%(2*a)
+    print 'Heisenberg*2: %s'%(2*Heisenberg())
     print

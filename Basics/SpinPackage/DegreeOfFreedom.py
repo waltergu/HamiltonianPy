@@ -1,14 +1,16 @@
 '''
 Spin degree of freedom package, including:
 1) constants: DEFAULT_SPIN_PRIORITY
-2) classes: SID, Spin, SpinMatrix
+2) classes: SID, Spin, SpinMatrix, SpinPack
+3) functions: Heisenberg
 '''
 
-__all__=['DEFAULT_SPIN_PRIORITY','SID','Spin','SpinMatrix']
+__all__=['DEFAULT_SPIN_PRIORITY','SID','Spin','SpinMatrix','SpinPack','Heisenberg']
 
 from ..DegreeOfFreedom import *
 from numpy import *
 from collections import namedtuple
+import copy
 
 DEFAULT_SPIN_PRIORITY=['socpe','site','S']
 
@@ -113,3 +115,49 @@ class SpinMatrix(ndarray):
         Convert an instance to string.
         '''
         return "SpinMatrix(id=%s,\nmatrix=\n%s\n)"%(self.id,super(SpinMatrix,self).__str__())
+
+class SpinPack(IndexPack):
+    '''
+    The pack of spin degrees of freedom.
+    Attributes:
+        pack: tuple of characters
+            Each character specifies a SpinMatrix.
+            Each character must be in ('x','X','y','Y','z','Z','+','-')
+    '''
+
+    def __init__(self,value,pack):
+        '''
+        Constructor.
+        Parameters:
+            value: float64 or complex128
+                The overall coefficient of the spin pack.
+            pack: tuple of characters
+                Each character specifies a SpinMatrix.
+                Each character must be in ('x','X','y','Y','z','Z','+','-')
+        '''
+        super(SpinPack,self).__init__(value)
+        self.pack=pack
+
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return ''.join(['SpinPack(','value=%s, ','pack=%s',')'])%(self.value,self.pack)
+
+    def __mul__(self,other):
+        '''
+        Overloaded operator(*), which supports the multiplication of an SpinPack instance with a scalar.
+        '''
+        result=copy.copy(self)
+        result.value*=other
+        return result
+
+def Heisenberg():
+    '''
+    The Heisenberg spin packs.
+    '''
+    result=IndexPackList()
+    result.append(SpinPack(0.5,('+','-')))
+    result.append(SpinPack(0.5,('-','+')))
+    result.append(SpinPack(1.0,('z','z')))
+    return result

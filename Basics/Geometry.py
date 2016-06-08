@@ -379,13 +379,13 @@ def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=8,return_mdists=
     mdists=[inf for i in xrange(nneighbour+1)]
     for dist in concatenate(distances):
         for i,mdist in enumerate(mdists):
-            if abs(dist-mdist)<RZERO:
+            if dist==mdist or abs(dist-mdist)<RZERO:
                 break
             elif dist<mdist:
                 mdists[i+1:nneighbour+1]=mdists[i:nneighbour]
                 mdists[i]=dist
                 break
-    mdists=[mdist for mdist in mdists if mdist is not inf]
+    mdists=[mdist for mdist in mdists if mdist!=inf]
     max_mdist=max(mdists)
     for i,(dists,inds) in enumerate(zip(distances,indices)):
         max_dist=dists[nneighbour*max_coordinate_number-1]

@@ -1,10 +1,10 @@
 '''
 Degrees of freedom in a lattice, including:
 1) functions: union, subset, reversed_table
-2) classes: Table, Index, Internal, Configuration
+2) classes: Table, Index, Internal, Configuration, IndexPack, IndexPackList
 '''
 
-__all__=['union','subset','reversed_table','Table','Index','Internal','Configuration']
+__all__=['union','subset','reversed_table','Table','Index','Internal','Configuration','IndexPack','IndexPackList']
 
 from collections import OrderedDict
 
@@ -223,3 +223,98 @@ class Configuration(dict):
         for key,value in map.iteritems():
             result[key]=result[value]
         return result
+
+class IndexPack(object):
+    '''
+    This class packs several degrees of freedom as a whole for convenience.
+    Attributes:
+        value: float64 or complex128
+            The overall coefficient of the IndexPack.
+    '''
+
+    def __init__(self,value):
+        '''
+        Constructor.
+        Parameters:
+            value: float64/complex128
+                The overall coefficient of the IndexPack.
+        '''
+        self.value=value
+
+    def __add__(self,other):
+        '''
+        Overloaded operator(+), which supports the addition of an IndexPack instance with an IndexPack/IndexPackList instance.
+        '''
+        result=IndexPackList()
+        result.append(self)
+        if issubclass(other.__class__,IndexPack):
+            result.append(other)
+        elif isinstance(other,IndexPackList):
+            result.extend(other)
+        else:
+            raise ValueError("IndexPack '+' error: the 'other' parameter must be of class IndexPack or IndexPackList.")
+        return result
+
+    def __rmul__(self,other):
+        '''
+        Overloaded operator(*).
+        '''
+        return self.__mul__(other)
+
+class IndexPackList(list):
+    '''
+    This class packs several IndexPack as a whole for convenience.
+    '''
+
+    def __init__(self,*arg):
+        for buff in arg:
+            if issubclass(buff.__class__,IndexPack):
+                self.append(buff)
+            else:
+                raise ValueError("IndexPackList init error: the input parameters must be of IndexPack's subclasses.")
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return 'IndexPackList('+', '.join([str(obj) for obj in self])
+
+    def __add__(self,other):
+        '''
+        Overloaded operator(+), which supports the addition of an IndexPackList instance with an IndexPack/IndexPackList instance.
+        '''
+        result=IndexPackList(*self)
+        if isinstance(other,IndexPack):
+            result.append(other)
+        elif isinstance(other,IndexPackList):
+            result.extend(other)
+        else:
+            raise ValueError("IndexPackList '+' error: the 'other' parameter must be of class IndexPack or IndexPackList.")
+        return result
+
+    def __radd__(self,other):
+        '''
+        Overloaded operator(+).
+        '''
+        return self.__add__(other)
+
+    def __mul__(self,other):
+        '''
+        Overloaded operator(*).
+        '''
+        result=IndexPackList()
+        for buff in self:
+            temp=buff*other
+            if isinstance(temp,IndexPackList):
+                result.extend(temp)
+            elif issubclass(temp.__class__,IndexPack):
+                result.append(temp)
+            else:
+                raise ValueError("IndexPackList *' error: the element(%s) in self multiplied by other is not of IndexPack/IndexPackList."%(buff))
+        return result
+
+    def __rmul__(self,other):
+        '''
+        Overloaded operator(*).
+        '''
+        return self.__mul__(other)

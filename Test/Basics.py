@@ -44,3 +44,6 @@ def test_basics(arg):
     if arg in ('soptrep','spin','basics','all'):
         from HamiltonianPy.Basics.SpinPackage.test.OperatorRepresentation import *
         test_s_opt_rep()
+    if arg in ('sterm','spin','basics','all'):
+        from HamiltonianPy.Basics.SpinPackage.test.Term import *
+        test_spin_term()

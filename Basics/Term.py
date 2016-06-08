@@ -75,7 +75,7 @@ class TermList(list):
 
     def __add__(self,other):
         '''
-        Overloaded operator(+), which supports the addition of a TermList instance with a Term/TermList instance.
+        Overloaded operator(+), which supports the left addition of a TermList instance with a Term/TermList instance.
         '''
         result=copy(self)
         if issubclass(other.__class__,Term):
@@ -85,6 +85,12 @@ class TermList(list):
         else:
             raise ValueError("%s '+' error: the other parameter must be an instance of Term's or TermList's subclasses."%self.__class__.__name__)
         return result
+
+    def __radd__(self,other):
+        '''
+        Overloaded operator(+), which supports the right addition of a TermList instance with a Term/TermList instance.
+        '''
+        return self.__add__(other)
 
     def __mul__(self,other):
         '''

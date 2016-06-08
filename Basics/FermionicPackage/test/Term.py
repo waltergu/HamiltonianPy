@@ -24,21 +24,21 @@ def test_quadratic():
     config[p1.pid]=Fermi(atom=0,norbital=2,nspin=2,nnambu=2)
     config[p2.pid]=Fermi(atom=1,norbital=2,nspin=2,nnambu=2)
 
-    a=QuadraticList(Hopping('t1',1.0,neighbour=1,indexpackages=sigmaz("SP")),Hopping('t2',1,neighbour=1,indexpackages=sigmax("SL")*sigmax("SP")))
+    a=QuadraticList(Hopping('t1',1.0,neighbour=1,indexpacks=sigmaz("SP")),Hopping('t2',1,neighbour=1,indexpacks=sigmax("SL")*sigmax("SP")))
     print 'a: %s'%a
     print a.mesh(bond,config)
-    b=Onsite('mu1',1.0,neighbour=0,indexpackages=sigmaz("SP"))+Onsite('mu2',1,neighbour=0,indexpackages=sigmaz("SP")*sigmay("OB"))
+    b=Onsite('mu1',1.0,neighbour=0,indexpacks=sigmaz("SP"))+Onsite('mu2',1,neighbour=0,indexpacks=sigmaz("SP")*sigmay("OB"))
     print 'b: %s'%b
     print b.mesh(bond,config)
-    c=Pairing('delta1',1.0,neighbour=1,indexpackages=sigmaz("SP"))+Pairing('delta2',1,neighbour=1,indexpackages=sigmaz("SP")+sigmay("OB"))
+    c=Pairing('delta1',1.0,neighbour=1,indexpacks=sigmaz("SP"))+Pairing('delta2',1,neighbour=1,indexpacks=sigmaz("SP")+sigmay("OB"))
     print 'c: %s'%c
     print c.mesh(bond,config)
 
     l=Lattice(name="WG",points=[p1,p2])
     table=config.table(nambu=True)
-    a=Hopping('t1',1.0,neighbour=1,indexpackages=sigmaz("SP"))
-    b=Onsite('mu',1.0,neighbour=0,indexpackages=sigmaz("SP"))
-    c=Pairing('delta',1.0,neighbour=1,indexpackages=sigmaz("SP"),modulate=lambda **karg: 1)
+    a=Hopping('t1',1.0,neighbour=1,indexpacks=sigmaz("SP"))
+    b=Onsite('mu',1.0,neighbour=0,indexpacks=sigmaz("SP"))
+    c=Pairing('delta',1.0,neighbour=1,indexpacks=sigmaz("SP"),modulate=lambda **karg: 1)
     d=a+b+c
     print 'd: %s'%d
     opts=OperatorCollection()

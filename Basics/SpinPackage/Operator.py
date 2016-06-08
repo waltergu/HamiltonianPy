@@ -26,7 +26,7 @@ class OperatorS(Operator):
         '''
         Constructor.
         '''
-        self.value=value
+        super(OperatorS,self).__init__(value)
         self.indices=indices
         self.spins=spins
         self.rcoords=rcoords

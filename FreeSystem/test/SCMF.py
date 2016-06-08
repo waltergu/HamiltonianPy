@@ -35,11 +35,11 @@ def test_scmf():
         filling=    0.5,
         terms=      [
                     Hopping('t1',t1),
-                    Hopping('t2',t2*1j,indexpackages=sigmaz('sl'),amplitude=haldane_hopping,neighbour=2),
-                    #Onsite('stagger',0.2,indexpackages=sigmaz('sl'))
+                    Hopping('t2',t2*1j,indexpacks=sigmaz('sl'),amplitude=haldane_hopping,neighbour=2),
+                    #Onsite('stagger',0.2,indexpacks=sigmaz('sl'))
                     ],
         orders=     [
-                    Onsite('afm',0.2,indexpackages=sigmaz('sp')*sigmaz('sl'),modulate=lambda **karg: -U*karg['afm']/2 if 'afm' in karg else None)
+                    Onsite('afm',0.2,indexpacks=sigmaz('sp')*sigmaz('sl'),modulate=lambda **karg: -U*karg['afm']/2 if 'afm' in karg else None)
                     ],
         nambu=      False
         )

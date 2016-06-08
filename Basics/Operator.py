@@ -17,6 +17,11 @@ class Operator(object):
         value: number
             The overall factor of the operator.
     '''
+    def __init__(self,value):
+        '''
+        Constructor.
+        '''
+        self.value=value
 
     def set_id(self):
         '''

@@ -20,15 +20,15 @@ class Quadratic(Term):
     Attributes:
         neighbour: integer
             The order of neighbour of this quadratic term.
-        indexpackages: IndexPackageList or function which returns IndexPackageList
-            The indexpackages of the quadratic term.
-            When it is a function, it can return bond dependent indexpackages as needed.
+        indexpacks: IndexPackList or function which returns IndexPackList
+            The indexpacks of the quadratic term.
+            When it is a function, it can return bond dependent indexpacks as needed.
         amplitude: function which returns float or complex
-            This function can return bond dependent and index dependent coefficient as needed.
+            This function can return bond dependent coefficient as needed.
     Note: The final coefficient comes from three parts, the value of itself, the value of the indexpacakge, and the value amplitude returns.
     '''
     
-    def __init__(self,id,mode,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpackages=None,amplitude=None,modulate=None):
+    def __init__(self,id,mode,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpacks=None,amplitude=None,modulate=None):
         '''
         Constructor.
         Parameters:
@@ -41,29 +41,29 @@ class Quadratic(Term):
             neighbour: integer, optional
                 The order of neighbour of the term.
             atoms,orbitals,spins: list of integer, optional
-                The atom, orbital and spin index used to construct a wanted instance of IndexPackage.
-                When the parameter indexpackages is a function, these parameters will be omitted.
-            indexpackages: IndexPackageList or function
-                1) IndexPackageList:
-                    It will be multiplied by an instance of IndexPackage constructed from atoms, orbitals and spins as the final indexpackages. 
+                The atom, orbital and spin index used to construct a wanted instance of FermiPack.
+                When the parameter indexpacks is a function, these parameters will be omitted.
+            indexpacks: IndexPackList or function, optional
+                1) IndexPackList:
+                    It will be multiplied by an instance of FermiPack constructed from atoms, orbitals and spins as the final indexpacks. 
                 2) function:
-                    It must return an instance of IndexPackageList and take an instance of Bond as its only argument.
-            amplitude: function
+                    It must return an instance of IndexPackList and take an instance of Bond as its only argument.
+            amplitude: function, optional
                 It must return a float or complex and take an instance of Bond as its only argument.
-            modulate: function
+            modulate: function, optional
                 It must return a float or complex and its arguments are unlimited.
         '''
-        super(Quadratic,self).__init__(id,mode,value,modulate)
+        super(Quadratic,self).__init__(id=id,mode=mode,value=value,modulate=modulate)
         self.neighbour=neighbour
-        if indexpackages is not None:
-            if isinstance(indexpackages,IndexPackageList):
-                self.indexpackages=IndexPackage(1,atoms=atoms,orbitals=orbitals,spins=spins)*indexpackages
-            elif callable(indexpackages):
-                self.indexpackages=indexpackages
+        if indexpacks is not None:
+            if isinstance(indexpacks,IndexPackList):
+                self.indexpacks=FermiPack(1,atoms=atoms,orbitals=orbitals,spins=spins)*indexpacks
+            elif callable(indexpacks):
+                self.indexpacks=indexpacks
             else:
-                raise ValueError('Quadratic init error: the input indexpackages should be an instance of IndexPackageList or a function.')
+                raise ValueError('Quadratic init error: the input indexpacks should be an instance of IndexPackList or a function.')
         else:
-            self.indexpackages=IndexPackageList(IndexPackage(1,atoms=atoms,orbitals=orbitals,spins=spins))
+            self.indexpacks=IndexPackList(FermiPack(1,atoms=atoms,orbitals=orbitals,spins=spins))
         self.amplitude=amplitude
 
     def __repr__(self):
@@ -75,7 +75,7 @@ class Quadratic(Term):
         result.append('mode=%s'%self.mode)
         result.append('value=%s'%self.value)
         result.append('neighbour=%s'%self.neighbour)
-        result.append('indexpackages=%s'%self.indexpackages)
+        result.append('indexpacks=%s'%self.indexpacks)
         if self.amplitude is not None:
             result.append('amplitude=%s'%self.amplitude)
         if hasattr(self,'modulate'):
@@ -124,10 +124,10 @@ class Quadratic(Term):
         result=zeros((n1,n2),dtype=dtype)
         if self.neighbour==bond.neighbour:
             value=self.value*(1 if self.amplitude==None else self.amplitude(bond))
-            if callable(self.indexpackages):
-                buff=self.indexpackages(bond)
+            if callable(self.indexpacks):
+                buff=self.indexpacks(bond)
             else:
-                buff=self.indexpackages
+                buff=self.indexpacks
             for obj in buff:
                 pv=value*obj.value
                 eatom=edgr.atom
@@ -175,23 +175,23 @@ class Quadratic(Term):
                         if abs(result[i,j]-conjugate(result[j,i]))<RZERO: result[i,j]=0
         return result
 
-def Hopping(id,value,neighbour=1,atoms=[],orbitals=[],spins=[],indexpackages=None,amplitude=None,modulate=None):
+def Hopping(id,value,neighbour=1,atoms=[],orbitals=[],spins=[],indexpacks=None,amplitude=None,modulate=None):
     '''
     A specified function to construct a hopping term.
     '''
-    return Quadratic(id,'hp',value,neighbour,atoms,orbitals,spins,indexpackages,amplitude,modulate)
+    return Quadratic(id,'hp',value,neighbour,atoms,orbitals,spins,indexpacks,amplitude,modulate)
 
-def Onsite(id,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpackages=None,amplitude=None,modulate=None):
+def Onsite(id,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpacks=None,amplitude=None,modulate=None):
     '''
     A specified function to construct an onsite term.
     '''
-    return Quadratic(id,'st',value,neighbour,atoms,orbitals,spins,indexpackages,amplitude,modulate)
+    return Quadratic(id,'st',value,neighbour,atoms,orbitals,spins,indexpacks,amplitude,modulate)
 
-def Pairing(id,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpackages=None,amplitude=None,modulate=None):
+def Pairing(id,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpacks=None,amplitude=None,modulate=None):
     '''
     A specified function to construct an pairing term.
     '''
-    return Quadratic(id,'pr',value,neighbour,atoms,orbitals,spins,indexpackages,amplitude,modulate)
+    return Quadratic(id,'pr',value,neighbour,atoms,orbitals,spins,indexpacks,amplitude,modulate)
 
 class QuadraticList(TermList):
     '''
@@ -282,10 +282,10 @@ class Hubbard(Term):
         '''
         Constructor.
         '''
-        super(Hubbard,self).__init__('hb',id,value,modulate)
+        super(Hubbard,self).__init__(id=id,mode='hb',value=value,modulate=modulate)
         if atom is not None: self.atom=atom
 
-    def __str__(self):
+    def __repr__(self):
         '''
         Convert an instance to string.
         '''
@@ -383,7 +383,7 @@ class Hubbard(Term):
                         result[i,j,k,l]=self.value[3]
         return result
 
-class HubbardList(list):
+class HubbardList(TermList):
     '''
     This class pack several Hubbard instances as a whole for convenience.
     '''

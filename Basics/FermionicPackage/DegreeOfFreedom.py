@@ -1,11 +1,11 @@
 '''
 Fermionic degree of freedom package, including:
 1) constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY
-2) classes: FID, Fermi, IndexPackage, IndexPackageList
+2) classes: FID, Fermi, FermiPack
 3) functions: sigmax, sigmay, sigmaz
 '''
 
-__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','IndexPackage','IndexPackageList','sigmax','sigmay','sigmaz']
+__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','FermiPack','sigmax','sigmay','sigmaz']
 
 from numpy import *
 from ..DegreeOfFreedom import *
@@ -134,12 +134,10 @@ class Fermi(Internal):
         nambu=seq_state/(self.norbital*self.nspin)
         return FID(spin=spin,orbital=orbital,nambu=nambu)
 
-class IndexPackage:
+class FermiPack(IndexPack):
     '''
     This class assumes part of a systematic description of a general fermionic quadratic term.
     Attributes:
-        value: float or complex
-            The overall coefficient of the index pack.
         atoms: tuple of integers with len==2
             The atom indices for the quadratic term.
         orbitals: tuple of integers with len==2
@@ -152,11 +150,11 @@ class IndexPackage:
         '''
         Constructor. 
         It can be used in two different ways:
-        1) IndexPackage(value,atom1=...,atom2=...,orbital1=...,orbital2=...,spin1=...,spin2=...)
-        2) IndexPackage(value,atoms=...,orbitals=...,spins=...)
+        1) FermiPack(value,atom1=...,atom2=...,orbital1=...,orbital2=...,spin1=...,spin2=...)
+        2) FermiPack(value,atoms=...,orbitals=...,spins=...)
         Parameters:
             value: float or complex
-                The overall coefficient of the index pack
+                The overall coefficient of the Fermi pack
             atom1,atom2: integer,optional
                 The atom indices.
             orbital1,orbital2: integer,optional
@@ -170,7 +168,7 @@ class IndexPackage:
             spins: 1D array-like of integers with len==1,2,optional
                 The spin indices.
         '''
-        self.value=value
+        super(FermiPack,self).__init__(value)
         if atom1 is not None and atom2 is not None: self.atoms=(atom1,atom2)
         if orbital1 is not None and orbital2 is not None: self.orbitals=(orbital1,orbital2)
         if spin1 is not None and spin2 is not None: self.spins=(spin1,spin2)
@@ -196,28 +194,14 @@ class IndexPackage:
             temp.append('orbitals='+str(self.orbitals))
         if hasattr(self,'spins'):
             temp.append('spins='+str(self.spins))
-        return ''.join(['IndexPackage(',', '.join(temp),')'])
-
-    def __add__(self,other):
-        '''
-        Overloaded operator(+), which supports the addition of an IndexPackage instance with an IndexPackage/IndexPackageList instance.
-        '''
-        result=IndexPackageList()
-        result.append(self)
-        if isinstance(other,IndexPackage):
-            result.append(other)
-        elif isinstance(other,IndexPackageList):
-            result.extend(other)
-        else:
-            raise ValueError("IndexPackage '+' error: the 'other' parameter must be of class IndexPackage or IndexPackageList.")
-        return result
+        return ''.join(['FermiPack(',', '.join(temp),')'])
 
     def _mul(self,other):
         '''
         Private methods used for operator(*) overloading.
         '''
-        if isinstance(other,IndexPackage):
-            result=IndexPackage(self.value*other.value)
+        if isinstance(other,FermiPack):
+            result=FermiPack(self.value*other.value)
             if hasattr(self,'atoms'): result.atoms=self.atoms
             if hasattr(self,'orbitals'): result.orbitals=self.orbitals
             if hasattr(self,'spins'): result.spins=self.spins
@@ -225,92 +209,50 @@ class IndexPackage:
                 if not hasattr(result,'atoms'):
                     result.atoms=other.atoms
                 else:
-                    raise ValueError("IndexPackage '*' error: 'self' and 'other' cannot simultaneously have the 'atoms' attribute.")
+                    raise ValueError("FermiPack '*' error: 'self' and 'other' cannot simultaneously have the 'atoms' attribute.")
             if hasattr(other,'orbitals'):
                 if not hasattr(result,'orbitals'):
                     result.orbitals=other.orbitals
                 else:
-                    raise ValueError("IndexPackage '*' error: 'self' and 'other' cannot simultaneously have the 'orbitals' attribute.")
+                    raise ValueError("FermiPack '*' error: 'self' and 'other' cannot simultaneously have the 'orbitals' attribute.")
             if hasattr(other,'spins'):
                 if not hasattr(result,'spins'):
                     result.spins=other.spins
                 else:
-                    raise ValueError("IndexPackage '*' error: 'self' and 'other' cannot simultaneously have the 'spins' attribute.")
+                    raise ValueError("FermiPack '*' error: 'self' and 'other' cannot simultaneously have the 'spins' attribute.")
         else:
             result=copy(self)
             result.value=self.value*other
-        return IndexPackageList(result)
-    
+        return result
+
     def __mul__(self,other):
         '''
-        Overloaded operator(*), which supports the multiplication of an IndexPackage instance with an IndexPackage/IndexPackageList instance or a scalar.
+        Overloaded operator(*), which supports the multiplication of an FermiPack instance with an FermiPack/IndexPackList instance or a scalar.
         '''
-        result=IndexPackageList()
-        if isinstance(other,IndexPackage) or type(other)==int or type(other)==long or type(other)==float or type(other)==complex:
-            result.extend(self._mul(other))
-        elif isinstance(other,IndexPackageList):
+        if isinstance(other,FermiPack) or type(other)==int or type(other)==long or type(other)==float or type(other)==complex:
+            result=self._mul(other)
+        elif isinstance(other,IndexPackList):
+            result=IndexPackList()
             for buff in other:
-                result.extend(self._mul(buff))
+                result.append(self._mul(buff))
         else:
-            raise ValueError("IndexPackage '*' error: the 'other' parameter must be of class IndexPackage or IndexPackageList, or a number.")
-        return result
-
-class IndexPackageList(list):
-    '''
-    This class packs several IndexPackage as a whole for convenience.
-    '''
-    def __init__(self,*arg):
-        for buff in arg:
-            if isinstance(buff,IndexPackage):
-                self.append(buff)
-            else:
-                raise ValueError("IndexPackageList init error: the input parameters must be of class IndexPackage.")
-
-    def __str__(self):
-        '''
-        Convert an instance to string.
-        '''
-        return 'IndexPackageList('+', '.join([str(obj) for obj in self])
-                
-    def __add__(self,other):
-        '''
-        Overloaded operator(+), which supports the addition of an IndexPackageList instance with an IndexPackage/IndexPackageList instance.
-        '''
-        result=IndexPackageList(*self)
-        if isinstance(other,IndexPackage):
-            result.append(other)
-        elif isinstance(other,IndexPackageList):
-            result.extend(other)
-        else:
-            raise ValueError("IndexPackageList '+' error: the 'other' parameter must be of class IndexPackage or IndexPackageList.")
-        return result
-    
-    def __mul__(self,other):
-        '''
-        Overloaded operator(*), which supports the multiplication of an IndexPackageList instance with an IndexPackage/IndexPackageList instance or a scalar.
-        '''
-        result=IndexPackageList()
-        if isinstance(other,IndexPackage) or isinstance(other,IndexPackageList) or type(other)==int or type(other)==long or type(other)==float or type(other)==complex:
-            for buff in self:
-                result.extend(buff*other)
-        else:
-            raise ValueError("IndexPackageList '*' error: the 'other' parameter must be of class IndexPackage or IndexPackageList, or a number.")
+            raise ValueError("FermiPack '*' error: the 'other' parameter must be of class FermiPack or IndexPackList, or a number.")
         return result
 
 def sigmax(mode):
     '''
     The Pauli matrix SigmaX, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
     '''
-    result=IndexPackageList()
+    result=IndexPackList()
     if mode.lower()=='sp':
-        result.append(IndexPackage(1.0,spin1=0,spin2=1))
-        result.append(IndexPackage(1.0,spin1=1,spin2=0))
+        result.append(FermiPack(1.0,spin1=0,spin2=1))
+        result.append(FermiPack(1.0,spin1=1,spin2=0))
     elif mode.lower()=='ob':
-        result.append(IndexPackage(1.0,orbital1=0,orbital2=1))
-        result.append(IndexPackage(1.0,orbital1=1,orbital2=0))
+        result.append(FermiPack(1.0,orbital1=0,orbital2=1))
+        result.append(FermiPack(1.0,orbital1=1,orbital2=0))
     elif mode.lower()=='sl':
-        result.append(IndexPackage(1.0,atom1=0,atom2=1))
-        result.append(IndexPackage(1.0,atom1=1,atom2=0))
+        result.append(FermiPack(1.0,atom1=0,atom2=1))
+        result.append(FermiPack(1.0,atom1=1,atom2=0))
     else:
         raise ValueError("SigmaX error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
     return result
@@ -319,16 +261,16 @@ def sigmay(mode):
     '''
     The Pauli matrix SigmaY, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
     '''
-    result=IndexPackageList()
+    result=IndexPackList()
     if mode.lower()=='sp':
-        result.append(IndexPackage(-1.0j,spin1=0,spin2=1))
-        result.append(IndexPackage(1.0j,spin1=1,spin2=0))
+        result.append(FermiPack(-1.0j,spin1=0,spin2=1))
+        result.append(FermiPack(1.0j,spin1=1,spin2=0))
     elif mode.lower()=='ob':
-        result.append(IndexPackage(-1.0j,orbital1=0,orbital2=1))
-        result.append(IndexPackage(1.0j,orbital1=1,orbital2=0))
+        result.append(FermiPack(-1.0j,orbital1=0,orbital2=1))
+        result.append(FermiPack(1.0j,orbital1=1,orbital2=0))
     elif mode.lower()=='sl':
-        result.append(IndexPackage(-1.0j,atom1=0,atom2=1))
-        result.append(IndexPackage(1.0j,atom1=1,atom2=0))
+        result.append(FermiPack(-1.0j,atom1=0,atom2=1))
+        result.append(FermiPack(1.0j,atom1=1,atom2=0))
     else:
         raise ValueError("SigmaY error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
     return result
@@ -337,16 +279,16 @@ def sigmaz(mode):
     '''
     The Pauli matrix SigmaZ, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
     '''
-    result=IndexPackageList()
+    result=IndexPackList()
     if mode.lower()=='sp':
-        result.append(IndexPackage(1.0,spin1=0,spin2=0))
-        result.append(IndexPackage(-1.0,spin1=1,spin2=1))
+        result.append(FermiPack(1.0,spin1=0,spin2=0))
+        result.append(FermiPack(-1.0,spin1=1,spin2=1))
     elif mode.lower()=='ob':
-        result.append(IndexPackage(1.0,orbital1=0,orbital2=0))
-        result.append(IndexPackage(-1.0,orbital1=1,orbital2=1))
+        result.append(FermiPack(1.0,orbital1=0,orbital2=0))
+        result.append(FermiPack(-1.0,orbital1=1,orbital2=1))
     elif mode.lower()=='sl':
-        result.append(IndexPackage(1.0,atom1=0,atom2=0))
-        result.append(IndexPackage(-1.0,atom1=1,atom2=1))
+        result.append(FermiPack(1.0,atom1=0,atom2=0))
+        result.append(FermiPack(-1.0,atom1=1,atom2=1))
     else:
         raise ValueError("SigmaZ error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
     return result
