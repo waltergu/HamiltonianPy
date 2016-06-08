@@ -38,7 +38,7 @@ class Generator:
                 The index-sequence table.
             config: Configuration
                 The configuration of degrees of freedom.
-            terms: list of Term,optional
+            terms: list of Term, optional
                 The terms whose corresponding operators are to be generated and updated.
                 Those terms having the attribute modulate will go into self.terms['alter'] and the others will go into self.terms['const'].
         '''

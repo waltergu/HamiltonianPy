@@ -9,6 +9,7 @@ from HamiltonianPy.Basics.Geometry import *
 from HamiltonianPy.Basics.DegreeOfFreedom import *
 from HamiltonianPy.Basics.Operator import *
 from HamiltonianPy.Basics.Term import *
+from HamiltonianPy.Basics.Generator import *
 from HamiltonianPy.Basics.SpinPackage import *
 
 def test_spin_term():
@@ -23,14 +24,13 @@ def test_spin_term():
         config[point.pid]=Spin(S=0.5)
     opts=OperatorCollection()
     table=config.table()
-    a=SpinTermList(SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg()),SpinTerm('h',h,neighbour=0,indexpacks=IndexPackList(SpinPack(1.0,('z')))))
-    print 'a: %s'%a
-    opts=OperatorCollection()
-    for bond in l.bonds:
-        opts+=a.operators(bond,table,config,dtype=float64)
-    print opts
+    terms=[ SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg()),
+            SpinTerm('h',h,neighbour=0,indexpacks=S('z'))
+          ]
+    print 'terms: %s'%terms
+    generator=Generator(l.bonds,table,config,terms)
     temp=None
-    for opt in opts.values():
+    for opt in generator.operators.values():
         if temp is None:
             temp=s_opt_rep(opt,table)
         else:

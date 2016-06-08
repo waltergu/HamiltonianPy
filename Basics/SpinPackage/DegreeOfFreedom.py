@@ -2,10 +2,10 @@
 Spin degree of freedom package, including:
 1) constants: DEFAULT_SPIN_PRIORITY
 2) classes: SID, Spin, SpinMatrix, SpinPack
-3) functions: Heisenberg
+3) functions: Heisenberg, S
 '''
 
-__all__=['DEFAULT_SPIN_PRIORITY','SID','Spin','SpinMatrix','SpinPack','Heisenberg']
+__all__=['DEFAULT_SPIN_PRIORITY','SID','Spin','SpinMatrix','SpinPack','Heisenberg','S']
 
 from ..DegreeOfFreedom import *
 from numpy import *
@@ -160,4 +160,19 @@ def Heisenberg():
     result.append(SpinPack(0.5,('+','-')))
     result.append(SpinPack(0.5,('-','+')))
     result.append(SpinPack(1.0,('z','z')))
+    return result
+
+def S(id):
+    '''
+    Single spin packs.
+    Parameters:
+        id: 'x','X','y','Y','z','Z'
+            It specifies the single spin pack.
+    Returns: IndexPackList
+        The single spin pack.
+    '''
+    if id not in ('x','X','y','Y','z','Z'):
+        raise ValueError('S error: %s not supported.'%id)
+    result=IndexPackList()
+    result.append(SpinPack(1.0,(id)))
     return result
