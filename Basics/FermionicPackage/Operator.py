@@ -22,7 +22,7 @@ class OperatorF(Operator):
             The associated real coordinates of the operator.
         icoords: tuple of 1D ndarray
             The associated lattice coordinates of the operator.
-        seqs: tuple of integer
+        seqs: tuple of integer, optional
             The associated sequences of the operator, whose length should be equal to the operator's rank.
     Note:
     1) The lengths of rcoords and icoords are not forced to be equal to the operator's rank because:
@@ -39,8 +39,8 @@ class OperatorF(Operator):
             rank==4 fermionic operators.
             For this mode, only one rcoord and icoord is needed because Hubbard operators are always on-site ones.
     '''
-    
-    def __init__(self,mode,value,indices,rcoords,icoords,seqs):
+
+    def __init__(self,mode,value,indices,rcoords,icoords,seqs=None):
         '''
         Constructor.
         '''
@@ -49,7 +49,7 @@ class OperatorF(Operator):
         self.indices=tuple(indices)
         self.rcoords=tuple([array(obj) for obj in rcoords])
         self.icoords=tuple([array(obj) for obj in icoords])
-        self.seqs=tuple(seqs)
+        if seqs is not None: self.seqs=tuple(seqs)
         self.set_id()
 
     def __repr__(self):
@@ -76,7 +76,7 @@ class OperatorF(Operator):
         '''
         Return the rank of the operator.
         '''
-        return len(self.seqs)
+        return len(self.indices)
 
     def is_normal_ordered(self):
         '''

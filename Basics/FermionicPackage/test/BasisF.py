@@ -13,8 +13,9 @@ def test_basisf():
     m=12;n=6;nloop=100
     a=BasisF(up=(m,n),down=(m,n))
     for i in xrange(nloop):
-        test_while1(a.nbasis,a.basis_table)
-        test_while2(a.nbasis,a.basis_table)
+        pass
+        #test_while1(a.nbasis,a.basis_table)
+        #test_while2(a.nbasis,a.basis_table)
     etime=time.time()
     print etime-stime
     print
