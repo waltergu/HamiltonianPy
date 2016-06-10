@@ -84,7 +84,7 @@ class ED(Engine):
         self.terms=terms
         self.nambu=nambu
         self.generators={}
-        self.generators['h']=Generator(bonds=lattice.bonds,table=config.table(nambu=False),config=config,terms=terms)
+        self.generators['h']=Generator(bonds=lattice.bonds,config=config,table=config.table(nambu=False),terms=terms)
         self.name.update(const=self.generators['h'].parameters['const'])
         self.name.update(alter=self.generators['h'].parameters['alter'])
         self.operators={}

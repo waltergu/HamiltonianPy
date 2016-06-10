@@ -16,35 +16,38 @@ class Generator:
     Attributes:
         bonds: list of Bond
             The bonds of the model.
-        table: Table
-            The index-sequence table of the system
         config: Configuration
             The configuration of degrees of freedom.
+        table: Table
+            The index-sequence table of the system
         parameters: dict
             It contains all model parameters, divided into two groups, the constant ones and the alterable ones.
         terms: dict
             It contains all terms contained in the model, divided into two groups, the constant ones and the alterable ones.
         cache: dict
             The working space used to handle the generation and update of the operators.
+        dtype: float64 or complex128
+            The data type of the coefficients of the operators.
     '''
 
-    def __init__(self,bonds,table,config,terms=None):
+    def __init__(self,bonds,config,table=None,terms=None,dtype=complex128):
         '''
         Constructor.
         Parameter:
             bonds: list of Bond
                 The bonds.
-            table: Table
-                The index-sequence table.
             config: Configuration
                 The configuration of degrees of freedom.
+            table: Table, optional
+                The index-sequence table.
             terms: list of Term, optional
                 The terms whose corresponding operators are to be generated and updated.
                 Those terms having the attribute modulate will go into self.terms['alter'] and the others will go into self.terms['const'].
         '''
         self.bonds=bonds
-        self.table=table
         self.config=config
+        self.table=table
+        self.dtype=dtype
         self.parameters={}
         self.terms={}
         self.set_parameters_and_terms(terms)
@@ -74,13 +77,13 @@ class Generator:
             self.cache['const']=OperatorCollection()
             for bond in self.bonds:
                 for terms in self.terms['const'].itervalues():
-                    self.cache['const']+=terms.operators(bond,self.table,self.config)
+                    self.cache['const']+=terms.operators(bond,self.config,table=self.table,dtype=self.dtype)
         if 'alter' in self.terms:
             self.cache['alter']={}
             for key in self.terms['alter'].iterkeys():
                 self.cache['alter'][key]=OperatorCollection()
                 for bond in self.bonds:
-                    self.cache['alter'][key]+=self.terms['alter'][key].operators(bond,self.table,self.config)
+                    self.cache['alter'][key]+=self.terms['alter'][key].operators(bond,self.config,table=self.table,dtype=self.dtype)
 
     def __str__(self):
         '''
@@ -122,4 +125,4 @@ class Generator:
                 if mask:
                     self.cache['alter'][key]=OperatorCollection()
                     for bond in self.bonds:
-                        self.cache['alter'][key]+=self.terms['alter'][key].operators(bond,self.table,self.config)
+                        self.cache['alter'][key]+=self.terms['alter'][key].operators(bond,self.config,table=self.table,dtype=self.dtype)

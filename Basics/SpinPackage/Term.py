@@ -85,16 +85,16 @@ class SpinTerm(Term):
         result.append(self)
         return result
 
-    def operators(self,bond,table,config,dtype=complex128):
+    def operators(self,bond,config,table=None,dtype=complex128):
         '''
         This method returns all the spin operators defined on the input bond with non-zero coefficients.
         Parameters:
             bond: Bond
                 The bond on which the spin terms are defined.
-            table: Table
-                The index-sequence table.
             config: Configuration
                 The configuration of spin degrees of freedom.
+            table: Table, optional
+                The index-sequence table.
             dtype: dtype,optional
                 The data type of the coefficient of the returned operators.
         Returns:
@@ -125,7 +125,7 @@ class SpinTerm(Term):
                             spins=      [SpinMatrix((eS,pack[0]),dtype=dtype)],
                             rcoords=    [bond.epoint.rcoord],
                             icoords=    [bond.epoint.icoord],
-                            seqs=       (table[eindex])
+                            seqs=       None if table is None else (table[eindex])
                             )
                     else:
                         if len(pack)!=2:
@@ -136,7 +136,7 @@ class SpinTerm(Term):
                             spins=      [SpinMatrix((eS,pack[0]),dtype=dtype),SpinMatrix((sS,pack[1]),dtype=dtype)],
                             rcoords=    [bond.epoint.rcoord,bond.spoint.rcoord],
                             icoords=    [bond.epoint.icoord,bond.spoint.icoord],
-                            seqs=       (table[eindex],table[sindex])
+                            seqs=       None if table is None else (table[eindex],table[sindex])
                             )
         return result
 
@@ -145,16 +145,16 @@ class SpinTermList(TermList):
     This class packs several SpinTerm instances as a whole for convenience.
     '''
 
-    def operators(self,bond,table,config,dtype=complex128):
+    def operators(self,bond,config,table,dtype=complex128):
         '''
         This method returns all the spin operators defined on the input bond with non-zero coefficients.
         Parameters:
             bond: Bond
                 The bond on which the spin terms are defined.
-            table: Table
-                The index-sequence table.
             config: Configuration
                 The configuration of spin degrees of freedom.
+            table: Table, optional
+                The index-sequence table.
             dtype: dtype,optional
                 The data type of the coefficient of the returned operators.
         Returns:
@@ -163,5 +163,5 @@ class SpinTermList(TermList):
         '''
         result=OperatorCollection()
         for spinterm in self:
-            result+=spinterm.operators(bond,table,config,dtype)
+            result+=spinterm.operators(bond,config,table,dtype)
         return result

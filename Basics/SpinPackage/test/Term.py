@@ -28,7 +28,7 @@ def test_spin_term():
             SpinTerm('h',h,neighbour=0,indexpacks=S('z'))
           ]
     print 'terms: %s'%terms
-    generator=Generator(l.bonds,table,config,terms)
+    generator=Generator(l.bonds,config,table,terms,dtype=float64)
     temp=None
     for opt in generator.operators.values():
         if temp is None:

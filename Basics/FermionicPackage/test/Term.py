@@ -43,7 +43,7 @@ def test_quadratic():
     print 'd: %s'%d
     opts=OperatorCollection()
     for bond in l.bonds:
-        opts+=d.operators(bond,table,config)
+        opts+=d.operators(bond,config,table)
     print 'opts:\n%s'%opts
     print
 
@@ -58,6 +58,6 @@ def test_hubbard():
     print 'a: %s'%a
     opts=OperatorCollection()
     for bond in l.bonds:
-        opts+=a.operators(bond,table,config)
+        opts+=a.operators(bond,config,table)
     print 'opts:\n%s'%opts
     print

@@ -56,7 +56,16 @@ class OperatorF(Operator):
         '''
         Convert an instance to string.
         '''
-        return 'Operator(mode=%s, value=%s, indices=%s, rcoords=%s, icoords=%s, seqs=%s)'%(self.mode,self.value,self.indices,self.rcoords,self.icoords,self.seqs)
+        result=[]
+        result.append('OperatorF(')
+        result.append('mode=%s'%self.mode)
+        result.append(', value=%s'%self.value)
+        result.append(', indices=%s'%(self.indices,))
+        result.append(', rcoords=%s'%(self.rcoords,))
+        result.append(', icoords=%s'%(self.icoords,))
+        if hasattr(self,'seqs'): result.append(', seqs=%s'%(self.seqs,))
+        result.append(')')
+        return ''.join(result)
 
     def set_id(self):
         '''
@@ -69,7 +78,7 @@ class OperatorF(Operator):
         '''
         The dagger, i.e. the Hermitian conjugate of an operator.
         '''
-        return OperatorF(mode=self.mode,value=conjugate(self.value),indices=reversed([obj.replace(nambu=1-obj.nambu) for obj in self.indices]),rcoords=reversed(list(self.rcoords)),icoords=reversed(list(self.icoords)),seqs=reversed(list(self.seqs)))
+        return OperatorF(mode=self.mode,value=conjugate(self.value),indices=reversed([obj.replace(nambu=1-obj.nambu) for obj in self.indices]),rcoords=reversed(list(self.rcoords)),icoords=reversed(list(self.icoords)),seqs=reversed(list(self.seqs)) if hasattr(self,'seqs') else None)
 
     @property
     def rank(self):
@@ -94,19 +103,19 @@ class OperatorF(Operator):
         '''
         return self==self.dagger
 
-def F_Linear(value,indices,rcoords,icoords,seqs):
+def F_Linear(value,indices,rcoords,icoords,seqs=None):
     '''
     A specialized constructor to create an Operator instance with mode='f_linear'.
     '''
     return OperatorF('f_linear',value,indices,rcoords,icoords,seqs)
 
-def F_Quadratic(value,indices,rcoords,icoords,seqs):
+def F_Quadratic(value,indices,rcoords,icoords,seqs=None):
     '''
     A specialized constructor to create an Operator instance with mode='f_quadratic'.
     '''
     return OperatorF('f_quadratic',value,indices,rcoords,icoords,seqs)
 
-def F_Hubbard(value,indices,rcoords,icoords,seqs):
+def F_Hubbard(value,indices,rcoords,icoords,seqs=None):
     '''
     A specialized constructor to create an Operator instance with mode='f_hubbard'.
     '''

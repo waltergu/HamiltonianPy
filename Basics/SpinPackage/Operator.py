@@ -19,10 +19,10 @@ class OperatorS(Operator):
             The associated real coordinates of the operator.
         icoords: tuple of 1D ndarray
             The associated lattice coordinates of the operator.
-        seqs: tuple of integer
+        seqs: tuple of integer, optional
             The associated sequences of the operator, whose length should be equal to the operator's rank.
     '''
-    def __init__(self,value,indices,spins,rcoords,icoords,seqs):
+    def __init__(self,value,indices,spins,rcoords,icoords,seqs=None):
         '''
         Constructor.
         '''
@@ -31,14 +31,23 @@ class OperatorS(Operator):
         self.spins=spins
         self.rcoords=rcoords
         self.icoords=icoords
-        self.seqs=seqs
+        if seqs is not None: self.seqs=seqs
         self.set_id()
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return 'OperatorS(value=%s, indices=%s, spins=%s, rcoords=%s, icoords=%s, seqs=%s)'%(self.value,self.indices,self.spins,self.rcoords,self.icoords,self.seqs)
+        result=[]
+        result.append('OperatorS(')
+        result.append('value=%s'%self.value)
+        result.append(', indices=%s'%(self.indices,))
+        result.append(', spins=%s'%(self.spins,))
+        result.append(', rcoords=%s'%(self.rcoords,))
+        result.append(', icoords=%s'%(self.icoords,))
+        if hasattr(self,'seqs'): result.append(', seqs=%s'%(self.seqs,))
+        result.append(')')
+        return ''.join(result)
 
     def set_id(self):
         '''

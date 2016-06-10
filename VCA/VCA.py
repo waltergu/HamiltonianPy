@@ -123,26 +123,26 @@ class VCA(ED):
         self.generators={}
         self.generators['h']=Generator(
                     bonds=      [bond for bond in lattice.bonds if bond.is_intra_cell()],
-                    table=      config.table(nambu=False),
                     config=     config,
+                    table=      config.table(nambu=False),
                     terms=      terms
                     )
         self.generators['h_w']=Generator(
                     bonds=      [bond for bond in lattice.bonds],
-                    table=      config.table(nambu=False),
                     config=     config,
+                    table=      config.table(nambu=False),
                     terms=      weiss
                     )
         self.generators['pt_h']=Generator(
                     bonds=      [bond for bond in lattice.bonds if not bond.is_intra_cell()],
-                    table=      config.table(nambu=nambu) if self.nspin==2 else subset(config.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
                     config=     config,
+                    table=      config.table(nambu=nambu) if self.nspin==2 else subset(config.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
                     terms=      [term for term in terms if isinstance(term,Quadratic)],
                     )
         self.generators['pt_w']=Generator(
                     bonds=      [bond for bond in lattice.bonds],
-                    table=      config.table(nambu=nambu) if self.nspin==2 else subset(config.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
                     config=     config,
+                    table=      config.table(nambu=nambu) if self.nspin==2 else subset(config.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
                     terms=      None if weiss is None else [term*(-1) for term in weiss],
                     )
         self.name.update(const=self.generators['h'].parameters['const'])
@@ -469,7 +469,7 @@ def VCAOP(engine,app):
     for i,term in enumerate(app.terms):
         buff=deepcopy(term);buff.value=1
         m=zeros((nmatrix,nmatrix),dtype=complex128)
-        for opt in Generator(bonds=engine.lattice.bonds,table=engine.config.table(nambu=engine.nambu),config=engine.config,terms=[buff]).operators.values():
+        for opt in Generator(bonds=engine.lattice.bonds,config=engine.config,table=engine.config.table(nambu=engine.nambu),terms=[buff]).operators.values():
             m[opt.seqs]+=opt.value
         m+=conjugate(m.T)
         app.ms[i,:,:]=m

@@ -224,20 +224,17 @@ class QuadraticList(TermList):
         else:
             raise ValueError('Quadratic mesh error: the nnambu of epoint and spoint must be equal.')
 
-    def operators(self,bond,table,config,mask=None,dtype=complex128):
+    def operators(self,bond,config,table=None,dtype=complex128):
         '''
         This method returns all the desired quadratic operators defined on the input bond with non-zero coefficients.
         Parameters:
             bond: Bond
                 The bond where the quadratic operators are defined.
-            table: Table
-                The index-sequence table.
-                Only those operators whose indices are in this table will be returned.
-            config:
+            config: Configuration
                 The configuration of degrees of freedom.
-            mask: callable
-                A function used to pick the quadratic terms whose only argument is an instance of Quadratic. 
-                If the returned value if True, the operators corresponding to the masked quadratic term are included.
+            table: Table, optional
+                The index-sequence table.
+                When it not None, only those operators with indices in it will be returned.
             dtype: dtype, optional
                 The data type of the coefficient of the returned operators.
         Returns:
@@ -248,18 +245,20 @@ class QuadraticList(TermList):
                 2) the coefficient of the self-Hermitian operators is divided by a factor 2;
                 3) the BdG case, only the electron part of the hopping terms and onsite terms are contained, and for the electron part, Rule 1) and 2) also applies.
         '''
-        result=to_operators(self.mesh(bond,config,mask,dtype=dtype),bond,table,config)
+        result=to_operators(self.mesh(bond,config,dtype=dtype),bond,config,table)
         if bond.neighbour!=0:
-            result+=to_operators(self.mesh(bond.reversed,config,mask=lambda quadratic: True if (quadratic.mode=='pr' and (True if mask is None else mask(quadratic))) else False,dtype=dtype),bond.reversed,table,config)
+            result+=to_operators(self.mesh(bond.reversed,config,mask=lambda quadratic: True if quadratic.mode=='pr' else False,dtype=dtype),bond.reversed,config,table)
         return result
 
-def to_operators(mesh,bond,table,config):
+def to_operators(mesh,bond,config,table=None):
     result=OperatorCollection()
     indices=argwhere(abs(mesh)>RZERO)
     for (i,j) in indices:
         eindex=Index(bond.epoint.pid,config[bond.epoint.pid].state_index(i))
         sindex=Index(bond.spoint.pid,config[bond.spoint.pid].state_index(j))
-        if eindex in table and sindex in table:
+        if table is None:
+            result+=F_Quadratic(mesh[i,j],indices=(eindex.replace(nambu=1-eindex.nambu),sindex),rcoords=[bond.rcoord],icoords=[bond.icoord],seqs=None)
+        elif eindex in table and sindex in table:
             result+=F_Quadratic(mesh[i,j],indices=(eindex.replace(nambu=1-eindex.nambu),sindex),rcoords=[bond.rcoord],icoords=[bond.icoord],seqs=(table[eindex],table[sindex]))
     return result
 
@@ -414,17 +413,17 @@ class HubbardList(TermList):
         else:
             return 0
 
-    def operators(self,bond,table,config,dtype=float64):
+    def operators(self,bond,config,table=None,dtype=float64):
         '''
         This method returns all the Hubbard operators defined on the input bond with non-zero coefficients.
         Parameters:
             bond: Bond
                 The bond on which the Hubbard terms are defined.
-            table: Table
-                The index-sequence table.
-                Since Hubbard terms are quartic, it never uses the Nambu space.
             config: Configuration
                 The configuration of degrees of freedom.
+            table: Table, optional
+                The index-sequence table.
+                Since Hubbard terms are quartic, it never uses the Nambu space.
             dtype: dtype,optional
                 The data type of the coefficient of the returned operators.
         Returns:
@@ -443,5 +442,11 @@ class HubbardList(TermList):
             index2=Index(bond.epoint.pid,dgr.state_index(j))
             index3=Index(bond.epoint.pid,dgr.state_index(k))
             index4=Index(bond.epoint.pid,dgr.state_index(l))
-            result+=F_Hubbard(mesh[i,j,k,l],indices=(index1.replace(nambu=CREATION),index2.replace(nambu=CREATION),index3,index4),rcoords=[bond.epoint.rcoord],icoords=[bond.epoint.icoord],seqs=(table[index1],table[index2],table[index3],table[index4]))
+            result+=F_Hubbard(
+                value=      mesh[i,j,k,l],
+                indices=    (index1.replace(nambu=CREATION),index2.replace(nambu=CREATION),index3,index4),
+                rcoords=    [bond.epoint.rcoord],
+                icoords=    [bond.epoint.icoord],
+                seqs=       None if table is None else (table[index1],table[index2],table[index3],table[index4])
+                )
         return result

@@ -63,7 +63,7 @@ class TBA(Engine):
         self.terms=terms
         self.nambu=nambu
         self.generators={}
-        self.generators['h']=Generator(bonds=lattice.bonds,table=config.table(nambu=nambu),config=config,terms=terms)
+        self.generators['h']=Generator(bonds=lattice.bonds,config=config,table=config.table(nambu=nambu),terms=terms)
         self.name.update(const=self.generators['h'].parameters['const'])
 
     def matrix(self,k=[],**karg):

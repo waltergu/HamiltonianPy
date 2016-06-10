@@ -4,6 +4,7 @@ Term and TermList
 
 __all__=['Term','TermList']
 
+from numpy import complex128
 from copy import copy
 
 class Term(object):
@@ -107,9 +108,21 @@ class TermList(list):
         '''
         return self.__mul__(other)
 
-    def operators(self,*arg,**karg):
+    def operators(self,bond,config,table=None,dtype=complex128):
         '''
         This method returns all the desired operators which are described those terms in self.
+        Parameters:
+            bond: Bond
+                The bond on which the terms are defined.
+            config: Configuration
+                The configuration of degrees of freedom.
+            table: Table, optional
+                The index-sequence table.
+            dtype: dtype,optional
+                The data type of the coefficient of the returned operators.
+        Returns:
+            result: OperatorCollection
+                All the desired operators with non-zero coeffcients.
         Note: To use this method, the subclass must override it.
         '''
         raise ValueError('%s operators error: it is not implemented.'%self.__class__.__name__)

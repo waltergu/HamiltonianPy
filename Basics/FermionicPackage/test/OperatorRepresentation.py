@@ -26,9 +26,9 @@ def test_f_opt_rep():
     c=+Pairing('delta',1.0,neighbour=1,indexpacks=sigmaz("SP"))
     opts=OperatorCollection()
     for bond in l.bonds:
-        opts+=a.operators(bond,table,config)
-        opts+=b.operators(bond,table,config)
-        opts+=c.operators(bond,table,config)
+        opts+=a.operators(bond,config,table)
+        opts+=b.operators(bond,config,table)
+        opts+=c.operators(bond,config,table)
     print opts
     basis=BasisF(nstate=2*m*n)
 #    basis=BasisF((2*m*n,m*n))
