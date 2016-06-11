@@ -2,15 +2,22 @@
 Matrix product state, including:
 1) constants: LLINK, SITE, RLINK
 2) classes: MPSBase, Vidal, MPS
+3) functions: from_state
 '''
 
-__all__=['LLINK','SITE','RLINK','MPSBase','Vidal','MPS']
+__all__=['LLINK','SITE','RLINK','MPSBase','Vidal','MPS','from_state']
 
 from numpy import *
 from Tensor import *
 from copy import deepcopy
 
 LLINK,SITE,RLINK=0,1,2
+
+def from_state(state,form='L'):
+    '''
+    Convert a normal state representation to the Vidal/Mixed canonical MPS representation.
+    '''
+    pass
 
 class MPSBase(object):
     '''
@@ -23,13 +30,6 @@ class MPSBase(object):
     '''
     order=[LLINK,SITE,RLINK]
     err=10**-10
-    
-    @property
-    def state(self):
-        '''
-        Convert to the normal representation.
-        '''
-        raise NotImplementedError()
 
     @property
     def nsite(self):
@@ -58,6 +58,25 @@ class MPSBase(object):
         The axes of RLINK.
         '''
         return self.order.index(RLINK)
+
+    def state(self,form='flat'):
+        '''
+        Convert to the normal representation.
+        Parameters:
+            form: 'flat','tensor','component'
+                The form of the final state.
+            returns: it depends on form.
+                1) 'flat': 1d ndarray
+                    The flattened 1D array representation of the state.
+                2) 'tensor': Tensor
+                    The tensor representation of the state.
+                3) 'component': list of 2-tuple
+                        tuple[0]: tuple
+                            The index of a non-zero value of the tensor representation.
+                        tuple[1]: number
+                            The corresponding non-zero value.
+        '''
+        raise NotImplementedError()
 
 class Vidal(MPSBase):
     '''
@@ -122,6 +141,12 @@ class Vidal(MPSBase):
         return '\n'.join(result)
 
     @property
+    def nsite(self):
+        '''
+        The number of total sites.
+        '''
+        return len(self.Gammas)
+
     def state(self):
         '''
         Convert to the normal representation.
@@ -133,12 +158,6 @@ class Vidal(MPSBase):
             else:
                 result=contract(result,self.Lambdas[i-1],Gamma)
         return asarray(result).ravel()
-
-    def from_state(self,state):
-        '''
-        Convert a normal representation to the Vidal canonical MPS representation.
-        '''
-        pass
 
     def to_mixed(self,cut):
         '''
@@ -227,9 +246,28 @@ class MPS(MPSBase):
         return '\n'.join(result)
 
     @property
-    def state(self):
+    def nsite(self):
+        '''
+        The number of total sites.
+        '''
+        return len(self.ms)
+
+    def state(self,form='flat'):
         '''
         Convert to the normal representation.
+        Parameters:
+            form: 'flat','tensor','component'
+                The form of the final state.
+            returns: it depends on form.
+                1) 'flat': 1d ndarray
+                    The flattened 1D array representation of the state.
+                2) 'tensor': Tensor
+                    The tensor representation of the state.
+                3) 'component': list of 2-tuple
+                        tuple[0]: tuple
+                            The index of a non-zero value of the tensor representation.
+                        tuple[1]: number
+                            The corresponding non-zero value.
         '''
         for i,m in enumerate(self.ms):
             if i==0:
@@ -239,14 +277,12 @@ class MPS(MPSBase):
                     result=contract(result,self.Lambda,m)
                 else:
                     result=contract(result,m)
-        return asarray(result).ravel()
-
-    @property
-    def nsite(self):
-        '''
-        The number of total sites.
-        '''
-        return len(self.ms)
+        if form in ('flat'):
+            return asarray(result).ravel()
+        elif form in ('tensor'):
+            return result
+        else:
+            return result.components(zero=self.err)
 
     @property
     def norm(self):
@@ -293,7 +329,7 @@ class MPS(MPSBase):
                     buff=matrix.T.conjugate().dot(matrix) if i<self.cut else matrix.dot(matrix.T.conjugate())
                 else:
                     buff+=matrix.T.conjugate().dot(matrix) if i<self.cut else matrix.dot(matrix.T.conjugate())
-            result.append(all(buff-identity(M.shape[self.R if i<self.cut else self.L])<self.err))
+            result.append(all(abs(buff-identity(M.shape[self.R if i<self.cut else self.L]))<self.err))
         return result
 
     def to_left(self,normalization=False):
@@ -377,9 +413,3 @@ class MPS(MPSBase):
     #            if abs(norm-1.0)>self.err:
     #                raise ValueError('MPS to_vidal error: the norm(%s) of original MPS does not equal to 1.'%norm)
     #    return Vidal(Gammas,Lambdas,labels)
-
-    def from_state(self,state,choice='L'):
-        '''
-        Convert a normal representation to the left/right canonical MPS representation.
-        '''
-        pass

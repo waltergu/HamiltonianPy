@@ -230,3 +230,12 @@ class Tensor(ndarray):
         S=Tensor(s,labels=[new])
         V=Tensor(v.reshape((-1,)+shape2),labels=[new]+labels2)
         return U,S,V
+
+    def components(self,zero=0.0):
+        '''
+        Returns a list of 2-tuple which contains all the indices and values for the non-zero components of the tensor.
+        Parameters:
+            zero: float64, optional
+                The user difined zero.
+        '''
+        return [(tuple(index),self[tuple(index)]) for index in argwhere(abs(self)>zero)]

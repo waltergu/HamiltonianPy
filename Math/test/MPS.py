@@ -10,7 +10,7 @@ from HamiltonianPy.Math.MPS import *
 
 def test_mps():
     print 'test_mps'
-    N=4
+    N=3
     ms,labels=[],[]
     for i in xrange(N):
         labels.append(('END' if i==0 else 'B%s'%(i-1),'S%s'%i,'END' if i==N-1 else 'B%s'%i))
@@ -22,18 +22,18 @@ def test_mps():
             ms.append(array([[[1,0],[0,1]],[[1,0],[0,1]]]))
     a=MPS(ms,labels)
     print 'a:\n%s'%a
-    print 'a.state: %s'%a.state
+    print 'a.state: %s'%a.state(form='component')
     print '-------------------'
 
     b=a.to_left(normalization=True)
     print 'b:\n%s'%b
-    print 'b.state:%s'%b.state
+    print 'b.state:%s'%b.state(form='component')
     print 'b.is_canonical:%s'%(b.is_canonical())
     print '-------------------'
 
     c=b.to_right(normalization=False)
     print 'c:\n%s'%c
-    print 'c.state:%s'%c.state
+    print 'c.state:%s'%c.state(form='component')
     print 'c.is_canonical:%s'%(c.is_canonical())
     print '-------------------'
 
