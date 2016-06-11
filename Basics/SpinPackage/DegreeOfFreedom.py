@@ -58,6 +58,13 @@ class Spin(Internal):
         '''
         return self.S==other.S
 
+    @property
+    def ns(self):
+        '''
+        The number of spin states.
+        '''
+        return int(2*self.S)
+
     def table(self,pid):
         '''
         This method returns a Table instance that contains all the allowed indices constructed from an input pid and the internal degrees of freedom.
