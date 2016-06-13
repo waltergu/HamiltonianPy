@@ -13,22 +13,16 @@ from copy import copy,deepcopy
 class Block(object):
     '''
     '''
-    def __init__(self,length,lattice,config,basis,mps,H):
+    def __init__(self,length,lattice,config,qns,mps,H):
         self.length=length
         self.lattice=lattice
         self.config=config
-        self.basis=basis
+        self.qns=qns
         self.mps=mps
         self.H=H
 
-    def expansion(self,point,internal):
-        length=self.length+1
-        lattice=deepcopy(self.lattice).expand(point)
-        config=copy(self.config)
-        config[point.pid]=internal
-        basis=self.basis
-        H=kron(self.H,identity(internal.ns))
-        return Block(length,lattice,config,basis,H)
+    def combination(self,other,target=None):
+        pass
 
 class IDMRG(Engine):
     '''
