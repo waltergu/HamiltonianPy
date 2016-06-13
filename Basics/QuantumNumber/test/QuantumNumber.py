@@ -6,6 +6,7 @@ __all__=['test_quantum_number']
 
 from HamiltonianPy.Basics.QuantumNumber import *
 from collections import OrderedDict
+import time
 
 def test_quantum_number():
     test_quantum_number_element()
@@ -29,10 +30,11 @@ def test_quantum_number_element():
 
 def test_quantum_number_collection():
     print 'test_quantum_number_collection'
-    a=QuantumNumberCollection([QuantumNumber([('Sz',-1,'U1')]),QuantumNumber([('Sz',0,'U1')]),QuantumNumber([('Sz',1,'U1')])])
+    a=QuantumNumberCollection([(QuantumNumber([('Sz',1,'U1')]),slice(0,1)),(QuantumNumber([('Sz',0,'U1')]),slice(1,3)),(QuantumNumber([('Sz',-1,'U1')]),slice(3,4))])
     print 'a: %s'%a
     b=QuantumNumberCollection()
-    for i in xrange(2):
+    t1=time.time()
+    for i in xrange(10):
         b+=a
     print 'b: ',b
     QuantumNumber.set_repr_form(QuantumNumber.repr_forms[2])

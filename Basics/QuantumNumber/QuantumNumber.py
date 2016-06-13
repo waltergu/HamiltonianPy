@@ -4,6 +4,7 @@ Quantum number, including:
 '''
 
 from collections import OrderedDict
+from copy import copy
 
 __all__=['QuantumNumber','QuantumNumberCollection']
 
@@ -105,6 +106,22 @@ class QuantumNumber(tuple):
             temp.append((key,value,type))
         return QuantumNumber(temp)
 
+    def __sub__(self,other):
+        '''
+        Overloaded addition(-) operator, which supports the subtraction of two quantum numbers.
+        '''
+        temp=[]
+        for key in self.values:
+            if self.types[key]!=other.types[key]:
+                raise ValueError("QuantumNumber '-' error: different types of quantum numbers cannot be subtracted.")
+            type=self.types[key]
+            if type==self.U1:
+                value=getattr(self,key)-getattr(other,key)
+            elif type==self.Z2:
+                value=(getattr(self,key)-getattr(other,key))%2
+            temp.append((key,value,type))
+        return QuantumNumber(temp)
+
     def __mul__(self):
         '''
         Overloaded multiplication(*) operator.
@@ -149,6 +166,8 @@ class QuantumNumberCollection(OrderedDict):
     Attributes:
         map: dict
             The history information of quantum numbers.
+        n: integer
+            The total number of quantum numbers when duplicates are taken into consideration.
     '''
     trace_history=True
 
@@ -156,41 +175,49 @@ class QuantumNumberCollection(OrderedDict):
         '''
         Constructor.
         Parameters:
-            para: list of QuantumNumber
-                The quantum numbers.
+            para: list of 2-tuple
+                tuple[0]: QuantumNumber
+                    The quantum number.
+                tuple[1]: slice
+                    The corresponding slice of the quantum number.
             map: dict
                 The history information of quantum numbers.
         '''
         OrderedDict.__init__(self)
-        for key in para:
-            self[key]=None
-        self.map=map if QuantumNumberCollection.trace_history else {}        
+        for (key,value) in para:
+            self[key]=value
+        self.n=para[len(para)-1][1].stop if len(para)>0 else 0
+        self.map=map if QuantumNumberCollection.trace_history else {}
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return ''.join(['QuantumNumberCollection(',','.join([str(qn) for qn in self]),')'])
+        return ''.join(['QuantumNumberCollection(',','.join(['%s:(%s:%s)'%(qn,value.start,value.stop) for qn,value in self.items()]),')'])
 
     def __add__(self,other):
         '''
         Overloaded addition(+) operator.
         '''
-        temp,buff=[],OrderedDict()
-        other=[other] if isinstance(other,QuantumNumber) else other
+        temp,buff=OrderedDict(),OrderedDict()
         if len(self)==0:
-            temp=other
+            return copy(other)
         elif len(other)==0:
-            temp=self
+            return copy(self)
         else:
-            for qn1 in self:
-                for qn2 in other:
+            for qn1,v1 in self.items():
+                for qn2,v2 in other.items():
                     sum=qn1+qn2
-                    if sum not in buff:
-                        temp.append(sum)
+                    if sum not in temp:
+                        temp[sum]=0
                         buff[sum]=[]
+                    temp[sum]+=(v2.stop-v2.start)*(v1.stop-v1.start)
                     buff[sum].append((qn1,qn2))
-        return QuantumNumberCollection(temp,buff)
+        para,count=[],0
+        for key,value in temp.items():
+            para.append((key,slice(count,count+value)))
+            count+=value
+        return QuantumNumberCollection(para,buff)
 
     def __radd__(self,other):
         '''
