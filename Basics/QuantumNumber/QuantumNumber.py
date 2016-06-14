@@ -4,7 +4,7 @@ Quantum number, including:
 '''
 
 from collections import OrderedDict
-from copy import copy
+from copy import copy,deepcopy
 
 __all__=['QuantumNumber','QuantumNumberCollection']
 
@@ -163,6 +163,11 @@ class QuantumNumber(tuple):
 class QuantumNumberCollection(OrderedDict):
     '''
     Quantum number collection.
+    For its (key,value) pair:
+        key: QuantumNumber
+            The quantum number.
+        value: slice
+            The corresponding slice of the quantum number.
     Attributes:
         map: dict
             The history information of quantum numbers.
@@ -171,23 +176,26 @@ class QuantumNumberCollection(OrderedDict):
     '''
     trace_history=True
 
-    def __init__(self,para=[],map={}):
+    def __init__(self,para=None,map=None):
         '''
         Constructor.
         Parameters:
             para: list of 2-tuple
                 tuple[0]: QuantumNumber
                     The quantum number.
-                tuple[1]: slice
-                    The corresponding slice of the quantum number.
+                tuple[1]: integer
+                    The number of duplicates of the corresponding quantum number.
             map: dict
                 The history information of quantum numbers.
         '''
         OrderedDict.__init__(self)
-        for (key,value) in para:
-            self[key]=value
-        self.n=para[len(para)-1][1].stop if len(para)>0 else 0
-        self.map=map if QuantumNumberCollection.trace_history else {}
+        count=0
+        if para is not None:
+            for (key,value) in para:
+                self[key]=slice(count,count+value)
+                count+=value
+        self.n=count
+        self.map=map if QuantumNumberCollection.trace_history else None
 
     def __repr__(self):
         '''
@@ -195,16 +203,36 @@ class QuantumNumberCollection(OrderedDict):
         '''
         return ''.join(['QuantumNumberCollection(',','.join(['%s:(%s:%s)'%(qn,value.start,value.stop) for qn,value in self.items()]),')'])
 
+    def __copy__(self):
+        '''
+        Copy.
+        '''
+        result=QuantumNumberCollection()
+        result.update(self)
+        result.n=self.n
+        result.map=self.map
+        return result
+
+    def __deepcopy__(self,memo):
+        '''
+        Deep copy.
+        '''
+        result=QuantumNumberCollection()
+        result.update(self)
+        result.n=self.n
+        result.map=deepcopy(self.map)
+        return result
+
     def __add__(self,other):
         '''
         Overloaded addition(+) operator.
         '''
-        temp,buff=OrderedDict(),OrderedDict()
         if len(self)==0:
             return copy(other)
         elif len(other)==0:
             return copy(self)
         else:
+            temp,buff=OrderedDict(),OrderedDict()
             for qn1,v1 in self.items():
                 for qn2,v2 in other.items():
                     sum=qn1+qn2
@@ -213,14 +241,25 @@ class QuantumNumberCollection(OrderedDict):
                         buff[sum]=[]
                     temp[sum]+=(v2.stop-v2.start)*(v1.stop-v1.start)
                     buff[sum].append((qn1,qn2))
-        para,count=[],0
-        for key,value in temp.items():
-            para.append((key,slice(count,count+value)))
-            count+=value
-        return QuantumNumberCollection(para,buff)
+            return QuantumNumberCollection(temp.iteritems(),buff)
 
     def __radd__(self,other):
         '''
         Overloaded addition(+) operator.
         '''
         return self.__add__(other)
+
+    def subset(self,*arg):
+        '''
+        Subset of the quantum number collection.
+        Parameters:
+            arg: list of QuantumNumber
+                The key of the subset.
+        Returns: QuantumNumberCollection
+            The subset.
+        '''
+        (mask,temp,buff)=(False,[],None) if self.map is None else (True,[],OrderedDict())
+        for key in arg:
+            temp.append((key,self[key].stop-self[key].start))
+            if mask:buff[key]=self[key]
+        return QuantumNumberCollection(temp,buff)

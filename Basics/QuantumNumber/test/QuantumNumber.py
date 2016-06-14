@@ -28,17 +28,19 @@ def test_quantum_number_element():
     print 'd+e: %s'%(d+e,)
     print
 
+from copy import copy,deepcopy
 def test_quantum_number_collection():
     print 'test_quantum_number_collection'
-    a=QuantumNumberCollection([(QuantumNumber([('Sz',1,'U1')]),slice(0,1)),(QuantumNumber([('Sz',0,'U1')]),slice(1,3)),(QuantumNumber([('Sz',-1,'U1')]),slice(3,4))])
+    a=QuantumNumberCollection([(QuantumNumber([('Sz',1,'U1')]),1),(QuantumNumber([('Sz',0,'U1')]),2),(QuantumNumber([('Sz',-1,'U1')]),1)])
     print 'a: %s'%a
+    print deepcopy(a)
     b=QuantumNumberCollection()
-    t1=time.time()
-    for i in xrange(10):
+    for i in xrange(2):
         b+=a
     print 'b: ',b
     QuantumNumber.set_repr_form(QuantumNumber.repr_forms[2])
     print 'b.map:'
     for key,value in b.map.items():
         print '%s: %s'%(key,value)
+    print 'subset(b,%s,%s):%s'%(b.keys()[1],b.keys()[2],b.subset(*b.keys()[1:3]))
     print
