@@ -10,14 +10,19 @@ from HamiltonianPy.DMRG import *
 
 def test_dmrg():
     print 'test_dmrg'
-    a=QuantumNumberCollection([(QuantumNumber([('Sz',1,'U1')]),1),(QuantumNumber([('Sz',0,'U1')]),1),(QuantumNumber([('Sz',-1,'U1')]),1)])
-    matrix=SpinMatrix((1,'z'),dtype=float64)
+    qn1=QuantumNumber([('Sz',1,'U1')])
+    qn2=QuantumNumber([('Sz',0,'U1')])
+    qn3=QuantumNumber([('Sz',-1,'U1')])
+    a=QuantumNumberCollection([(qn1,1),(qn2,1),(qn3,1)])
     print 'a:%s'%a
     print 'a+a:%s'%(a+a)
-    print '--------------------'
-    print '(a+a).map:'
-    for key,value in (a+a).map.items():
-        print '%s:%s'%(key,value)
-    print '--------------------'
-    print kron(matrix,matrix,a,a,a+a,format='csr')
+
+    sz=SpinMatrix((1,'z'),dtype=float64)
+    sp=SpinMatrix((1,'+'),dtype=float64)
+    sm=SpinMatrix((1,'-'),dtype=float64)
+    print 'sz:\n%s'%sz
+    print 'sp:\n%s'%sp
+    print 'sm:\n%s'%sm
+    matrix=kron(sz,sz,a,a,a+a,target=qn2,format='csr')+kron(sp,sm,a,a,a+a,target=qn2,format='csr')+kron(sm,sp,a,a,a+a,target=qn2,format='csr')
+    print matrix.todense()
     print

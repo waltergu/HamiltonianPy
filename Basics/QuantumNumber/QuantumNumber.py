@@ -4,6 +4,7 @@ Quantum number, including:
 '''
 
 from collections import OrderedDict
+from numpy import concatenate
 from copy import copy,deepcopy
 
 __all__=['QuantumNumber','QuantumNumberCollection']
@@ -84,9 +85,9 @@ class QuantumNumber(tuple):
                 temp.append(key)
                 temp.append(self.values[key])
                 temp.append(self.types[key])
-            return ''.join([self.__class__.__name__,'(',','.join(['%s=%r(%s)']*len(self)),')'])%tuple(temp)
+            return ''.join(['QN','(',','.join(['%s=%r(%s)']*len(self)),')'])%tuple(temp)
         elif self.repr_form==self.repr_forms[1]:
-            return ''.join([self.__class__.__name__,'(',','.join(['%s']*len(self)),')'])%self
+            return ''.join(['QN','(',','.join(['%s']*len(self)),')'])%self
         else:
             return tuple.__repr__(self)
 
@@ -169,58 +170,60 @@ class QuantumNumberCollection(OrderedDict):
         value: slice
             The corresponding slice of the quantum number.
     Attributes:
-        map: dict
-            The history information of quantum numbers.
         n: integer
-            The total number of quantum numbers when duplicates are taken into consideration.
+            The total number of quantum numbers when duplicates are counted duplicately.
+        map: OrderedDict
+            The historical pairs whose sums give rise to the quantum numbers.
+        slices: OrderedDict
+            The historical slices of each quantum number.
     '''
-    trace_history=True
 
-    def __init__(self,para=None,map=None):
+    def __init__(self,para=None,map=None,slices=None):
         '''
         Constructor.
         Parameters:
             para: list of 2-tuple
                 tuple[0]: QuantumNumber
                     The quantum number.
-                tuple[1]: integer
-                    The number of duplicates of the corresponding quantum number.
-            map: dict
-                The history information of quantum numbers.
+                tuple[1]: integer or slice
+                    1) integer:
+                        The number of the duplicates of the quantum number
+                    2) slice:
+                        The corresponding slice of the quantum number.
+            map: OrderedDict
+                The historical pairs whose sums give rise to the quantum numbers.
+            slices: OrderedDict
+                The historical slices of each quantum number.
         '''
         OrderedDict.__init__(self)
         count=0
         if para is not None:
             for (key,value) in para:
-                self[key]=slice(count,count+value)
-                count+=value
+                if isinstance(value,int) or isinstance(value,long):
+                    self[key]=slice(count,count+value)
+                    count+=value
+                elif isinstance(value,slice):
+                    self[key]=value
+                    count+=value.stop-value.start
+                else:
+                    raise ValueError('QuantumNumberCollection construction error: improper parameter(%s).'%(value.__class__.__name__))
         self.n=count
-        self.map=map if QuantumNumberCollection.trace_history else None
+        self.map=map
+        self.slices=slices
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return ''.join(['QuantumNumberCollection(',','.join(['%s:(%s:%s)'%(qn,value.start,value.stop) for qn,value in self.items()]),')'])
+        return ''.join(['QNC(',','.join(['%s:(%s:%s)'%(qn,value.start,value.stop) for qn,value in self.items()]),')'])
 
-    def __copy__(self):
+    @property
+    def permutation(self):
         '''
-        Copy.
         '''
-        result=QuantumNumberCollection()
-        result.update(self)
-        result.n=self.n
-        result.map=self.map
-        return result
-
-    def __deepcopy__(self,memo):
-        '''
-        Deep copy.
-        '''
-        result=QuantumNumberCollection()
-        result.update(self)
-        result.n=self.n
-        result.map=deepcopy(self.map)
+        result=[]
+        for slice in concatenate(self.slices.values()):
+            result.extend([i for i in xrange(slice.start,slice.stop)])
         return result
 
     def __add__(self,other):
@@ -232,16 +235,19 @@ class QuantumNumberCollection(OrderedDict):
         elif len(other)==0:
             return copy(self)
         else:
-            temp,buff=OrderedDict(),OrderedDict()
+            temp,buff,slices=OrderedDict(),OrderedDict(),OrderedDict()
             for qn1,v1 in self.items():
                 for qn2,v2 in other.items():
                     sum=qn1+qn2
                     if sum not in temp:
                         temp[sum]=0
                         buff[sum]=[]
+                        slices[sum]=[]
                     temp[sum]+=(v2.stop-v2.start)*(v1.stop-v1.start)
                     buff[sum].append((qn1,qn2))
-            return QuantumNumberCollection(temp.iteritems(),buff)
+                    for i in xrange(v1.start,v1.stop):
+                        slices[sum].append(slice(i*other.n+v2.start,i*other.n+v2.stop))
+            return QuantumNumberCollection(temp.iteritems(),map=buff,slices=slices)
 
     def __radd__(self,other):
         '''
@@ -258,8 +264,10 @@ class QuantumNumberCollection(OrderedDict):
         Returns: QuantumNumberCollection
             The subset.
         '''
-        (mask,temp,buff)=(False,[],None) if self.map is None else (True,[],OrderedDict())
+        (mask,temp,buff,slices)=(False,[],None,None) if self.map is None else (True,[],OrderedDict(),OrderedDict())
         for key in arg:
             temp.append((key,self[key].stop-self[key].start))
-            if mask:buff[key]=self[key]
-        return QuantumNumberCollection(temp,buff)
+            if mask:
+                buff[key]=self.map[key]
+                slices[key]=self.slices[key]
+        return QuantumNumberCollection(temp,map=buff,slices=slices)

@@ -8,25 +8,31 @@ from ..Math.Tensor import *
 from ..Math.MPS import *
 from ..Basics import *
 from copy import copy,deepcopy
+import numpy as np
 import scipy.sparse as ssp
 
-def kron(m1,m2,qns1=None,qns2=None,target=None,format='csr'):
+def kron(m1,m2,qns1=None,qns2=None,qns=None,target=None,format='csr'):
     if qns1 is None and qns2 is None:
         result=ssp.kron(m1,m2,format=format)
         if format=='csr':result.eliminate_zeros()
         return result
-    elif qns1 is not None and qns2 is not None and target is not None:
-        if m1.shape!=(qns1.n,qns1.n) or m2.shape!=(qns2.n,qns2.n):
+    elif qns1 is not None and qns2 is not None and qns is not None:
+        if m1.shape!=(qns1.n,qns1.n) or m2.shape!=(qns2.n,qns2.n) or qns.n!=qns1.n*qns2.n:
             raise ValueError("kron error: the matrices and the quantum number collections don't match.")
-        buff=[]
-        for key,value in target.items():
-            for (k1,k2) in target.map[key]:
-                temp=ssp.kron(m1[qns1[k1]],m2[qns2[k2]],format=format)
-                #if format=='csr':temp.eliminate_zeros()
-                buff.append(temp)
-        return ssp.vstack(buff,format=format)
+        P=ssp.coo_matrix((np.ones(qns.n),(np.array(xrange(0,qns.n)),qns.permutation)),shape=(qns.n,qns.n))
+        result=P.dot(ssp.kron(m1,m2,format='csr').dot(P.T))
+        if target is not None:
+            if isinstance(target,QuantumNumber):
+                result=result[qns[target],qns[target]]
+            else:
+                buff=[]
+                for qn in target:
+                    buff.append(result[qns[qn],qns[qn]])
+                result=ssp.block_diag(buff,format=format)
+        if format=='csr':result.eliminate_zeros()
+        return result
     else:
-        raise ValueError('kron error: all of or none of qns1, qns2 and target should be None.')
+        raise ValueError('kron error: all of or none of qns1, qns2 and qns should be None.')
 
 class Block(object):
     '''
