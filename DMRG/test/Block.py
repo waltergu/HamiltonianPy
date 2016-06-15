@@ -1,15 +1,15 @@
 '''
-DMRG test.
+Block test.
 '''
 
-__all__=['test_dmrg']
+__all__=['test_block']
 
 from numpy import *
 from HamiltonianPy.Basics import *
 from HamiltonianPy.DMRG import *
 
-def test_dmrg():
-    print 'test_dmrg'
+def test_block():
+    print 'test_block'
     qn1=QuantumNumber([('Sz',1,'U1')])
     qn2=QuantumNumber([('Sz',0,'U1')])
     qn3=QuantumNumber([('Sz',-1,'U1')])

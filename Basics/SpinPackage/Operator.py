@@ -15,23 +15,23 @@ class OperatorS(Operator):
             The associated indices of the operator, whose length should be equal to the operator's rank.
         spins: list of SpinMatrix
             The associated spin matrix of the operator, whose length should be equal to the operator's rank.
-        rcoords: tuple of 1D ndarray
+        rcoords: tuple of 1D ndarray, optional
             The associated real coordinates of the operator.
-        icoords: tuple of 1D ndarray
+        icoords: tuple of 1D ndarray, optional
             The associated lattice coordinates of the operator.
         seqs: tuple of integer, optional
             The associated sequences of the operator, whose length should be equal to the operator's rank.
     '''
-    def __init__(self,value,indices,spins,rcoords,icoords,seqs=None):
+    def __init__(self,value,indices,spins,rcoords=None,icoords=None,seqs=None):
         '''
         Constructor.
         '''
         super(OperatorS,self).__init__(value)
-        self.indices=indices
-        self.spins=spins
-        self.rcoords=rcoords
-        self.icoords=icoords
-        if seqs is not None: self.seqs=seqs
+        self.indices=tuple(indices)
+        self.spins=tuple(spins)
+        if rcoords is not None: self.rcoords=tuple(rcoords)
+        if icoords is not None: self.icoords=tuple(icoords)
+        if seqs is not None: self.seqs=tuple(seqs)
         self.set_id()
 
     def __repr__(self):
@@ -43,8 +43,8 @@ class OperatorS(Operator):
         result.append('value=%s'%self.value)
         result.append(', indices=%s'%(self.indices,))
         result.append(', spins=%s'%(self.spins,))
-        result.append(', rcoords=%s'%(self.rcoords,))
-        result.append(', icoords=%s'%(self.icoords,))
+        if hasattr(self,'rcoords'): result.append(', rcoords=%s'%(self.rcoords,))
+        if hasattr(self,'icoords'): result.append(', icoords=%s'%(self.icoords,))
         if hasattr(self,'seqs'): result.append(', seqs=%s'%(self.seqs,))
         result.append(')')
         return ''.join(result)
