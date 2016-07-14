@@ -148,7 +148,8 @@ class Engine(object):
         '''
         This method update the engine.
         '''
-        raise NotImplementedError()
+        if len(paras)>0:
+            raise NotImplementedError()
 
     def activate(self,app):
         '''

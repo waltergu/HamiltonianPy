@@ -64,7 +64,14 @@ class TBA(Engine):
         self.nambu=nambu
         self.generators={}
         self.generators['h']=Generator(bonds=lattice.bonds,config=config,table=config.table(nambu=nambu),terms=terms)
-        self.name.update(const=self.generators['h'].parameters['const'])
+        self.name.update(const=self.generators['h'].parameters['const'],alter=self.generators['h'].parameters['alter'])
+
+    def update(self,**karg):
+        '''
+        This method update the engine.
+        '''
+        self.generators['h'].update(**karg)
+        self.name._alter.update(**karg)
 
     def matrix(self,k=[],**karg):
         '''
@@ -78,7 +85,7 @@ class TBA(Engine):
             result: 2D ndarray
                 The matrix representation of the Hamiltonian.
         '''
-        self.generators['h'].update(**karg)
+        self.update(**karg)
         nmatrix=len(self.generators['h'].table)
         result=zeros((nmatrix,nmatrix),dtype=complex128)
         for opt in self.generators['h'].operators.values():

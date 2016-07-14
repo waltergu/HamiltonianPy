@@ -13,9 +13,9 @@ def test_engineapp():
     a.update({1:2.0+2.0j})
     print a
     a=Engine(din='hh',dout='hhh')
-    b=App(run=lambda engine,app: engine.din)
-    a.addapps(app=b)
-    a.addapps('b',b)
+    b=App(id='App',run=lambda engine,app: engine.din)
+    a.register(app=b)
+    a.register(app=b)
     a.runapps()
     a.runapps('App')
     a.runapps('App',clock=True)

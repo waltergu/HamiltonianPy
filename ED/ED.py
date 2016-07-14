@@ -138,7 +138,6 @@ class ED(Engine):
             app=self.repertory['GF']
             app.omega=omega
             app.run(self,app)
-            #self.runapps('GF',enforce_run=True)
         return self.repertory['GF'].gf
 
     def gf_mesh(self,omegas):
@@ -155,7 +154,7 @@ class ED(Engine):
             return result
 
 def EDGFC(engine,app):
-    engine.rundependence(app.id)
+    #engine.rundependence(app.id)
     nopt=len(engine.operators['sp'])
     if os.path.isfile(engine.din+'/'+engine.name.full+'_coeff.dat'):
         with open(engine.din+'/'+engine.name.full+'_coeff.dat','rb') as fin:
