@@ -1,10 +1,10 @@
 '''
 Exat diagonalization, including:
 1) classes: ED
-2) functions: EDGFC, EDGF, EDDOS, EDEB
+2) functions: EDGFC, EDDOS, EDEB
 '''
 
-__all__=['ED','EDGFC','EDGF','EDDOS','EDEB']
+__all__=['ED','EDGFC','EDDOS','EDEB']
 
 from numpy import *
 from ..Basics import *
@@ -133,11 +133,13 @@ class ED(Engine):
         Return the single particle Green's function of the system.
         '''
         if 'GF' not in self.apps:
-            self.addapps(app=GF((len(self.operators['sp']),len(self.operators['sp'])),run=EDGF))
+            self.register(app=GF(id='GF',shape=(len(self.operators['sp']),len(self.operators['sp'])),run=EDGF),waiting_list=False)
         if omega is not None:
-            self.apps['GF'].omega=omega
-            self.runapps('GF')
-        return self.apps['GF'].gf
+            app=self.repertory['GF']
+            app.omega=omega
+            app.run(self,app)
+            #self.runapps('GF',enforce_run=True)
+        return self.repertory['GF'].gf
 
     def gf_mesh(self,omegas):
         '''
@@ -153,6 +155,7 @@ class ED(Engine):
             return result
 
 def EDGFC(engine,app):
+    engine.rundependence(app.id)
     nopt=len(engine.operators['sp'])
     if os.path.isfile(engine.din+'/'+engine.name.full+'_coeff.dat'):
         with open(engine.din+'/'+engine.name.full+'_coeff.dat','rb') as fin:
@@ -275,6 +278,7 @@ def EDGF(engine,app):
                 app.gf[i,:]+=dot(coeff[h,i,:,:],temp)
 
 def EDDOS(engine,app):
+    engine.rundependence(app.id)
     engine.cache.pop('gf_mesh',None)
     erange=linspace(app.emin,app.emax,num=app.ne)
     result=zeros((app.ne,2))
@@ -292,6 +296,7 @@ def EDDOS(engine,app):
         plt.close()
 
 def EDEB(engine,app):
+    engine.rundependence(app.id)
     result=zeros((app.path.rank.values()[0],app.ns+1))
     if len(app.path.rank)==1 and len(app.path.mesh.values()[0].shape)==1:
         result[:,0]=app.path.mesh.values()[0]

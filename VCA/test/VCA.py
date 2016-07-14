@@ -41,17 +41,38 @@ def test_vca():
                         Hubbard('U',U)
                         ],
             nambu=      False,
-            weiss=[     Onsite('afm',0.2,indexpacks=sigmaz('sp'),amplitude=lambda bond: 1 if bond.spoint.pid.site in (0,3) else -1,modulate=lambda **karg:karg['afm'])]
+            weiss=[     Onsite('afm',0.2,indexpacks=sigmaz('sp'),amplitude=lambda bond: 1 if bond.spoint.pid.site in (0,3) else -1,modulate=lambda **karg:karg.get('afm',None))]
             )
-    #a.addapps(app=GFC(nstep=200,save_data=False,vtype='RD',run=EDGFC))
-    #a.addapps(app=GP(BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),rank1=128,n=64,run=VCAGP))
-    #a.addapps('GPS',GPS(BS=BaseSpace({'tag':'afm','mesh':linspace(0.0,0.3,16)}),save_data=True,plot=True,run=VCAGPS))
-    a.addapps('GFC',GFC(nstep=200,save_data=False,method='python',vtype='RD',error=10**-10,run=EDGFC))
-    a.addapps('EB',EB(path=square_gxm(nk=100),emax=6.0,emin=-6.0,eta=0.05,ne=400,save_data=False,plot=True,show=True,run=VCAEB))
-    #a.addapps('DOS',DOS(BZ=square_bz(nk=50),emin=-6,emax=6,ne=400,eta=0.05,save_data=False,plot=True,show=True,run=VCADOS))
-    #a.addapps('FS',FS(BZ=square_bz(nk=100),save_data=False,run=VCAFS))
-    #a.addapps('CP',CP(BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),error=10**-6,run=VCACP))
-    #a.addapps('OP',OP(terms=a.weiss,BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),run=VCAOP))
-    #a.addapps('FF',FF(BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),p=0.5,run=VCAFF))
+    gfc=GFC(nstep=200,save_data=False,vtype='RD',run=EDGFC)
+    a.register(
+        app=            GPS(id='GPS',BS=BaseSpace({'tag':'afm','mesh':linspace(0.0,0.3,16)}),save_data=True,plot=True,run=VCAGPS),
+        dependence=     [   gfc,
+                            GP(BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),rank1=128,n=64,run=VCAGP)
+                        ]
+        )
+    a.register(
+        app=            EB(id='EB',paras={'afm':0.20},path=square_gxm(nk=100),emax=6.0,emin=-6.0,eta=0.05,ne=400,save_data=False,run=VCAEB),
+        dependence=     [gfc]
+        )
+    a.register(
+        app=            DOS(id='DOS',paras={'afm':0.20},BZ=square_bz(nk=50),emin=-6,emax=6,ne=400,eta=0.05,save_data=False,plot=True,show=True,run=VCADOS),
+        dependence=     [gfc]
+        )
+    a.register(
+        app=            FS(id='FS',paras={'afm':0.20},BZ=square_bz(nk=100),save_data=False,run=VCAFS),
+        dependence=     [gfc]
+        )
+    a.register(
+        app=            OP(id='OP',paras={'afm':0.20},terms=a.weiss,BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),run=VCAOP),
+        dependence=     [gfc]
+        )
+    a.register(
+        app=            FF(id='FF',paras={'afm':0.20},BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),p=0.5,run=VCAFF),
+        dependence=     [gfc]
+    )
+    #a.register(
+    #    app=            CP(id='CP',BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),error=10**-6,run=VCACP),
+    #    dependence=     [gfc]
+    #    )
     a.runapps()
     print

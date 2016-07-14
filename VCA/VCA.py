@@ -304,6 +304,7 @@ def has_integer_solution(coords,vectors):
         return False
 
 def VCAEB(engine,app):
+    engine.rundependence(app.id)
     engine.cache.pop('pt_mesh',None)
     erange=linspace(app.emin,app.emax,app.ne)
     result=zeros((app.path.rank['k'],app.ne))
@@ -328,6 +329,7 @@ def VCAEB(engine,app):
         plt.close()
 
 def VCAFF(engine,app):
+    engine.rundependence(app.id)
     engine.cache.pop('pt_mesh',None)
     nk,nmatrix=app.BZ.rank['k'],len(engine.operators['sp'])
     fx=lambda omega: (sum(trace(engine.gf_mix_kmesh(omega=engine.mu+1j*omega,kmesh=app.BZ.mesh['k']),axis1=1,axis2=2)-nmatrix/(1j*omega-engine.mu-app.p))).real
@@ -345,6 +347,7 @@ def VCACP(engine,app):
     print 'mu,error:',engine.mu,gx(engine.mu)
 
 def VCAFS(engine,app):
+    engine.rundependence(app.id)
     engine.cache.pop('pt_mesh',None)
     result=-2*imag((trace(engine.gf_vca_kmesh(engine.mu+app.eta*1j,app.BZ.mesh['k']),axis1=1,axis2=2)))
     if app.save_data:
@@ -361,6 +364,7 @@ def VCAFS(engine,app):
         plt.close()
 
 def VCADOS(engine,app):
+    engine.rundependence(app.id)
     engine.cache.pop('pt_mesh',None)
     erange=linspace(app.emin,app.emax,app.ne)
     result=zeros((app.ne,2))
@@ -379,6 +383,7 @@ def VCADOS(engine,app):
         plt.close()
 
 def VCAGP(engine,app):
+    engine.rundependence(app.id)
     engine.cache.pop('pt_mesh',None)
     ngf=len(engine.operators['sp'])
     app.gp=0
@@ -398,8 +403,9 @@ def VCAGPS(engine,app):
         result[i,0:len(app.BS.mesh.keys())]=array(paras.values())
         engine.cache.pop('pt_mesh',None)
         engine.update(**paras)
-        engine.runapps('GFC')
-        engine.runapps('GP')
+        engine.rundependence(app.id)
+        #engine.runapps('GFC')
+        #engine.runapps('GP')
         result[i,len(app.BS.mesh.keys())]=engine.apps['GP'].gp
         print
     if app.save_data:
@@ -420,6 +426,7 @@ def VCAGPS(engine,app):
             plt.close()
 
 def VCACN(engine,app):
+    engine.rundependence(app.id)
     engine.gf(omega=engine.mu)
     H=lambda kx,ky: -inv(engine.gf_vca(k=[kx,ky]))
     app.bc=zeros(app.BZ.rank['k'])
@@ -444,6 +451,7 @@ def VCACN(engine,app):
         plt.close()
 
 def VCATEB(engine,app):
+    engine.rundependence(app.id)
     engine.gf(omega=engine.mu)
     H=lambda kx,ky: -inv(engine.gf_vca(k=[kx,ky]))
     result=zeros((app.path.rank['k'],len(engine.operators['csp'])+1))
@@ -462,6 +470,7 @@ def VCATEB(engine,app):
         plt.close()
 
 def VCAOP(engine,app):
+    engine.rundependence(app.id)
     engine.cache.pop('pt_mesh',None)
     nmatrix=len(engine.operators['sp'])
     app.ms=zeros((len(app.terms),nmatrix,nmatrix),dtype=complex128)

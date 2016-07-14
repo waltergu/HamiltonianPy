@@ -6,6 +6,9 @@ Engine and App, including:
 __all__=['Name','Engine','App']
 
 from collections import OrderedDict
+from numpy import array
+from numpy.linalg import norm
+import os
 import time
 
 class Name:
@@ -83,11 +86,18 @@ class Engine(object):
         name: Name
             The name of this engine.
             This attribute is used for the auto-naming of data files to be read or written.
+        state: dict
+            The current state of the engine.
+            It is the alterable parameters of name in this version.
         waiting_list: list
             The names of apps waiting to be run.
+            Note not all activated/added apps are in the waiting list.
         apps: dict
+            This dict contains all activated apps.
+        repertory: dict
             This dict contains all apps added to this engine.
-            Note not all apps are in the waiting list.
+        dependences: dict
+            This dict contains the dependence of the apps.
     '''
 
     def __new__(cls,*arg,**karg):
@@ -95,65 +105,130 @@ class Engine(object):
         This method automatically initialize the attributes of an Engine instance.
         '''
         result=object.__new__(cls)
-        result.din=karg['din'] if 'din' in karg else '.'
-        result.dout=karg['dout'] if 'dout' in karg else '.'
-        result.name=Name(prefix=karg['name'],suffix=result.__class__.__name__) if 'name' in karg else Name(suffix=result.__class__.__name__)
+        dirs={'din':'.','dout':'.'}
+        for key,value in dirs.items():
+            setattr(result,key,karg.get(key,value))
+            if not os.path.exists(getattr(result,key)):
+                os.makedirs(getattr(result,key))
+        result.name=Name(prefix=karg.get('name',''),suffix=result.__class__.__name__)
         if 'parameters' in karg:
             result.name.update(const=karg['parameters'])
+        result.state=result.name._alter
         result.waiting_list=[]
         result.apps={}
+        result.repertory={}
+        result.dependence={}
         return result
 
-    def addapps(self,name=None,app=None):
+    def register(self,app,dependence=[],waiting_list=True):
         '''
-        This method adds an app to self's attribute apps.
+        This method register a new app to the engine.
         Parameters:
-            name: string,optional
-                The name of the app.
-                When this parameter is not None, it will be used as the key in self.apps. Whereas the app's class name will be used instead.
             app: App
                 The app to be added.
-                Only when the parameter name is not None will this apps goes into self.waiting_list.
+            dependence: list of App
+                The apps that app depend on.
+                These apps will not go into the waiting_list.
+            waiting_list: logical, optional
+                When it is True, the app will go into the waiting_list. Otherwise not.
         '''
-        if name!=None:
-            self.apps[name]=app
-            self.waiting_list.append(name)
-        else:
-            self.apps[app.__class__.__name__]=app
+        if waiting_list: self.waiting_list.append(app.id)
+        self.repertory[app.id]=app
+        self.dependence[app.id]=[]
+        for value in dependence:
+            if issubclass(value.__class__,App):
+                self.repertory[id(value)]=value
+                self.dependence[app.id].append(id(value))
+            elif value in self.repertory:
+                self.dependence[app.id].append(value)
+            else:
+                raise ValueError('%s addapps error: one of the dependence(%s) not recognized.'%(self.__class__.__name__,value))
 
-    def runapps(self,name=None,clock=False):
+    def update(self,**paras):
+        '''
+        This method update the engine.
+        '''
+        raise NotImplementedError()
+
+    def activate(self,app):
+        '''
+        This method activates the app.
+        Parameters:
+            app: App
+                The app to be activated.
+        '''
+        self.apps[app.__class__.__name__]=app
+
+    def verify(self,app):
+        '''
+        This method judges whether or not an app has to be run according to its state and the engine's state.
+        Parameters:
+            app: App
+                The app to be verified.
+        '''
+        if hasattr(app,'state'):
+            for key,value in app.state.items():
+                if norm(array(value)-array(self.state[key]))!=0:
+                    return False
+            return True
+        else:
+            return False
+
+    def rundependence(self,id,enforce_run=False):
+        '''
+        This method runs the dependence of the app specified by id.
+        Parameters:
+            id: any hashable object, optional
+                The id to specify whose dependence to be run.
+            enforce_run: logical, optional
+                A flag to tell the program whether or not to enforce to run the dependence.
+        '''
+        apps=[self.repertory[key] for key in self.dependence.get(id,[])]
+        for app in apps:
+            self.activate(app)
+            self.update(**app.paras)
+            if not self.verify(app):
+                app.run(self,app)
+                app.set_state(self.state)
+
+    def runapps(self,id=None,clock=False,enforce_run=False):
         '''
         This method can be used in two different ways:
-        1) self.runapps(name=...,clock=...)
-            In this case, the app specified by the parameter name will be run.
-        2) self.rundapps()
+        1) self.runapps(id=...,clock=...,enforce_run=...)
+            In this case, the app specified by id will be run.
+        2) self.rundapps(enforce_run=...)
             In this case, the apps specified by those in self.waiting_list will be run.
         Parameters:
-            name: string,optional
-                The name to specify the app to be run.
+            id: any hashable object, optional
+                The id to specify the app to be run.
             clock: logical, optional
                 A flag to tell the program whether or not to record the time each run app consumed.
-                Note for case 2, this parameter is omitted since the time each app in self.waiting_list costs is automatically recorded.
+                Note in case 2, this parameter is omitted since the time each app in self.waiting_list costs is automatically recorded.
+            enforce_run: logical, optional
+                A flag to tell the program whether or not to enforce to run the apps.
         '''
-        if name!=None:
-            if clock :
-                stime=time.time()
-                self.apps[name].run(self,self.apps[name])
+        clock=True if id is None else clock
+        ids=self.waiting_list if id is None else [id]
+        for id in ids:
+            if clock: stime=time.time()
+            app=self.repertory[id]
+            self.activate(app)
+            self.update(**app.paras)
+            if enforce_run or (not self.verify(app)):
+                app.run(self,app)
+                app.set_state(self.state)
+            if clock:
                 etime=time.time()
-                print 'App '+name+': time consumed '+str(etime-stime)+'s.'
-            else:
-                self.apps[name].run(self,self.apps[name])
-        else:
-            for name in self.waiting_list:
-                stime=time.time()
-                self.apps[name].run(self,self.apps[name])
-                etime=time.time()
-                print 'App '+name+': time consumed '+str(etime-stime)+'s.'
+                print 'App %s(id=%s): time consumed %ss.'%(app.__class__.__name__,id,etime-stime)
 
 class App(object):
     '''
     This class is the base class for those implementing specific tasks based on Engines.
     Attributes:
+        id: any hashable object
+            The unique id of the app.
+        paras: dict
+            The parameters that are transmited to a engine by the app.
         plot: logical
             A flag to tag whether the results are to be plotted.
         show: logical
@@ -166,17 +241,27 @@ class App(object):
             A flag to tag whether the generated result data is to be saved on the hard drive.
         run: function
             The function called by the engine to carry out the tasks, which should be implemented by the inheriting class of Engine.
+        state: dict
+            The current state of the app.
+            It is the alterable parameters of an engine's name in this version.
     '''
-    
+
     def __new__(cls,*arg,**karg):
         '''
         This method automatically initialize the attributes of an App instance.
         '''
         result=object.__new__(cls)
-        result.plot=karg['plot'] if 'plot' in karg else True
-        result.show=karg['show'] if 'show' in karg else True
-        result.parallel=karg['parallel'] if 'parallel' in karg else False
-        result.np=karg['np'] if 'np' in karg else 0
-        result.save_data=karg['save_data'] if 'save_data' in karg else True
-        if 'run' in karg: result.run=karg['run']
+        attr_def={'id':id(result),'paras':{},'plot':True,'show':True,'parallel':False,'np':0,'save_data':True,'run':None}
+        for key,value in attr_def.items():
+            setattr(result,key,karg.get(key,value))
         return result
+
+    def set_state(self,state):
+        '''
+        Set the state of the app.
+        Parameters:
+            state: dict
+                New state.
+        '''
+        if not hasattr(self,'state'):self.state={}
+        self.state.update(state)

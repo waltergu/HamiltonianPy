@@ -246,3 +246,10 @@ class GF(App):
         self.omega=omega
         self.k=k
         self.gf=zeros(shape,dtype=complex128)
+
+    @property
+    def shape(self):
+        '''
+        The shape of the single particle Green's function.
+        '''
+        return self.gf.shape
