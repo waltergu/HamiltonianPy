@@ -81,5 +81,4 @@ def test_vca():
     #    dependence= [gfc]
     #    )
     a.runapps()
-    print 'waiting_list:',a.waiting_list
     print
