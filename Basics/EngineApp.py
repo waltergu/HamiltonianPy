@@ -41,6 +41,16 @@ class Name:
             self._alter.update(alter)
 
     @property
+    def parameters(self):
+        '''
+        This method returns a dict containing all the paramters of the engine.
+        '''
+        result=OrderedDict()
+        result.update(self._const)
+        result.update(self._alter)
+        return result
+
+    @property
     def const(self):
         '''
         This method returns a string containing only contant parameters as the name of the engine.
@@ -210,7 +220,8 @@ class Engine(object):
         '''
         clock=True if id is None else clock
         ids=self.waiting_list if id is None else [id]
-        for id in ids:
+        while ids:
+            id=ids.pop(0)
             if clock: stime=time.time()
             app=self.repertory[id]
             self.activate(app)

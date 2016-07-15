@@ -1,10 +1,10 @@
 '''
 Variational cluster approach, including:
 1) classes: VCA
-2) functions: VCAEB, VCAFF, VCACP, VCAFS, VCADOS, VCAGP, VCAGPS, VCACN, VCATEB, VCAOP
+2) functions: VCAEB, VCAFF, VCACP, VCAFS, VCADOS, VCAGP, VCAGPM, VCACN, VCATEB, VCAOP
 '''
 
-__all__=['VCA','VCAEB','VCAFF','VCACP','VCAFS','VCADOS','VCAGP','VCAGPS','VCACN','VCATEB','VCAOP']
+__all__=['VCA','VCAEB','VCAFF','VCACP','VCAFS','VCADOS','VCAGP','VCAGPM','VCACN','VCATEB','VCAOP']
 
 from numpy import *
 from VCA_Fortran import *
@@ -16,7 +16,7 @@ from scipy.linalg import eigh
 from scipy import interpolate
 from scipy.sparse import csr_matrix
 from scipy.integrate import quad
-from scipy.optimize import newton,brenth,brentq,broyden1,broyden2
+from scipy.optimize import minimize,newton,brenth,brentq,broyden1,broyden2
 from copy import deepcopy
 import matplotlib.pyplot as plt
 
@@ -94,7 +94,7 @@ class VCA(ED):
         4)  VCAFF: calculates the filling factor.
         5)  VCACN: calculates the Chern number and Berry curvature.
         6)  VCAGP: calculates the grand potential.
-        7)  VCAGPS: calculates the grand potential surface.
+        7)  VCAGPM: minimizes the grand potential.
         8)  VCATEB: calculates the topological Hamiltonian's spectrum.
         9)  VCAOP: calculates the order parameter.
         10) VCAFS: calculates the Fermi surface.
@@ -393,37 +393,58 @@ def VCAGP(engine,app):
     app.gp=app.gp+real(sum(trace(engine.pt_mesh(app.BZ.mesh['k']),axis1=1,axis2=2))/app.BZ.rank['k']/engine.clmap['seqs'].shape[1])
     app.gp=app.gp-engine.mu*engine.filling*len(engine.operators['csp'])*2/engine.nspin
     app.gp=app.gp/len(engine.cell.points)
-    print 'gp:',app.gp
+    print 'gp(%s): %s'%(', '.join(['%s:%s'%(key,value) for key,value in engine.name.parameters.items()]),app.gp)
 
-def VCAGPS(engine,app):
-    ngf=len(engine.operators['sp'])
-    result=zeros((product(app.BS.rank.values()),len(app.BS.mesh.keys())+1),dtype=float64)
-    for i,paras in enumerate(app.BS('*')):
-        print paras
-        result[i,0:len(app.BS.mesh.keys())]=array(paras.values())
+def VCAGPM(engine,app):
+    def gp(values,keys):
         engine.cache.pop('pt_mesh',None)
-        engine.update(**paras)
+        engine.update(**{key:value for key,value in zip(keys,values)})
         engine.rundependence(app.id)
-        #engine.runapps('GFC')
-        #engine.runapps('GP')
-        result[i,len(app.BS.mesh.keys())]=engine.apps['GP'].gp
         print
-    if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.const+'_GPS.dat',result)
-    if app.plot:
-        if len(app.BS.mesh.keys())==1:
-            plt.title(engine.name.const+'_GPS')
-            X=linspace(result[:,0].min(),result[:,0].max(),300)
-            for i in xrange(1,result.shape[1]):
-                tck=interpolate.splrep(result[:,0],result[:,i],k=3)
-                Y=interpolate.splev(X,tck,der=0)
-                plt.plot(X,Y)
-            plt.plot(result[:,0],result[:,1],'r.')
-            if app.show:
-                plt.show()
+        return engine.apps['GP'].gp
+    if isinstance(app.BS,BaseSpace):
+        nbs=len(app.BS.mesh.keys())
+        result=zeros((product(app.BS.rank.values()),nbs+1),dtype=float64)
+        for i,paras in enumerate(app.BS('*')):
+            print paras
+            result[i,0:nbs]=array(paras.values())
+            result[i,nbs]=gp(paras.values(),paras.keys())
+        app.gpm=amin(result[:,nbs])
+        index=argmin(result[:,nbs])
+        app.bsm={key:value for key,value in zip(paras.keys(),result[index,0:nbs])}
+        print 'Minimum value(%s) at point %s'%(app.gpm,app.bsm)
+        if app.save_data:
+            savetxt(engine.dout+'/'+engine.name.const+'_GPM.dat',result)
+        if app.plot:
+            if len(app.BS.mesh.keys())==1:
+                plt.title(engine.name.const+'_GPM')
+                X=linspace(result[:,0].min(),result[:,0].max(),300)
+                for i in xrange(1,result.shape[1]):
+                    tck=interpolate.splrep(result[:,0],result[:,i],k=3)
+                    Y=interpolate.splev(X,tck,der=0)
+                    plt.plot(X,Y)
+                plt.plot(result[:,0],result[:,1],'r.')
+                if app.show:
+                    plt.show()
+                else:
+                    plt.savefig(engine.dout+'/'+engine.name.const+'_GPM.png')
+                plt.close()
+    else:
+        temp=minimize(gp,app.BS.values(),args=(app.BS.keys()),method=app.method,options=app.options)
+        app.bsm,app.gpm={key:value for key,value in zip(app.BS.keys(),temp.x)},temp.fun
+        print 'Minimum value(%s) at point %s'%(app.gpm,app.bsm)
+        if app.save_data:
+            result=array([app.bsm.values()+[app.gpm]])
+            if app.fout is None:
+                savetxt(engine.dout+'/'+engine.name.const+'_GPM.dat',result)
             else:
-                plt.savefig(engine.dout+'/'+engine.name.const+'_GPS.png')
-            plt.close()
+                import os
+                if os.path.isfile(app.fout):
+                    with open(app.fout,'a') as fout:
+                        fout.write(' '.join(['%.18e'%data for data in result[0,:]]))
+                        fout.write('\n')
+                else:
+                    savetxt(app.fout,result)
 
 def VCACN(engine,app):
     engine.rundependence(app.id)

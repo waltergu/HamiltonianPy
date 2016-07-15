@@ -45,34 +45,41 @@ def test_vca():
             )
     gfc=GFC(nstep=200,save_data=False,vtype='RD',run=EDGFC)
     a.register(
-        app=            GPS(id='GPS',BS=BaseSpace({'tag':'afm','mesh':linspace(0.0,0.3,16)}),save_data=True,plot=True,run=VCAGPS),
-        dependence=     [   gfc,
-                            GP(BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),rank1=128,n=64,run=VCAGP)
-                        ]
+        app=        GPM(id='afm',fout='afm.dat',BS={'afm':0.1},method='BFGS',options={'disp':True},save_data=False,run=VCAGPM),
+        dependence= [   gfc,
+                        GP(BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),rank1=128,n=64,run=VCAGP)
+                    ]
         )
     a.register(
-        app=            EB(id='EB',paras={'afm':0.20},path=square_gxm(nk=100),emax=6.0,emin=-6.0,eta=0.05,ne=400,save_data=False,run=VCAEB),
-        dependence=     [gfc]
+        app=       GPM(id='afm_curve',BS=BaseSpace({'tag':'afm','mesh':linspace(0.0,0.3,16)}),save_data=False,plot=True,run=VCAGPM),
+        dependence= [   gfc,
+                        GP(BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),rank1=128,n=64,run=VCAGP)
+                    ]
         )
     a.register(
-        app=            DOS(id='DOS',paras={'afm':0.20},BZ=square_bz(nk=50),emin=-6,emax=6,ne=400,eta=0.05,save_data=False,plot=True,show=True,run=VCADOS),
-        dependence=     [gfc]
+        app=        EB(id='EB',paras={'afm':0.20},path=square_gxm(nk=100),emax=6.0,emin=-6.0,eta=0.05,ne=400,save_data=False,run=VCAEB),
+        dependence= [gfc]
         )
     a.register(
-        app=            FS(id='FS',paras={'afm':0.20},BZ=square_bz(nk=100),save_data=False,run=VCAFS),
-        dependence=     [gfc]
+        app=        DOS(id='DOS',paras={'afm':0.20},BZ=square_bz(nk=50),emin=-6,emax=6,ne=400,eta=0.05,save_data=False,plot=True,show=True,run=VCADOS),
+        dependence= [gfc]
         )
     a.register(
-        app=            OP(id='OP',paras={'afm':0.20},terms=a.weiss,BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),run=VCAOP),
-        dependence=     [gfc]
+        app=        FS(id='FS',paras={'afm':0.20},BZ=square_bz(nk=100),save_data=False,run=VCAFS),
+        dependence= [gfc]
         )
     a.register(
-        app=            FF(id='FF',paras={'afm':0.20},BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),p=0.5,run=VCAFF),
-        dependence=     [gfc]
+        app=        OP(id='OP',paras={'afm':0.20},terms=a.weiss,BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),run=VCAOP),
+        dependence= [gfc]
+        )
+    a.register(
+        app=        FF(id='FF',paras={'afm':0.20},BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),p=0.5,run=VCAFF),
+        dependence= [gfc]
     )
     #a.register(
-    #    app=            CP(id='CP',BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),error=10**-6,run=VCACP),
-    #    dependence=     [gfc]
+    #    app=        CP(id='CP',BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),error=10**-6,run=VCACP),
+    #    dependence= [gfc]
     #    )
     a.runapps()
+    print 'waiting_list:',a.waiting_list
     print

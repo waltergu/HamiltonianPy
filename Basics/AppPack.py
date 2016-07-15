@@ -1,9 +1,9 @@
 '''
 App pack, including:
-1) classes: EB, DOS, OP, FF, CP, FS, GP, GPS, CN, GFC, GF
+1) classes: EB, DOS, OP, FF, CP, FS, GP, GPM, CN, GFC, GF
 '''
 
-__all__=['EB','DOS','OP','FF','CP','FS','GP','GPS','CN','GFC','GF']
+__all__=['EB','DOS','OP','FF','CP','FS','GP','GPM','CN','GFC','GF']
 
 from EngineApp import *
 from numpy import *
@@ -160,18 +160,30 @@ class GP(App):
         self.BZ=BZ
         self.gp=0
 
-class GPS(App):
+class GPM(App):
     '''
-    Grand potential surface.
+    Grand potential minimization.
     '''
-    def __init__(self,BS,**karg):
+    def __init__(self,BS,fout=None,method=None,options=None,**karg):
         '''
         Constructor.
         Parameters:
-            BS: BaseSpace
-                The basespace on which the grand potential is to be computed.
+            BS: BaseSpace or dict
+                When it is a BaseSpace, it is the basespace on which the grand potential is to be computed;
+                When it is a dict, it is the initial guess of the minimum point in the basespace.
+            fout: string, optional
+                The output file that contains the results.
+                It is used only when BS is a dict.
+            method, options:
+                They are used only when BS is a dict.
+                Please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
         '''
         self.BS=BS
+        self.fout=fout
+        self.method=method
+        self.options=options
+        self.bsm={}
+        self.gpm=0.0
 
 class CN(App):
     '''
