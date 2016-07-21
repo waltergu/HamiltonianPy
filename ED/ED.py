@@ -132,7 +132,7 @@ class ED(Engine):
         '''
         Return the single particle Green's function of the system.
         '''
-        if 'GF' not in self.apps:
+        if 'GF' not in self.repertory:
             self.register(app=GF(id='GF',shape=(len(self.operators['sp']),len(self.operators['sp'])),run=EDGF),waiting_list=False)
         if omega is not None:
             app=self.repertory['GF']
@@ -283,15 +283,16 @@ def EDDOS(engine,app):
     result=zeros((app.ne,2))
     result[:,0]=erange
     result[:,1]=-2*imag(trace(engine.gf_mesh(erange[:]+engine.mu+1j*app.eta),axis1=1,axis2=2))
+    suffix='_'+(app.__class__.__name__ if id(app)==app.id else str(app.id))
     if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.full+'_DOS.dat',result)
+        savetxt(engine.dout+'/'+engine.name.full+suffix+'.dat',result)
     if app.plot:
-        plt.title(engine.name.full+'_DOS')
+        plt.title(engine.name.full+suffix)
         plt.plot(result[:,0],result[:,1])
         if app.show:
             plt.show()
         else:
-            plt.savefig(engine.dout+'/'+engine.name.full+'_DOS.png')
+            plt.savefig(engine.dout+'/'+engine.name.full+suffix+'.png')
         plt.close()
 
 def EDEB(engine,app):
@@ -305,13 +306,14 @@ def EDEB(engine,app):
         engine.update(**paras)
         engine.set_matrix()
         result[i,1:]=eigsh(engine.matrix,k=app.ns,which='SA',return_eigenvectors=False)
+    suffix='_'+(app.__class__.__name__ if id(app)==app.id else str(app.id))
     if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.const+'_EB.dat',result)
+        savetxt(engine.dout+'/'+engine.name.const+suffix+'.dat',result)
     if app.plot:
-        plt.title(engine.name.const+'_EB')
+        plt.title(engine.name.const+suffix)
         plt.plot(result[:,0],result[:,1:])
         if app.show:
             plt.show()
         else:
-            plt.savefig(engine.dout+'/'+engine.name.const+'_EB.png')
+            plt.savefig(engine.dout+'/'+engine.name.const+suffix+'.png')
         plt.close()

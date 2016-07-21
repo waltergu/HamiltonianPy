@@ -310,6 +310,7 @@ def VCAEB(engine,app):
     result=zeros((app.path.rank['k'],app.ne))
     for i,omega in enumerate(erange):
         result[:,i]=-2*imag((trace(engine.gf_vca_kmesh(omega+engine.mu+app.eta*1j,app.path.mesh['k']),axis1=1,axis2=2)))
+    suffix='_'+(app.__class__.__name__ if id(app)==app.id else str(app.id))
     if app.save_data:
         buff=zeros((app.path.rank['k']*app.ne,3))
         for k in xrange(buff.shape[0]):
@@ -317,15 +318,15 @@ def VCAEB(engine,app):
             buff[k,0]=j
             buff[k,1]=erange[i]
             buff[k,2]=result[j,i]
-        savetxt(engine.dout+'/'+engine.name.full+'_EB.dat',buff)
+        savetxt(engine.dout+'/'+engine.name.full+suffix+'.dat',buff)
     if app.plot:
         krange=array(xrange(app.path.rank['k']))
-        plt.title(engine.name.full+'_EB')
+        plt.title(engine.name.full+suffix)
         plt.colorbar(plt.pcolormesh(tensordot(krange,ones(app.ne),axes=0),tensordot(ones(app.path.rank['k']),erange,axes=0),result))
         if app.show:
             plt.show()
         else:
-            plt.savefig(engine.dout+'/'+engine.name.full+'_EB.png')
+            plt.savefig(engine.dout+'/'+engine.name.full+suffix+'.png')
         plt.close()
 
 def VCAFF(engine,app):
@@ -350,17 +351,18 @@ def VCAFS(engine,app):
     engine.rundependence(app.id)
     engine.cache.pop('pt_mesh',None)
     result=-2*imag((trace(engine.gf_vca_kmesh(engine.mu+app.eta*1j,app.BZ.mesh['k']),axis1=1,axis2=2)))
+    suffix='_'+(app.__class__.__name__ if id(app)==app.id else str(app.id))
     if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.full+'_FS.dat',append(app.BZ.mesh['k'],result.reshape((app.BZ.rank['k'],1)),axis=1))
+        savetxt(engine.dout+'/'+engine.name.full+suffix+'.dat',append(app.BZ.mesh['k'],result.reshape((app.BZ.rank['k'],1)),axis=1))
     if app.plot:
-        plt.title(engine.name.full+"_FS")
+        plt.title(engine.name.full+suffix)
         plt.axis('equal')
         N=int(round(sqrt(app.BZ.rank['k'])))
         plt.colorbar(plt.pcolormesh(app.BZ.mesh['k'][:,0].reshape((N,N)),app.BZ.mesh['k'][:,1].reshape(N,N),result.reshape(N,N)))
         if app.show:
             plt.show()
         else:
-            plt.savefig(engine.dout+'/'+engine.name.full+'_FS.png')
+            plt.savefig(engine.dout+'/'+engine.name.full+suffix+'.png')
         plt.close()
 
 def VCADOS(engine,app):
@@ -371,15 +373,16 @@ def VCADOS(engine,app):
     for i,omega in enumerate(erange):
         result[i,0]=omega
         result[i,1]=-2*imag(sum((trace(engine.gf_vca_kmesh(omega+engine.mu+app.eta*1j,app.BZ.mesh['k']),axis1=1,axis2=2))))
+    suffix='_'+(app.__class__.__name__ if id(app)==app.id else str(app.id))
     if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.full+'_DOS.dat',result)
+        savetxt(engine.dout+'/'+engine.name.full+suffix+'.dat',result)
     if app.plot:
-        plt.title(engine.name.full+'_DOS')
+        plt.title(engine.name.full+suffix)
         plt.plot(result[:,0],result[:,1])
         if app.show:
             plt.show()
         else:
-            plt.savefig(engine.dout+'/'+engine.name.full+'_DOS.png')
+            plt.savefig(engine.dout+'/'+engine.name.full+suffix+'.png')
         plt.close()
 
 def VCAGP(engine,app):
@@ -402,6 +405,7 @@ def VCAGPM(engine,app):
         engine.rundependence(app.id)
         print
         return engine.apps['GP'].gp
+    suffix='_'+(app.__class__.__name__ if id(app)==app.id else str(app.id))
     if isinstance(app.BS,BaseSpace):
         nbs=len(app.BS.mesh.keys())
         result=zeros((product(app.BS.rank.values()),nbs+1),dtype=float64)
@@ -414,10 +418,10 @@ def VCAGPM(engine,app):
         app.bsm={key:value for key,value in zip(paras.keys(),result[index,0:nbs])}
         print 'Minimum value(%s) at point %s'%(app.gpm,app.bsm)
         if app.save_data:
-            savetxt(engine.dout+'/'+engine.name.const+'_GPM.dat',result)
+            savetxt(engine.dout+'/'+engine.name.const+suffix+'.dat',result)
         if app.plot:
             if len(app.BS.mesh.keys())==1:
-                plt.title(engine.name.const+'_GPM')
+                plt.title(engine.name.const+suffix)
                 X=linspace(result[:,0].min(),result[:,0].max(),300)
                 for i in xrange(1,result.shape[1]):
                     tck=interpolate.splrep(result[:,0],result[:,i],k=3)
@@ -427,7 +431,7 @@ def VCAGPM(engine,app):
                 if app.show:
                     plt.show()
                 else:
-                    plt.savefig(engine.dout+'/'+engine.name.const+'_GPM.png')
+                    plt.savefig(engine.dout+'/'+engine.name.const+suffix+'.png')
                 plt.close()
     else:
         temp=minimize(gp,app.BS.values(),args=(app.BS.keys()),method=app.method,options=app.options)
@@ -436,7 +440,7 @@ def VCAGPM(engine,app):
         if app.save_data:
             result=array([app.bsm.values()+[app.gpm]])
             if app.fout is None:
-                savetxt(engine.dout+'/'+engine.name.const+'_GPM.dat',result)
+                savetxt(engine.dout+'/'+engine.name.const+suffix+'.dat',result)
             else:
                 import os
                 if os.path.isfile(app.fout):
@@ -458,17 +462,18 @@ def VCACN(engine,app):
         buff=zeros((app.BZ.rank['k'],3))
         buff[:,0:2]=app.BZ.mesh['k']
         buff[:,2]=app.bc
+    suffix='_'+(app.__class__.__name__ if id(app)==app.id else str(app.id))
     if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.full+'_BC.dat',buff)
+        savetxt(engine.dout+'/'+engine.name.full+suffix+'.dat',buff)
     if app.plot:
         nk=int(round(sqrt(app.BZ.rank['k'])))
-        plt.title(engine.name.full+'_BC')
+        plt.title(engine.name.full+suffix)
         plt.axis('equal')
         plt.colorbar(plt.pcolormesh(buff[:,0].reshape((nk,nk)),buff[:,1].reshape((nk,nk)),buff[:,2].reshape((nk,nk))))
         if app.show:
             plt.show()
         else:
-            plt.savefig(engine.dout+'/'+engine.name.full+'_BC.png')
+            plt.savefig(engine.dout+'/'+engine.name.full+suffix+'.png')
         plt.close()
 
 def VCATEB(engine,app):
@@ -479,15 +484,16 @@ def VCATEB(engine,app):
     for i,paras in enumerate(app.path()):
         result[i,0]=i
         result[i,1:]=eigh(H(paras['k'][0],paras['k'][1]),eigvals_only=True)
+    suffix='_'+(app.__class__.__name__ if id(app)==app.id else str(app.id))
     if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.full+'_TEB.dat',result)
+        savetxt(engine.dout+'/'+engine.name.full+suffix+'.dat',result)
     if app.plot:
-        plt.title(engine.name.full+'_TEB')
+        plt.title(engine.name.full+suffix)
         plt.plot(result[:,0],result[:,1:])
         if app.show:
             plt.show()
         else:
-            plt.savefig(engine.dout+'/'+engine.name.full+'_TEB.png')
+            plt.savefig(engine.dout+'/'+engine.name.full+suffix+'.png')
         plt.close()
 
 def VCAOP(engine,app):

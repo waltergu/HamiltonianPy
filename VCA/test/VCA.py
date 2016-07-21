@@ -47,13 +47,13 @@ def test_vca():
     a.register(
         app=        GPM(id='afm',fout='afm.dat',BS={'afm':0.1},method='BFGS',options={'disp':True},save_data=False,run=VCAGPM),
         dependence= [   gfc,
-                        GP(BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),rank1=128,n=64,run=VCAGP)
+                        GP(BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),run=VCAGP)
                     ]
         )
     a.register(
         app=       GPM(id='afm_curve',BS=BaseSpace({'tag':'afm','mesh':linspace(0.0,0.3,16)}),save_data=False,plot=True,run=VCAGPM),
         dependence= [   gfc,
-                        GP(BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),rank1=128,n=64,run=VCAGP)
+                        GP(BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=100),run=VCAGP)
                     ]
         )
     a.register(
