@@ -107,7 +107,7 @@ class ED(Engine):
         table=temp if self.nspin==2 else subset(temp,mask=lambda index: True if index.spin==0 else False)
         for index,sequence in table.iteritems():
             pid=PID(scope=index.scope,site=index.site)
-            self.operators['sp']+=F_Linear(1,indices=[index],rcoords=[self.lattice.points[pid].rcoord],icoords=[self.lattice.points[pid].icoord],seqs=[sequence])
+            self.operators['sp']+=F_Linear(1,indices=[index],rcoords=[self.lattice[pid].rcoord],icoords=[self.lattice[pid].icoord],seqs=[sequence])
 
     def update(self,**karg):
         '''

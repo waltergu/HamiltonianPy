@@ -9,7 +9,7 @@ __all__=['azimuthd','azimuth','polard','polar','volume','is_parallel','reciproca
 from numpy import *
 from numpy.linalg import norm,inv
 from Constant import RZERO
-from collections import namedtuple
+from collections import namedtuple,OrderedDict
 from scipy.spatial import cKDTree
 from copy import copy,deepcopy
 import matplotlib.pyplot as plt
@@ -133,19 +133,15 @@ class PID(namedtuple('PID',['scope','site'])):
 
 PID.__new__.__defaults__=(None,)*len(PID._fields)
 
-class Point:
+class Point(ndarray):
     '''
     Point.
     Attributes:
         pid: PID
             The specific ID of a point.
-        rcoord: 1D ndarray
-            The coordinate in real space.
-        icoord: 1D ndarray
-            The coordinate in lattice space.
     '''
 
-    def __init__(self,pid,rcoord=None,icoord=None):
+    def __new__(cls,pid,rcoord=None,icoord=None):
         '''
         Constructor.
         Parameters:
@@ -158,9 +154,38 @@ class Point:
         '''
         if not isinstance(pid,PID):
             raise ValueError("Point constructor error: the 'pid' parameter must be an instance of PID.")
-        self.pid=pid
-        self.rcoord=array([]) if rcoord is None else array(rcoord)
-        self.icoord=array([]) if icoord is None else array(icoord)
+        result=asarray([[] if rcoord is None else rcoord, [] if icoord is None else icoord]).view(cls)
+        result.pid=pid
+        return result
+
+    def __array_finalize__(self,obj):
+        '''
+        Initialize an instance through both explicit and implicit constructions, i.e. construtor, view and slice.
+        '''
+        if obj is None:
+            return
+        else:
+            self.pid=getattr(obj,'pid',None)
+
+    @property
+    def rcoord(self):
+        '''
+        The coordinate in real space.
+        '''
+        return asarray(self)[0,:]
+
+    @property
+    def icoord(self):
+        '''
+        The coordinate in lattice space.
+        '''
+        return asarray(self)[1,:]
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return 'Point(pid=%s, rcoord=%s, icoord=%s)'%(self.pid,self.rcoord,self.icoord)
 
     def __repr__(self):
         '''
@@ -172,7 +197,7 @@ class Point:
         '''
         Overloaded operator(==).
         '''
-        return self.pid==other.pid and norm(self.rcoord-other.rcoord)<RZERO and norm(self.icoord-other.icoord)<RZERO
+        return self.pid==other.pid and norm(self-other)<RZERO
     
     def __ne__(self,other):
         '''
@@ -402,14 +427,12 @@ def bonds(cluster,vectors=[],nneighbour=1,max_coordinate_number=8,return_mdists=
     else:
         return result
 
-class Lattice(object):
+class Lattice(dict):
     '''
     This class provides a unified description of 1D, quasi 1D, 2D, quasi 2D and 3D lattice systems.
     Attributes:
         name: string
             The lattice's name.
-        points: dict of Point
-            The lattice points in a unit cell.
         vectors: list of 1D ndarray
             The translation vectors.
         reciprocals: list of 1D ndarray
@@ -441,14 +464,14 @@ class Lattice(object):
                 The max coordinate number for every neighbour.
                 This variable is used in the search for bonds.
         '''
+        #super(Lattice,self).__init__()
         Lattice.max_coordinate_number=max_coordinate_number
         self.name=name
-        self.points={}
         for point in copy(points):
             if name!=point.pid.scope:
                 warnings.warn('Lattice construction warning: the scope(%s) of the point and the name of the lattice(%s) do not match each other. By default, the scope of the point will be replaced by the name of the lattice.'%(point.pid.scope,name))
                 point.pid=point.pid._replace(scope=name)
-            self.points[point.pid]=point
+            self[point.pid]=point
         self.vectors=vectors
         self.reciprocals=reciprocals(self.vectors)
         self.nneighbour=nneighbour
@@ -460,13 +483,14 @@ class Lattice(object):
         '''
         return '\n'.join([str(bond) for bond in self.bonds])
 
-    def plot(self,show=True,pid_on=False):
+    def plot(self,fig=None,ax=None,show=True,save=False,close=True,pid_on=False):
         '''
         Plot the lattice points and bonds. Only 2D or quasi 1D systems are supported.
         '''
-        plt.axes(frameon=0)
-        plt.axis('equal')
-        plt.title(self.name)
+        if fig is None or ax is None: fig,ax=plt.subplots()
+        ax.axis('off')
+        ax.axis('equal')
+        ax.set_title(self.name)
         for bond in self.bonds:
             nb=bond.neighbour
             if nb<0: nb=self.nneighbour+1
@@ -476,33 +500,28 @@ class Lattice(object):
             else: color=str(nb*1.0/self.nneighbour)
             if nb==0:
                 x,y=bond.spoint.rcoord[0],bond.spoint.rcoord[1]
-                plt.scatter(x,y)
+                ax.scatter(x,y)
                 if pid_on:
                     pid=bond.spoint.pid
                     if pid.scope==None:
                         tag=str(pid.site)
                     else:
                         tag=str(pid.scope)+'*'+str(pid.site)
-                    plt.text(x-0.2,y+0.1,tag,fontsize=10,color='blue')
+                    ax.text(x-0.2,y+0.1,tag,fontsize=10,color='blue')
             else:
                 if bond.is_intra_cell():
-                    plt.plot([bond.spoint.rcoord[0],bond.epoint.rcoord[0]],[bond.spoint.rcoord[1],bond.epoint.rcoord[1]],color=color)
+                    ax.plot([bond.spoint.rcoord[0],bond.epoint.rcoord[0]],[bond.spoint.rcoord[1],bond.epoint.rcoord[1]],color=color)
                 else:
-                    plt.plot([bond.spoint.rcoord[0],bond.epoint.rcoord[0]],[bond.spoint.rcoord[1],bond.epoint.rcoord[1]],color=color,ls='--')
-        frame=plt.gca()
-        frame.axes.get_xaxis().set_visible(False)
-        frame.axes.get_yaxis().set_visible(False)
-        if show:
-            plt.show()
-        else:
-            plt.savefig(self.name+'.png')
-        plt.close()
+                    ax.plot([bond.spoint.rcoord[0],bond.epoint.rcoord[0]],[bond.spoint.rcoord[1],bond.epoint.rcoord[1]],color=color,ls='--')
+        if show: plt.show()
+        if save: plt.savefig(self.name+'.png')
+        if close:plt.close()
 
     def attached_points(self):
         '''
         Return the points whose scope is different from the name of the lattice.
         '''
-        return {k:p for k,p in self.points.items() if k.scope!=self.name}
+        return {k:p for k,p in self.items() if k.scope!=self.name}
 
     def attached_bonds(self):
         '''
@@ -523,12 +542,12 @@ class Lattice(object):
             if point.pid.scope!=self.name:
                 warnings.warn('Lattice expand warning: the scope(%s) of the point and the name of the lattice(%s) do not match each other. By default, the scope of the point will be replaced by the name of the lattice.'%(point.pid.scope,self.name))
                 point.pid=point.pid._replace(scope=self.name)
-            self.points[point.pid]=point
+            self[point.pid]=point
         self.vectors=vectors
         self.reciprocals=reciprocals(vectors)
         temp=self.attached_bonds()
         self.bonds,self.mdists=bonds(
-            cluster=        [p for k,p in self.points.items() if k.scope==self.name],
+            cluster=        [p for k,p in self.items() if k.scope==self.name],
             vectors=        self.vectors,
             nneighbour=     self.nneighbour,
             return_mdists=  True
@@ -550,15 +569,15 @@ class Lattice(object):
             if point.pid.scope==self.name:
                 raise ValueError('Lattice attach error: the attached points must have different scopes from the name of the original lattice.')
         r=(max(self.mdists) if r is None else r)+RZERO
-        temp=[pid for pid in self.points.keys() if pid.scope==self.name]
+        temp=[pid for pid in self.keys() if pid.scope==self.name]
         map={i:pid for i,pid in enumerate(temp)}
-        tree=cKDTree([self.points[pid].rcoord for pid in temp])
+        tree=cKDTree([self[pid].rcoord for pid in temp])
         indices=tree.query_ball_point([point.rcoord for point in points],r)
         bonds=[]
         for i,index in enumerate(indices):
             epoint=points[i]
             for j in index:
-                spoint=self.points[map[j]]
+                spoint=self[map[j]]
                 dist=norm(spoint.rcoord-epoint.rcoord)
                 for k,mdist in enumerate(self.mdists):
                     if abs(mdist-dist)<RZERO:
@@ -582,7 +601,7 @@ class Lattice(object):
                 bonds.append(Bond(neighbour,spoint,epoint))
         for point in points:
             bonds.append(Bond(0,point,point))
-        self.points.update({point.pid:point for point in points})
+        self.update({point.pid:point for point in points})
         self.bonds.extend(bonds)
 
 class SuperLattice(Lattice):
@@ -606,15 +625,15 @@ class SuperLattice(Lattice):
             nneighbour: integer,optional
                 The highest order of neighbours.
         '''
+        super(Lattice,self).__init__()
         self.name=name
         self.sublattices=sublattices
-        self.points={}
         for lattice in sublattices:
-            self.points.update({k:p for k,p in lattice.points.items() if k.scope==lattice.name})
+            self.update({k:p for k,p in lattice.items() if k.scope==lattice.name})
         self.vectors=vectors
         self.reciprocals=reciprocals(vectors)
         self.nneighbour=nneighbour
-        self.bonds,self.mdists=bonds(cluster=self.points.values(),vectors=vectors,nneighbour=nneighbour,return_mdists=True)
+        self.bonds,self.mdists=bonds(cluster=self.values(),vectors=vectors,nneighbour=nneighbour,return_mdists=True)
         for lattice in sublattices:
-            self.points.update(lattice.attached_points())
+            self.update(lattice.attached_points())
             self.bonds.extend(lattice.attached_bonds())

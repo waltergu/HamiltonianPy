@@ -114,7 +114,7 @@ class VCA(ED):
         self.basis=basis
         self.nspin=nspin if basis.basis_type=='FS' else 2
         self.cell=cell
-        self.celfig=celfig if celfig is not None else Configuration({key:config[key] for key in cell.points.keys()},priority=config.priority)
+        self.celfig=celfig if celfig is not None else Configuration({key:config[key] for key in cell.keys()},priority=config.priority)
         self.lattice=lattice
         self.config=config
         self.terms=terms
@@ -183,7 +183,7 @@ class VCA(ED):
         table=temp if self.nspin==2 else subset(temp,mask=lambda index: True if index.spin==0 else False)
         for index,seq in table.iteritems():
             pid=PID(scope=index.scope,site=index.site)
-            self.operators['csp']+=F_Linear(1,indices=[index],rcoords=[self.cell.points[pid].rcoord],icoords=[self.cell.points[pid].icoord],seqs=[seq])
+            self.operators['csp']+=F_Linear(1,indices=[index],rcoords=[self.cell[pid].rcoord],icoords=[self.cell[pid].icoord],seqs=[seq])
 
     def update(self,**karg):
         '''
@@ -395,7 +395,7 @@ def VCAGP(engine,app):
     app.gp=(engine.apps['GFC'].gse-2/engine.nspin*app.gp/(pi*app.BZ.rank['k']))/engine.clmap['seqs'].shape[1]
     app.gp=app.gp+real(sum(trace(engine.pt_mesh(app.BZ.mesh['k']),axis1=1,axis2=2))/app.BZ.rank['k']/engine.clmap['seqs'].shape[1])
     app.gp=app.gp-engine.mu*engine.filling*len(engine.operators['csp'])*2/engine.nspin
-    app.gp=app.gp/len(engine.cell.points)
+    app.gp=app.gp/len(engine.cell)
     print 'gp(%s): %s'%(', '.join(['%s:%s'%(key,value) for key,value in engine.name.parameters.items()]),app.gp)
 
 def VCAGPM(engine,app):
