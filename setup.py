@@ -9,6 +9,7 @@ def configuration(parent_package='',top_path=None):
     config.add_subpackage('VCA')
     config.add_subpackage('DMRG')
     config.add_subpackage('MERA')
+    config.add_subpackage('QMC')
     config.add_subpackage('Test')
     config.make_config_py()
     return config

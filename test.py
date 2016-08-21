@@ -6,6 +6,7 @@ from Test.ED import*
 from Test.VCA import *
 from Test.MERA import *
 from Test.DMRG import *
+from Test.QMC import *
 import sys
 
 for arg in sys.argv:
@@ -16,4 +17,5 @@ for arg in sys.argv:
     test_ed(arg)
     test_vca(arg)
     test_dmrg(arg)
+    test_qmc(arg)
     #test_mera(arg)
