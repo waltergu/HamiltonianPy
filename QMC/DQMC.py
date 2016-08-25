@@ -1,7 +1,7 @@
 '''
 '''
 
-__all__=['B']
+__all__=['B','Bs']
 
 
 import numpy as np
@@ -49,7 +49,7 @@ class Bs(list):
                 self[i]=B(*svd(V.dot(T)))
             else:
                 self[i]=self[i-1].ldot(V.dot(T))
-        for i,V in enumerate(Vs[pos:][::-1])
+        for i,V in enumerate(Vs[pos:][::-1]):
             if i==0:
                 self[len(Vs)-1-i]=B(*svd(V.dot(T)))
             else:
@@ -65,7 +65,7 @@ class Bs(list):
             else:
                 self[self.pos-1]=self[self.pos].rdot(M)
             self.pos=self.pos-1
-            return result
+            return self
         else:
             raise ValueError('Bs >> error: pos is 0 and cannot be right shifted any more.')
 
@@ -85,11 +85,15 @@ class Bs(list):
 
     @property
     def G(self):
-        if self.pos==0:
-            
-        elif self.pos==len(self):
-        
+        if self.pos in (0,len(self)):
+            B=self[self.pos] if self.pos==0 else self[self.pos-1]
+            U,S,V=svd(B.V.dot(B.U).transpose().conjugate()+np.diag(B.S))
+            U,V=B.U.dot(U).transpose().conjugate(),V.dot(B.V).transpose().conjugate()
+            return np.einsum('ij,j,jk->ik',V,1.0/S,U)
         else:
-            BL,BR=self[self.pos-1],self[self.pos]
+            BR,BL=self[self.pos-1],self[self.pos]
+            U,S,V=svd(BL.V.dot(BR.U).transpose().conjugate()+np.einsum('i,ij,jk,k->ik',BR.S,BR.V,BL.U,BL.S))
+            U,V=BR.U.dot(U).transpose().conjugate(),V.dot(BL.V).transpose().conjugate()
+            return np.einsum('ij,j,jk->ik',V,1.0/S,U)
 
 
