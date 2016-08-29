@@ -23,6 +23,8 @@ class Name:
             It contains the contant parameters of the engine.
         _const: OrderedDict
             It contains the alterable parameters of the engine.
+        _full: OrderedDict
+            It contains all the parameters of the engine.
     '''
     
     def __init__(self,prefix='',suffix=''):
@@ -30,6 +32,7 @@ class Name:
         self.suffix=suffix
         self._const=OrderedDict()
         self._alter=OrderedDict()
+        self._full=OrderedDict()
     
     def __str__(self):
         return self.full
@@ -37,8 +40,10 @@ class Name:
     def update(self,const=None,alter=None):
         if const is not None:
             self._const.update(const)
+            self._full.update(const)
         if alter is not None:
             self._alter.update(alter)
+            self._full.update(alter)
 
     @property
     def parameters(self):
@@ -98,7 +103,7 @@ class Engine(object):
             This attribute is used for the auto-naming of data files to be read or written.
         state: dict
             The current state of the engine.
-            It is the alterable parameters of name in this version.
+            It is the parameters of name in this version.
         waiting_list: list
             The names of apps waiting to be run.
             Note not all activated/added apps are in the waiting list.
@@ -123,7 +128,7 @@ class Engine(object):
         result.name=Name(prefix=karg.get('name',''),suffix=result.__class__.__name__)
         if 'parameters' in karg:
             result.name.update(const=karg['parameters'])
-        result.state=result.name._alter
+        result.state=result.name._full
         result.waiting_list=[]
         result.apps={}
         result.repertory={}
@@ -172,7 +177,7 @@ class Engine(object):
 
     def verify(self,app):
         '''
-        This method judges whether or not an app has to be run according to its state and the engine's state.
+        This method judges whether or not an app has already been run according to its state and the engine's state.
         Parameters:
             app: App
                 The app to be verified.
@@ -255,7 +260,7 @@ class App(object):
             The function called by the engine to carry out the tasks, which should be implemented by the inheriting class of Engine.
         state: dict
             The current state of the app.
-            It is the alterable parameters of an engine's name in this version.
+            It is the parameters of an engine's name in this version.
     '''
 
     def __new__(cls,*arg,**karg):
