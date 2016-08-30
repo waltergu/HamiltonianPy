@@ -309,7 +309,7 @@ def VCAEB(engine,app):
     erange=linspace(app.emin,app.emax,app.ne)
     result=zeros((app.path.rank['k'],app.ne))
     for i,omega in enumerate(erange):
-        result[:,i]=-2*imag((trace(engine.gf_vca_kmesh(omega+engine.mu+app.eta*1j,app.path.mesh['k']),axis1=1,axis2=2)))
+        result[:,i]=-imag((trace(engine.gf_vca_kmesh(omega+engine.mu+app.eta*1j,app.path.mesh['k']),axis1=1,axis2=2)))/len(engine.operators['csp'])/pi
     suffix='_'+(app.__class__.__name__ if id(app)==app.id else str(app.id))
     if app.save_data:
         buff=zeros((app.path.rank['k']*app.ne,3))
@@ -350,7 +350,7 @@ def VCACP(engine,app):
 def VCAFS(engine,app):
     engine.rundependence(app.id)
     engine.cache.pop('pt_mesh',None)
-    result=-2*imag((trace(engine.gf_vca_kmesh(engine.mu+app.eta*1j,app.BZ.mesh['k']),axis1=1,axis2=2)))
+    result=-imag((trace(engine.gf_vca_kmesh(engine.mu+app.eta*1j,app.BZ.mesh['k']),axis1=1,axis2=2)))/len(engine.operators['sp'])/pi
     suffix='_'+(app.__class__.__name__ if id(app)==app.id else str(app.id))
     if app.save_data:
         savetxt(engine.dout+'/'+engine.name.full+suffix+'.dat',append(app.BZ.mesh['k'],result.reshape((app.BZ.rank['k'],1)),axis=1))
@@ -372,7 +372,9 @@ def VCADOS(engine,app):
     result=zeros((app.ne,2))
     for i,omega in enumerate(erange):
         result[i,0]=omega
-        result[i,1]=-2*imag(sum((trace(engine.gf_vca_kmesh(omega+engine.mu+app.eta*1j,app.BZ.mesh['k']),axis1=1,axis2=2))))
+        result[i,1]=-imag(sum((trace(engine.gf_mix_kmesh(omega+engine.mu+app.eta*1j,app.BZ.mesh['k']),axis1=1,axis2=2))))/len(engine.operators['sp'])/app.BZ.rank['k']/pi
+    print 'Sum of DOS:',sum(result[:,1])*(app.emax-app.emin)/app.ne
+    app.data=result
     suffix='_'+(app.__class__.__name__ if id(app)==app.id else str(app.id))
     if app.save_data:
         savetxt(engine.dout+'/'+engine.name.full+suffix+'.dat',result)

@@ -61,7 +61,7 @@ def test_vca():
         dependence= [gfc]
         )
     a.register(
-        app=        DOS(id='DOS',paras={'afm':0.20},BZ=square_bz(nk=50),emin=-6,emax=6,ne=400,eta=0.05,save_data=False,plot=True,show=True,run=VCADOS),
+        app=        DOS(id='DOS',paras={'afm':0.20},BZ=square_bz(reciprocals=a.lattice.reciprocals,nk=20),emin=-10,emax=10,ne=400,eta=0.05,save_data=False,plot=True,show=True,run=VCADOS),
         dependence= [gfc]
         )
     a.register(
