@@ -79,39 +79,51 @@ class Spin(Internal):
 class SpinMatrix(ndarray):
     '''
     The matrix representation of spin operators.
+    Attributes:
+        id: 2-tuple
+            id[0]: integer or half integer
+                The total spin.
+            id[1]: any hashable object
+                The tag of the matrix.
     '''
-    def __new__(cls,id,dtype=complex128,**kargs):
+    def __new__(cls,id,dtype=complex128,matrix=None,**kargs):
         '''
         Constructor.
         Parameters:
             id: 2-tuple
                 id[0]: integer or half integer
                     The total spin.
-                id[1]: 'X','x','Y','y','Z','z','+','-'
+                id[1]: 'X','x','Y','y','Z','z','+','-', and any other hashable object
                     This parameter specifies the matrix.
             dtype: float64 or complex128, optional
                 The data type of the matirx.
+            matrix: 2D ndarray, optional
+                This parameter only takes on effect when id[1] is not in ('X','x','Y','y','Z','z','+','-').
+                It is then used as the matrix of this SpinMatrix.
         '''
         if isinstance(id,tuple):
             delta=lambda i,j: 1 if i==j else 0
             temp=(id[0])*(id[0]+1)
             result=zeros((int(id[0]*2)+1,int(id[0]*2)+1),dtype=dtype).view(cls)
-            for i in xrange(int(id[0]*2)+1):
-                m=id[0]-i
-                for j in xrange(int(id[0]*2)+1):
-                    n=id[0]-j
-                    if id[1] in ('X','x'):
-                        result[i,j]=(delta(i+1,j)+delta(i,j+1))*sqrt(temp-m*n)/2
-                    elif id[1] in ('Y','y'):
-                        result[i,j]=(delta(i+1,j)-delta(i,j+1))*sqrt(temp-m*n)/(2j)
-                    elif id[1] in ('Z','z'):
-                        result[i,j]=delta(i,j)*m
-                    elif id[1] in ('+'):
-                        result[i,j]=delta(i+1,j)*sqrt(temp-m*n)
-                    elif id[1] in ('-'):
-                        result[i,j]=delta(i,j+1)*sqrt(temp-m*n)
-                    else:
-                        raise ValueError('SpinMatrix construction error: id=%s not supported.'%(id,))
+            if id[1] in ('X','x','Y','y','Z','z','+','-'):
+                for i in xrange(int(id[0]*2)+1):
+                    m=id[0]-i
+                    for j in xrange(int(id[0]*2)+1):
+                        n=id[0]-j
+                        if id[1] in ('X','x'):
+                            result[i,j]=(delta(i+1,j)+delta(i,j+1))*sqrt(temp-m*n)/2
+                        elif id[1] in ('Y','y'):
+                            result[i,j]=(delta(i+1,j)-delta(i,j+1))*sqrt(temp-m*n)/(2j)
+                        elif id[1] in ('Z','z'):
+                            result[i,j]=delta(i,j)*m
+                        elif id[1] in ('+'):
+                            result[i,j]=delta(i+1,j)*sqrt(temp-m*n)
+                        elif id[1] in ('-'):
+                            result[i,j]=delta(i,j+1)*sqrt(temp-m*n)
+            elif matrix is not None:
+                if matrix.shape!=result.shape:
+                    raise ValueError("SpinMatrix construction error: id[0](%s) and the matrix's shape(%s) do not match."%(id[0],matrix.shape))
+                result[...]=matrix[...]
             result.id=id
         else:
             raise ValueError('SpinMatrix construction error: id must be a tuple.')
@@ -138,9 +150,15 @@ class SpinPack(IndexPack):
         Parameters:
             value: float64 or complex128
                 The overall coefficient of the spin pack.
-            pack: tuple of characters
-                Each character specifies a SpinMatrix.
-                Each character must be in ('x','X','y','Y','z','Z','+','-')
+            pack: tuple of characters or tuple of tuples
+                when it is tuple of characters:
+                    Each character specifies a SpinMatrix.
+                    Each character must be in ('x','X','y','Y','z','Z','+','-')
+                when it is tuple of tuples, for each tuple:
+                    pack[.][0]: any hashable object
+                        The second part of the id of a SpinMatrix.
+                    pack[.][1]: 2D ndarray
+                        The matrix of a SpinMatrix.
         '''
         super(SpinPack,self).__init__(value)
         self.pack=pack
@@ -169,17 +187,20 @@ def Heisenberg():
     result.append(SpinPack(1.0,('z','z')))
     return result
 
-def S(id):
+def S(id,matrix=None):
     '''
     Single spin packs.
     Parameters:
-        id: 'x','X','y','Y','z','Z'
+        id: 'x','X','y','Y','z','Z', or any other hashable object.
             It specifies the single spin pack.
+        matrix: 2D ndarray, optional
+            It specifies the matrix of the spin pack and takes on effect only when id is not in ('x','X','y','Y','z','Z').
     Returns: IndexPackList
         The single spin pack.
     '''
-    if id not in ('x','X','y','Y','z','Z'):
-        raise ValueError('S error: %s not supported.'%id)
     result=IndexPackList()
-    result.append(SpinPack(1.0,(id)))
+    if id in ('x','X','y','Y','z','Z'):
+        result.append(SpinPack(1.0,(id,)))
+    else:
+        result.append(SpinPack(1.0,((id,matrix),)))
     return result

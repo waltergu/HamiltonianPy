@@ -25,7 +25,7 @@ def test_spin_term():
     opts=OperatorCollection()
     table=config.table()
     terms=[ SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg()),
-            SpinTerm('h',h,neighbour=0,indexpacks=S('z'))
+            SpinTerm('h',h,neighbour=0,indexpacks=S('WG',matrix=array([[0.5,0],[0,-0.5]])))
           ]
     print 'terms: %s'%terms
     #generator=Generator(l.bonds,config,table,terms,dtype=float64)

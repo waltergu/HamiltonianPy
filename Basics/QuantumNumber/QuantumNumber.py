@@ -220,6 +220,7 @@ class QuantumNumberCollection(OrderedDict):
     @property
     def permutation(self):
         '''
+        The permutation of the current order with respect to the direct product order.
         '''
         result=[]
         for slice in concatenate(self.slices.values()):
@@ -248,12 +249,6 @@ class QuantumNumberCollection(OrderedDict):
                     for i in xrange(v1.start,v1.stop):
                         slices[sum].append(slice(i*other.n+v2.start,i*other.n+v2.stop))
             return QuantumNumberCollection(temp.iteritems(),map=buff,slices=slices)
-
-    def __radd__(self,other):
-        '''
-        Overloaded addition(+) operator.
-        '''
-        return self.__add__(other)
 
     def subset(self,*arg):
         '''

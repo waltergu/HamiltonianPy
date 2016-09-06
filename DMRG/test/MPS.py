@@ -6,7 +6,7 @@ __all__=['test_mps']
 
 from numpy import *
 from HamiltonianPy.Math.Tensor import *
-from HamiltonianPy.Math.MPS import *
+from HamiltonianPy.DMRG.MPS import *
 
 def test_mps():
     print 'test_mps'
@@ -35,9 +35,8 @@ def test_mps():
     print 'c:\n%s'%c
     print 'c.state:%s'%c.state(form='component')
     print 'c.is_canonical:%s'%(c.is_canonical())
-    print '-------------------'
+    print
 
-    
     #d=c.to_vidal()
     #print 'd:\n%s\n'%d
     #print 'd.state:%s'%d.state
@@ -52,5 +51,3 @@ def test_mps():
     #print 'f:\n%s\n'%f
     #print 'f.state:%s'%f.state
     #print '-------------------'
-
-

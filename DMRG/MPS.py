@@ -8,7 +8,7 @@ Matrix product state, including:
 __all__=['LLINK','SITE','RLINK','MPSBase','Vidal','MPS','from_state']
 
 from numpy import *
-from Tensor import *
+from HamiltonianPy.Math.Tensor import *
 from copy import deepcopy
 
 LLINK,SITE,RLINK=0,1,2
@@ -77,111 +77,6 @@ class MPSBase(object):
                             The corresponding non-zero value.
         '''
         raise NotImplementedError()
-
-class Vidal(MPSBase):
-    '''
-    The Vidal canonical matrix product state.
-    Attributes:
-        Gammas: list of Tensor
-            The Gamma matrices on the site.
-        Lambdas: list of Tensor
-            The Lambda matrices (singular values) on the link.
-    '''
-
-    def __init__(self,Gammas,Lambdas,labels):
-        '''
-        Constructor.
-        Parameters:
-            Gammas: list of 3d ndarray
-                The Gamma matrices on the site.
-            Lamdas: list of 1d ndarray
-                The Lambda matrices (singular values) on the link.
-            labels: list of 3 tuples
-                The labels of the axis of the Gamma matrices.
-                Its length should be equal to that of Gammas.
-                For each label in labels, 
-                    label[0]: any hashable object
-                        The left link label of the matrix.
-                    label[1]: any hashable object
-                        The site label of the matrix.
-                    label[2]: any hashable object
-                        The right link label of the matrix.
-        '''
-        if len(Gammas)!=len(Lambdas)+1:
-            raise ValueError('Vidal construction error: there should be one more Gamma matrices(%s) than the Lambda matrices(%s).'%(len(Gammas),len(Lambdas)))
-        if len(Gammas)!=len(labels):
-            raise ValueError('Vidal construction error: the number of Gamma matrices(%s) is not equal to that of the labels(%s).'%(len(Gammas),len(labels)))
-        self.Gammas=[]
-        self.Lambdas=[]
-        temp,buff=[None]*3,[]
-        for i,(Gamma,label) in enumerate(zip(Gammas,labels)):
-            if Gamma.ndim!=3:
-                raise ValueError('Vidal construction error: all Gamma matrices should be 3 dimensional.')
-            L,S,R=label
-            if i<len(Gammas)-1:
-                buff.append(R)
-            temp[self.L]=L
-            temp[self.S]=S
-            temp[self.R]=R
-            self.Gammas.append(Tensor(Gamma,labels=deepcopy(temp)))
-        for Lambda,label in zip(Lambdas,buff):
-            if Lambda.ndim!=1:
-                raise ValueError("Vidal construction error: all Lambda matrices should be 1 dimensional.")
-            self.Lambdas.append(Tensor(Lambda,labels=[label]))
-
-    def __str__(self):
-        '''
-        Convert an instance to string.
-        '''
-        result=[]
-        for i,Gamma in enumerate(self.Gammas):
-            result.append(str(Gamma))
-            if i<len(self.Gammas)-1:
-                result.append(str(self.Lambdas[i]))
-        return '\n'.join(result)
-
-    @property
-    def nsite(self):
-        '''
-        The number of total sites.
-        '''
-        return len(self.Gammas)
-
-    def state(self):
-        '''
-        Convert to the normal representation.
-        '''
-        result=None
-        for i,Gamma in enumerate(self.Gammas):
-            if result is None:
-                result=Gamma
-            else:
-                result=contract(result,self.Lambdas[i-1],Gamma)
-        return asarray(result).ravel()
-
-    def to_mixed(self,cut):
-        '''
-        Convert to the mixed MPS representation.
-        '''
-        ms,labels,Lambda=[],[],None
-        shape=[1]*3
-        shape[self.S]=-1
-        for i,Gamma in enumerate(self.Gammas):
-            L,S,R=Gamma.labels[self.L],Gamma.labels[self.S],Gamma.labels[self.R]
-            labels.append((L,S,R))
-            if i<cut:
-                if i==0:
-                    ms.append(asarray(Gamma))
-                else:
-                    ms.append(asarray(Gamma)*asarray(self.Lambdas[i-1]).reshape(shape))
-            else:
-                if i>0 and i==cut:
-                    Lambda=asarray(self.Lambdas[i-1])
-                if i<len(self.Lambdas):
-                    ms.append(asarray(Gamma)*asarray(self.Lambdas[i]).reshape(shape))
-                else:
-                    ms.append(asarray(Gamma))
-        return MPS(ms,labels,Lambda,cut)
 
 class MPS(MPSBase):
     '''
@@ -384,32 +279,137 @@ class MPS(MPSBase):
                     ms.append(asarray(temp))
         return MPS(list(reversed(ms)),list(reversed(labels)),Lambda,cut)
 
-    #def to_vidal(self):
-    #    '''
-    #    Convert to the Vidal MPS representation.
-    #    '''
-    #    Gammas,Lambdas,labels=[],[],[]
-    #    for i,M in enumerate(self.ms):
-    #        L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
-    #        if i==0:
-    #            temp=M
-    #        else:
-    #            if i==self.cut:
-    #                temp=contract(v*asarray(s)[:,newaxis],self.Lambda,M)
-    #            else:
-    #                temp=contract(v*asarray(old)[:,newaxis],M)
-    #            temp.relabel(news=[L],olds=['_'+L])
-    #        u,new,v=temp.svd([L,S],'_'+str(R),[R])
-    #        labels.append((L,S,R))
-    #        if i==0:
-    #            Gammas.append(asarray(u))
-    #        else:
-    #            Gammas.append(asarray(u)/asarray(old)[:,newaxis])
-    #        old=new
-    #        if i<len(self.ms)-1:
-    #            Lambdas.append(asarray(new))
-    #        else:
-    #            norm=abs((asarray(v)*asarray(new)[:,newaxis])[0,0])
-    #            if abs(norm-1.0)>self.err:
-    #                raise ValueError('MPS to_vidal error: the norm(%s) of original MPS does not equal to 1.'%norm)
-    #    return Vidal(Gammas,Lambdas,labels)
+    def to_vidal(self):
+        '''
+        Convert to the Vidal MPS representation.
+        '''
+        Gammas,Lambdas,labels=[],[],[]
+        for i,M in enumerate(self.ms):
+            L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
+            if i==0:
+                temp=M
+            else:
+                if i==self.cut:
+                    temp=contract(v*asarray(s)[:,newaxis],self.Lambda,M)
+                else:
+                    temp=contract(v*asarray(old)[:,newaxis],M)
+                temp.relabel(news=[L],olds=['_'+L])
+            u,new,v=temp.svd([L,S],'_'+str(R),[R])
+            labels.append((L,S,R))
+            if i==0:
+                Gammas.append(asarray(u))
+            else:
+                Gammas.append(asarray(u)/asarray(old)[:,newaxis])
+            old=new
+            if i<len(self.ms)-1:
+                Lambdas.append(asarray(new))
+            else:
+                norm=abs((asarray(v)*asarray(new)[:,newaxis])[0,0])
+                if abs(norm-1.0)>self.err:
+                    raise ValueError('MPS to_vidal error: the norm(%s) of original MPS does not equal to 1.'%norm)
+        return Vidal(Gammas,Lambdas,labels)
+
+class Vidal(MPSBase):
+    '''
+    The Vidal canonical matrix product state.
+    Attributes:
+        Gammas: list of Tensor
+            The Gamma matrices on the site.
+        Lambdas: list of Tensor
+            The Lambda matrices (singular values) on the link.
+    '''
+
+    def __init__(self,Gammas,Lambdas,labels):
+        '''
+        Constructor.
+        Parameters:
+            Gammas: list of 3d ndarray
+                The Gamma matrices on the site.
+            Lamdas: list of 1d ndarray
+                The Lambda matrices (singular values) on the link.
+            labels: list of 3 tuples
+                The labels of the axis of the Gamma matrices.
+                Its length should be equal to that of Gammas.
+                For each label in labels, 
+                    label[0]: any hashable object
+                        The left link label of the matrix.
+                    label[1]: any hashable object
+                        The site label of the matrix.
+                    label[2]: any hashable object
+                        The right link label of the matrix.
+        '''
+        if len(Gammas)!=len(Lambdas)+1:
+            raise ValueError('Vidal construction error: there should be one more Gamma matrices(%s) than the Lambda matrices(%s).'%(len(Gammas),len(Lambdas)))
+        if len(Gammas)!=len(labels):
+            raise ValueError('Vidal construction error: the number of Gamma matrices(%s) is not equal to that of the labels(%s).'%(len(Gammas),len(labels)))
+        self.Gammas=[]
+        self.Lambdas=[]
+        temp,buff=[None]*3,[]
+        for i,(Gamma,label) in enumerate(zip(Gammas,labels)):
+            if Gamma.ndim!=3:
+                raise ValueError('Vidal construction error: all Gamma matrices should be 3 dimensional.')
+            L,S,R=label
+            if i<len(Gammas)-1:
+                buff.append(R)
+            temp[self.L]=L
+            temp[self.S]=S
+            temp[self.R]=R
+            self.Gammas.append(Tensor(Gamma,labels=deepcopy(temp)))
+        for Lambda,label in zip(Lambdas,buff):
+            if Lambda.ndim!=1:
+                raise ValueError("Vidal construction error: all Lambda matrices should be 1 dimensional.")
+            self.Lambdas.append(Tensor(Lambda,labels=[label]))
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        result=[]
+        for i,Gamma in enumerate(self.Gammas):
+            result.append(str(Gamma))
+            if i<len(self.Gammas)-1:
+                result.append(str(self.Lambdas[i]))
+        return '\n'.join(result)
+
+    @property
+    def nsite(self):
+        '''
+        The number of total sites.
+        '''
+        return len(self.Gammas)
+
+    def state(self):
+        '''
+        Convert to the normal representation.
+        '''
+        result=None
+        for i,Gamma in enumerate(self.Gammas):
+            if result is None:
+                result=Gamma
+            else:
+                result=contract(result,self.Lambdas[i-1],Gamma)
+        return asarray(result).ravel()
+
+    def to_mixed(self,cut):
+        '''
+        Convert to the mixed MPS representation.
+        '''
+        ms,labels,Lambda=[],[],None
+        shape=[1]*3
+        shape[self.S]=-1
+        for i,Gamma in enumerate(self.Gammas):
+            L,S,R=Gamma.labels[self.L],Gamma.labels[self.S],Gamma.labels[self.R]
+            labels.append((L,S,R))
+            if i<cut:
+                if i==0:
+                    ms.append(asarray(Gamma))
+                else:
+                    ms.append(asarray(Gamma)*asarray(self.Lambdas[i-1]).reshape(shape))
+            else:
+                if i>0 and i==cut:
+                    Lambda=asarray(self.Lambdas[i-1])
+                if i<len(self.Lambdas):
+                    ms.append(asarray(Gamma)*asarray(self.Lambdas[i]).reshape(shape))
+                else:
+                    ms.append(asarray(Gamma))
+        return MPS(ms,labels,Lambda,cut)

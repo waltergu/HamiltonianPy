@@ -118,11 +118,12 @@ class SpinTerm(Term):
                     pack=obj.pack
                     if self.neighbour==0:
                         if len(pack)!=1:
-                            raise ValueError('SpinTerm operators error: the length of the pack of each SpinPack must be 2 when neighbour is 0.')
+                            raise ValueError('SpinTerm operators error: the length of the pack of each SpinPack must be 1 when neighbour is 0.')
+                        id,m=pack[0] if hasattr(pack[0],'__iter__') else (pack[0],None)
                         result+=OperatorS(
                             value=      pv,
                             indices=    [eindex],
-                            spins=      [SpinMatrix((eS,pack[0]),dtype=dtype)],
+                            spins=      [SpinMatrix((eS,id),matrix=m,dtype=dtype)],
                             rcoords=    [bond.epoint.rcoord],
                             icoords=    [bond.epoint.icoord],
                             seqs=       None if table is None else (table[eindex])
@@ -130,10 +131,12 @@ class SpinTerm(Term):
                     else:
                         if len(pack)!=2:
                             raise ValueError('SpinTerm operators error: the length of the pack of each SpinPack must be 2 if neighbour is not 0.')
+                        id0,m0=pack[0] if hasattr(pack[0],'__iter__') else (pack[0],None)
+                        id1,m1=pack[1] if hasattr(pack[1],'__iter__') else (pack[1],None)
                         result+=OperatorS(
                             value=      pv,
                             indices=    [eindex,sindex],
-                            spins=      [SpinMatrix((eS,pack[0]),dtype=dtype),SpinMatrix((sS,pack[1]),dtype=dtype)],
+                            spins=      [SpinMatrix((eS,id0),matrix=m0,dtype=dtype),SpinMatrix((sS,id1),matrix=m1,dtype=dtype)],
                             rcoords=    [bond.epoint.rcoord,bond.spoint.rcoord],
                             icoords=    [bond.epoint.icoord,bond.spoint.icoord],
                             seqs=       None if table is None else (table[eindex],table[sindex])
