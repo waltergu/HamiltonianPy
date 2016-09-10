@@ -17,6 +17,7 @@ def test_tensor():
     print "b.take([0,1],axis=0): %s"%b.take([0,1],axis=0)
     print "contract(b,b): %s"%contract(b,b)
     u,s,v=b.svd(labels1=['i','j'],new='m',labels2=['k'])
+    print contract(contract(u,s,mask='m'),v)
     print contract(u,s,v)
     print b-contract(u,s,v)
     print
