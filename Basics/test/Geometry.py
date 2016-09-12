@@ -15,8 +15,8 @@ def test_geometry():
     test_tiling()
     test_bonds()
     test_lattice()
-    test_lattice_expand_attach()
-    test_super_lattice() 
+    #test_lattice_expand_attach()
+    #test_super_lattice() 
 
 def test_functions():
     print 'test_function'
@@ -67,7 +67,7 @@ def test_bonds():
     print 'test_bonds'
     p1=Point(pid=PID(site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1,a2=array([1.0,0.0]),array([0.0,1.0])
-    bs,mdists=bonds(cluster=[p1],vectors=[a1,a2],nneighbour=4,return_mdists=True)
+    bs,mdists=bonds(cluster=[p1],vectors=[a1,a2],options=dict(nneighbour=4,return_mdists=True))
     for bond in bs:
         print bond
     print 'mdists:%s'%mdists

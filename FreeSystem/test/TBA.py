@@ -30,7 +30,7 @@ def tba_construct(bc='op'):
     p2=Point(pid=PID(scope='WG',site=1),rcoord=[0.5],icoord=[0.0])
     a1=array([1.0])
     if bc in ('op',):
-        points=tiling(cluster=[p1,p2],vectors=[a1],indices=xrange(20),flatten_site=True)
+        points=tiling(cluster=[p1,p2],vectors=[a1],indices=xrange(20))
         lattice=Lattice(name='WG',points=points)
     else:
         points=[p1,p2]
