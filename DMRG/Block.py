@@ -126,13 +126,10 @@ def block_svd(Psi,qns1,qns2,qns=None,n=None,return_truncation_error=True):
     else:
         raise ValueError("block_svd error: the type of qns1(%s), qns2(%s) and qns(%s) do not match."%(qns1.__class__.__name__,qns2.__class__.__name__,qns.__class__.__name__))
 
-def s_opt_rep_mps(optstr,mps,qns=None):
-    pass
-
 class Block(object):
     '''
     '''
-    def __init__(self,length,lattice,config,terms,qns,mps,H):
+    def __init__(self,length,lattice,config,terms,qns,unitaries,H):
         '''
         Constructor.
         '''
@@ -142,7 +139,7 @@ class Block(object):
         self.table=config.table()
         self.terms=terms
         self.qns=qns
-        self.mps=mps
+        self.unitaries=unitaries
         self.H=H
 
     def combination(self,other,target=None):
@@ -159,7 +156,7 @@ class Block(object):
         config.update(other.config)
         terms=self.terms
         qns=self.qns+other.qns
-        mps=self.mps.combination(other.mps)
+        unitaries=self.unitaries.combination(other.unitaries)
         connections=Generator(
                 bonds=      [bond for bond in lattice.bonds if (bond.spoint.pid in self.lattice.points and bond.epoint.pid in other.lattice.points) or (bond.spoint.pid in other.lattice.points and bond.epoint.pid in self.lattice.bonds)],
                 config=     config,
@@ -168,13 +165,13 @@ class Block(object):
         H=None
         for opt in connections.operator.values():
             value,opt1,opt2=decomposition(opt,self.table,other.table)
-            m1,m2=s_opt_rep_mps(opt1*value,self.mps,self.qns),s_opt_rep_mps(opt2,self.mps,self.qns)
+            m1,m2=s_opt_rep_unitaries(opt1*value,self.unitaries,self.qns),s_opt_rep_unitaries(opt2,self.unitaries,self.qns)
             if H is None:
                 H=kron(m1,m2,self.qns,other.qns,qns,target)
             else:
                 H+=kron(m1,m2,self.qns,other.qns,qns,target)
         H+=kron(self.H,other.H,self.qns,other.qns,qns,target)
-        return Block(length=length,lattice=lattice,config=config,terms=terms,qns=qns,mps=mps,H=H)
+        return Block(length=length,lattice=lattice,config=config,terms=terms,qns=qns,unitaries=unitaries,H=H)
 
     def truncate(self,U,indices):
         pass

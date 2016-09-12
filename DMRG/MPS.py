@@ -413,6 +413,11 @@ class MPS(MPSBase):
             result.append(all(abs(buff-identity(M.shape[self.R if i<self.cut else self.L]))<self.tol))
         return result
 
+    def prime(self,labels=None,copy_data=False):
+        '''
+        '''
+        pass
+
     def to_vidal(self):
         '''
         Convert to the Vidal MPS representation.

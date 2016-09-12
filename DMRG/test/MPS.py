@@ -27,36 +27,12 @@ def test_mps():
     print 'a.norm: %s'%a.norm
     print '-------------------'
 
-    b=deepcopy(a)
-    b.canonicalization(cut=b.nsite)
-    #print 'b:\n%s'%b
-    print 'b.state:%s'%b.state
-    print 'b.norm: %s'%b.norm
-    print 'b.is_canonical:%s'%(b.is_canonical())
-    print '-------------------'
-
-    c=deepcopy(a)
-    c.canonicalization(cut=0)
-    #print 'c:\n%s'%c
-    print 'c.state:%s'%c.state
-    print 'c.norm: %s'%c.norm
-    print 'c.is_canonical:%s'%(c.is_canonical())
+    for i in xrange(a.nsite+1):
+        b=deepcopy(a)
+        b.canonicalization(cut=i)
+        #print 'b[%s]:\n%s'%(i,b)
+        print 'b[%s].state: %s'%(i,b.state)
+        print 'b[%s].norm: %s'%(i,b.norm)
+        print 'b[%s].is_canonical: %s'%(i,b.is_canonical())
+        print '-------------------'
     print
-
-def test_vidal():
-    print 'test_vidal'
-    #d=c.to_vidal()
-    #print 'd:\n%s\n'%d
-    #print 'd.state:%s'%d.state
-    #print '-------------------'
-
-    #e=d.to_mixed(cut=N)
-    #print 'e:\n%s\n'%e
-    #print 'e.state:%s'%e.state
-    #print '-------------------'
-    
-    #f=d.to_mixed(cut=0)
-    #print 'f:\n%s\n'%f
-    #print 'f.state:%s'%f.state
-    #print '-------------------'
-    print 

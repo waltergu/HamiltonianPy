@@ -1,6 +1,6 @@
 '''
 Tensor and tensor operations, including:
-1) classes: Tensor
+1) classes: Label, Tensor
 2) functions: contract
 '''
 
@@ -9,7 +9,21 @@ from numpy.linalg import svd
 from opt_einsum import contract as einsum
 from copy import deepcopy
 
-__all__=['Tensor','contract']
+__all__=['Label','Tensor','contract']
+
+class Label(str):
+    '''
+    The Label of an axis of a Tensor.
+    '''
+
+    def __new__(cls,content):
+        return str.__new__(cls,content)
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __repr__(self):
+        return 'Label(%s)'%(str.__repr__(self))
 
 class Tensor(ndarray):
     '''
