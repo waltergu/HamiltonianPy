@@ -205,7 +205,7 @@ class Point(ndarray):
         '''
         return not self==other
 
-def tiling(cluster,vectors=[],indices=[],return_map=False):
+def tiling(cluster,vectors=[],indices=[],return_map=False,translate_icoord=False):
     '''
     Tile a supercluster by translations of the input cluster.
     Parameters:
@@ -216,8 +216,9 @@ def tiling(cluster,vectors=[],indices=[],return_map=False):
         indices: any iterable object of tuple, optional
             It iterates over the indices of the translated clusters in the tiled superlattice.
         return_map: logical, optional
-            If it is set to be False, the tiling map will not be returned.
-            Otherwise, the tiling map will be returned.
+            If it is True, the tiling map will also be returned.
+        translate_icoord: logical, optional
+            If it is True, the icoord of the new point will also be translated.
     Returns:
         supercluster: list of Point
             The supercluster tiled from the translations of the input cluster.
@@ -232,12 +233,13 @@ def tiling(cluster,vectors=[],indices=[],return_map=False):
             map[point.pid]=point.pid
     else:
         cmax=max([point.pid.site for point in cluster])+1
+        indices=sorted(indices,key=norm)
         for i,index in enumerate(indices):
+            disp=dot((index,) if (isinstance(index,int) or isinstance(index,long)) else tuple(index),vectors)
             for point in cluster:
                 new=point.pid._replace(site=point.pid.site+i*cmax)
                 map[new]=point.pid
-                disp=dot((index,) if (isinstance(index,int) or isinstance(index,long)) else tuple(index),vectors)
-                supercluster.append(Point(pid=new,rcoord=point.rcoord+disp,icoord=point.icoord))
+                supercluster.append(Point(pid=new,rcoord=point.rcoord+disp,icoord=point.icoord+disp if translate_icoord else point.icoord))
     if return_map:
         return supercluster,map
     else:
@@ -359,12 +361,16 @@ def bonds(cluster,vectors=[],mode='nb',options={}):
                     The highest order of neighbour to be searched.
                 'max_coordinate_number': integer, optional, default 8
                     The max coordinate number for every neighbour.
-                'return_mdists': logical, optional, default False
+                'return_min_dists': logical, optional, default False
                     When it is True, the nneighbour minimum distances will alse be returned.
             When mode is 'dt', it contains:
                 'r': float64, optional, default 1.0
                     The distance upper bound within which the bonds are searched.
-                'mdists': list of float64, optional, default empty list
+                'max_translations': tuple, optional
+                    The maximum translations of the original cluster.
+                    It will be omitted if len(vectors)==0.
+                    The default value is tuple([options.get('r',1.0)/norm(vector) for vector in vectors]).
+                'min_dists': list of float64, optional, default empty list
                     The distances of the lowest orders of nearest neighbours.
                     If it doesn't contain the distance of the returned bond, the attribute 'neighbour' of the latter will be set to be inf.
     Returns:
@@ -373,9 +379,9 @@ def bonds(cluster,vectors=[],mode='nb',options={}):
                 The calculated bonds.
                 <NOTE> The zero-th neighbour bonds i.e. bonds with distances equal to zero are also included.
         For mode 'nb' only:
-            mdists: list of float64, optional
+            min_dists: list of float64, optional
                 The nneighbour-th minimum distances within the cluster.
-                It will be returned only when options['return_mdists']==True.
+                It will be returned only when options['return_min_dists']==True.
     '''
     if mode=='nb':
         return _bonds_nb_(
@@ -383,91 +389,98 @@ def bonds(cluster,vectors=[],mode='nb',options={}):
             vectors=                vectors,
             nneighbour=             options.get('nneighbour',1),
             max_coordinate_number=  options.get('max_coordinate_number',8),
-            return_mdists=          options.get('return_mdists',False)
+            return_min_dists=          options.get('return_min_dists',False)
             )
     elif mode=='dt':
         return _bonds_dt_(
-            cluster=    cluster,
-            vectors=    vectors,
-            r=          options.get('r',1.0),
-            mdists=     options.get('mdists',[])
+            cluster=            cluster,
+            vectors=            vectors,
+            r=                  options.get('r',1.0),
+            max_translations=   options.get('max_translations',tuple([options.get('r',1.0)/norm(vector) for vector in vectors])),
+            min_dists=             options.get('min_dists',[])
             )
     else:
         raise ValueError("Function bonds error: mode(%s) not supported."%(mode))
 
-def _bonds_nb_(cluster,vectors=[],nneighbour=1,max_coordinate_number=8,return_mdists=False):
+def _bonds_nb_(cluster,vectors=[],nneighbour=1,max_coordinate_number=8,return_min_dists=False):
     '''
     For details, see bonds.
     '''
     result=[]
-    indices=[]
-    for i in xrange(len(vectors)):
-        indices.append(xrange(-nneighbour,nneighbour+1))
-    indices=list(itertools.product(*indices))
+    indices=list(itertools.product(*([xrange(-nneighbour,nneighbour+1)]*len(vectors))))
     for index in indices:
         if any(index):indices.remove(tuple([-i for i in index]))
-    supercluster,map=[],{}
-    cmax=max([point.pid.site for point in cluster])+1
-    for i,index in enumerate(indices):
-        for point in cluster:
-            new=point.pid._replace(site=point.pid.site+i*cmax if any(index) else point.pid.site)
-            map[new]=point.pid
-            disp=dot(index,vectors)
-            supercluster.append(Point(pid=new,rcoord=point.rcoord+disp,icoord=point.icoord+disp))
+    supercluster,map=tiling(cluster,vectors=vectors,indices=indices,return_map=True,translate_icoord=True)
     tree=cKDTree([point.rcoord for point in supercluster])
     distances,indices=tree.query([point.rcoord for point in cluster],k=nneighbour*max_coordinate_number)
-    mdists=[inf for i in xrange(nneighbour+1)]
+    min_dists=[inf for i in xrange(nneighbour+1)]
     for dist in concatenate(distances):
-        for i,mdist in enumerate(mdists):
-            if dist==mdist or abs(dist-mdist)<RZERO:
+        for i,min_dist in enumerate(min_dists):
+            if dist==min_dist or abs(dist-min_dist)<RZERO:
                 break
-            elif dist<mdist:
-                mdists[i+1:nneighbour+1]=mdists[i:nneighbour]
-                mdists[i]=dist
+            elif dist<min_dist:
+                min_dists[i+1:nneighbour+1]=min_dists[i:nneighbour]
+                min_dists[i]=dist
                 break
-    mdists=[mdist for mdist in mdists if mdist!=inf]
-    max_mdist=max(mdists)
+    min_dists=[min_dist for min_dist in min_dists if min_dist!=inf]
+    max_min_dist=max(min_dists)
     for i,(dists,inds) in enumerate(zip(distances,indices)):
         max_dist=dists[nneighbour*max_coordinate_number-1]
-        if max_dist<max_mdist or abs(max_dist-max_mdist)<RZERO:
+        if max_dist<max_min_dist or abs(max_dist-max_min_dist)<RZERO:
             raise ValueError("Function _bonds_nb_ error: the max_coordinate_number(%s) should be larger."%max_coordinate_number)
         for dist,index in zip(dists,inds):
-            for neighbour,mdist in enumerate(mdists):
-                if abs(dist-mdist)<RZERO:
+            for neighbour,min_dist in enumerate(min_dists):
+                if abs(dist-min_dist)<RZERO:
                     buff=supercluster[index]
                     if buff.pid!=map[buff.pid] or cluster[i].pid<=buff.pid:
                         result.append(Bond(neighbour,spoint=cluster[i],epoint=Point(pid=map[buff.pid],rcoord=buff.rcoord,icoord=buff.icoord)))
-    if return_mdists:
-        return result,mdists
+    if return_min_dists:
+        return result,min_dists
     else:
         return result
 
-def _bonds_dt_(cluster,vectors=[],r=1.0,mdists=[]):
+def _bonds_dt_(cluster,vectors=[],r=1.0,max_translations=(),min_dists=[]):
     '''
     For details, see bonds.
     '''
-    pass
+    result=[]
+    indices=list(itertools.product(*[xrange(-nnb,nnb+1) for nnb in max_translations]))
+    for index in indices:
+        if any(index):indices.remove(tuple([-i for i in index]))
+    supercluster,map=tiling(cluster,vectors=vectors,indices=indices,return_map=True,translate_icoord=True)
+    tree,other=cKDTree([point.rcoord for point in cluster]),cKDTree([point.rcoord for point in supercluster])
+    smatrix=tree.sparse_distance_matrix(other,r)
+    for i,j,dist in enumerate(smatrix):
+        for k,min_dist in enumerate(min_dists):
+            if abs(min_dist-dist)<RZERO: 
+                neighbour=k
+                break
+        else:
+            neighbour=inf
+        buff=supercluster[j]
+        if buff.pid!=map[buff.pid] or cluster[i].pid<=buff.pid:
+            result.append(Bond(neighbour,spoint=cluster[i],epoint=Point(pid=map[buff.pid],rcoord=buff.rcoord,icoord=buff.icoord)))
+    return result
 
-def bonds_between_clusters(cluster1,cluster2,max_distance,mdists=[]):
+def bonds_between_clusters(cluster1,cluster2,max_dist,min_dists=[]):
     '''
     This function returns all the bonds between two clusters with the distances less than max_distance.
     Parameters:
         cluster1,cluster2: list of Point
             The clusters.
-        max_distance: float64
+        max_dist: float64
             The maximum distance.
-        mdist: list of float64, optional
+        min_dists: list of float64, optional
             The values of the distances between minimum neighbours.
     Returns: list of Bond
         The bonds between cluster1 and cluster2 with the distances less than max_distance.
     '''
     tree1=cKDTree([point.rcoord for point in cluster1])
     tree2=cKDTree([point.rcoord for point in cluster2])
-    smatrix=tree1.sparse_distance_matrix(tree2,max_distance)
-    mdists=[] if mdists is None else mdists
+    smatrix=tree1.sparse_distance_matrix(tree2,max_dist)
     for i,j,dist in enumerate(smatrix):
-        for k,mdist in enumerate(mdists):
-            if abs(mdist-dist)<RZERO: 
+        for k,min_dist in enumerate(min_dists):
+            if abs(min_dist-dist)<RZERO: 
                 neighbour=k
                 break
         else:
@@ -478,9 +491,15 @@ def bonds_between_clusters(cluster1,cluster2,max_distance,mdists=[]):
 class Lattice(dict):
     '''
     This class provides a unified description of 1D, quasi 1D, 2D, quasi 2D and 3D lattice systems.
+    For its every (key,value) pair,
+        key: PID
+            The pid of the containing point.
+        value: Point
+            The containing point.
     Attributes:
         name: string
             The lattice's name.
+            NOTE: The scope of every point is forced to be the same with it.
         vectors: list of 1D ndarray
             The translation vectors.
         reciprocals: list of 1D ndarray
@@ -489,7 +508,7 @@ class Lattice(dict):
             The highest order of neighbours;
         bonds: list of Bond
             The bonds of the lattice system.
-        mdists: list of float
+        min_dists: list of float
             The minimum distances within this lattice.
         max_coordinate_number: int
             The max coordinate number for every neighbour.
@@ -520,12 +539,12 @@ class Lattice(dict):
         self.vectors=vectors
         self.reciprocals=reciprocals(self.vectors)
         self.nneighbour=nneighbour
-        self.bonds,self.mdists=bonds(
+        self.bonds,self.min_dists=bonds(
                 cluster=    points,
                 vectors=    vectors,
                 options={   'nneighbour':nneighbour,
                             'max_coordinate_number':max_coordinate_number,
-                            'return_mdists':True
+                            'return_min_dists':True
                         }
         )
 
@@ -573,11 +592,11 @@ class SuperLattice(Lattice):
     '''
     This class is the union of sublattices.
     Attributes:
-        sublattices: list of Lattice
+        sublattices: list of Lattice/SuperLattice
             The sublattices of the superlattice.
     '''
 
-    def __init__(self,name,sublattices,vectors=[],nneighbour=1):
+    def __init__(self,name,sublattices,vectors=[],nneighbour=1,max_coordinate_number=8):
         '''
         Constructor.
         Parameters:
@@ -589,8 +608,12 @@ class SuperLattice(Lattice):
                 The translation vectors of the superlattice.
             nneighbour: integer,optional
                 The highest order of neighbours.
+            max_coordinate_number: int, optional
+                The max coordinate number for every neighbour.
+                This variable is used in the search for bonds.
         '''
         super(Lattice,self).__init__()
+        Lattice.max_coordinate_number=max_coordinate_number
         self.name=name
         self.sublattices=sublattices
         for lattice in sublattices:
@@ -598,7 +621,37 @@ class SuperLattice(Lattice):
         self.vectors=vectors
         self.reciprocals=reciprocals(vectors)
         self.nneighbour=nneighbour
-        self.bonds,self.mdists=bonds(cluster=self.values(),vectors=vectors,nneighbour=nneighbour,return_mdists=True)
+        self.bonds,self.min_dists=bonds(
+                cluster=    self.values(),
+                vectors=    vectors,
+                options={   'nneighbour':nneighbour,
+                            'max_coordinate_number':max_coordinate_number,
+                            'return_min_dists':True
+                        }
+        )
+
+    @classmethod
+    def union(cls,name,sublattices,max_dist,min_dists,vectors=[]):
+        '''
+        Constructor.
+        Parameters:
+            name: string
+                The name of the super-lattice.
+            sublattices: list of Lattice/SuperLattice
+                The sublattices of the superlattice.
+            max_dist: float64
+                The maximum distance.
+            min_dists: list of float64
+                The values of the distances between minimum neighbours.
+            vectors: list of 1D ndarray, optional
+                The translation vectors of the superlattice.
+        '''
+        result=cls.__new__(cls)
+        result.name=name
+        result.sublattices=sublattices
         for lattice in sublattices:
-            self.update(lattice.attached_points())
-            self.bonds.extend(lattice.attached_bonds())
+            self.update({k:p for k,p in lattice.items()})
+        result.vectors=result.vectors
+        result.reciprocals=reciprocals(vectors)
+        result.nneighbour=max([sublattice.nneighbour for sublattice in sublattices])
+        result.min_dists=min_dists
