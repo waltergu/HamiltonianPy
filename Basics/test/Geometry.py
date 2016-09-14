@@ -9,14 +9,14 @@ from HamiltonianPy.Basics.Geometry import *
 import time,itertools
 
 def test_geometry():
-    test_functions()
-    test_point()
-    test_bond()
-    test_tiling()
-    test_bonds()
-    test_lattice()
-    #test_lattice_expand_attach()
-    #test_super_lattice() 
+#    test_functions()
+#    test_point()
+#    test_bond()
+#    test_tiling()
+#    test_bonds()
+#    test_lattice()
+    test_super_lattice_merge() 
+    test_super_lattice_union()
 
 def test_functions():
     print 'test_function'
@@ -65,12 +65,15 @@ def test_tiling():
 
 def test_bonds():
     print 'test_bonds'
+    print "mode='nb'"
     p1=Point(pid=PID(site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1,a2=array([1.0,0.0]),array([0.0,1.0])
-    bs,mdists=bonds(cluster=[p1],vectors=[a1,a2],options=dict(nneighbour=4,return_min_dists=True))
-    for bond in bs:
-        print bond
-    print 'mdists:%s'%mdists
+    bs,min_dists=bonds(cluster=[p1],vectors=[a1,a2],mode='nb',options=dict(nneighbour=3,return_min_dists=True))
+    print '\n'.join([str(bond) for bond in bs])
+    print 'min_dists:%s'%min_dists
+    print "mode='dt'"
+    bs=bonds(cluster=[p1],vectors=[a1,a2],mode='dt',options=dict(r=2.0,min_dists=min_dists))
+    print '\n'.join([str(bond) for bond in bs])
     print
 
 def test_lattice():
@@ -92,24 +95,8 @@ def test_lattice():
     b.plot(show=True)
     print
 
-def test_lattice_expand_attach():
-    print 'test_lattice_expand_attach'
-    name='WG'
-    p=Point(pid=PID(scope=name,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
-    a1,a2=array([1.0,0.0]),array([0.0,1.0])
-    for m in xrange(4):
-        if m==0:
-            a=Lattice(name,points=[p],vectors=[a1,a2],nneighbour=2)
-            a.attach([Point(pid=PID(scope='bath',site=0),rcoord=[-0.5,-0.3],icoord=[0.0,0.0])],r=1.0)
-            a.attach([Point(pid=PID(scope='bath',site=1),rcoord=[-0.5,0.3],icoord=[0.0,0.0])],r=1.0)
-        else:
-            bp=Point(pid=PID(scope=name,site=m),rcoord=a1*m,icoord=[0.0,0.0])
-            a.expand([bp],vectors=[a1*(m+1),a2])
-        a.plot(pid_on=True)
-    print
-
-def test_super_lattice():
-    print 'test_super_lattice'
+def test_super_lattice_merge():
+    print 'test_super_lattice_merge'
     m=2
     points=[None for i in xrange(4)]
     points[0]=Point(pid=PID(site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
@@ -118,11 +105,42 @@ def test_super_lattice():
     points[3]=Point(pid=PID(site=3),rcoord=[1.0,1.0],icoord=[0.0,0.0])
     a1=array([2.0,0.0])
     a2=array([0.0,2.0])
-    a=SuperLattice(
+    a=SuperLattice.merge(
         name='Super',
         sublattices=[Lattice(name='sub'+str(i),points=translation(points,a1*i)) for i in xrange(m)],
         vectors=[a1*m,a2],
         nneighbour=2
         )
     a.plot(pid_on=True)
+    print
+
+def test_super_lattice_union():
+    print 'test_super_lattice_union'
+    N=4
+    name='WG'
+    p=Point(pid=PID(scope=name,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
+    a1,a2=array([1.0,0.0]),array([0.0,1.0])
+    for m in xrange(N):
+        if m==0:
+            a=Lattice(name,points=[p],vectors=[a1,a2])
+        else:
+            a.add_points([Point(pid=PID(scope=name,site=m),rcoord=a1*m,icoord=[0.0,0.0])])
+            a.reset(vectors=[a1*(m+1),a2])
+        #a.plot(pid_on=True)
+    b=Lattice(
+        name=       'bath',
+        points=     [   Point(pid=PID(scope='bath',site=0),rcoord=[-0.5,-0.3],icoord=[0.0,0.0]),
+                        Point(pid=PID(scope='bath',site=1),rcoord=[-0.5,+0.3],icoord=[0.0,0.0])
+                        ],
+        nneighbour= 0
+        )
+    #b.plot(pid_on=True)
+    c=SuperLattice.union(
+        name=           'super',
+        sublattices=    [a,b],
+        vectors=        [a1*(N+1),a2],
+        max_dist=       1.0,
+        min_dists=      a.min_dists
+        )
+    c.plot(pid_on=True)
     print
