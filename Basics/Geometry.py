@@ -689,89 +689,48 @@ class SuperLattice(Lattice):
         self.nneighbour=nneighbour
         self._merge=merge
         self._union=union
-        self.bonds=[]
-        for key in set(self.sublattices.keys())-set(merge):
-            self.bonds.extend(self.sublattices[key])
-        bs,mdists=bonds(
-            cluster=    concatenate([self.sublattices[key].values() for key in merge]),
-            vectors=    vectors,
-            mode=       'nb',
-            options={   'nneighbour':nneighbour,
-                        'max_coordinate_number':max_coordinate_number,
-                        'return_min_dists':True
-            }
-        )
-        self.min_dists=mdists if len(min_dists)!=nneighbour+1 else mdists
-        self.bonds.extend(bs)
-        for (i,j) in union:
-            self.bonds.extend(bonds_between_clusters(self.sublattices[i].values(),self.sublattices[j].values(),max_dist,min_dists=min_dists))
-
-    @classmethod
-    def merge(cls,name,sublattices,vectors=[],nneighbour=1,max_coordinate_number=8):
-        '''
-        Constructor.
-        Parameters:
-            name: string
-                The name of the super-lattice.
-            sublattices: list of Lattice
-                The sublattices of the superlattice.
-            vectors: list of 1D ndarray, optional
-                The translation vectors of the superlattice.
-            nneighbour: integer,optional
-                The highest order of neighbours.
-            max_coordinate_number: int, optional
-                The max coordinate number for every neighbour.
-                This variable is used in the search for bonds.
-        '''
-        result=cls.__new__(cls)
-        Lattice.max_coordinate_number=max_coordinate_number
-        result.name=name
-        result.sublattices=sublattices
-        for lattice in sublattices:
-            assert isinstance(lattice,Lattice)
-            dict.update(result,lattice)
-        result.vectors=vectors
-        result.reciprocals=reciprocals(vectors)
-        result.nneighbour=nneighbour
-        result.bonds,result.min_dists=bonds(
-                cluster=    result.values(),
+        if len(merge)>0:
+            self.bonds,self.min_dists=bonds(
+                cluster=    [point for key in merge for point in self.sublattices[key].values()],
                 vectors=    vectors,
                 mode=       'nb',
                 options={   'nneighbour':nneighbour,
                             'max_coordinate_number':max_coordinate_number,
                             'return_min_dists':True
-                        }
-        )
-        return result
+                }
+            )
+        else:
+            self.bonds,self.min_dists=[],min_dists
+        self.bonds.extend([bond for key in set(self.sublattices.keys())-set(merge) for bond in self.sublattices[key].bonds])
+        self.bonds.extend([bond for (i,j) in union for bond in bonds_between_clusters(self.sublattices[i].values(),self.sublattices[j].values(),max_dist,min_dists=min_dists)])
 
-    @classmethod
-    def union(cls,name,sublattices,vectors=[],max_dist=1.0,min_dists=[]):
+    @staticmethod
+    def merge(name,sublattices,vectors=[],nneighbour=1,max_coordinate_number=8):
         '''
-        Constructor.
-        Parameters:
-            name: string
-                The name of the super-lattice.
-            sublattices: list of Lattice
-                The sublattices of the superlattice.
-            max_dist: float64
-                The maximum distance.
-            min_dists: list of float64
-                The values of the distances between minimum neighbours.
-            vectors: list of 1D ndarray, optional
-                The translation vectors of the superlattice.
+        This is a simplified version of SuperLattice.__init__ by just merging sublattices to construct the superlattice.
+        For details, see SuperLattice.__init__.
         '''
-        result=cls.__new__(cls)
-        result.name=name
-        result.vectors=vectors
-        result.reciprocals=reciprocals(vectors)
-        result.nneighbour=max([sublattice.nneighbour for sublattice in sublattices])
-        result.min_dists=min_dists
-        result.sublattices=sublattices
-        result.bonds=[]
-        for i,li in enumerate(sublattices):
-            assert isinstance(li,Lattice)
-            dict.update(result,li)
-            result.bonds.extend(li.bonds)
-            for j,lj in enumerate(sublattices):
-                if i<j: result.bonds.extend(bonds_between_clusters(li.values(),lj.values(),max_dist,min_dists=min_dists))
-        return result
+        return SuperLattice(
+            name=                       name,
+            sublattices=                sublattices,
+            vectors=                    vectors,
+            merge=                      [lattice.name for lattice in sublattices],
+            nneighbour=                 nneighbour,
+            max_coordinate_number=      max_coordinate_number
+            )
+
+    @staticmethod
+    def union(name,sublattices,vectors=[],union=None,max_dist=1.0,min_dists=[]):
+        '''
+        This is a simplified version of SuperLattice.__init__ by just uniting sublattices to construct the superlattice.
+        For details, see SuperLattice.__init__.
+        '''
+        return SuperLattice(
+            name=               name,
+            sublattices=        sublattices,
+            vectors=            vectors,
+            union=              [(li.name,lj.name) for i,li in enumerate(sublattices) for j,lj in enumerate(sublattices) if i<j] if union is None else union,
+            nneighbour=         max([sublattice.nneighbour for sublattice in sublattices]),
+            max_dist=           max_dist,
+            min_dists=          min_dists
+            )

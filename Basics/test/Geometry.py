@@ -117,6 +117,13 @@ def test_super_lattice_merge():
 def test_super_lattice_union():
     print 'test_super_lattice_union'
     N=4
+    b=Lattice(
+        name=       'bath',
+        points=     [   Point(pid=PID(scope='bath',site=0),rcoord=[-0.5,-0.3],icoord=[0.0,0.0]),
+                        Point(pid=PID(scope='bath',site=1),rcoord=[-0.5,+0.3],icoord=[0.0,0.0])
+                        ],
+        nneighbour= 0
+        )
     name='WG'
     p=Point(pid=PID(scope=name,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1,a2=array([1.0,0.0]),array([0.0,1.0])
@@ -126,21 +133,12 @@ def test_super_lattice_union():
         else:
             a.add_points([Point(pid=PID(scope=name,site=m),rcoord=a1*m,icoord=[0.0,0.0])])
             a.reset(vectors=[a1*(m+1),a2])
-        #a.plot(pid_on=True)
-    b=Lattice(
-        name=       'bath',
-        points=     [   Point(pid=PID(scope='bath',site=0),rcoord=[-0.5,-0.3],icoord=[0.0,0.0]),
-                        Point(pid=PID(scope='bath',site=1),rcoord=[-0.5,+0.3],icoord=[0.0,0.0])
-                        ],
-        nneighbour= 0
-        )
-    #b.plot(pid_on=True)
-    c=SuperLattice.union(
-        name=           'super',
-        sublattices=    [a,b],
-        vectors=        [a1*(N+1),a2],
-        max_dist=       1.0,
-        min_dists=      a.min_dists
-        )
-    c.plot(pid_on=True)
+        c=SuperLattice.union(
+            name=           'super',
+            sublattices=    [a,b],
+            vectors=        [a1*(N+1),a2],
+            max_dist=       1.0,
+            min_dists=      a.min_dists
+            )
+        c.plot(pid_on=True)
     print
