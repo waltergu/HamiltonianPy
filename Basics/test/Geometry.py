@@ -9,12 +9,12 @@ from HamiltonianPy.Basics.Geometry import *
 import time,itertools
 
 def test_geometry():
-#    test_functions()
-#    test_point()
-#    test_bond()
-#    test_tiling()
-#    test_bonds()
-#    test_lattice()
+    test_functions()
+    test_point()
+    test_bond()
+    test_tiling()
+    test_bonds()
+    test_lattice()
     test_super_lattice_merge() 
     test_super_lattice_union()
 

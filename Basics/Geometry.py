@@ -532,21 +532,13 @@ class Lattice(dict):
                 The max coordinate number for every neighbour.
                 This variable is used in the search for bonds.
         '''
-        Lattice.max_coordinate_number=max_coordinate_number
         self.name=name
         self.add_points(points)
-        self.vectors=vectors
-        self.reciprocals=reciprocals(self.vectors)
-        self.nneighbour=nneighbour
-        self.bonds,self.min_dists=bonds(
-                cluster=    points,
-                vectors=    vectors,
-                mode=       'nb',
-                options={   'nneighbour':nneighbour,
-                            'max_coordinate_number':max_coordinate_number,
-                            'return_min_dists':True
-                        }
-        )
+        self.reset(
+            vectors=                vectors,
+            nneighbour=             nneighbour,
+            max_coordinate_number=  max_coordinate_number
+            )
 
     def __str__(self):
         '''
