@@ -21,7 +21,7 @@ class MPSBase(object):
         tol: float
             The error tolerance.
     '''
-    order=[LLINK,SITE,RLINK]
+    L,S,R=LLINK,SITE,RLINK
     nmax=200
     tol=10**-14
 
@@ -31,27 +31,6 @@ class MPSBase(object):
         The number of total sites.
         '''
         raise NotImplementedError()
-
-    @property
-    def L(self):
-        '''
-        The axes of LLINK.
-        '''
-        return self.order.index(LLINK)
-
-    @property
-    def S(self):
-        '''
-        The axes of SITE.
-        '''
-        return self.order.index(SITE)
-
-    @property
-    def R(self):
-        '''
-        The axes of RLINK.
-        '''
-        return self.order.index(RLINK)
 
     @property
     def state(self):
@@ -74,7 +53,7 @@ class MPSBase(object):
         '''
         raise NotImplementedError()
 
-class MPS(MPSBase):
+class MPS(MPSBase,list):
     '''
     The general matrix product state.
     Attributes:
@@ -87,7 +66,7 @@ class MPS(MPSBase):
     Note the left-canonical MPS, right-canonical MPS and mixed-canonical MPS are considered as special cases of this form.
     '''
 
-    def __init__(self,ms,labels,Lambda=None,cut=0):
+    def __init__(self,ms,labels,Lambda=None,cut=None):
         '''
         Constructor.
         Parameters:
@@ -96,7 +75,7 @@ class MPS(MPSBase):
             labels: list of 3 tuples
                 The labels of the axis of the matrices, thus its length should be equal to that of ms.
                 For each label in labels, 
-                    label[0],label[1],label[2]: any hashable object
+                    label[0],label[1],label[2]: Label
                         The left link / site / right link label of the matrix.
             Lambda: 1d ndarray, optional
                 The Lambda matrix (singular values) on the connecting link.
@@ -105,66 +84,80 @@ class MPS(MPSBase):
         '''
         if len(ms)!=len(labels):
             raise ValueError('MPS construction error: the number of matrices(%s) is not equal to that of the labels(%s).'%(len(ms),len(labels)))
-        self.ms=[]
+        #self=[]
         temp=[None]*3
         for i,(m,label) in enumerate(zip(ms,labels)):
             if m.ndim!=3:
                 raise ValueError('MPS construction error: all input matrices should be 3 dimensional.')
             L,S,R=label
+            if not (isinstance(L,Label) and isinstance(S,Label) and isinstance(R,Label)):
+                raise ValueError("MPS construction error: all labels should be instances of Label.")
             temp[self.L]=L
             temp[self.S]=S
             temp[self.R]=R
-            self.ms.append(Tensor(m,labels=deepcopy(temp)))
-        if cut>0 and cut<len(ms):
-            if Lambda is None:
-                raise ValueError("MPS construction error: cut is %s and Lambda is not assigned."%(cut))
+            self.append(Tensor(m,labels=deepcopy(temp)))
+        if Lambda is None:
+            if cut is None:
+                self.Lambda=None
+                self.cut=None
             else:
-                self.Lambda=Tensor(Lambda,labels=[deepcopy(labels[cut-1][2])])
-            self.cut=cut
-        elif cut==0 or cut==len(ms):
-            labels=[] if Lambda is None else [deepcopy(labels[cut][0] if cut==0 else labels[cut-1][2])]
-            self.Lambda=Tensor(1 if Lambda is None else Lambda,labels=labels)
-            self.cut=cut
+                raise ValueError("MPS construction error: cut is %s and Lambda is not assigned."%(cut))
         else:
-            raise ValueError('MPS construction error: the cut(%s) is out of range [0,%s].'%(cut,len(ms)))
+            if cut is None:
+                raise ValueError("MPS construction error: Lambda is not None but cut is not assigned.")
+            elif cut>0 and cut<=len(ms):
+                self.Lambda=Tensor(Lambda,labels=[deepcopy(labels[cut-1][2])])
+                self.cut=cut
+            elif cut==0:
+                self.Lambda=Tensor(Lambda,labels=[deepcopy(labels[cut][0])])
+                self.cut=cut
+            else:
+                raise ValueError('MPS construction error: the cut(%s) is out of range [0,%s].'%(cut,len(ms)))
 
-    @classmethod
-    def compose(cls,As,Lambda,Bs,labels=None):
+    @staticmethod
+    def compose(As=[],Bs=[],Lambda=None):
         '''
-        Construct an MPS from As, Lambda and Bs.
+        Construct an MPS from As, Bs and Lambda.
         Parameters:
-            As,Bs: list of 3d Tensor or list of 3d ndarray
+            As,Bs: list of 3d Tensor, optional
                 The A/B matrices of the MPS.
-            Lambda: 1d Tensor or 1d ndarray
+            Lambda: 1d Tensor, optional
                 The Lambda matrix (singular values) on the connecting link.
-            labels: list of 3-tuple, optional.
-                It is used only when As, Lambda and Bs are ndarrays.
-                For details, see MPS.__init__.
         Returns: MPS
             The constructed MPS.
         '''
-        if all([isinstance(A,Tensor) for A in As]) and all([isinstance(B,Tensor) for B in Bs]) and isinstance(Lambda,Tensor):
-            result=cls.__new__(cls)
-            result.ms=As+Bs
-            result.Lambda=Lambda
-            result.cut=len(As)
+        if all([isinstance(A,Tensor) for A in As]) and all([isinstance(B,Tensor) for B in Bs]):
+            result=MPS.__new__(MPS)
+            if Lambda is None:
+                if len(As)==0 or len(Bs)==0:
+                    result.extend(As+Bs)
+                    result.cut=None
+                    result.Lambda=None
+                else:
+                    raise ValueError("MPS.compose error: Lambda is None but both As and Bs are not empty.")
+            elif isinstance(Lambda,Tensor):
+                result.extend(As+Bs)
+                result.Lambda=Lambda
+                result.cut=len(As)
+            else:
+                raise ValueError("MPS.compose error: Lambda should be a Tensor.")
             return result
-        elif labels is not None:
-            return cls(ms=As+Bs,labels=labels,Lambda=Lambda,cut=len(As))
+        else:
+            raise ValueError("MPS.compose error: both As and Bs should be lists of Tensor.")
 
     @property
     def As(self):
         '''
         The A matrices.
         '''
-        return self.ms[0:self.cut]
+        return self[0:self.cut]
 
     @property
     def Bs(self):
         '''
         The B matrices.
         '''
-        return self.ms[self.cut:self.nsite]
+        return self[self.cut:self.nsite]
 
     @property
     def decompose(self):
@@ -177,11 +170,9 @@ class MPS(MPSBase):
         '''
         Convert an instance to string.
         '''
-        result=[]
-        for i,M in enumerate(self.ms):
-            if i==self.cut:
-                result.append(str(self.Lambda))
-            result.append(str(M))
+        result=[str(m) for m in self]
+        if self.cut is not None:
+            result.insert(self.cut,str(self.Lambda))
         return '\n'.join(result)
 
     @property
@@ -189,7 +180,7 @@ class MPS(MPSBase):
         '''
         The number of total sites.
         '''
-        return len(self.ms)
+        return len(self)
 
     @property
     def state(self):
@@ -203,12 +194,12 @@ class MPS(MPSBase):
                 The MPS is a mixed state with the columns being the contained pure states.
                 The singular value for each pure state is omitted.
         '''
-        if self.cut in (0,self.nsite):
-            result=contract(*self.ms,sequence='sequential')
+        if self.cut in (0,self.nsite,None):
+            result=contract(*self,sequence='sequential')
         else:
             A,B=contract(*self.As,sequence='sequential'),contract(*self.Bs,sequence='sequential')
             result=contract(A,self.Lambda,B)
-        legs=set(result.labels)-set(m.labels[self.S] for m in self.ms)
+        legs=set(result.labels)-set(m.labels[self.S] for m in self)
         if len(legs)==0:
             return asarray(result).ravel()
         elif len(legs)==1:
@@ -242,10 +233,13 @@ class MPS(MPSBase):
             reset: 0 or self.nsite, optional
                 Reset self.cut to this integer.
         '''
-        if self.cut==self.nsite or (merge=='A' and self.cut!=0):
-            self.ms[self.cut-1]=contract(self.ms[self.cut-1],self.Lambda,mask=self.Lambda.labels)
-        else:
-            self.ms[self.cut]=contract(self.Lambda,self.ms[self.cut],mask=self.Lambda.labels)
+        if self[0].shape[MPS.L]!=1 or self[-1].shape[MPS.R]!=1:
+            raise ValueError("MPS _reset_ error: method not supported for mixed matrix product states yet.")
+        if self.cut is not None:
+            if self.cut==self.nsite or (merge=='A' and self.cut!=0):
+                self[self.cut-1]=contract(self[self.cut-1],self.Lambda,mask=self.Lambda.labels)
+            else:
+                self[self.cut]=contract(self.Lambda,self[self.cut],mask=self.Lambda.labels)
         self.cut=0 if reset==0 else self.nsite
         self.Lambda=Tensor(1.0,labels=[])
 
@@ -265,18 +259,18 @@ class MPS(MPSBase):
         if self.cut==0:
             raise ValueError('MPS _set_B_and_lmove_ error: the cut is already zero.')
         L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
-        u,s,v=M.svd([L],'_'+str(L),[S,R],nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
-        v.relabel(news=[L],olds=['_'+str(L)])
-        self.ms[self.cut-1]=v
+        u,s,v=M.svd([L],L.prime,[S,R],nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
+        v.relabel(news=[L],olds=[L.prime])
+        self[self.cut-1]=v
         if self.cut==1:
             if len(s)>1:
                 raise ValueError('MPS _set_B_and_lmove_ error(not supported operation): the MPS is a mixed state and is to move to the end.')
             self.Lambda=contract(u,s)
         else:
-            s.relabel(news=[L],olds=['_'+str(L)])
+            s.relabel(news=[L],olds=[L.prime])
             self.Lambda=s
-            self.ms[self.cut-2]=contract(self.ms[self.cut-2],u)
-            self.ms[self.cut-2].relabel(news=[L],olds=['_'+str(L)])
+            self[self.cut-2]=contract(self[self.cut-2],u)
+            self[self.cut-2].relabel(news=[L],olds=[L.prime])
         self.cut=self.cut-1
 
     def _set_A_and_rmove_(self,M,nmax=MPSBase.nmax,tol=MPSBase.tol,print_truncation_err=True):
@@ -295,18 +289,18 @@ class MPS(MPSBase):
         if self.cut==self.nsite:
             raise ValueError('MPS _set_A_and_rmove_ error: the cut is already maximum.')
         L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
-        u,s,v=M.svd([L,S],'_'+str(R),[R],nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
-        u.relabel(news=[R],olds=['_'+str(R)])
-        self.ms[self.cut]=u
+        u,s,v=M.svd([L,S],R.prime,[R],nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
+        u.relabel(news=[R],olds=[R.prime])
+        self[self.cut]=u
         if self.cut==self.nsite-1:
             if len(s)>1:
                 raise ValueError('MPS _set_A_and_rmove_ error(not supported operation): the MPS is a mixed state and is to move to the end.')
             self.Lambda=contract(s,v)
         else:
-            s.relabel(news=[R],olds=['_'+str(R)])
+            s.relabel(news=[R],olds=[R.prime])
             self.Lambda=s
-            self.ms[self.cut+1]=contract(v,self.ms[self.cut+1])
-            self.ms[self.cut+1].relabel(news=[R],olds=['_'+str(R)])
+            self[self.cut+1]=contract(v,self[self.cut+1])
+            self[self.cut+1].relabel(news=[R],olds=[R.prime])
         self.cut=self.cut+1
 
     def __ilshift__(self,other):
@@ -330,8 +324,7 @@ class MPS(MPSBase):
         else:
             k=other
         for i in xrange(k):
-            #M=self.ms[self.cut-1]*(asarray(self.Lambda)[newaxis,:] if self.Lambda.ndim>0 else asarray(self.Lambda))
-            M=contract(self.ms[self.cut-1],self.Lambda,mask=self.Lambda.labels)
+            M=contract(self[self.cut-1],self.Lambda,mask=self.Lambda.labels)
             self._set_B_and_lmove_(M,nmax,tol)
         return self
 
@@ -365,8 +358,7 @@ class MPS(MPSBase):
         else:
             k=other
         for i in xrange(k):
-            #M=self.ms[self.cut]*(asarray(self.Lambda)[:,newaxis] if self.Lambda.ndim>0 else asarray(self.Lambda))
-            M=contract(self.Lambda,self.ms[self.cut],mask=self.Lambda.labels)
+            M=contract(self.Lambda,self[self.cut],mask=self.Lambda.labels)
             self._set_A_and_rmove_(M,nmax,tol)
         return self
 
@@ -402,7 +394,7 @@ class MPS(MPSBase):
         Judge whether the MPS is in the canonical form.
         '''
         result=[]
-        for i,M in enumerate(self.ms):
+        for i,M in enumerate(self):
             temp=[asarray(M.take(indices=j,axis=self.S)) for j in xrange(M.shape[self.S])]
             buff=None
             for matrix in temp:
@@ -413,17 +405,25 @@ class MPS(MPSBase):
             result.append(all(abs(buff-identity(M.shape[self.R if i<self.cut else self.L]))<self.tol))
         return result
 
-    def prime(self,labels=None,copy_data=False):
+    def copy(self,copy_data=False):
         '''
+        Make a copy of the mps.
+        Parameters:
+            copy_data: logical, optional
+                When True, both the labels and data of each tensor in this mps will be copied;
+                When False, only the labels of each tensor in this mps will be copied.
         '''
-        pass
+        As=[A.copy(copy_data=copy_data) for A in self.As]
+        Bs=[B.copy(copy_data=copy_data) for B in self.Bs]
+        Lambda=None if self.Lambda is None else self.Lambda.copy(copy_data=copy_data)
+        return MPS.compose(As,Bs,Lambda)
 
     def to_vidal(self):
         '''
         Convert to the Vidal MPS representation.
         '''
         Gammas,Lambdas,labels=[],[],[]
-        for i,M in enumerate(self.ms):
+        for i,M in enumerate(self):
             L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
             if i==0:
                 temp=M
@@ -432,15 +432,14 @@ class MPS(MPSBase):
                     temp=contract(v*asarray(s)[:,newaxis],self.Lambda,M)
                 else:
                     temp=contract(v*asarray(old)[:,newaxis],M)
-                temp.relabel(news=[L],olds=['_'+L])
-            u,new,v=temp.svd([L,S],'_'+str(R),[R])
+                temp.relabel(news=[L],olds=[L.prime])
             labels.append((L,S,R))
             if i==0:
                 Gammas.append(asarray(u))
             else:
                 Gammas.append(asarray(u)/asarray(old)[:,newaxis])
             old=new
-            if i<len(self.ms)-1:
+            if i<len(self)-1:
                 Lambdas.append(asarray(new))
             else:
                 norm=abs((asarray(v)*asarray(new)[:,newaxis])[0,0])
@@ -470,7 +469,7 @@ class Vidal(MPSBase):
                 The labels of the axis of the Gamma matrices.
                 Its length should be equal to that of Gammas.
                 For each label in labels, 
-                    label[0],label[1],label[2]: any hashable object
+                    label[0],label[1],label[2]: Label
                         The left link / site / right link label of the matrix.
         '''
         if len(Gammas)!=len(Lambdas)+1:
@@ -489,6 +488,8 @@ class Vidal(MPSBase):
             temp[self.L]=L
             temp[self.S]=S
             temp[self.R]=R
+            if not (isinstance(L,Label) and isinstance(S,Label) and isinstance(R,Label)):
+                raise ValueError("MPS construction error: all labels should be instances of Label.")
             self.Gammas.append(Tensor(Gamma,labels=deepcopy(temp)))
         for Lambda,label in zip(Lambdas,buff):
             if Lambda.ndim!=1:

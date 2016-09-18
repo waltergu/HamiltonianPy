@@ -14,7 +14,7 @@ def test_mps():
     N=3
     ms,labels=[],[]
     for i in xrange(N):
-        labels.append(('END' if i==0 else 'B%s'%(i-1),'S%s'%i,'END' if i==N-1 else 'B%s'%i))
+        labels.append((Label('END') if i==0 else Label('B%s'%(i-1)),Label('S%s'%i),Label('END') if i==N-1 else Label('B%s'%i)))
         if i==0:
             ms.append(array([[[1,0],[0,1]]]))
         elif i==N-1:
@@ -22,7 +22,7 @@ def test_mps():
         else:
             ms.append(array([[[1,0],[0,1]],[[1,0],[0,1]]]))
     a=MPS(ms,labels)
-    #print 'a:\n%s'%a
+    print 'a:\n%s'%a
     print 'a.state: %s'%a.state
     print 'a.norm: %s'%a.norm
     print '-------------------'

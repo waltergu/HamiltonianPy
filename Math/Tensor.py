@@ -7,23 +7,36 @@ Tensor and tensor operations, including:
 from numpy import *
 from numpy.linalg import svd
 from opt_einsum import contract as einsum
+from collections import namedtuple,Counter
 from copy import deepcopy
 
 __all__=['Label','Tensor','contract']
 
-class Label(str):
+class Label(namedtuple('Label',['lb','pm'])):
     '''
-    The Label of an axis of a Tensor.
+    The label of an axis of a tensor.
+    Attribues:
+        lb: any hashable object
+            The content of the Label.
+        pm: 0 or 1
+            When 0, it means no prime;
+            When 1, it means with prime.
     '''
-
-    def __new__(cls,content):
-        return str.__new__(cls,content)
-
-    def __str__(self):
-        return self.__repr__()
 
     def __repr__(self):
-        return 'Label(%s)'%(str.__repr__(self))
+        '''
+        Convert an instance to string.
+        '''
+        return '%s%s'%(self.lb,'' if self.pm==0 else "'")
+
+    @property
+    def prime(self):
+        '''
+        The prime of the Label.
+        '''
+        return self._replace(pm=1-self.pm)
+
+Label.__new__.__defaults__=(None,0)
 
 class Tensor(ndarray):
     '''
@@ -31,11 +44,17 @@ class Tensor(ndarray):
     Attributes:
         labels: list of hashable objects, e.g. string, tuple, etc.
             The labels of the axes.
+            NOTE: the labels DO NOT have to be list of Label.
     '''
 
     def __new__(cls,array,labels,*args,**kargs):
         '''
         Initialize an instance through the explicit construction, i.e. constructor.
+        Parameters:
+            array: ndarray like
+                The data of the Tensor.
+            labels: list of hashable objects
+                The labels of the Tensor.
         '''
         temp=asarray(array,*args,**kargs)
         if len(labels)!=temp.ndim:
@@ -61,6 +80,21 @@ class Tensor(ndarray):
             return "Tensor(labels=%s,\ndata=%s)"%(self.labels,super(Tensor,self).__str__())
         else:
             return "Tensor(labels=%s, data=%s)"%(self.labels,super(Tensor,self).__str__())
+
+    def copy(self,copy_data=False):
+        '''
+        Make a copy of a tensor.
+        Parameters:
+            copy_data: logical, optional
+                When True, both the data and labels of the tensor will be copied;
+                When False, only the labels of the tensor will be copyied.
+        Returns: Tensor
+            The copy of the tensor.
+        '''
+        if copy_data:
+            return deepcopy(self)
+        else:
+            return Tensor(asarray(self),labels=deepcopy(self.labels))
 
     def label(self,axis):
         '''
@@ -248,10 +282,10 @@ def _contract_(*tensors,**karg):
     '''
     mask={key:True for key in karg.get('mask',[])}
     lists=[tensor.labels for tensor in tensors]
-    alls=concatenate(lists)
-    uniques,counts=unique(alls,return_counts=True)
-    table={key:value for value,key in enumerate(uniques)}
+    alls=[label for labels in lists for label in labels]
+    counts=Counter(alls)
+    table={key:i for i,key in enumerate(counts)}
     subscripts=[''.join(chr(table[label]+97) for label in labels) for labels in lists]
-    contracted_labels=[label for label in alls if (counts[table[label]]==1 or mask.pop(label,False))]
+    contracted_labels=[label for label in alls if (counts[label]==1 or mask.pop(label,False))]
     contracted_subscript=''.join(chr(table[label]+97) for label in contracted_labels)
     return Tensor(einsum('%s->%s'%(','.join(subscripts),contracted_subscript),*tensors),labels=contracted_labels)

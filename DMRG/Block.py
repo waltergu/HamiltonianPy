@@ -129,7 +129,7 @@ def block_svd(Psi,qns1,qns2,qns=None,n=None,return_truncation_error=True):
 class Block(object):
     '''
     '''
-    def __init__(self,length,lattice,config,terms,qns,unitaries,H):
+    def __init__(self,length,lattice,config,terms,qns,ms,H):
         '''
         Constructor.
         '''
@@ -139,39 +139,39 @@ class Block(object):
         self.table=config.table()
         self.terms=terms
         self.qns=qns
-        self.unitaries=unitaries
+        self.ms=ms
         self.H=H
 
-    def combination(self,other,target=None):
+    def union(self,other,target=None):
         '''
-        The combination of two block.
+        The union of two block.
         '''
         length=self.length+other.length
         lattice=Lattice(
                 name=       self.name,
-                points=     self.points.values()+other.points.values(),
+                points=     self.values()+other.values(),
                 nneighbour= self.nneighbour
                 )
         config=copy(self.config)
         config.update(other.config)
         terms=self.terms
         qns=self.qns+other.qns
-        unitaries=self.unitaries.combination(other.unitaries)
+        ms=self.ms+other.ms
         connections=Generator(
-                bonds=      [bond for bond in lattice.bonds if (bond.spoint.pid in self.lattice.points and bond.epoint.pid in other.lattice.points) or (bond.spoint.pid in other.lattice.points and bond.epoint.pid in self.lattice.bonds)],
+                bonds=      [bond for bond in lattice.bonds if (bond.spoint.pid in self.lattice and bond.epoint.pid in other.lattice) or (bond.spoint.pid in other.lattice and bond.epoint.pid in self.lattice)],
                 config=     config,
                 terms=      terms
                 )
         H=None
         for opt in connections.operator.values():
             value,opt1,opt2=decomposition(opt,self.table,other.table)
-            m1,m2=s_opt_rep_unitaries(opt1*value,self.unitaries,self.qns),s_opt_rep_unitaries(opt2,self.unitaries,self.qns)
+            m1,m2=OptStr.from_operator(opt1).matrix(self.ms),OptStr.from_operator(opt2).matrix(other.ms)
             if H is None:
                 H=kron(m1,m2,self.qns,other.qns,qns,target)
             else:
                 H+=kron(m1,m2,self.qns,other.qns,qns,target)
         H+=kron(self.H,other.H,self.qns,other.qns,qns,target)
-        return Block(length=length,lattice=lattice,config=config,terms=terms,qns=qns,unitaries=unitaries,H=H)
+        return Block(length=length,lattice=lattice,config=config,terms=terms,qns=qns,ms=ms,H=H)
 
     def truncate(self,U,indices):
         pass
