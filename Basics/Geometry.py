@@ -515,6 +515,7 @@ class Lattice(dict):
             The max coordinate number for every neighbour.
     '''
     max_coordinate_number=8
+    debug=False
 
     def __init__(self,name,points,vectors=[],nneighbour=1,max_coordinate_number=8):
         '''
@@ -548,15 +549,21 @@ class Lattice(dict):
 
     def __setitem__(self,key,value):
         '''
-        This method is forbidden to be used.
+        This method is forbidden to be used when self.debug is True.
         '''
-        raise RuntimeError("Lattice __setitem__ error: forbidden method. Instead use Lattice.add_points.")
+        if self.debug:
+            raise RuntimeError("Lattice __setitem__ error: forbidden method. Instead use Lattice.add_points.")
+        else:
+            dict.__setitem__(self,key,value)
 
     def update(self,other):
         '''
-        This method is forbidden to be used.
+        This method is forbidden to be used when self.debug is True.
         '''
-        raise RuntimeError("Lattice update error: forbidden method. Instead use Lattice.add_points.")
+        if self.debug:
+            raise RuntimeError("Lattice update error: forbidden method. Instead use Lattice.add_points.")
+        else:
+            dict.update(self,other)
 
     def add_points(self,points):
         '''

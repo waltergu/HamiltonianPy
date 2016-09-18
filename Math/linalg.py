@@ -1,13 +1,41 @@
 '''
-Lanczos.
+Linear algebra, including
+1) functions: truncated_svd;
+2) classes: Lanczos
 '''
 
-__all__=['Lanczos']
+__all__=['truncated_svd','Lanczos']
 
 from numpy import *
-from numpy.linalg import norm
+from numpy.linalg import svd,norm
 from scipy.sparse import csr_matrix
 from scipy.linalg import eigh
+
+def truncated_svd(m,nmax=None,tol=None,print_truncation_err=False,**karg):
+    '''
+    Perform the truncated svd.
+    Parameters:
+        m: 2d ndarray
+            The matrix to be truncated_svded.
+        nmax: integer, optional
+            The maximum number of singular values to be kept. 
+            If it is None, it takes no effect.
+        tol: float64, optional
+            The truncation tolerance.
+            If it is None, it taks no effect.
+        print_truncation_err: logical, optional
+            If it is True, the truncation err will be printed.
+        For other parameters, please see http://docs.scipy.org/doc/numpy/reference/generated/numpy.linalg.svd.html for details.
+    Returns:
+        u,s,v: ndarray
+            The truncated result.
+    '''
+    u,s,v=svd(m,**karg)
+    nmax=len(s) if nmax is None else min(nmax,len(s))
+    tol=s[nmax-1] if tol is None else tol
+    indices=(s>=tol)
+    if print_truncation_err and nmax<len(s): print 'Tensor svd truncation err: %s'%s[~indices].sum()
+    return u[:,indices],s[indices],v[indices,:]
 
 class Lanczos:
     '''

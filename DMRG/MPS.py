@@ -4,11 +4,13 @@ Matrix product state, including:
 2) classes: MPSBase, MPS, Vidal
 '''
 
-__all__=['LLINK','SITE','RLINK','MPSBase','Vidal','MPS']
+__all__=['LLINK','SITE','RLINK','MPSBase','MPS','Vidal']
 
 from numpy import *
 from HamiltonianPy.Math.Tensor import *
-from copy import deepcopy
+from HamiltonianPy.Math.linalg import truncated_svd
+from collections import OrderedDict
+from copy import deepcopy,copy
 
 LLINK,SITE,RLINK=0,1,2
 
@@ -39,16 +41,14 @@ class MPSBase(object):
         '''
         raise NotImplementedError()
 
-    @classmethod
-    def from_state(cls,state,*arg,**karg):
+    @staticmethod
+    def from_state(state,*arg,**karg):
         '''
         Convert the normal representation of a state to the matrix product representation.
         Parameters:
-            cls: subclass of MPSBase
-                The subclass of MPSBase.
             state: 1d ndarray
                 The normal representation of a state.
-        Returns: MPSBase
+        Returns: subclass of MPSBase
             The corresponding matrix product state.
         '''
         raise NotImplementedError()
@@ -56,13 +56,19 @@ class MPSBase(object):
 class MPS(MPSBase,list):
     '''
     The general matrix product state.
+        For each of its elements: Tensor
+            The matrices of the mps.
     Attributes:
-        ms: list of Tensor
-            The matrices.
         Lambda: Tensor
             The Lambda matrix (singular values) on the connecting link.
         cut: integer
             The index of the connecting link.
+        table: OrderedDict
+            For each of its key,value pair,
+                key: Label
+                    The site label of each matrix in the mps.
+                value: integer
+                    The index of the corresponding matrix in the mps.
     Note the left-canonical MPS, right-canonical MPS and mixed-canonical MPS are considered as special cases of this form.
     '''
 
@@ -84,8 +90,8 @@ class MPS(MPSBase,list):
         '''
         if len(ms)!=len(labels):
             raise ValueError('MPS construction error: the number of matrices(%s) is not equal to that of the labels(%s).'%(len(ms),len(labels)))
-        #self=[]
         temp=[None]*3
+        self.table=OrderedDict()
         for i,(m,label) in enumerate(zip(ms,labels)):
             if m.ndim!=3:
                 raise ValueError('MPS construction error: all input matrices should be 3 dimensional.')
@@ -96,6 +102,7 @@ class MPS(MPSBase,list):
             temp[self.S]=S
             temp[self.R]=R
             self.append(Tensor(m,labels=deepcopy(temp)))
+            self.table[S]=i
         if Lambda is None:
             if cut is None:
                 self.Lambda=None
@@ -115,6 +122,60 @@ class MPS(MPSBase,list):
                 raise ValueError('MPS construction error: the cut(%s) is out of range [0,%s].'%(cut,len(ms)))
 
     @staticmethod
+    def from_state(state,shape,labels,cut=0,nmax=None,tol=None,print_truncation_err=False):
+        '''
+        Convert the normal representation of a state to the matrix product representation.
+        Parameters:
+            state: 1d ndarray
+                The normal representation of a state.
+            shape: list of integers
+                The physical dimension of every site.
+            labels: list of 3-tuple
+                Please see MPS.__init__ for details.
+            cut: integer, optional
+                The index of the connecting link.
+            nmax: integer, optional
+                The maximum number of singular values to be kept. 
+                If it is None, it takes no effect.
+            tol: float64, optional
+                The truncation tolerance.
+                If it is None, it taks no effect.
+            print_truncation_err: logical, optional
+                If it is True, the truncation err will be printed.
+        Returns: MPS
+            The corresponding mixed-canonical mps.
+        '''
+        if len(state.shape)!=1:
+            raise ValueError("MPS.from_state error: the original state must be a pure state.")
+        ms,nd=[None]*len(shape),1
+        for i in xrange(cut):
+            u,s,v=truncated_svd(state.reshape((nd*shape[i],-1)),full_matrices=False,nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
+            ms[i]=u.reshape((nd,shape[i],-1))
+            if i==cut-1:
+                if cut==len(shape):
+                    Lambda=v.transpose().dot(s)
+                else:
+                    Lambda,state=s,v
+            else:
+                state=einsum('i,ij->ij',s,v)
+            nd=len(s)
+        nd=1
+        for i in xrange(len(shape)-1,cut-1,-1):
+            if i==cut:
+                if cut==0:
+                    u,s,v=truncated_svd(state.reshape((-1,shape[i]*nd)),full_matrices=False,nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
+                    ms[i]=v.reshape((-1,shape[i],nd))
+                    Lambda=u.dot(s)
+                else:
+                    ms[i]=state.reshape((-1,shape[i],nd))
+            else:
+                u,s,v=truncated_svd(state.reshape((-1,shape[i]*nd)),full_matrices=False,nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
+                ms[i]=v.reshape((-1,shape[i],nd))
+                state=einsum('ij,j->ij',u,s)
+            nd=len(s)
+        return MPS(ms,labels,Lambda=Lambda,cut=cut)
+
+    @staticmethod
     def compose(As=[],Bs=[],Lambda=None):
         '''
         Construct an MPS from As, Bs and Lambda.
@@ -130,17 +191,19 @@ class MPS(MPSBase,list):
             result=MPS.__new__(MPS)
             if Lambda is None:
                 if len(As)==0 or len(Bs)==0:
-                    result.extend(As+Bs)
                     result.cut=None
                     result.Lambda=None
                 else:
                     raise ValueError("MPS.compose error: Lambda is None but both As and Bs are not empty.")
             elif isinstance(Lambda,Tensor):
-                result.extend(As+Bs)
                 result.Lambda=Lambda
                 result.cut=len(As)
             else:
                 raise ValueError("MPS.compose error: Lambda should be a Tensor.")
+            result.table=OrderedDict()
+            for i,m in enumerate(As+Bs):
+                result.append(m)
+                result.table[m.labels[MPS.S]]=i
             return result
         else:
             raise ValueError("MPS.compose error: both As and Bs should be lists of Tensor.")
@@ -218,30 +281,62 @@ class MPS(MPSBase,list):
         '''
         The norm of the matrix product state.
         '''
-        temp=deepcopy(self)
+        temp=copy(self)
         temp._reset_(reset=0)
         temp>>=temp.nsite
         return asarray(temp.Lambda)
 
-    def _reset_(self,merge='A',reset=0):
+    def _reset_(self,merge='A',reset=None):
         '''
-        Merge the Lamdbda matrix on the link to its neighbouring A matrix or B matrix and reset the cut to 0 or to self.nsite.
+        Reset the mps.
+        This function does two things,
+        1) merge the Lamdbda matrix on the link to its neighbouring A matrix or B matrix acoording to the parameter merge,
+        2) reset Lambda and cut acoording to the parameter reset.
         Parameters:
             merge: 'A' or 'B', optional
                 When 'A', self.Lambda will be merged into its neighbouring A matrix;
                 When 'B', self.Lambda will be merged into its neighbouring B matrix.
-            reset: 0 or self.nsite, optional
-                Reset self.cut to this integer.
+            reset: None or an integer, optional
+                When None, self.cut and self.Lambda will be reset to None;
+                When an integer, self.cut will be reset to this value and self.Lambda will be reset to a scalar Tensor with the data equal to 1.0.
         '''
         if self[0].shape[MPS.L]!=1 or self[-1].shape[MPS.R]!=1:
             raise ValueError("MPS _reset_ error: method not supported for mixed matrix product states yet.")
+        if self[0].labels[MPS.L]!=self[-1].labels[MPS.R]:
+            raise ValueError("MPS _reset_ error: method not supported for cases where the labels of the matrices do not form a loop.")
         if self.cut is not None:
-            if self.cut==self.nsite or (merge=='A' and self.cut!=0):
+            if merge=='A':
                 self[self.cut-1]=contract(self[self.cut-1],self.Lambda,mask=self.Lambda.labels)
             else:
-                self[self.cut]=contract(self.Lambda,self[self.cut],mask=self.Lambda.labels)
-        self.cut=0 if reset==0 else self.nsite
-        self.Lambda=Tensor(1.0,labels=[])
+                self[self.cut%self.nsite]=contract(self.Lambda,self[self.cut%self.nsite],mask=self.Lambda.labels)
+        if reset is None:
+            self.cut=None
+            self.Lambda=None
+        elif reset>=0 and reset<=self.nsite:
+            self.cut=reset
+            self.Lambda=Tensor(1.0,labels=[])
+        else:
+            raise ValueError("MPS _reset_ error: reset(%s) should be None or in the range [%s,%s]"%(reset,0,self.nsite))
+
+    def _set_ABL_(self,m,Lambda):
+        '''
+        Set the matrix at a certain position and the Lambda of an mps.
+        Parameters:
+            m: Tensor
+                The matrix at a certain position of the mps.
+            Lambda: Tensor
+                The singular values at the connecting link of the mps.
+        '''
+        L,S,R=m.labels[MPS.L],m.labels[MPS.S],m.labels[MPS.R]
+        pos=self.table[S]
+        self[pos]=m
+        self.Lambda=Lambda
+        if Lambda.labels[0]==L:
+            self.cut=pos
+        elif Lambda.labels[0]==R:
+            self.cut=pos+1
+        else:
+            raise ValueError("MPS _set_ABL_ error: the labels of m(%s) and Lambda(%s) do not match."%(m.labels,Lambda.labels))
 
     def _set_B_and_lmove_(self,M,nmax=MPSBase.nmax,tol=MPSBase.tol,print_truncation_err=True):
         '''
@@ -335,7 +430,7 @@ class MPS(MPSBase,list):
             other: integer or 3-tuple.
                 Please see MPS.__ilshift__ for details.
         '''
-        return deepcopy(self).__ilshift__(other)
+        return copy(self).__ilshift__(other)
 
     def __irshift__(self,other):
         '''
@@ -369,7 +464,7 @@ class MPS(MPSBase,list):
             other: integer or 3-tuple.
                 Please see MPS.__irshift__ for details.
         '''
-        return deepcopy(self).__irshift__(other)
+        return copy(self).__irshift__(other)
 
     def canonicalization(self,cut):
         '''

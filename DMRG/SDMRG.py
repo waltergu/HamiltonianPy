@@ -5,8 +5,8 @@ DMRG.
 __all__=['IDMRG']
 
 from ..Math.Tensor import *
-from ..Math.MPS import *
 from ..Basics import *
+from MPS import *
 
 class IDMRG(Engine):
     '''

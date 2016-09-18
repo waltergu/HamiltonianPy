@@ -5,10 +5,10 @@ Tensor and tensor operations, including:
 '''
 
 from numpy import *
-from numpy.linalg import svd
 from opt_einsum import contract as einsum
 from collections import namedtuple,Counter
 from copy import deepcopy
+from HamiltonianPy.Math.linalg import truncated_svd
 
 __all__=['Label','Tensor','contract']
 
@@ -235,14 +235,10 @@ class Tensor(ndarray):
         if [i for i in xrange(len(self.labels)) if (i not in axes1) and (i not in axes2)]:
             raise ValueError('Tensor svd error: all axis should be divided into two group to perform the svd.')
         m=asarray(self).transpose(axes1+axes2).reshape((product(shape1),)+(product(shape2),))
-        u,s,v=svd(m,full_matrices=False)
-        nmax=len(s) if nmax is None else min(nmax,len(s))
-        tol=s[nmax-1] if tol is None else tol
-        indices=(s>=tol)
-        if print_truncation_err and nmax<len(s): print 'Tensor svd truncation err: %s'%s[~indices].sum()
-        U=Tensor(u[:,indices].reshape(shape1+(-1,)),labels=labels1+[new])
-        S=Tensor(s[indices],labels=[new])
-        V=Tensor(v[indices,:].reshape((-1,)+shape2),labels=[new]+labels2)
+        u,s,v=truncated_svd(m,nmax=nmax,tol=tol,print_truncation_err=print_truncation_err,full_matrices=False)
+        U=Tensor(u.reshape(shape1+(-1,)),labels=labels1+[new])
+        S=Tensor(s,labels=[new])
+        V=Tensor(v.reshape((-1,)+shape2),labels=[new]+labels2)
         return U,S,V
 
 def contract(*tensors,**karg):
