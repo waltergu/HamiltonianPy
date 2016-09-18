@@ -75,7 +75,7 @@ class OperatorS(Operator):
         Returns: number,OperatorS,OperatorS
             The coefficient and the two suboperators.
         '''
-        indices1,indices=[],[]
+        indices1,indices2=[],[]
         spins1,spins2=[],[]
         rcoords1,rcoords2=([],[]) if hasattr(self,'rcoords') else (None,None)
         icoords1,icoords2=([],[]) if hasattr(self,'icoords') else (None,None)
