@@ -286,16 +286,16 @@ class MPS(MPSBase,list):
         temp>>=temp.nsite
         return asarray(temp.Lambda)
 
-    def _reset_(self,merge='A',reset=None):
+    def _reset_(self,merge='L',reset=None):
         '''
         Reset the mps.
         This function does two things,
-        1) merge the Lamdbda matrix on the link to its neighbouring A matrix or B matrix acoording to the parameter merge,
+        1) merge the Lamdbda matrix on the link to its left neighbouring matrix or right neighbouring matrix acoording to the parameter merge,
         2) reset Lambda and cut acoording to the parameter reset.
         Parameters:
-            merge: 'A' or 'B', optional
-                When 'A', self.Lambda will be merged into its neighbouring A matrix;
-                When 'B', self.Lambda will be merged into its neighbouring B matrix.
+            merge: 'L' or 'R', optional
+                When 'L', self.Lambda will be merged into its left neighbouring matrix;
+                When 'R', self.Lambda will be merged into its right neighbouring matrix.
             reset: None or an integer, optional
                 When None, self.cut and self.Lambda will be reset to None;
                 When an integer, self.cut will be reset to this value and self.Lambda will be reset to a scalar Tensor with the data equal to 1.0.
@@ -305,10 +305,12 @@ class MPS(MPSBase,list):
         if self[0].labels[MPS.L]!=self[-1].labels[MPS.R]:
             raise ValueError("MPS _reset_ error: method not supported for cases where the labels of the matrices do not form a loop.")
         if self.cut is not None:
-            if merge=='A':
+            if merge=='L':
                 self[self.cut-1]=contract(self[self.cut-1],self.Lambda,mask=self.Lambda.labels)
-            else:
+            elif merge=='R':
                 self[self.cut%self.nsite]=contract(self.Lambda,self[self.cut%self.nsite],mask=self.Lambda.labels)
+            else:
+                raise ValueError("MPS _reset_ error: merge must be 'L' or 'R' but now it is %s."%(merge))
         if reset is None:
             self.cut=None
             self.Lambda=None
@@ -318,7 +320,7 @@ class MPS(MPSBase,list):
         else:
             raise ValueError("MPS _reset_ error: reset(%s) should be None or in the range [%s,%s]"%(reset,0,self.nsite))
 
-    def _set_ABL_(self,m,Lambda):
+    def _set_ABL_(self,m,Lambda,boundary=None):
         '''
         Set the matrix at a certain position and the Lambda of an mps.
         Parameters:
@@ -326,15 +328,25 @@ class MPS(MPSBase,list):
                 The matrix at a certain position of the mps.
             Lambda: Tensor
                 The singular values at the connecting link of the mps.
+            boundary: None,'L','R'
+                When self.table[Lambda.labels[0]] in (0,self.nsite), it must be 'L' or 'R', indicating the position of self.cut.
         '''
         L,S,R=m.labels[MPS.L],m.labels[MPS.S],m.labels[MPS.R]
         pos=self.table[S]
         self[pos]=m
         self.Lambda=Lambda
+        if pos in (0,self.nsite) and boundary not in ('L','R'):
+            raise ValueError("MPS _set_ABL_ error: cut is at %s and boundary must be 'L' or 'R'."%(pos))
         if Lambda.labels[0]==L:
-            self.cut=pos
+            if pos==0 and boundary=='R':
+                self.cut=self.nsite
+            else:
+                self.cut=pos
         elif Lambda.labels[0]==R:
-            self.cut=pos+1
+            if pos==self.nsite and boundary=='L':
+                self.cut=0
+            else:
+                self.cut=pos+1
         else:
             raise ValueError("MPS _set_ABL_ error: the labels of m(%s) and Lambda(%s) do not match."%(m.labels,Lambda.labels))
 
