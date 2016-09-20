@@ -9,6 +9,7 @@ from numpy import *
 from HamiltonianPy.Basics import OperatorF,OperatorS
 from HamiltonianPy.Math.Tensor import *
 from MPS import *
+import warnings
 
 class OptStr(list):
     '''
@@ -138,46 +139,55 @@ class OptStr(list):
         Returns: number
             The overlap.
         '''
-        assert mps1.table==mps2.table
-        table=mps1.table
-        start,end,count=table[self[0].labels[1]],table[self[-1].labels[1]]+1,0
-        if (mps1.cut<start and mps1.cut>end) or (mps2.cut<start and mps2.cut>end):
-            raise ValueError("OptStr overlap error: both mps1.cut(%s) and mps2.cut(%s) should be in range [%s,%s]"%(mps1.cut,mps2.cut,start,end))
-        #reset_and_protect=lambda mps,start: (mps[mps.cut],mps.Lambda,'R') if mps.cut==start else (mps[mps.cut-1],mps.Lambda,'L')
         def reset_and_protect(mps,start):
             if mps.cut==start:
-                m,L=mps[mps.cut],mps.Lambda
+                m,Lambda=mps[mps.cut],mps.Lambda
                 mps._reset_(merge='R',reset=None)
             else:
-                m,L=mps[mps.cut-1],mps.Lambda
+                m,Lambda=mps[mps.cut-1],mps.Lambda
                 mps._reset_(merge='L',reset=None)
-            b='L' if mps.cut==0 else ('R' if mps.cut==mps.nsite else None)
-            return m,L,b
-        m1,L1,b1=reset_and_protect(mps1,start)
-        m2,L2,b2=reset_and_protect(mps2,start)
-        start,end=0,len(mps1)
+            return m,Lambda
+        assert mps1.table==mps2.table
+        if mps1 is mps2:
+            start,end,count=mps1.table[self[0].labels[1]],mps1.table[self[-1].labels[1]]+1,0
+            if mps1.cut<start or mps1.cut>end:
+                warnings.warn("OptStr overlap warning: the cut of the mps is %s and will be moved into the range [%s,%s]."%(mps1.cut,start,end))
+                if mps1.cut<start:
+                    mps1>>=start-mps1.cut
+                else:
+                    mps1<<=mps1.cut-end
+            m,Lambda=reset_and_protect(mps1,start)
+        else:
+            start,end,count=0,mps1.nsite,0
+            m1,Lambda1=reset_and_protect(mps1,start)
+            m2,Lambda2=reset_and_protect(mps2,start)
         result=Tensor(1.0,labels=[])
         for i,(u1,u2) in enumerate(zip(mps1[start:end],mps2[start:end])):
             u1=u1.copy(copy_data=False).conjugate()
             Lp,Sp,Rp=u1.labels[MPS.L],u1.labels[MPS.S],u1.labels[MPS.R]
             L,S,R=u2.labels[MPS.L],u2.labels[MPS.S],u2.labels[MPS.R]
             assert L==Lp and S==Sp and R==Rp
+            news,olds=[Lp.prime,Sp.prime,Rp.prime],[Lp,Sp,Rp]
+            if i==0:
+                news.remove(Lp.prime)
+                olds.remove(Lp)
+            if i==end-start-1:
+                news.remove(Rp.prime)
+                olds.remove(Rp)
             if Sp in self.labels:
-                news,olds=[Lp.prime,Sp.prime,Rp.prime],[Lp,Sp,Rp]
-                if i==0:
-                    news.remove(Lp.prime)
-                    olds.remove(Lp)
-                if i==end-start-1:
-                    news.remove(Rp.prime)
-                    olds.remove(Rp)
                 u1.relabel(news=news,olds=olds)
                 result=contract(result,u1,self[count],u2)
                 count+=1
             else:
-                u1.relabel(news=[Lp.prime,Rp.prime],olds=[Lp,Rp])
+                news.remove(Sp.prime)
+                olds.remove(Sp)
+                u1.relabel(news=news,olds=olds)
                 result=contract(result,u1,u2)
-        mps1._set_ABL_(m1,L1,boundary=b1)
-        mps2._set_ABL_(m2,L2,boundary=b2)
+        if mps1 is mps2:
+            mps1._set_ABL_(m,Lambda)
+        else:
+            mps1._set_ABL_(m1,Lambda1)
+            mps2._set_ABL_(m2,Lambda2)
         return asarray(result)
 
 def opt_str_from_operator_s(operator,table):

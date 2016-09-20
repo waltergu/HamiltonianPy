@@ -14,7 +14,6 @@ from scipy.spatial import cKDTree
 from copy import copy,deepcopy
 import matplotlib.pyplot as plt
 import itertools
-import warnings
 
 def azimuthd(self):
     '''

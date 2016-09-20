@@ -34,7 +34,7 @@ def test_mps():
         print 'b[%s].state: %s'%(i,b.state)
         print 'b[%s].norm: %s'%(i,b.norm)
         print 'b[%s].is_canonical: %s'%(i,b.is_canonical())
-        b._reset_(merge='A',reset=i)
+        b._reset_(merge='L',reset=i)
         print 'b[%s].state: %s'%(i,b.state)
         print 'b[%s].norm: %s'%(i,b.norm)
         print '-------------------'
