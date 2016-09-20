@@ -17,14 +17,18 @@ class OptStr(list):
         For each of its elements: 2d Tensor
             The matrices of the mpo.
     Attribues:
+        value: number
+            The overall coefficient of the optstr.
         labels: set of Label
             The physical labels of the mpo.
     '''
 
-    def __init__(self,ms,labels):
+    def __init__(self,value,ms,labels):
         '''
         Constructor.
         Parameters:
+            value: number
+                The overall coefficient of the optstr.
             ms: 2d ndarray
                 The matrices of the mpo.
             labels: list of Label
@@ -32,6 +36,7 @@ class OptStr(list):
         NOTE: For each matrix in the mpo, the first physical label is just the prime of the second.
         '''
         assert len(ms)==len(labels)
+        self.value=value
         for m,label in zip(ms,labels):
             assert m.ndim==2
             assert isinstance(label,Label)
@@ -39,16 +44,19 @@ class OptStr(list):
         self.labels=set(labels)
 
     @staticmethod
-    def compose(ms):
+    def compose(value,ms):
         '''
         Constructor.
         Parameters:
+            value: number
+                The overall coefficient of the optstr.
             ms: list of 2d Tensor.
                 The matrices of the mpo.
         Returns: OptStr
             The corresponding optstr.
         '''
         result,labels=OptStr.__new__(OptStr),[]
+        result.value=value
         for m in ms:
             assert m.ndim==2
             assert m.labels[0]==m.labels[1].prime
@@ -82,7 +90,7 @@ class OptStr(list):
         '''
         return '\n'.join(str(m) for m in self)
 
-    def matrix(self,us,form='L'):
+    def matrix(self,us,form):
         '''
         The matrix representation of an optstr on a basis reprented by a mixed matrix product states.
         Parameters:
@@ -94,39 +102,41 @@ class OptStr(list):
         Returns: 2d Tensor
             The corresponding matrix representation of the optstr on the basis.
         '''
-        table=us.table
+        result=Tensor(self.value,labels=[])
         if form=='L':
-            start,count=table[self[0].labels[1]],0
+            start,count=us.table[self[0].labels[1]],0
             for i,u in enumerate(us[start:]):
                 L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
                 up=u.copy(copy_data=False).conjugate()
                 if S in self.labels:
                     if i==0:
                         up.relabel(news=[S.prime,R.prime],olds=[S,R])
-                        result=contract(up,self[count],u)
                     else:
                         up.relabel(news=[L.prime,S.prime,R.prime],olds=[L,S,R])
-                        result=contract(result,up,self[count],u)
+                    result=contract(result,up,self[count],u)
                     count+=1
                 else:
                     up.relabel(news=[L.prime,R.prime],olds=[L,R])
                     result=contract(result,up,u)
-        else:
-            end,count=table[self[-1].labels[1]]+1,-1
+        elif form=='R':
+            end,count=us.table[self[-1].labels[1]]+1,-1
             for i,u in enumerate(reversed(us[0:end])):
                 L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
                 up=u.copy(copy_data=False).conjugate()
                 if S in self.labels:
                     if i==0:
                         up.relabel(news=[L.prime,S.prime],olds=[L,S])
-                        result=contract(up,self[count],u)
                     else:
                         up.relabel(news=[L.prime,S.prime,R.prime],olds=[L,S,R])
-                        result=contract(result,up,self[count],u)
+                    result=contract(result,up,self[count],u)
                     count-=1
                 else:
                     up.relabel(news=[L.prime,R.prime],olds=[L,R])
                     result=contract(result,up,u)
+        elif form==None:
+            pass
+        else:
+            raise ValueError("OptStr matrix error: form(%s) not supported."%(form))
         return result
 
     def overlap(self,mps1,mps2):
@@ -161,7 +171,7 @@ class OptStr(list):
             start,end,count=0,mps1.nsite,0
             m1,Lambda1=reset_and_protect(mps1,start)
             m2,Lambda2=reset_and_protect(mps2,start)
-        result=Tensor(1.0,labels=[])
+        result=Tensor(self.value,labels=[])
         for i,(u1,u2) in enumerate(zip(mps1[start:end],mps2[start:end])):
             u1=u1.copy(copy_data=False).conjugate()
             Lp,Sp,Rp=u1.labels[MPS.L],u1.labels[MPS.S],u1.labels[MPS.R]
@@ -201,7 +211,7 @@ def opt_str_from_operator_s(operator,table):
     Returns: OptStr
         The corresponding optstr.
     '''
-    return OptStr.compose(sorted([Tensor(m,labels=[Label(index).prime,Label(index)]) for m,index in zip(operator.spins,operator.indices)],key=lambda key:table[key.labels[1].lb]))
+    return OptStr.compose(operator.value,sorted([Tensor(m,labels=[Label(index).prime,Label(index)]) for m,index in zip(operator.spins,operator.indices)],key=lambda key:table[key.labels[1].lb]))
 
 def opt_str_from_operator_f(operator,table):
     '''

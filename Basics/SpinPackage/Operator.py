@@ -66,7 +66,7 @@ class OperatorS(Operator):
         '''
         return len(self.indices)
 
-    def decomposition(self,table1,table2):
+    def decompose(self,table1,table2):
         '''
         Decompose an operator into three parts, the coefficient, and two suboperators whose indices are in table1 and table2 respectively.
         Parameters:
