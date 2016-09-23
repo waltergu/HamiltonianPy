@@ -19,7 +19,7 @@ class OptStr(list):
     Attribues:
         value: number
             The overall coefficient of the optstr.
-        labels: set of Label
+        labels: set of hashable objects
             The physical labels of the mpo.
     '''
 
@@ -31,7 +31,7 @@ class OptStr(list):
                 The overall coefficient of the optstr.
             ms: 2d ndarray
                 The matrices of the mpo.
-            labels: list of Label
+            labels: list of hashable objects
                 The second physical labels of the mpo.
         NOTE: For each matrix in the mpo, the first physical label is just the prime of the second.
         '''
@@ -39,8 +39,7 @@ class OptStr(list):
         self.value=value
         for m,label in zip(ms,labels):
             assert m.ndim==2
-            assert isinstance(label,Label)
-            self.append(Tensor(m,labels=[label.prime,label]))
+            self.append(Tensor(m,labels=[prime(label),label]))
         self.labels=set(labels)
 
     @staticmethod
@@ -59,28 +58,28 @@ class OptStr(list):
         result.value=value
         for m in ms:
             assert m.ndim==2
-            assert m.labels[0]==m.labels[1].prime
+            assert m.labels[0]==prime(m.labels[1])
             result.append(m)
             labels.append(m.labels[1])
         result.labels=set(labels)
         return result
 
     @staticmethod
-    def from_operator(operator,table):
+    def from_operator(operator,map):
         '''
         Constructor, which convert an operator to its OptStr form.
         Parameters:
             operator: OperatorS, OperatorF
                 The operator which is to be converted to the optstr form.
-            table: Table
-                The index-sequence table.
+        map: dict
+            The index-label map.
         Returns: OptStr
             The corresponding OptStr.
         '''
         if isinstance(operator,OperatorS):
-            return opt_str_from_operator_s(operator,table)
+            return opt_str_from_operator_s(operator,map)
         elif isinstance(operator,OperatorF):
-            return opt_str_from_operator_f(operator,table)
+            return opt_str_from_operator_f(operator,map)
         else:
             raise ValueError("OptStr.from_operator error: the class of the operator(%s) not supported."%(operator.__class__.__name__))
 
@@ -103,38 +102,41 @@ class OptStr(list):
             The corresponding matrix representation of the optstr on the basis.
         '''
         result=Tensor(self.value,labels=[])
+        temp=sorted(self,key=lambda m:us.table[m.labels[1]])
         if form=='L':
-            start,count=us.table[self[0].labels[1]],0
+            start,count=us.table[temp[0].labels[1]],0
             for i,u in enumerate(us[start:]):
                 L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
                 up=u.copy(copy_data=False).conjugate()
                 if S in self.labels:
                     if i==0:
-                        up.relabel(news=[S.prime,R.prime],olds=[S,R])
+                        up.relabel(news=[prime(S),prime(R)],olds=[S,R])
                     else:
-                        up.relabel(news=[L.prime,S.prime,R.prime],olds=[L,S,R])
-                    result=contract(result,up,self[count],u)
+                        up.relabel(news=[prime(L),prime(S),prime(R)],olds=[L,S,R])
+                    result=contract(result,up,temp[count],u)
                     count+=1
                 else:
-                    up.relabel(news=[L.prime,R.prime],olds=[L,R])
+                    up.relabel(news=[prime(L),prime(R)],olds=[L,R])
                     result=contract(result,up,u)
         elif form=='R':
-            end,count=us.table[self[-1].labels[1]]+1,-1
+            end,count=us.table[temp[-1].labels[1]]+1,-1
             for i,u in enumerate(reversed(us[0:end])):
                 L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
                 up=u.copy(copy_data=False).conjugate()
                 if S in self.labels:
                     if i==0:
-                        up.relabel(news=[L.prime,S.prime],olds=[L,S])
+                        up.relabel(news=[prime(L),prime(S)],olds=[L,S])
                     else:
-                        up.relabel(news=[L.prime,S.prime,R.prime],olds=[L,S,R])
-                    result=contract(result,up,self[count],u)
+                        up.relabel(news=[prime(L),prime(S),prime(R)],olds=[L,S,R])
+                    result=contract(result,up,temp[count],u)
                     count-=1
                 else:
-                    up.relabel(news=[L.prime,R.prime],olds=[L,R])
+                    up.relabel(news=[prime(L),prime(R)],olds=[L,R])
                     result=contract(result,up,u)
         elif form==None:
-            pass
+            assert us.nsite==1 and len(self.labels)==1
+            assert us[0] is None
+            result=self[0]*result
         else:
             raise ValueError("OptStr matrix error: form(%s) not supported."%(form))
         return result
@@ -158,8 +160,9 @@ class OptStr(list):
                 mps._reset_(merge='L',reset=None)
             return m,Lambda
         assert mps1.table==mps2.table
+        temp=sorted(self,key=lambda m:mps1.table[m.labels[1]])
         if mps1 is mps2:
-            start,end,count=mps1.table[self[0].labels[1]],mps1.table[self[-1].labels[1]]+1,0
+            start,end,count=mps1.table[temp[0].labels[1]],mps1.table[temp[-1].labels[1]]+1,0
             if mps1.cut<start or mps1.cut>end:
                 warnings.warn("OptStr overlap warning: the cut of the mps is %s and will be moved into the range [%s,%s]."%(mps1.cut,start,end))
                 if mps1.cut<start:
@@ -177,19 +180,19 @@ class OptStr(list):
             Lp,Sp,Rp=u1.labels[MPS.L],u1.labels[MPS.S],u1.labels[MPS.R]
             L,S,R=u2.labels[MPS.L],u2.labels[MPS.S],u2.labels[MPS.R]
             assert L==Lp and S==Sp and R==Rp
-            news,olds=[Lp.prime,Sp.prime,Rp.prime],[Lp,Sp,Rp]
+            news,olds=[prime(Lp),prime(Sp),prime(Rp)],[Lp,Sp,Rp]
             if i==0:
-                news.remove(Lp.prime)
+                news.remove(prime(Lp))
                 olds.remove(Lp)
             if i==end-start-1:
-                news.remove(Rp.prime)
+                news.remove(prime(Rp))
                 olds.remove(Rp)
             if Sp in self.labels:
                 u1.relabel(news=news,olds=olds)
-                result=contract(result,u1,self[count],u2)
+                result=contract(result,u1,temp[count],u2)
                 count+=1
             else:
-                news.remove(Sp.prime)
+                news.remove(prime(Sp))
                 olds.remove(Sp)
                 u1.relabel(news=news,olds=olds)
                 result=contract(result,u1,u2)
@@ -200,27 +203,27 @@ class OptStr(list):
             mps2._set_ABL_(m2,Lambda2)
         return asarray(result)
 
-def opt_str_from_operator_s(operator,table):
+def opt_str_from_operator_s(operator,map):
     '''
     Convert an OperatorS to its corresponding OptStr form.
     Parameters:
         operator: OperatorS
             The operator.
-        table: Table
-            The index-sequence table.
+        map: dict
+            The index-label map.
     Returns: OptStr
         The corresponding optstr.
     '''
-    return OptStr.compose(operator.value,sorted([Tensor(m,labels=[Label(index).prime,Label(index)]) for m,index in zip(operator.spins,operator.indices)],key=lambda key:table[key.labels[1].lb]))
+    return OptStr.compose(operator.value,[Tensor(m,labels=[prime(map[index]),map[index]]) for m,index in zip(operator.spins,operator.indices)])
 
-def opt_str_from_operator_f(operator,table):
+def opt_str_from_operator_f(operator,map):
     '''
     Convert an OperatorF to its corresponding OptStr form.
     Parameters:
         operator: OperatorF
             The operator.
-        table: Table
-            The index-sequence table.
+        map: dict
+            The index-label map.
     Returns: OptStr
         The corresponding optstr.
     '''

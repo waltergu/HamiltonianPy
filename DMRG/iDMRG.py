@@ -1,22 +1,31 @@
 '''
-DMRG.
+Infinite DMRG.
 '''
 
-__all__=['IDMRG']
+__all__=['iDMRG']
 
 from ..Math.Tensor import *
 from ..Basics import *
 from MPS import *
 
-class IDMRG(Engine):
+class iDMRG(Engine):
     '''
     '''
-    def __init__(self,name,lattice,config,term,**karg):
+    def __init__(self,name,lattice,term,config,**karg):
         self.name=name
         self.lattice=lattice
+        self.term=term
         self.config=config
         self.table=config.table
-        self.term=term
+        self.labels=[]
+        self.map={}
+        
+
+
+
+
+
+
         self.sys=Block()
         self.env=Block()
 

@@ -104,7 +104,7 @@ class ED(Engine):
     def set_operators_single_particle(self):
         self.operators['sp']=OperatorCollection()
         temp=self.config.table(nambu=self.nambu)
-        table=temp if self.nspin==2 else subset(temp,mask=lambda index: True if index.spin==0 else False)
+        table=temp if self.nspin==2 else temp.subset(mask=lambda index: True if index.spin==0 else False)
         for index,sequence in table.iteritems():
             pid=PID(scope=index.scope,site=index.site)
             self.operators['sp']+=F_Linear(1,indices=[index],rcoords=[self.lattice[pid].rcoord],icoords=[self.lattice[pid].icoord],seqs=[sequence])

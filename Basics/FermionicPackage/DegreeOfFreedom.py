@@ -1,11 +1,11 @@
 '''
 Fermionic degree of freedom package, including:
-1) constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY
+1) constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY, DEFAULT_FERMI_LAYERS
 2) classes: FID, Fermi, FermiPack
 3) functions: sigmax, sigmay, sigmaz
 '''
 
-__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','FermiPack','sigmax','sigmay','sigmaz']
+__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','DEFAULT_FERMI_LAYERS','FID','Fermi','FermiPack','sigmax','sigmay','sigmaz']
 
 from numpy import *
 from ..DegreeOfFreedom import *
@@ -14,6 +14,7 @@ from collections import namedtuple
 
 ANNIHILATION,CREATION=0,1
 DEFAULT_FERMIONIC_PRIORITY=['scope','nambu','spin','site','orbital']
+DEFAULT_FERMI_LAYERS=['scope','site','orbital','spin','nambu']
 
 class FID(namedtuple('FID',['orbital','spin','nambu'])):
     '''
@@ -81,18 +82,31 @@ class Fermi(Internal):
         '''
         return self.atom==other.atom and self.norbital==other.norbital and self.nspin==other.nspin and self.nnambu==other.nnambu
 
-    def table(self,pid,nambu=False,key=None):
+    def ndegfre(self,mask=None):
         '''
-        This method returns a Table instance that contains all the allowed indices constructed from an input pid and the internal degrees of freedom.
+        Return the number of the interanl degrees of freedom modified by mask.
+        Parameters:
+            mask: list of string, optional
+                Only the indices in mask can be varied in the counting of the number of the degrees of freedom.
+                When None, all the allowed indices can be varied and thus the total number of the interanl degrees of freedom is returned.
+        Returns: number
+            The requested number of the interanl degrees of freedom.
+        '''
+        result=1
+        for key in (['orbital','spin','nambu'] if mask is None else mask):
+            result*=getattr(self,'n'+key)
+        return result
+
+    def indices(self,pid,nambu=False):
+        '''
+        Return a list of all the allowed indices within this internal degrees of freedom combined with an extra spatial part.
         Parameters:
             pid: PID
-                The spatial part of the indices.
+                The extra spatial part of the indices.
             nambu: logical, optional
                 A flag to tag whether or not the nambu space is used.
-            key: function
-                The key function used to sort the indices.
-        Returns: Table
-            The index-sequence table.
+        Returns: list of Index
+            The allowed indices.
         '''
         result=[]
         if nambu:
@@ -104,10 +118,7 @@ class Fermi(Internal):
             for spin in xrange(self.nspin):
                 for orbital in xrange(self.norbital):
                     result.append(Index(pid=pid,iid=FID(orbital=orbital,spin=spin,nambu=ANNIHILATION)))
-        if key is None:
-            return Table(result)
-        else:
-            return Table(sorted(result,key=key))
+        return result
 
     def seq_state(self,fid):
         '''

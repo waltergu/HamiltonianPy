@@ -1,103 +1,93 @@
 '''
 Degrees of freedom in a lattice, including:
-1) functions: union, subset, reversed_table
-2) classes: Table, Index, Internal, Configuration, IndexPack, IndexPackList
+1) classes: Table, Index, Internal, Configuration, DegFreTree, IndexPack, IndexPackList
 '''
 
-__all__=['union','subset','reversed_table','Table','Index','Internal','Configuration','IndexPack','IndexPackList']
+__all__=['Table','Index','Internal','Configuration','DegFreTree','IndexPack','IndexPackList']
 
+import numpy as np
+from Tree import Tree
+from Geometry import PID
 from collections import OrderedDict
 
 class Table(dict):
     '''
     This class provides the methods to get an index from its sequence number or vice versa.
     '''
-    def __init__(self,indices=[],dicts=[],f=None):
+    def __init__(self,indices=[],key=None):
         '''
         Constructor.
         Parameters:
             indices: list of any hashable object
                 The indices that need to be mapped to sequences.
-            dict: dict, optional
-                An already constructed index-sequence table.
-            f: function, optional
-                The function used to map an index to a sequence.
-                If it is None, the order of the index in indices will be used as its sequence number.
+            key: function, optional
+                The function used to sort the indices.
+            NOTE: The final order of the index in indices will be used as its sequence number.
         '''
-        for i,v in enumerate(indices):
-            if f is None:
-                self[v]=i
-            else:
-                self[v]=f(v)
-        for dict in dicts:
-            self.update(dict)
+        for i,v in enumerate(indices if key is None else sorted(indices,key=key)):
+            self[v]=i
 
-def union(tables,key=None):
-    '''
-    This function returns the union of index-sequence tables.
-    Parameters:
-        tables: list of Table
-            The tables to be unioned.
-        key: callable, optional
-            The function used to compare different indices in tables.
-            When it is None, the sequence of an index will be naturally ordered by the its sequence in the input tables.
-    Returns: Table
-        The union of the input tables.
-    '''
-    result=Table()
-    if key is None:
-        sum=0
-        for table in tables:
-            if isinstance(table,Table):
-                count=0
-                for k,v in table.iteritems():
-                    result[k]=v+sum
-                    count+=1
-                sum+=count
-    else:
-        for table in tables:
-            result.update(table)
+    @staticmethod
+    def union(tables,key=None):
+        '''
+        This function returns the union of index-sequence tables.
+        Parameters:
+            tables: list of Table
+                The tables to be unioned.
+            key: callable, optional
+                The function used to compare different indices in tables.
+                When it is None, the sequence of an index will be naturally ordered by the its sequence in the input tables.
+        Returns: Table
+            The union of the input tables.
+        '''
+        result=Table()
+        if key is None:
+            sum=0
+            for table in tables:
+                if isinstance(table,Table):
+                    count=0
+                    for k,v in table.iteritems():
+                        result[k]=v+sum
+                        count+=1
+                    sum+=count
+        else:
+            for table in tables:
+                result.update(table)
+            for i,k in enumerate(sorted(result,key=key)):
+                result[k]=i
+        return result
+
+    def subset(self,mask):
+        '''
+        This function returns a certain subset of an index-sequence table according to the mask function.
+        Parameters:
+            mask: callable
+                A certain subset of table is extracted according to the return value of this function on the index in the table.
+                When the return value is True, the index will be included and the sequence is naturally determined by its order in the mother table.
+        Returns:
+            The subset table.
+        '''
+        result=Table()
+        for k,v in self.iteritems():
+            if mask(k):
+                result[k]=v
         buff={}
-        for i,k in enumerate(sorted([k for k in result.keys()],key=key)):
+        for i,k in enumerate(sorted([key for key in result.keys()],key=result.get)):
             buff[k]=i
-        result=buff
-    return result
+        result.update(buff)
+        return result
 
-def subset(table,mask):
-    '''
-    This function returns a certain subset of an index-sequence table according to the mask function.
-    Parameters:
-        table: Table
-            The mother table.
-        mask: callable
-            A certain subset of table is extracted according to the return value of this function on the index in the table.
-            When the return value is True, the index will be included and the sequence is naturally determined by its order in the mother table.
-    Returns:
-        The subset table.
-    '''
-    result=Table()
-    for k,v in table.iteritems():
-        if mask(k):
-            result[k]=v
-    buff={}
-    for i,k in enumerate(sorted([key for key in result.keys()],key=result.get)):
-        buff[k]=i
-    result.update(buff)
-    return result
-
-def reversed_table(table):
-    '''
-    This function returns the sequence-index table for a reversed lookup.
-    Parameters:
-        table: Table
-            The original table.
-    Returns: Table
-        The reversed table whose key is the sequence and value the index.
-    '''
-    result=Table()
-    for k,v in table.iteritems():
-        result[v]=k
-    return result
+    @property
+    def reversed_table(self):
+        '''
+        This function returns the sequence-index table for a reversed lookup.
+        Returns: Table
+            The reversed table whose key is the sequence and value the index.
+        '''
+        result=Table()
+        for k,v in self.iteritems():
+            result[v]=k
+        return result
 
 class Index(tuple):
     '''
@@ -113,7 +103,8 @@ class Index(tuple):
                 The internal index, i.e. the internal part in a point of the index.
         '''
         self=super(Index,cls).__new__(cls,pid+iid)
-        self.__dict__=pid._asdict()
+        self.__dict__=OrderedDict()
+        self.__dict__.update(pid._asdict())
         self.__dict__.update(iid._asdict())
         return self
 
@@ -128,6 +119,19 @@ class Index(tuple):
         Deep copy.
         '''
         return self.replace(**self.__dict__)
+
+    @property
+    def pid(self):
+        '''
+        The pid part of the index.
+        '''
+        return PID(**{key:getattr(self,key) for key in PID._fields})
+
+    def iid(self,cls):
+        '''
+        The iid part of the index.
+        '''
+        return cls(**{key:value for key,value in self.__dict__.items() if key not in PID._fields})
 
     def __repr__(self):
         '''
@@ -160,7 +164,7 @@ class Index(tuple):
         '''
         if len(set(priority))<len(priority):
             raise ValueError('Index to_tuple error: the priority has duplicates.')
-        if len(priority)<len(self.__dict__):
+        if len(priority)!=len(self.__dict__):
             raise ValueError("Index to_tuple error: the priority doesn't cover all the attributes.")
         return tuple(map(self.__dict__.get,priority))
 
@@ -168,18 +172,29 @@ class Internal(object):
     '''
     This class is the base class for all internal degrees of freedom in a single point.
     '''
-    
-    def table(self,pid,**karg):
+
+    def ndegfre(self,mask=None):
         '''
-        Return a Table instance that contains all the allowed indices constructed from an input pid and the internal degrees of freedom.
+        Return the number of the interanl degrees of freedom modified by mask.
+        Parameters:
+            mask: list of string, optional
+                Only the indices in mask can be varied in the counting of the number of the degrees of freedom.
+                When None, all the allowed indices can be varied and thus the total number of the interanl degrees of freedom is returned.
+        Returns: number
+            The requested number of the interanl degrees of freedom.
+        '''
+        raise NotImplementedError()
+
+    def indices(self,pid,**karg):
+        '''
+        Return a list of all the allowed indices within this internal degrees of freedom combined with an extra spatial part.
         Parameters:
             pid: PID
-                The spatial part of the indices.
-        Returns: Table
-            The index-sequence table.
-        Note: this method must be overridden by its child class if it is to be used.
+                The extra spatial part of the indices.
+        Returns: list of Index
+            The allowed indices.
         '''
-        raise ValueError("%s table error: it is not implemented."%self.__class__.__name__)
+        raise NotImplementedError("%s indices error: it is not implemented."%self.__class__.__name__)
 
 class Configuration(dict):
     '''
@@ -206,22 +221,79 @@ class Configuration(dict):
         '''
         Return a Table instance that contains all the allowed indices which can be defined on a lattice.
         '''
-        return union([value.table(key,**karg) for key,value in self.iteritems()],key=lambda index: index.to_tuple(priority=self.priority))
+        return Table([index for key,value in self.items() for index in value.indices(key,**karg)],key=lambda index: index.to_tuple(priority=self.priority))
 
-    def enlarged(self,map):
+    def __add__(self,other):
         '''
-        Return an enlarged configuration (several copies of the values with new keys) according to map.
+        Add two configurations.
+        '''
+        assert self.priority==other.priority
+        result=Configuration(priority=self.priority)
+        result.update(self)
+        result.update(other)
+        return result
+
+class DegFreTree(Tree):
+    '''
+    The tree of the layered degrees of freedom.
+    For each (node,data) pair of the tree,
+        node: Index
+            The masked index which can represent a couple of indices.
+        data: integer
+            The number of degrees of freedom that the index represents.
+    Attributes:
+        config: Configuration
+            The configuration of the interanl degrees of freedom in a lattice.
+        layers: list of string
+            The tag of each layer of indices.
+    '''
+
+    def __init__(self,config,layers=None):
+        '''
+        Constructor.
         Parameters:
-            map: dict
-                Its items (key,value) has the following meaning:
-                    key: new key in the enlarged configuration;
-                    value: old key in the original configuration.
-        Returns: Configuration
-            The enlarged configuration.
+            config: Configuration
+                The configuration of the interanl degrees of freedom in a lattice.
+            layers: list of string
+                The tag of each layer of indices.
         '''
-        result=copy(self)
-        for key,value in map.iteritems():
-            result[key]=result[value]
+        assert set(list(xrange(len(PID._fields))))==set([layers.index(key) for key in PID._fields])
+        Tree.__init__(self,root=tuple([None]*len(layers)),data=None)
+        indices=config.table()
+        for i,layer in enumerate(layers):
+            leaves=set([index.replace(**{key:None for key in layers[i+1:]}) for index in indices])
+            for leaf in leaves:
+                self.add_leaf(parent=leaf.replace(**{layer:None}),leaf=leaf,data=None)
+        for i,indices in enumerate(self.indices(*list(xrange(len(layers)-1,-1,-1)))):
+            for index in indices:
+                if i>len(layers)-len(PID._fields):
+                    self[index]=np.product([self[child] for child in self.children(index)])
+                else:
+                    self[index]=config[index.pid].ndegfre(mask=[key for key in layers[len(PID._fields):] if getattr(index,key) is None])
+        self.config=config
+        self.layers=layers
+
+    def indices(self,*layers):
+        '''
+        The indices in some layers.
+        Parameters:
+            layers: list of string/integer
+                The tags/numbers of the requested layers of indices.
+        Returns: list of list of Index when len(layers)==1 else list of Index
+            The indices in the requested layers.
+        '''
+        result,buff=[None]*len(layers),[self.root]
+        layers=[(self.layers.index(layer) if isinstance(layer,str) else layer) for layer in layers]
+        for i in xrange(max(layers)+1):
+            temp=[]
+            for key in buff[:]:
+                temp.extend(self.children(key))
+            buff=temp
+            if i in layers:
+                if len(layers)==1:
+                    result=buff
+                else:
+                    result[layers.index(i)]=buff
         return result
 
 class IndexPack(object):

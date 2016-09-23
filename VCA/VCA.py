@@ -136,13 +136,13 @@ class VCA(ED):
         self.generators['pt_h']=Generator(
                     bonds=      [bond for bond in lattice.bonds if not bond.is_intra_cell()],
                     config=     config,
-                    table=      config.table(nambu=nambu) if self.nspin==2 else subset(config.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
+                    table=      config.table(nambu=nambu) if self.nspin==2 else config.table(nambu=nambu).subset(mask=lambda index: True if index.spin==0 else False),
                     terms=      [term for term in terms if isinstance(term,Quadratic)],
                     )
         self.generators['pt_w']=Generator(
                     bonds=      [bond for bond in lattice.bonds],
                     config=     config,
-                    table=      config.table(nambu=nambu) if self.nspin==2 else subset(config.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
+                    table=      config.table(nambu=nambu) if self.nspin==2 else config.table(nambu=nambu).subset(mask=lambda index: True if index.spin==0 else False),
                     terms=      None if weiss is None else [term*(-1) for term in weiss],
                     )
         self.name.update(const=self.generators['h'].parameters['const'])
@@ -180,7 +180,7 @@ class VCA(ED):
     def set_operators_cell_single_particle(self):
         self.operators['csp']=OperatorCollection()
         temp=self.celfig.table(nambu=self.nambu)
-        table=temp if self.nspin==2 else subset(temp,mask=lambda index: True if index.spin==0 else False)
+        table=temp if self.nspin==2 else temp.subset(mask=lambda index: True if index.spin==0 else False)
         for index,seq in table.iteritems():
             pid=PID(scope=index.scope,site=index.site)
             self.operators['csp']+=F_Linear(1,indices=[index],rcoords=[self.cell[pid].rcoord],icoords=[self.cell[pid].icoord],seqs=[seq])

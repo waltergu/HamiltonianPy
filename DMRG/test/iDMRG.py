@@ -2,13 +2,13 @@
 Spin DMRG test.
 '''
 
-__all__=['test_sdmrg']
+__all__=['test_idmrg']
 
 from numpy import *
 from HamiltonianPy.Basics import *
 from HamiltonianPy.DMRG import *
 
-def test_sdmrg():
-    print 'test_sdmrg'
+def test_idmrg():
+    print 'test_idmrg'
     pass
     print

@@ -1,11 +1,11 @@
 '''
 Spin degree of freedom package, including:
-1) constants: DEFAULT_SPIN_PRIORITY
+1) constants: DEFAULT_SPIN_PRIORITY, DEFAULT_SPIN_LAYERS
 2) classes: SID, Spin, SpinMatrix, SpinPack
 3) functions: Heisenberg, S
 '''
 
-__all__=['DEFAULT_SPIN_PRIORITY','SID','Spin','SpinMatrix','SpinPack','Heisenberg','S']
+__all__=['DEFAULT_SPIN_PRIORITY','DEFAULT_SPIN_LAYERS','SID','Spin','SpinMatrix','SpinPack','Heisenberg','S']
 
 from ..DegreeOfFreedom import *
 from numpy import *
@@ -13,6 +13,7 @@ from collections import namedtuple
 import copy
 
 DEFAULT_SPIN_PRIORITY=['socpe','site','S']
+DEFAULT_SPIN_LAYERS=['scope','site','S']
 
 class SID(namedtuple('SID',['S'])):
     '''
@@ -58,23 +59,28 @@ class Spin(Internal):
         '''
         return self.S==other.S
 
-    @property
-    def ns(self):
+    def ndegfre(self,mask=None):
         '''
-        The number of spin states.
+        Return the number of the interanl degrees of freedom modified by mask.
+        Parameters:
+            mask: list of string, optional
+                Only the indices in mask can be varied in the counting of the number of the degrees of freedom.
+                When None, all the allowed indices can be varied and thus the total number of the interanl degrees of freedom is returned.
+        Returns: number
+            The requested number of the interanl degrees of freedom.
         '''
-        return int(2*self.S)
+        return int(2*self.S)+1
 
-    def table(self,pid):
+    def indices(self,pid):
         '''
-        This method returns a Table instance that contains all the allowed indices constructed from an input pid and the internal degrees of freedom.
+        Return a list of all the allowed indices within this internal degrees of freedom combined with an extra spatial part.
         Parameters:
             pid: PID
-                The spatial part of the indices.
-        Returns: Table
-            The index-sequence table.
+                The extra spatial part of the indices.
+        Returns: list of Index
+            The allowed indices.
         '''
-        return Table([Index(pid=pid,iid=SID(S=self.S))])
+        return [Index(pid=pid,iid=SID(S=self.S))]
 
 class SpinMatrix(ndarray):
     '''

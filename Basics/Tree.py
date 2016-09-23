@@ -70,7 +70,7 @@ class Tree(dict):
                 The data of the node.
         '''
         if node in self:
-            self[node]=data
+            dict.__setitem__(self,node,data)
         else:
             raise ValueError('Tree __setitem__ error: the node of the tree does not exist.')
 

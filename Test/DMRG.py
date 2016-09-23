@@ -14,6 +14,6 @@ def test_dmrg(arg):
     if arg in ('block','dmrg','all'):
         from HamiltonianPy.DMRG import test
         test.test_block()
-    if arg in ('sdmrg','dmrg','all'):
+    if arg in ('idmrg','dmrg','all'):
         from HamiltonianPy.DMRG import test
-        test.test_sdmrg()
+        test.test_idmrg()

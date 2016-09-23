@@ -1,7 +1,7 @@
 '''
 Tensor and tensor operations, including:
-1) classes: Label, Tensor
-2) functions: contract
+1) classes: Prime, Tensor
+2) functions: prime, contract
 '''
 
 from numpy import *
@@ -10,33 +10,30 @@ from collections import namedtuple,Counter
 from copy import deepcopy
 from HamiltonianPy.Math.linalg import truncated_svd
 
-__all__=['Label','Tensor','contract']
+__all__=['PRIME','prime','Tensor','contract']
 
-class Label(namedtuple('Label',['lb','pm'])):
+class PRIME(tuple):
     '''
-    The label of an axis of a tensor.
-    Attribues:
-        lb: any hashable object
-            The content of the Label.
-        pm: 0 or 1
-            When 0, it means no prime;
-            When 1, it means with prime.
+    The prime of an arbitary object.
     '''
 
-    def __repr__(self):
+    def __init__(self,para):
         '''
-        Convert an instance to string.
+        Constructor.
+        Parameters:
+            para: any arbitary object.
+                The object that wanted primed.
         '''
-        return '%s%s'%(self.lb,'' if self.pm==0 else "'")
+        tuple.__init__(self,para)
 
-    @property
-    def prime(self):
-        '''
-        The prime of the Label.
-        '''
-        return self._replace(pm=1-self.pm)
-
-Label.__new__.__defaults__=(None,0)
+def prime(obj):
+    '''
+    The prime of an object.
+    '''
+    if isinstance(obj,PRIME):
+        return obj[0]
+    else:
+        return PRIME((obj,))
 
 class Tensor(ndarray):
     '''
@@ -44,7 +41,6 @@ class Tensor(ndarray):
     Attributes:
         labels: list of hashable objects, e.g. string, tuple, etc.
             The labels of the axes.
-            NOTE: the labels DO NOT have to be list of Label.
     '''
 
     def __new__(cls,array,labels,*args,**kargs):

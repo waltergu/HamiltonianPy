@@ -24,7 +24,7 @@ def test_spin():
     print 'test_spin'
     a=Spin(S=2)
     print 'a: %s'%a
-    print 'a.table:%s'%a.table(PID(scope='WG',site=0))
+    print 'a.indices:%s'%a.indices(PID(scope='WG',site=0))
     print
 
 def test_spin_matrix():

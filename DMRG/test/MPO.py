@@ -22,9 +22,11 @@ def test_mpo():
     for pid in l:
         config[pid]=Spin(S=0.5)
     table=config.table()
-    labels=[]
+    labels,map=[],{}
     for i,index in enumerate(sorted(table.keys(),key=table.get)):
-        labels.append((Label('B%s'%i),Label(index),Label('B%s'%((i+1)%N))))
+        L,S,R=i,index.pid,(i+1)%N
+        labels.append((L,S,R))
+        map[index]=S
     terms=[SpinTerm('J',3.0,neighbour=1,indexpacks=IndexPackList(SpinPack(1.0,pack=(('WG',m),('WG',m)))))]
     opts=Generator(l.bonds,config,terms=terms,dtype=complex128).operators.values()
 
@@ -38,7 +40,7 @@ def test_mpo():
         cut1,cut2=random.randint(0,N,size=2)
         print 'cut1,cut2:',cut1,cut2
         mps1,mps2=MPS.from_state(stat1,shape=[2]*N,labels=labels,cut=cut1),MPS.from_state(stat2,shape=[2]*N,labels=labels,cut=cut2)
-        optstr=OptStr.from_operator(opt,table)
+        optstr=OptStr.from_operator(opt,map)
         overlap2_12=optstr.overlap(mps1,mps2)
         overlap2_11=optstr.overlap(mps1,mps1)
         overlap2_22=optstr.overlap(mps2,mps2)

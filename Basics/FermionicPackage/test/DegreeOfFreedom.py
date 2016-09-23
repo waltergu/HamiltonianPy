@@ -41,8 +41,8 @@ def test_fermi():
     print 'a: %s'%a
     print 'b: %s'%b
     print 'a!=b: %s'%(a!=b)
-    print 'a.table(nambu=False): %s'%a.table(pid=PID(site=0),nambu=False)
-    print 'a.table(nambu=True): %s'%a.table(pid=PID(site=0),nambu=True)
+    print 'a.indices(nambu=False): %s'%a.indices(pid=PID(site=0),nambu=False)
+    print 'a.indices(nambu=True): %s'%a.indices(pid=PID(site=0),nambu=True)
     for i in xrange(a.norbital*a.nspin*a.nnambu):
         fid=a.state_index(i)
         print 'a.state_index(%s): '%i,fid
