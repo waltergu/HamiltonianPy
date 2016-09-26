@@ -242,13 +242,13 @@ class DegFreTree(Tree):
         data: integer
             The number of degrees of freedom that the index represents.
     Attributes:
-        config: Configuration
-            The configuration of the interanl degrees of freedom in a lattice.
         layers: list of string
             The tag of each layer of indices.
+        priority: lsit of string
+            The sequence priority of the allowed indices.
     '''
 
-    def __init__(self,config,layers=None):
+    def __init__(self,config,layers,priority=None):
         '''
         Constructor.
         Parameters:
@@ -256,6 +256,8 @@ class DegFreTree(Tree):
                 The configuration of the interanl degrees of freedom in a lattice.
             layers: list of string
                 The tag of each layer of indices.
+            priority: lsit of string, optional
+                The sequence priority of the allowed indices.
         '''
         assert set(list(xrange(len(PID._fields))))==set([layers.index(key) for key in PID._fields])
         Tree.__init__(self,root=tuple([None]*len(layers)),data=None)
@@ -270,8 +272,8 @@ class DegFreTree(Tree):
                     self[index]=np.product([self[child] for child in self.children(index)])
                 else:
                     self[index]=config[index.pid].ndegfre(mask=[key for key in layers[len(PID._fields):] if getattr(index,key) is None])
-        self.config=config
         self.layers=layers
+        self.priority=layers if priority is None else priority
 
     def indices(self,*layers):
         '''
@@ -295,6 +297,17 @@ class DegFreTree(Tree):
                 else:
                     result[layers.index(i)]=buff
         return result
+
+    def table(self,layer):
+        '''
+        Return a index-sequence table with the index confined in a specific layer.
+        Parameters:
+            layer: string
+                The layer where the indices are confined.
+        Returns: Table
+            The index-sequence table.
+        '''
+        return Table(self.indices(layer),key=lambda index: index.to_tuple(priority=self.priority))
 
 class IndexPack(object):
     '''

@@ -17,3 +17,6 @@ def test_dmrg(arg):
     if arg in ('idmrg','dmrg','all'):
         from HamiltonianPy.DMRG import test
         test.test_idmrg()
+    if arg in ('fdmrg','dmrg','all'):
+        from HamiltonianPy.DMRG import test
+        test.test_fdmrg()

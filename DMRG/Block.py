@@ -10,6 +10,32 @@ from ..Basics import *
 from ..Math import kron
 from copy import copy
 
+class Block(object):
+    '''
+    '''
+
+    def __init__(self,id,operators,qns,us):
+        '''
+        '''
+        self.id=id
+        self.operators={'h':operators}
+        self.qns=qns
+        self.us=us
+        self.cache={}
+
+    def H(self,degfres,layer):
+        '''
+        '''
+        if 'H' in self.cache:
+            return self.cache['H']
+        else:
+            result=0
+            for operator in self.operators['h']:
+                result+=OptStr.from_operator(operator,degfres,layer).matrix(self.us)
+            return result
+
+
+
 class BlockConfig(object):
     '''
     '''
@@ -47,7 +73,7 @@ class BlockConfig(object):
         result.shapes.extend(self.shapes)
         result.shapes.extend(other.shapes)
 
-class Block(object):
+class hhBlock(object):
     '''
     '''
     def __init__(self,bconfig,lattice,terms,qns,us,H):

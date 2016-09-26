@@ -1,14 +1,14 @@
 '''
-Infinite DMRG test.
+Finite DMRG test.
 '''
 
-__all__=['test_idmrg']
+__all__=['test_fdmrg']
 
 from numpy import *
 from HamiltonianPy.Basics import *
 from HamiltonianPy.DMRG import *
 
-def test_idmrg():
-    print 'test_idmrg'
+def test_fdmrg():
+    print 'test_fdmrg'
     pass
     print

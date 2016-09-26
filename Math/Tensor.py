@@ -66,7 +66,8 @@ class Tensor(ndarray):
         if obj is None:
             return
         else:
-            self.labels=getattr(obj,'labels',None)
+            for key,value in obj.__dict__.items():
+                setattr(self,key,value)
 
     def __str__(self):
         '''
@@ -237,6 +238,21 @@ class Tensor(ndarray):
         V=Tensor(v.reshape((-1,)+shape2),labels=[new]+labels2)
         return U,S,V
 
+    @staticmethod
+    def _contract_(*tensors,**karg):
+        '''
+        Contract a small collection of tensors.
+        '''
+        mask={key:True for key in karg.get('mask',[])}
+        lists=[tensor.labels for tensor in tensors]
+        alls=[label for labels in lists for label in labels]
+        counts=Counter(alls)
+        table={key:i for i,key in enumerate(counts)}
+        subscripts=[''.join(chr(table[label]+97) for label in labels) for labels in lists]
+        contracted_labels=[label for label in alls if (counts[label]==1 or mask.pop(label,False))]
+        contracted_subscript=''.join(chr(table[label]+97) for label in contracted_labels)
+        return Tensor(einsum('%s->%s'%(','.join(subscripts),contracted_subscript),*tensors),labels=contracted_labels)
+
 def contract(*tensors,**karg):
     '''
     Contract a collection of tensors.
@@ -252,6 +268,7 @@ def contract(*tensors,**karg):
     '''
     if len(tensors)==0:
         raise ValueError("Tensor contract error: there are no tensors to contract.")
+    _contract_=tensors[0]._contract_
     sequence=karg.pop('sequence',[])
     if len(sequence)==0:
         return _contract_(*tensors,**karg)
@@ -267,17 +284,3 @@ def contract(*tensors,**karg):
             else:
                 result=_contract_(result,*temp,**karg)
         return result
-
-def _contract_(*tensors,**karg):
-    '''
-    Contract a small collection of tensors.
-    '''
-    mask={key:True for key in karg.get('mask',[])}
-    lists=[tensor.labels for tensor in tensors]
-    alls=[label for labels in lists for label in labels]
-    counts=Counter(alls)
-    table={key:i for i,key in enumerate(counts)}
-    subscripts=[''.join(chr(table[label]+97) for label in labels) for labels in lists]
-    contracted_labels=[label for label in alls if (counts[label]==1 or mask.pop(label,False))]
-    contracted_subscript=''.join(chr(table[label]+97) for label in contracted_labels)
-    return Tensor(einsum('%s->%s'%(','.join(subscripts),contracted_subscript),*tensors),labels=contracted_labels)
