@@ -18,7 +18,7 @@ def test_s_opt_rep():
     points=tiling(cluster=[p1],vectors=[a1],indices=xrange(N))
     l=Lattice(name='WG',points=points,vectors=[a1*N],nneighbour=1)
 
-    config=Configuration(priority=DEFAULT_SPIN_PRIORITY)
+    config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY)
     for point in points:
         config[point.pid]=Spin(S=0.5)
     opts=OperatorCollection()

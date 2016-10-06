@@ -7,6 +7,7 @@ __all__=['test_deg_fre']
 from HamiltonianPy.Basics.Geometry import *
 from HamiltonianPy.Basics.Tree import *
 from HamiltonianPy.Basics.DegreeOfFreedom import *
+from HamiltonianPy.Basics.QuantumNumber import *
 from HamiltonianPy.Basics.FermionicPackage.DegreeOfFreedom import *
 from HamiltonianPy.Basics.SpinPackage.DegreeOfFreedom import *
 
@@ -24,29 +25,48 @@ def test_table():
     print 'c=union(a,b): %s'%c
     print 'c.reverse_table: %s'%c.reversed_table
     print 'c["i4"]: %s'%c['i4']
-    print 'c.subset: %s'%c.subset(mask=lambda key: True if key!='i1' else False)
+    print 'c.subset: %s'%c.subset(select=lambda key: True if key!='i1' else False)
     print
 
 def test_deg_fre_tree():
     print 'test_deg_fre_tree'
-    config=Configuration(priority=DEFAULT_FERMIONIC_PRIORITY)
+    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
     for site in xrange(4):
-        config[PID(scope=1,site=site)]=Fermi(norbital=2,nspin=2,nnambu=1)
-        config[PID(scope=2,site=site)]=Fermi(norbital=2,nspin=2,nnambu=1)
-    tree=DegFreTree(config,layers=DEFAULT_FERMI_LAYERS)
-    for layer in DEFAULT_FERMI_LAYERS:
-        print 'layer: %s'%layer
-        for i,index in enumerate(tree.indices(layer)):
+        config[PID(scope=1,site=site)]=Fermi(norbital=1,nspin=2,nnambu=1)
+        config[PID(scope=2,site=site)]=Fermi(norbital=1,nspin=2,nnambu=1)
+    layers=DEFAULT_FERMI_LAYERS
+    tree=DegFreTree(config,layers=layers)
+    for layer in layers:
+        print 'layer:',layer
+        for i,index in enumerate(*tree.indices([layer])):
             print i,index,tree[index]
         print
-    config=Configuration(priority=DEFAULT_SPIN_PRIORITY)
+
+    table=config.table()
+    a=QuantumNumber([('NE',0,'U1'),('Sz',0,'U1')])
+    b=QuantumNumber([('NE',1,'U1'),('Sz',-1,'U1')])
+    c=QuantumNumber([('NE',1,'U1'),('Sz',1,'U1')])
+    config=QNCConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
+    for index in table:
+        if index.spin==0:
+            config[index.replace(nambu=None)]=QuantumNumberCollection([(a,1),(b,1)])
+        else:
+            config[index.replace(nambu=None)]=QuantumNumberCollection([(a,1),(c,1)])
+    tree=DegFreTree(config,layers=layers)
+    for layer in layers:
+        print 'layer',layer
+        for i,index in enumerate(*tree.indices([layer])):
+            print i,index,tree[index].n,tree[index]
+        print
+
+    config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY)
     for site in xrange(4):
         config[PID(scope=1,site=site)]=Spin(S=0.5)
         config[PID(scope=2,site=site)]=Spin(S=0.5)
     tree=DegFreTree(config,layers=DEFAULT_SPIN_LAYERS)
     for layer in DEFAULT_SPIN_LAYERS:
-        print 'layer: %s'%layer
-        for i,index in enumerate(tree.indices(layer)):
+        print 'layer:',layer
+        for i,index in enumerate(*tree.indices([layer])):
             print i,index,tree[index]
         print
     print

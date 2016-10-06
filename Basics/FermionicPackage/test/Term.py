@@ -20,7 +20,7 @@ def test_quadratic():
     p2=Point(pid=PID(site=1,scope='WG'),rcoord=[1.0,0.0],icoord=[0.0,0.0])
     bond=Bond(neighbour=1,spoint=p1,epoint=p2)
 
-    config=Configuration(priority=DEFAULT_FERMIONIC_PRIORITY)
+    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
     config[p1.pid]=Fermi(atom=0,norbital=2,nspin=2,nnambu=2)
     config[p2.pid]=Fermi(atom=1,norbital=2,nspin=2,nnambu=2)
 
@@ -50,7 +50,7 @@ def test_quadratic():
 def test_hubbard():
     print 'test_hubbard'
     p1=Point(PID(site=0,scope="WG"),rcoord=[0.0,0.0],icoord=[0.0,0.0])
-    config=Configuration(priority=DEFAULT_FERMIONIC_PRIORITY)
+    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
     config[p1.pid]=Fermi(norbital=2,nspin=2,nnambu=1)
     l=Lattice(name="WG",points=[p1])
     table=config.table(nambu=True)

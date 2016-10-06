@@ -4,13 +4,13 @@ Tensor and tensor operations, including:
 2) functions: prime, contract
 '''
 
-from numpy import *
+from numpy import ndarray,asarray,product
 from opt_einsum import contract as einsum
 from collections import namedtuple,Counter
-from copy import deepcopy
+from copy import copy,deepcopy
 from HamiltonianPy.Math.linalg import truncated_svd
 
-__all__=['PRIME','prime','Tensor','contract']
+__all__=['PRIME','prime','contract','Tensor']
 
 class PRIME(tuple):
     '''
@@ -66,17 +66,16 @@ class Tensor(ndarray):
         if obj is None:
             return
         else:
-            for key,value in obj.__dict__.items():
-                setattr(self,key,value)
+            self.labels=getattr(obj,'labels',None)
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
         if self.ndim>1:
-            return "Tensor(labels=%s,\ndata=%s)"%(self.labels,super(Tensor,self).__str__())
+            return "%s(labels=%s,\ndata=%s)"%(self.__class__.__name__,self.labels,ndarray.__str__(self))
         else:
-            return "Tensor(labels=%s, data=%s)"%(self.labels,super(Tensor,self).__str__())
+            return "%s(labels=%s, data=%s)"%(self.__class__.__name__,self.labels,ndarray.__str__(self))
 
     def copy(self,copy_data=False):
         '''
@@ -91,7 +90,7 @@ class Tensor(ndarray):
         if copy_data:
             return deepcopy(self)
         else:
-            return Tensor(asarray(self),labels=deepcopy(self.labels))
+            return Tensor(asarray(self),labels=copy(self.labels))
 
     def label(self,axis):
         '''
@@ -187,21 +186,7 @@ class Tensor(ndarray):
         else:
             raise ValueError("Tensor take error: label and axis cannot be None simultaneously.")
 
-    def reshape(self,shape,labels):
-        '''
-        Reshape and relabel of the Tensor.
-        Parameters:
-            shape: tuple
-                The new shape of the tensor.
-            labels: list of hashable objects
-                The new labels of the tensor.
-        Returns: Tensor
-            The new tensor.
-            The data of the new tensor is just a view of the original one.
-        '''
-        return Tensor(asarray(self).reshape(shape),labels=labels)
-
-    def svd(self,labels1,new,labels2,nmax=None,tol=None,print_truncation_err=False):
+    def svd(self,labels1,new,labels2,**karg):
         '''
         Perform the svd.
         Parameters:
@@ -209,49 +194,24 @@ class Tensor(ndarray):
                 The axis labels of the two groups.
             new: any hashable object
                 The new axis label after the svd.
-            nmax: integer, optional
-                The maximum number of singular values to be kept. 
-                If it is None, it takes no effect.
-            tol: float64, optional
-                The truncation tolerance.
-                If it is None, it taks no effect.
-            print_truncation_err: logical, optional
-                If it is True, the truncation err will be printed.
+            For other parameters, please see HamiltonianPy.Math.linalg.truncated_svd for details.
         Returns:
             U,S,V: Tensor
         '''
-        axes1,axes2,shape1,shape2=[],[],(),()
-        for label in labels1:
-            axis=self.axis(label)
-            axes1.append(axis)
-            shape1+=(self.shape[axis],)
-        for label in labels2:
-            axis=self.axis(label)
-            axes2.append(axis)
-            shape2+=(self.shape[axis],)
-        if [i for i in xrange(len(self.labels)) if (i not in axes1) and (i not in axes2)]:
+        def axes_and_shape(labels):
+            axes=[self.axis(label) for label in labels]
+            shape=tuple(asarray(self.shape)[axes])
+            return axes,shape
+        axes1,shape1=axes_and_shape(labels1)
+        axes2,shape2=axes_and_shape(labels2)
+        if set(xrange(self.ndim))-set(axes1+axes2):
             raise ValueError('Tensor svd error: all axis should be divided into two group to perform the svd.')
         m=asarray(self).transpose(axes1+axes2).reshape((product(shape1),)+(product(shape2),))
-        u,s,v=truncated_svd(m,nmax=nmax,tol=tol,print_truncation_err=print_truncation_err,full_matrices=False)
+        u,s,v=truncated_svd(m,full_matrices=False,**karg)
         U=Tensor(u.reshape(shape1+(-1,)),labels=labels1+[new])
         S=Tensor(s,labels=[new])
         V=Tensor(v.reshape((-1,)+shape2),labels=[new]+labels2)
         return U,S,V
-
-    @staticmethod
-    def _contract_(*tensors,**karg):
-        '''
-        Contract a small collection of tensors.
-        '''
-        mask={key:True for key in karg.get('mask',[])}
-        lists=[tensor.labels for tensor in tensors]
-        alls=[label for labels in lists for label in labels]
-        counts=Counter(alls)
-        table={key:i for i,key in enumerate(counts)}
-        subscripts=[''.join(chr(table[label]+97) for label in labels) for labels in lists]
-        contracted_labels=[label for label in alls if (counts[label]==1 or mask.pop(label,False))]
-        contracted_subscript=''.join(chr(table[label]+97) for label in contracted_labels)
-        return Tensor(einsum('%s->%s'%(','.join(subscripts),contracted_subscript),*tensors),labels=contracted_labels)
 
 def contract(*tensors,**karg):
     '''
@@ -261,14 +221,13 @@ def contract(*tensors,**karg):
             The tensors to be contracted.
         karg['sequence']: list of tuple, 'sequential','reversed'
             The contraction sequence of the tensors.
-        karg['mask']: list of hashable objects
+        karg['select']: list of hashable objects
             The labels that are repeated but not summed over.
     Returns: Tensor
         The contracted tensor.
     '''
     if len(tensors)==0:
         raise ValueError("Tensor contract error: there are no tensors to contract.")
-    _contract_=tensors[0]._contract_
     sequence=karg.pop('sequence',[])
     if len(sequence)==0:
         return _contract_(*tensors,**karg)
@@ -284,3 +243,17 @@ def contract(*tensors,**karg):
             else:
                 result=_contract_(result,*temp,**karg)
         return result
+
+def _contract_(*tensors,**karg):
+    '''
+    Contract a small collection of tensors.
+    '''
+    select={key:True for key in karg.get('select',[])}
+    lists=[tensor.labels for tensor in tensors]
+    alls=[label for labels in lists for label in labels]
+    counts=Counter(alls)
+    table={key:i for i,key in enumerate(counts)}
+    subscripts=[''.join(chr(table[label]+97) for label in labels) for labels in lists]
+    contracted_labels=[label for label in alls if (counts[label]==1 or select.pop(label,False))]
+    contracted_subscript=''.join(chr(table[label]+97) for label in contracted_labels)
+    return Tensor(einsum('%s->%s'%(','.join(subscripts),contracted_subscript),*tensors),labels=contracted_labels)

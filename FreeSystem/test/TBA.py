@@ -35,7 +35,7 @@ def tba_construct(bc='op'):
     else:
         points=[p1,p2]
         lattice=Lattice(name='WG',points=points,vectors=[a1])
-    config=Configuration(priority=DEFAULT_FERMIONIC_PRIORITY)
+    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
     for point in points:
         config[point.pid]=Fermi(norbital=1,nspin=1,nnambu=2)
     result=TBA(

@@ -7,7 +7,7 @@ __all__=['Block']
 
 import numpy as np
 from ..Basics import *
-from ..Math import kron
+#from ..Math import kron
 from copy import copy
 
 class Block(object):

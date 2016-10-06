@@ -6,8 +6,8 @@ __all__=['test_database']
 
 def test_database(arg):
     if arg in ('hexagon','database','all'):
-        from HamiltonianPy.DataBase.test.Hexagon import *
+        from HamiltonianPy.DataBase.test.Hexagon import test_hexagon
         test_hexagon()
     if arg in ('triangle','database','all'):
-        from HamiltonianPy.DataBase.test.Triangle import *
+        from HamiltonianPy.DataBase.test.Triangle import test_triangle
         test_triangle()

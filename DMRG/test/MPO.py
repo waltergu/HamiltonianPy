@@ -18,7 +18,7 @@ def test_mpo():
     m=random.random((2,2))+random.random((2,2))*z
     m=(m+m.T.conjugate())/2
     l=Lattice(name='WG',points=tiling(cluster=[Point(pid=PID(scope='WG',site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],vectors=[array([1.0,0.0])],indices=xrange(N)),nneighbour=1)
-    config=Configuration(priority=DEFAULT_SPIN_PRIORITY)
+    config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY)
     for pid in l:
         config[pid]=Spin(S=0.5)
     table=config.table()

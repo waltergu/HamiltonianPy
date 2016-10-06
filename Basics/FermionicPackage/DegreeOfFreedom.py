@@ -14,7 +14,7 @@ from collections import namedtuple
 
 ANNIHILATION,CREATION=0,1
 DEFAULT_FERMIONIC_PRIORITY=['scope','nambu','spin','site','orbital']
-DEFAULT_FERMI_LAYERS=['scope','site','orbital','spin','nambu']
+DEFAULT_FERMI_LAYERS=[('scope',),('site',),('orbital','spin')]
 
 class FID(namedtuple('FID',['orbital','spin','nambu'])):
     '''
@@ -82,18 +82,25 @@ class Fermi(Internal):
         '''
         return self.atom==other.atom and self.norbital==other.norbital and self.nspin==other.nspin and self.nnambu==other.nnambu
 
-    def ndegfre(self,mask=None):
+    def ndegfre(self,select=None,factor=1,*arg,**karg):
         '''
-        Return the number of the interanl degrees of freedom modified by mask.
+        Return the number of the fermionic degrees of freedom modified by select.
         Parameters:
-            mask: list of string, optional
-                Only the indices in mask can be varied in the counting of the number of the degrees of freedom.
-                When None, all the allowed indices can be varied and thus the total number of the interanl degrees of freedom is returned.
+            select: list of string, optional
+                Only the indices in select can be varied in the counting of the number of the degrees of freedom.
+                When None, the total number of the fermionic degrees of freedom is returned.
+            nnambu: 1 or 2, optional
+                The extra factor that the result will be multiplied.
         Returns: number
-            The requested number of the interanl degrees of freedom.
+            The requested number of the fermionic degrees of freedom.
         '''
-        result=1
-        for key in (['orbital','spin','nambu'] if mask is None else mask):
+        assert factor in (1,2)
+        if factor==2:
+            assert self.nnambu==1
+            result=2
+        else:
+            result=1
+        for key in (['orbital','spin','nambu'] if select is None else select):
             result*=getattr(self,'n'+key)
         return result
 

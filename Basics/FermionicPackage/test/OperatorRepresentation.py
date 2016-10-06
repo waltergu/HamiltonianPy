@@ -15,7 +15,7 @@ def test_f_opt_rep():
     p=Point(pid=PID(site=0,scope="WG"),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1=array([1.0,0.0]);a2=array([0.0,1.0])
     points=tiling(cluster=[p],vectors=[a1,a2],indices=itertools.product(xrange(m),xrange(n)))
-    config=Configuration(priority=DEFAULT_FERMIONIC_PRIORITY)
+    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
     for point in points:
         config[point.pid]=Fermi(atom=0,norbital=1,nspin=2,nnambu=2)
     l=Lattice(name="WG",points=points)

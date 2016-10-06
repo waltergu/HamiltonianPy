@@ -198,7 +198,7 @@ class QuadraticList(TermList):
     This class packs several Quadratic instances as a whole for convenience.
     '''
 
-    def mesh(self,bond,config,mask=None,dtype=complex128):
+    def mesh(self,bond,config,select=None,dtype=complex128):
         '''
         This method returns the mesh of all quadratic terms defined on a bond.
         Parameters:
@@ -206,9 +206,9 @@ class QuadraticList(TermList):
                 The bond on which the quadratic terms are defined.
             config: Configuration
                 The configuration of degrees of freedom.
-            mask: callable
+            select: callable
                 A function used to pick the quadratic terms whose only argument is an instance of Quadratic. 
-                If the returned value if True, the masked quadratic term is included.
+                If the returned value if True, the selected quadratic term is included.
             dtype: complex128,complex64,float128,float64, optional
                 The data type of the returned mesh.
         Returns: 2D ndarray
@@ -218,7 +218,7 @@ class QuadraticList(TermList):
         if edgr.nnambu==sdgr.nnambu:
             result=zeros((edgr.norbital*edgr.nspin*edgr.nnambu,sdgr.norbital*sdgr.nspin*sdgr.nnambu),dtype=dtype)
             for obj in self:
-                if mask is None or mask(obj):
+                if select is None or select(obj):
                     result+=obj.mesh(bond,config,dtype=dtype)
             return result
         else:
@@ -247,7 +247,7 @@ class QuadraticList(TermList):
         '''
         result=to_operators(self.mesh(bond,config,dtype=dtype),bond,config,table)
         if bond.neighbour!=0:
-            result+=to_operators(self.mesh(bond.reversed,config,mask=lambda quadratic: True if quadratic.mode=='pr' else False,dtype=dtype),bond.reversed,config,table)
+            result+=to_operators(self.mesh(bond.reversed,config,select=lambda quadratic: True if quadratic.mode=='pr' else False,dtype=dtype),bond.reversed,config,table)
         return result
 
 def to_operators(mesh,bond,config,table=None):

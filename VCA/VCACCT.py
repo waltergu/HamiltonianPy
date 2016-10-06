@@ -46,14 +46,14 @@ class VCACCT(VCA):
         self.generators={}
         self.generators['pt_h']=Generator(
                     bonds=      [bond for bond in lattice.bonds if not bond.is_intra_cell() or bond.spoint.scope!=bond.epoint.scope],
-                    table=      lattice.table(nambu=nambu) if self.nspin==2 else subset(lattice.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
+                    table=      lattice.table(nambu=nambu) if self.nspin==2 else subset(lattice.table(nambu=nambu),select=lambda index: True if index.spin==0 else False),
                     terms=      [term for term in terms if isinstance(term,Quadratic)],
                     nambu=      nambu,
                     half=       True
                     )
         self.generators['pt_w']=Generator(
                     bonds=      [bond for bond in lattice.bonds if bond.is_intra_cell() and bond.spoint.scope==bond.epoint.scope],
-                    table=      lattice.table(nambu=nambu) if self.nspin==2 else subset(lattice.table(nambu=nambu),mask=lambda index: True if index.spin==0 else False),
+                    table=      lattice.table(nambu=nambu) if self.nspin==2 else subset(lattice.table(nambu=nambu),select=lambda index: True if index.spin==0 else False),
                     terms=      None if weiss is None else [term*(-1) for term in weiss],
                     nambu=      nambu,
                     half=       True

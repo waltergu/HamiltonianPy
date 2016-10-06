@@ -16,7 +16,7 @@ def test_flqt():
     p1=Point(pid=PID(scope='flqt',site=0),rcoord=[0.0],icoord=[0.0])
     a1=array([1.0])
     points=tiling(cluster=[p1],vectors=[a1],indices=[(i,) for i in xrange(N)])
-    config=Configuration(priority=DEFAULT_FERMIONIC_PRIORITY)
+    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
     for point in points:
         config[point.pid]=Fermi(norbital=1,nspin=1,nnambu=2)
 

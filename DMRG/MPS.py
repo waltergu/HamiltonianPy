@@ -300,14 +300,14 @@ class MPS(MPSBase,list):
         if self.cut is not None:
             if merge=='L':
                 if self.cut==0:
-                    self[0]=contract(self[0],self.Lambda,mask=self.Lambda.labels)
+                    self[0]=contract(self[0],self.Lambda,select=self.Lambda.labels)
                 else:
-                    self[self.cut-1]=contract(self[self.cut-1],self.Lambda,mask=self.Lambda.labels)
+                    self[self.cut-1]=contract(self[self.cut-1],self.Lambda,select=self.Lambda.labels)
             elif merge=='R':
                 if self.cut==self.nsite:
-                    self[-1]=contract(self[-1],self.Lambda,mask=self.Lambda.labels)
+                    self[-1]=contract(self[-1],self.Lambda,select=self.Lambda.labels)
                 else:
-                    self[self.cut]=contract(self.Lambda,self[self.cut%self.nsite],mask=self.Lambda.labels)
+                    self[self.cut]=contract(self.Lambda,self[self.cut%self.nsite],select=self.Lambda.labels)
             else:
                 raise ValueError("MPS _reset_ error: merge must be 'L' or 'R' but now it is %s."%(merge))
         if reset is None:
@@ -420,7 +420,7 @@ class MPS(MPSBase,list):
         else:
             k=other
         for i in xrange(k):
-            M=contract(self[self.cut-1],self.Lambda,mask=self.Lambda.labels)
+            M=contract(self[self.cut-1],self.Lambda,select=self.Lambda.labels)
             self._set_B_and_lmove_(M,nmax,tol)
         return self
 
@@ -454,7 +454,7 @@ class MPS(MPSBase,list):
         else:
             k=other
         for i in xrange(k):
-            M=contract(self.Lambda,self[self.cut],mask=self.Lambda.labels)
+            M=contract(self.Lambda,self[self.cut],select=self.Lambda.labels)
             self._set_A_and_rmove_(M,nmax,tol)
         return self
 

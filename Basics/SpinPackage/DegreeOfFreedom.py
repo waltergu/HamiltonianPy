@@ -13,7 +13,7 @@ from collections import namedtuple
 import copy
 
 DEFAULT_SPIN_PRIORITY=['socpe','site','S']
-DEFAULT_SPIN_LAYERS=['scope','site','S']
+DEFAULT_SPIN_LAYERS=[('scope',),('site','S')]
 
 class SID(namedtuple('SID',['S'])):
     '''
@@ -59,15 +59,9 @@ class Spin(Internal):
         '''
         return self.S==other.S
 
-    def ndegfre(self,mask=None):
+    def ndegfre(self,*arg,**karg):
         '''
-        Return the number of the interanl degrees of freedom modified by mask.
-        Parameters:
-            mask: list of string, optional
-                Only the indices in mask can be varied in the counting of the number of the degrees of freedom.
-                When None, all the allowed indices can be varied and thus the total number of the interanl degrees of freedom is returned.
-        Returns: number
-            The requested number of the interanl degrees of freedom.
+        Return the number of the spin degrees of freedom.
         '''
         return int(2*self.S)+1
 

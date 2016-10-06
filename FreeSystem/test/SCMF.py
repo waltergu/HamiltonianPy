@@ -27,7 +27,7 @@ def test_scmf():
         parameters= {'U':U},
         name=       'H2_SCMF',
         lattice=    Lattice(name='H2_SCMF',points=H2.points,vectors=H2.vectors,nneighbour=2),
-        config=     Configuration(
+        config=     IDFConfig(
                         {p.pid:Fermi(atom=0,norbital=1,nspin=2,nnambu=1) if p.pid.site%2==0 else Fermi(atom=1,norbital=1,nspin=2,nnambu=1) for p in H2.points},
                         priority=DEFAULT_FERMIONIC_PRIORITY
                         ),

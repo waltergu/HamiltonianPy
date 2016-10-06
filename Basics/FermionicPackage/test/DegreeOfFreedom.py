@@ -12,7 +12,7 @@ def test_fermionic_deg_fre():
     test_index()
     test_fid()
     test_fermi()
-    test_configuration()
+    test_idfconfig()
     test_indexpack()
 
 def test_index():
@@ -49,9 +49,9 @@ def test_fermi():
         print 'a.seq_state(%s): %s'%(fid,a.seq_state(fid))
     print
 
-def test_configuration():
-    print 'test_configuration'
-    a=Configuration(priority=DEFAULT_FERMIONIC_PRIORITY)
+def test_idfconfig():
+    print 'test_idfconfig'
+    a=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
     a[PID(site=0)]=Fermi(atom=0,norbital=1,nspin=2,nnambu=2)
     a[PID(site=1)]=Fermi(atom=1,norbital=1,nspin=2,nnambu=2)
     print 'a: %s'%a

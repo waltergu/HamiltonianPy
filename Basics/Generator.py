@@ -114,15 +114,15 @@ class Generator:
         This method updates the alterable operators by keyword arguments.
         '''
         if 'alter' in self.terms:
-            masks={key:False for key in self.terms['alter'].iterkeys()}
+            selects={key:False for key in self.terms['alter'].iterkeys()}
             for key,term in self.terms['alter'].iteritems():
                 nv=term[0].modulate(**karg)
                 if nv is not None and norm(array(nv)-array(term[0].value))>RZERO:
                     term[0].value=nv
                     self.parameters['alter'][key]=nv
-                    masks[key]=True
-            for key,mask in masks.iteritems():
-                if mask:
+                    selects[key]=True
+            for key,select in selects.iteritems():
+                if select:
                     self.cache['alter'][key]=OperatorCollection()
                     for bond in self.bonds:
                         self.cache['alter'][key]+=self.terms['alter'][key].operators(bond,self.config,table=self.table,dtype=self.dtype)

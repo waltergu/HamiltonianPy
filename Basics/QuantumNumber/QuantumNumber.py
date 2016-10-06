@@ -259,10 +259,10 @@ class QuantumNumberCollection(OrderedDict):
         Returns: QuantumNumberCollection
             The subset.
         '''
-        (mask,temp,buff,slices)=(False,[],None,None) if self.map is None else (True,[],OrderedDict(),OrderedDict())
+        (select,temp,buff,slices)=(False,[],None,None) if self.map is None else (True,[],OrderedDict(),OrderedDict())
         for key in arg:
             temp.append((key,self[key].stop-self[key].start))
-            if mask:
+            if select:
                 buff[key]=self.map[key]
                 slices[key]=self.slices[key]
         return QuantumNumberCollection(temp,map=buff,slices=slices)
