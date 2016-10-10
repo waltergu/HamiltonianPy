@@ -413,7 +413,7 @@ class DegFreTree(Tree):
                         if j==0:
                             buff.append(self[index])
                         else:
-                            buff.append(buff[j-1].tensordot(self[index],history=True))
+                            buff.append(buff[j-1].tensorsum(self[index],history=True))
                     self.cache[key][label]=buff
                     self[label]=buff[-1]
 
@@ -521,7 +521,7 @@ class DegFreTree(Tree):
             branch: index
                 A branch on a specific layer.
             qncs: list of QuantumNumberCollection
-                The tensordot path of the quantum number collection corresponding to the branch.
+                The tensorsum path of the quantum number collection corresponding to the branch.
         Parameters:
             layer: string
                 The layer where the branches are restricted.
@@ -536,7 +536,7 @@ class DegFreTree(Tree):
                         if i==0:
                             result[label].append(self[index])
                         else:
-                            result[label].append(buff[i-1].tensordot(self[index],history=True))
+                            result[label].append(buff[i-1].tensorsum(self[index],history=True))
             else:
                 result=None
             self.cache[('qncs',layer)]=result

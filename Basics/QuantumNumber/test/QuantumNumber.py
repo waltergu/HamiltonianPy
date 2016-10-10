@@ -39,26 +39,9 @@ def test_quantum_number_collection():
 
     b=QuantumNumberCollection()
     for i in xrange(2):
-        b=b.tensordot(a,history=True)
+        b=b.tensorsum(a,history=True)
     print 'b: ',b
-#    print 'b.map:'
-#    for key,value in b.map.items():
-#        print '%s: %s'%(key,value)
-#    print 'b.slices:'
-#    for key,value in b.slices.items():
-#        print '%s: %s'%(key,value)
     print 'b.permutation:%s'%b.permutation
-
-#    c=b.subset(*b.keys()[1:3])
-#    print 'c(b.subset(%s,%s)):%s'%(b.keys()[1],b.keys()[2],c)
-#    print 'c.map:'
-#    for key,value in c.map.items():
-#        print '%s: %s'%(key,value)
-#    print 'c.slices:'
-#    for key,value in c.slices.items():
-#        print '%s: %s'%(key,value)
-#    print 'c.permutation:%s'%(c.permutation)
-#    print
 
 import time
 def test_quantum_number_time():
@@ -68,11 +51,11 @@ def test_quantum_number_time():
     b=QuantumNumberCollection()
     t1=time.time()
     for i in xrange(N):
-        b=b.tensordot(a,history=True)
+        b=b.tensorsum(a,history=True)
     t2=time.time()
     print 'Summation form 1 to %s: %ss.'%(N,t2-t1)
     t3=time.time()
-    c=b.tensordot(b,history=True)
+    c=b.tensorsum(b,history=True)
     t4=time.time()
     print 'Summation of %s and %s: %ss.'%(N,N,t4-t3)
     print

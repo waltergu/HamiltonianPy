@@ -98,7 +98,7 @@ class SpinMatrix(ndarray):
             dtype: float64 or complex128, optional
                 The data type of the matirx.
             matrix: 2D ndarray, optional
-                This parameter only takes on effect when id[1] is not in ('X','x','Y','y','Z','z','+','-').
+                This parameter only takes effect when id[1] is not in ('X','x','Y','y','Z','z','+','-').
                 It is then used as the matrix of this SpinMatrix.
         '''
         if isinstance(id,tuple):
@@ -194,7 +194,7 @@ def S(id,matrix=None):
         id: 'x','X','y','Y','z','Z', or any other hashable object.
             It specifies the single spin pack.
         matrix: 2D ndarray, optional
-            It specifies the matrix of the spin pack and takes on effect only when id is not in ('x','X','y','Y','z','Z').
+            It specifies the matrix of the spin pack and takes effect only when id is not in ('x','X','y','Y','z','Z').
     Returns: IndexPackList
         The single spin pack.
     '''

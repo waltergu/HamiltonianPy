@@ -22,7 +22,7 @@ def truncated_svd(m,nmax=None,tol=None,print_truncation_err=False,**karg):
             If it is None, it takes no effect.
         tol: float64, optional
             The truncation tolerance.
-            If it is None, it taks no effect.
+            If it is None, it takes no effect.
         print_truncation_err: logical, optional
             If it is True, the truncation err will be printed.
         For other parameters, please see http://docs.scipy.org/doc/numpy/reference/generated/numpy.linalg.svd.html for details.

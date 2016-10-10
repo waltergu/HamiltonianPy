@@ -137,7 +137,7 @@ class MPS(MPSBase,list):
                 If it is None, it takes no effect.
             tol: float64, optional
                 The truncation tolerance.
-                If it is None, it taks no effect.
+                If it is None, it takes no effect.
             print_truncation_err: logical, optional
                 If it is True, the truncation err will be printed.
         Returns: MPS

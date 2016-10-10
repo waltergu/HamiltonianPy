@@ -1,13 +1,13 @@
 '''
 Quantum number, including:
-1) classes: QuantumNumber, QuantumNumberCollection
+1) classes: QuantumNumber, QuantumNumberHistory, QuantumNumberCollection
 '''
 
 from collections import namedtuple,OrderedDict
 from numpy import concatenate
 from copy import copy,deepcopy
 
-__all__=['QuantumNumber','QuantumNumberCollection']
+__all__=['QuantumNumber','QuantumNumberHistory','QuantumNumberCollection']
 
 class QuantumNumber(tuple):
     '''
@@ -184,7 +184,7 @@ class QuantumNumberCollection(OrderedDict):
         n: integer
             The total number of quantum numbers when duplicates are counted duplicately.
         history: dict of QuantumNumberHistory
-            The historical information of the tensordot of two quantum number collections.
+            The historical information of the tensorsum of two quantum number collections.
     '''
     history={}
 
@@ -232,7 +232,7 @@ class QuantumNumberCollection(OrderedDict):
         else:
             return list(xrange(self.n))
 
-    def tensordot(self,other,history=False):
+    def tensorsum(self,other,history=False):
         '''
         Tensor dot of two quantum number collections.
         Parameters:
@@ -270,8 +270,23 @@ class QuantumNumberCollection(OrderedDict):
                 result=QuantumNumberCollection(contents.iteritems())
             return result
 
-    def clear_history(self):
+    def pairs(self,qn):
+        '''
+        The historical pairs of the addends of a quantum number in the quantum number collection.
+        Parameters:
+            qn: QuantumNumber
+                The quantum number whose historical pairs of the addends are requested.
+        Returns: list of 2-tuple of QuantumNumber
+            The historical pairs of the addends of the quantum number.
+        '''
+        return self.history[self.id][qn].pairs
+
+    @classmethod
+    def clear_history(cls,qnc=None):
         '''
         Clear the historical information of the quantum number collection.
         '''
-        QuantumNumberCollection.history.pop(self.id,None)
+        if qnc is None:
+            QuantumNumberCollection.history.clear()
+        else:
+            QuantumNumberCollection.history.pop(self.id,None)

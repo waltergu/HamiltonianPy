@@ -61,17 +61,14 @@ class Block(set):
         us=copy(self.us)
         if self.form=='L':
             form='L'
-            qncs.append(self.qncs[-1].tensordot(other.qncs[0],history=True))
+            qncs.append(self.qncs[-1].tensorsum(other.qncs[0],history=True))
         elif self.form=='R':
             form='R'
-            qncs.insert(0,other.qncs[0].tensordot(self.qncs[0],history=True))
+            qncs.insert(0,other.qncs[0].tensorsum(self.qncs[0],history=True))
         else:
             raise ValueError("Block union error: the form of the first block(%s) is not 'L' or 'R'."%(self.form))
         result=Block(indices=indices,form=form,optstrs=optstrs,qncs=qncs,us=us)
         #result.cache['H']=
-        
-
-
         return result
 
     def trancation(self,):
