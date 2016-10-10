@@ -4,7 +4,7 @@ Tree test.
 
 __all__=['test_tree']
 
-from HamiltonianPy.Basics.Tree import *
+from HamiltonianPy.Math.Tree import *
 
 def test_tree():
     print 'test_tree'

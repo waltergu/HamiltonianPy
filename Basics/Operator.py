@@ -128,7 +128,7 @@ class OperatorCollection(dict):
                     temp.value=value
                     self[id]=temp
                 else:
-                    del self[id]                
+                    del self[id]
             else:
                 self[id]=other
         elif isinstance(other,OperatorCollection):
@@ -151,7 +151,7 @@ class OperatorCollection(dict):
                     temp.value=value
                     self[id]=temp
                 else:
-                    del self[id]                
+                    del self[id]
             else:
                 temp=copy(other)
                 temp.value*=-1

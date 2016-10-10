@@ -20,7 +20,6 @@ class fDMRG(Engine):
         self.lattice=lattice
         self.terms=terms
         self.config=config
-        self.table=config.table()
         self.degfres=degfres
         self.mps=mps
         self.generators={'h':Generator(bonds=self.lattice.bonds,config=self.config,terms=self.terms)}

@@ -1,59 +1,14 @@
 '''
-Tensors with quantum numbers, including
+Linear algebra, including:
 1) functions: kron, block_svd
-2) classes: QNTensor
 '''
 
 import numpy as np
 import scipy.linalg as sl
 import scipy.sparse as sp
 from ..Basics import QuantumNumber,QuantumNumberCollection
-from Tensor import Tensor
-from copy import copy,deepcopy
 
-__all__=['QNTensor','kron','block_svd']
-
-class QNTensor(Tensor):
-    '''
-    Tensor class with label and quantum numers for each of its axes. 
-    Attributes:
-        labels: list of hashable objects, e.g. string, tuple, etc.
-            The labels of the axes.
-        qns: list of QuantumNumberCollection
-            The quantum numbers of each axis of the tensor.
-    '''
-
-    def svd(self,labels1,new,labels2,**karg):
-        '''
-        Perform the svd.
-        Parameters:
-            labels1,labels2: list of any hashable object
-                The axis labels of the two groups.
-            new: any hashable object
-                The new axis label after the svd.
-            For other parameters, please see HamiltonianPy.Math.linalg.truncated_svd for details.
-        Returns:
-            U,S,V: QNTensor
-        '''
-        def axes_and_shape_and_qns(labels):
-            axes=[self.axis(label) for label in labels]
-            shape=tuple(asarray(self.shape)[axes])
-            qns=list(asarray(self.qns)[axes])
-            sum=QuantumNumberCollection()
-            for obj in qns:
-                sum+=obj
-            P=sp.coo_matrix((np.ones(sum.n),(range(sum.n),sum.permutation)),shape=(sum.n,sum.n))
-            return axes,shape,qns,sum,P
-        axes1,shape1,qns1,sum1,P1=axes_and_shape(labels1)
-        axes2,shape2,qns2,sum2,P2=axes_and_shape(labels2)
-        if set(xrange(self.ndim))-set(axes1+axes2):
-            raise ValueError('Tensor svd error: all axis should be divided into two group to perform the svd.')
-        m=P1.dot(asarray(self).transpose(axes1+axes2).reshape((product(shape1),)+(product(shape2),))).dot(P2.T)
-        u,s,v=truncated_svd(m,full_matrices=False,**karg)
-        U=Tensor(P1.T.dot(u).reshape(shape1+(-1,)),labels=labels1+[new],qns=qns1+[sum1])
-        S=Tensor(s,labels=[new],qns=[QuantumNumberCollection()])
-        V=Tensor(v.dot(P2).reshape((-1,)+shape2),labels=[new]+labels2,qns=[sum2]+qns2)
-        return U,S,V
+__all__=['kron','block_svd']
 
 def kron(m1,m2,qns1=None,qns2=None,qns=None,target=None,separate_return=False,format='csr'):
     '''

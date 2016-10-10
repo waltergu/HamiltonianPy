@@ -5,9 +5,6 @@ Basics test.
 __all__=['test_basics']
 
 def test_basics(arg):
-    if arg in ('tree','basics','all'):
-        from HamiltonianPy.Basics.test.Tree import test_tree
-        test_tree()
     if arg in ('geometry','basics','all'):
         from HamiltonianPy.Basics.test.Geometry import test_geometry
         test_geometry()

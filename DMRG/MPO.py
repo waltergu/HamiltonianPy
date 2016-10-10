@@ -57,6 +57,7 @@ class OptStr(list):
         result,labels=OptStr.__new__(OptStr),[]
         result.value=value
         for m in ms:
+            assert isinstance(m,Tensor)
             assert m.ndim==2
             assert m.labels[0]==prime(m.labels[1])
             result.append(m)
@@ -90,6 +91,23 @@ class OptStr(list):
         Convert an instance to string.
         '''
         return '\n'.join(str(m) for m in self)
+
+    def split(self,A,B):
+        '''
+        Split the optstr into three parts, the coefficient, the A part and the B part.
+        Parameters:
+            A/B: set of Index
+                The labels of A/B part.
+        Returns: 3-tuple in the form (value,optstr_a,optstr_b)
+            value: number
+                The coefficient of the optstr.
+            optstr_a/optstr_b: OptStr
+                The A/B part of the optstr.
+        '''
+        value=self.value
+        optstr_a=OptStr.compose(1.0,[m for m in self if m.labels[1] in A])
+        optstr_a=OptStr.compose(1.0,[m for m in self if m.labels[1] in B])
+        return value,optstr_a,optstr_b
 
     def matrix(self,us,form):
         '''
@@ -136,8 +154,8 @@ class OptStr(list):
                     up.relabel(news=[prime(L),prime(R)],olds=[L,R])
                     result=contract(result,up,u)
         elif form==None:
-            assert us.nsite==1 and len(self.labels)==1
-            assert us[0] is None
+            assert len(self)==1
+            assert len(us)==0
             result=self[0]*result
         else:
             raise ValueError("OptStr matrix error: form(%s) not supported."%(form))

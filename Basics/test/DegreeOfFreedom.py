@@ -5,7 +5,6 @@ Degree of freedom test.
 __all__=['test_deg_fre']
 
 from HamiltonianPy.Basics.Geometry import *
-from HamiltonianPy.Basics.Tree import *
 from HamiltonianPy.Basics.DegreeOfFreedom import *
 from HamiltonianPy.Basics.QuantumNumber import *
 from HamiltonianPy.Basics.FermionicPackage.DegreeOfFreedom import *

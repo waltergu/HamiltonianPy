@@ -10,6 +10,8 @@ def test_dmrg(arg):
         test.test_mps()
     if arg in ('mpo','dmrg','all'):
         test.test_mpo()
+    if arg in ('linalg','dmrg','all'):
+        test.test_linalg()
     if arg in ('block','dmrg','all'):
         test.test_block()
     if arg in ('idmrg','dmrg','all'):

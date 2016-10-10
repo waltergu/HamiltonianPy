@@ -6,11 +6,11 @@ Degrees of freedom in a lattice, including:
 __all__=['Table','Index','Internal','IDFConfig','QNCConfig','DegFreTree','IndexPack','IndexPackList']
 
 import numpy as np
-from Tree import Tree
 from Geometry import PID
 from copy import copy
 from collections import OrderedDict
 from QuantumNumber import QuantumNumberCollection
+from ..Math.Tree import Tree
 
 class Table(dict):
     '''
