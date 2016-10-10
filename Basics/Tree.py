@@ -192,6 +192,24 @@ class Tree(dict):
             result._children[node]=self._children[node]
         return result
 
+    def is_leaf(self,node):
+        '''
+        Judge whether a node is a leaf (a node without children) or not.
+        Parameters:
+            node: any hashable object
+                The node to be judged.
+        Returns: logical
+            True for is False for not.
+        '''
+        return len(self._children[node])==0
+
+    @property
+    def leaves(self):
+        '''
+        Return all the leaves contained in this tree.
+        '''
+        return [node for node in self if self.is_leaf(node)]
+
     def expand(self,node=None,mode=DEPTH,return_form=PAIR):
         '''
         Expand the Tree.

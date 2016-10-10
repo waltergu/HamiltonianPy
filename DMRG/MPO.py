@@ -65,21 +65,23 @@ class OptStr(list):
         return result
 
     @staticmethod
-    def from_operator(operator,map):
+    def from_operator(operator,degfres,layer):
         '''
         Constructor, which convert an operator to its OptStr form.
         Parameters:
             operator: OperatorS, OperatorF
                 The operator which is to be converted to the optstr form.
-        map: dict
-            The index-label map.
+            degfres: DegFreTree
+                The degfretree of the system.
+            layer: string
+                The layer where the optstr is to be transformed from the operator.
         Returns: OptStr
             The corresponding OptStr.
         '''
         if isinstance(operator,OperatorS):
-            return opt_str_from_operator_s(operator,map)
+            return opt_str_from_operator_s(operator,degfres,layer)
         elif isinstance(operator,OperatorF):
-            return opt_str_from_operator_f(operator,map)
+            return opt_str_from_operator_f(operator,degfres,layer)
         else:
             raise ValueError("OptStr.from_operator error: the class of the operator(%s) not supported."%(operator.__class__.__name__))
 
@@ -203,28 +205,46 @@ class OptStr(list):
             mps2._set_ABL_(m2,Lambda2)
         return asarray(result)
 
-def opt_str_from_operator_s(operator,map):
+def opt_str_from_operator_s(operator,degfres,layer):
     '''
     Convert an OperatorS to its corresponding OptStr form.
-    Parameters:
-        operator: OperatorS
-            The operator.
-        map: dict
-            The index-label map.
-    Returns: OptStr
-        The corresponding optstr.
+    For details, please see OptStr.from_operator.
     '''
-    return OptStr.compose(operator.value,[Tensor(m,labels=[prime(map[index]),map[index]]) for m,index in zip(operator.spins,operator.indices)])
+    table=degfres.table(layer)
+    branches=degfres.branches(layer)
+    leaves=degfres.leaves(layer)
+    qnc_merge_paths=degfres.qnc_merge_paths(layer)
+    temp={}
+    for i,index in enumerate(operator.indices):
+        label=branches[index]
+        if label in temp:
+            temp[label][index]=i
+        else:
+            temp[label]={index:i}
+    Ms=[]
+    for label,seqs in temp.items():
+        group=leaves[label]
+        ms=[None]*len(group)
+        for i,index in enumerate(group):
+            if index in seqs:
+                ms[i]=operator.spins[seqs[index]]
+            else:
+                ms[i]=identity(int(index.S*2)+1)
+        M=1
+        if qnc_merge_paths is None:
+            for m in ms:
+                M=kron(M,m)
+        else:
+            qncs=qnc_merge_paths[label]
+            for m,qnc in zip(ms,qncs):
+                M=kron(M,m)[qnc.permutation,:][:,qnc.permutation]
+        Ms.append(Tensor(M,labels=[prime(label),label]))
+    Ms.sort(key=lambda m:table[m.labels[1]])
+    return OptStr.compose(operator.value,Ms)
 
-def opt_str_from_operator_f(operator,map):
+def opt_str_from_operator_f(operator,degfres,layer):
     '''
     Convert an OperatorF to its corresponding OptStr form.
-    Parameters:
-        operator: OperatorF
-            The operator.
-        map: dict
-            The index-label map.
-    Returns: OptStr
-        The corresponding optstr.
+    For details, please see OptStr.from_operator.
     '''
     pass

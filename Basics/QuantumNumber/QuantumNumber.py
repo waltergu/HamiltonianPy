@@ -3,7 +3,7 @@ Quantum number, including:
 1) classes: QuantumNumber, QuantumNumberCollection
 '''
 
-from collections import OrderedDict
+from collections import namedtuple,OrderedDict
 from numpy import concatenate
 from copy import copy,deepcopy
 
@@ -14,16 +14,13 @@ class QuantumNumber(tuple):
     Quantum number.
     It is a generalization of namedtuple.
     Attributes:
-        values: OrderedDict
-            The values of the quantum number.
-            The keys correspond to the names.
-        types: OrderedDict
+        names: list of string
+            The names of the quantum number.
+        types: list of integer
             The types of the quantum number.
-            The keys correspond to the names.
     '''
-    U1,Z2=('U1','Z2')
     repr_forms=['FULL','SIMPLE','ORIGINAL']
-    repr_form=repr_forms[0]
+    repr_form='FULL'
 
     def __new__(cls,para):
         '''
@@ -35,35 +32,41 @@ class QuantumNumber(tuple):
                         The name of the quantum number.
                     value: int
                         The value of the quantum number.
-                    type: 'U1' or 'Z2'
+                    type: 'U1', 'Z2' or any integer
                         The type of the quantum number.
         '''
-        values,types=OrderedDict(),OrderedDict()
+        names,values,types=[],[],[]
         for name,value,type in para:
-            values[name]=value
-            types[name]=type
-        self=super(QuantumNumber,cls).__new__(cls,values.values())
-        self.values=values
-        self.types=types
+            names.append(name)
+            values.append(value)
+            if type=='U1':
+                types.append('U1')
+            elif type=='Z2':
+                types.append(2)
+            else:
+                types.append(type)
+        self=super(QuantumNumber,cls).__new__(cls,values)
+        self.names=tuple(names)
+        self.types=tuple(types)
         return self
 
     def __getattr__(self,key):
         '''
         Overloaded dot(.) operator.
         '''
-        return self.values[key]
+        return self[self.names.index(key)]
 
     def __copy__(self):
         '''
         Copy.
         '''
-        return self.replace(**self.values)
+        return self.replace(**{key:value for key,value in zip(self.names,self)})
 
     def __deepcopy__(self,memo):
         '''
         Deep copy.
         '''
-        return self.replace(**self.values)
+        return self.replace(**{key:value for key,value in zip(self.names,self)})
 
     @classmethod
     def set_repr_form(cls,para):
@@ -81,10 +84,10 @@ class QuantumNumber(tuple):
         '''
         if self.repr_form==self.repr_forms[0]:
             temp=[]
-            for key in self.values:
-                temp.append(key)
-                temp.append(self.values[key])
-                temp.append(self.types[key])
+            for name,value,type in zip(self.names,self,self.types):
+                temp.append(name)
+                temp.append(value)
+                temp.append('U1' if type=='U1' else 'Z%s'%(type))
             return ''.join(['QN','(',','.join(['%s=%r(%s)']*len(self)),')'])%tuple(temp)
         elif self.repr_form==self.repr_forms[1]:
             return ''.join(['QN','(',','.join(['%s']*len(self)),')'])%self
@@ -95,33 +98,35 @@ class QuantumNumber(tuple):
         '''
         Overloaded addition(+) operator, which supports the addition of two quantum numbers.
         '''
-        temp=[]
-        for key in self.values:
-            if self.types[key]!=other.types[key]:
-                raise ValueError("QuantumNumber '+' error: different types of quantum numbers cannot be added.")
-            type=self.types[key]
-            if type==self.U1:
-                value=getattr(self,key)+getattr(other,key)
-            elif type==self.Z2:
-                value=(getattr(self,key)+getattr(other,key))%2
-            temp.append((key,value,type))
-        return QuantumNumber(temp)
+        values=[]
+        for n1,v1,t1,n2,v2,t2 in zip(self.names,self,self.types,other.names,other,other.types):
+            assert n1==n2
+            assert t1==t2
+            if t1=='U1':
+                values.append(v1+v2)
+            else:
+                values.append((v1+v2)%t1)
+        result=tuple.__new__(self.__class__,values)
+        result.names=self.names
+        result.types=self.types
+        return result
 
     def __sub__(self,other):
         '''
         Overloaded addition(-) operator, which supports the subtraction of two quantum numbers.
         '''
-        temp=[]
-        for key in self.values:
-            if self.types[key]!=other.types[key]:
-                raise ValueError("QuantumNumber '-' error: different types of quantum numbers cannot be subtracted.")
-            type=self.types[key]
-            if type==self.U1:
-                value=getattr(self,key)-getattr(other,key)
-            elif type==self.Z2:
-                value=(getattr(self,key)-getattr(other,key))%2
-            temp.append((key,value,type))
-        return QuantumNumber(temp)
+        values=[]
+        for n1,v1,t1,n2,v2,t2 in zip(self.names,self,self.types,other.names,other,other.types):
+            assert n1==n2
+            assert t1==t2
+            if t1=='U1':
+                values.append(v1-v2)
+            else:
+                values.append((v1-v2)%t1)
+        result=tuple.__new__(self.__class__,values)
+        result.names=self.names
+        result.types=self.types
+        return result
 
     def __mul__(self):
         '''
@@ -139,12 +144,10 @@ class QuantumNumber(tuple):
         '''
         Return a new QuantumNumber object with specified fields replaced with new values.
         '''
-        result=tuple.__new__(QuantumNumber,map(karg.pop,self.values.keys(),self))
+        result=tuple.__new__(QuantumNumber,map(karg.pop,self.names,self))
         if karg:
             raise ValueError('QuantumNumber replace error: it got unexpected field names: %r'%karg.keys())
-        result.values=OrderedDict()
-        for key,value in zip(self.values.keys(),result):
-            result.values[key]=value
+        result.names=self.names
         result.types=self.types
         return result
 
@@ -153,13 +156,21 @@ class QuantumNumber(tuple):
         Direct sum of two quantum numbers.
         '''
         result=tuple.__new__(self.__class__,tuple.__add__(self,other))
-        result.values=OrderedDict()
-        result.values.update(self.values)
-        result.values.update(other.values)
-        result.types=OrderedDict()
-        result.types.update(self.types)
-        result.types.update(other.types)
+        result.names=self.names+other.names
+        result.types=self.types+other.types
         return result
+
+class QuantumNumberHistory(namedtuple('QuantumNumberHistory',['pairs','slices'])):
+    '''
+    The historical information of a quantum number.
+    Attribues:
+        pairs: list of 2-tuples of QuantumNumber
+            All the pairs of the addends of the quantum number.
+        slices: list of slice
+            The unpermutated slices of the quantum number.
+    '''
+
+QuantumNumberHistory.__new__.__defaults__=(None,)*len(QuantumNumberHistory._fields)
 
 class QuantumNumberCollection(OrderedDict):
     '''
@@ -172,13 +183,12 @@ class QuantumNumberCollection(OrderedDict):
     Attributes:
         n: integer
             The total number of quantum numbers when duplicates are counted duplicately.
-        map: OrderedDict
-            The historical pairs whose sums give rise to the quantum numbers.
-        slices: OrderedDict
-            The historical slices of each quantum number.
+        history: dict of QuantumNumberHistory
+            The historical information of the tensordot of two quantum number collections.
     '''
+    history={}
 
-    def __init__(self,para=None,map=None,slices=None):
+    def __init__(self,para=None):
         '''
         Constructor.
         Parameters:
@@ -190,12 +200,9 @@ class QuantumNumberCollection(OrderedDict):
                         The number of the duplicates of the quantum number
                     2) slice:
                         The corresponding slice of the quantum number.
-            map: OrderedDict
-                The historical pairs whose sums give rise to the quantum numbers.
-            slices: OrderedDict
-                The historical slices of each quantum number.
         '''
         OrderedDict.__init__(self)
+        self.id=id(self)
         count=0
         if para is not None:
             for (key,value) in para:
@@ -208,8 +215,6 @@ class QuantumNumberCollection(OrderedDict):
                 else:
                     raise ValueError('QuantumNumberCollection construction error: improper parameter(%s).'%(value.__class__.__name__))
         self.n=count
-        self.map=map
-        self.slices=slices
 
     def __repr__(self):
         '''
@@ -222,47 +227,51 @@ class QuantumNumberCollection(OrderedDict):
         '''
         The permutation of the current order with respect to the direct product order.
         '''
-        result=[]
-        for slice in concatenate(self.slices.values()):
-            result.extend([i for i in xrange(slice.start,slice.stop)])
-        return result
+        if self.id in self.history:
+            return [i for value in self.history[self.id].values() for slice in value.slices for i in xrange(slice.start,slice.stop)]
+        else:
+            return list(xrange(self.n))
 
-    def __add__(self,other):
+    def tensordot(self,other,history=False):
         '''
-        Overloaded addition(+) operator.
+        Tensor dot of two quantum number collections.
+        Parameters:
+            self,other: QuantumNumberCollection
+                The quantum number collections to be tensor dotted.
+            history: logical
+                When True, the historical information of the tensor dot process will be recorded.
+                Otherwise not.
         '''
         if len(self)==0:
             return copy(other)
         elif len(other)==0:
             return copy(self)
         else:
-            temp,buff,slices=OrderedDict(),OrderedDict(),OrderedDict()
-            for qn1,v1 in self.items():
-                for qn2,v2 in other.items():
-                    sum=qn1+qn2
-                    if sum not in temp:
-                        temp[sum]=0
-                        buff[sum]=[]
-                        slices[sum]=[]
-                    temp[sum]+=(v2.stop-v2.start)*(v1.stop-v1.start)
-                    buff[sum].append((qn1,qn2))
-                    for i in xrange(v1.start,v1.stop):
-                        slices[sum].append(slice(i*other.n+v2.start,i*other.n+v2.stop))
-            return QuantumNumberCollection(temp.iteritems(),map=buff,slices=slices)
+            contents=OrderedDict()
+            if history:
+                record=OrderedDict()
+                for qn1,v1 in self.items():
+                    for qn2,v2 in other.items():
+                        sum=qn1+qn2
+                        if sum not in contents:
+                            contents[sum]=0
+                            record[sum]=QuantumNumberHistory(pairs=[],slices=[])
+                        contents[sum]+=(v2.stop-v2.start)*(v1.stop-v1.start)
+                        record[sum].pairs.append((qn1,qn2))
+                        for i in xrange(v1.start,v1.stop):
+                            record[sum].slices.append(slice(i*other.n+v2.start,i*other.n+v2.stop))
+                result=QuantumNumberCollection(contents.iteritems())
+                QuantumNumberCollection.history[result.id]=record
+            else:
+                for qn1,v1 in self.items():
+                    for qn2,v2 in other.items():
+                        sum=qn1+qn2
+                        contents[sum]=contents.get(sum,0)+(v2.stop-v2.start)*(v1.stop-v1.start)
+                result=QuantumNumberCollection(contents.iteritems())
+            return result
 
-    def subset(self,*arg):
+    def clear_history(self):
         '''
-        Subset of the quantum number collection.
-        Parameters:
-            arg: list of QuantumNumber
-                The key of the subset.
-        Returns: QuantumNumberCollection
-            The subset.
+        Clear the historical information of the quantum number collection.
         '''
-        (select,temp,buff,slices)=(False,[],None,None) if self.map is None else (True,[],OrderedDict(),OrderedDict())
-        for key in arg:
-            temp.append((key,self[key].stop-self[key].start))
-            if select:
-                buff[key]=self.map[key]
-                slices[key]=self.slices[key]
-        return QuantumNumberCollection(temp,map=buff,slices=slices)
+        QuantumNumberCollection.history.pop(self.id,None)

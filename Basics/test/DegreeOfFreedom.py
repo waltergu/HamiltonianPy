@@ -31,14 +31,14 @@ def test_table():
 def test_deg_fre_tree():
     print 'test_deg_fre_tree'
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
-    for site in xrange(4):
-        config[PID(scope=1,site=site)]=Fermi(norbital=1,nspin=2,nnambu=1)
-        config[PID(scope=2,site=site)]=Fermi(norbital=1,nspin=2,nnambu=1)
+    for scope in xrange(100):
+        config[PID(scope=scope,site=0)]=Fermi(norbital=1,nspin=2,nnambu=1)
+        config[PID(scope=scope,site=1)]=Fermi(norbital=1,nspin=2,nnambu=1)
     layers=DEFAULT_FERMI_LAYERS
     tree=DegFreTree(config,layers=layers)
     for layer in layers:
         print 'layer:',layer
-        for i,index in enumerate(*tree.indices([layer])):
+        for i,index in enumerate(tree.indices(layer)):
             print i,index,tree[index]
         print
 
@@ -55,18 +55,33 @@ def test_deg_fre_tree():
     tree=DegFreTree(config,layers=layers)
     for layer in layers:
         print 'layer',layer
-        for i,index in enumerate(*tree.indices([layer])):
+        for i,index in enumerate(tree.indices(layer)):
             print i,index,tree[index].n,tree[index]
         print
 
+    layers=DEFAULT_SPIN_LAYERS
     config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY)
     for site in xrange(4):
         config[PID(scope=1,site=site)]=Spin(S=0.5)
         config[PID(scope=2,site=site)]=Spin(S=0.5)
-    tree=DegFreTree(config,layers=DEFAULT_SPIN_LAYERS)
-    for layer in DEFAULT_SPIN_LAYERS:
+    tree=DegFreTree(config,layers=layers)
+    for layer in layers:
         print 'layer:',layer
-        for i,index in enumerate(*tree.indices([layer])):
+        for i,index in enumerate(tree.indices(layer)):
+            print i,index,tree[index]
+        print
+
+    table=config.table()
+    a=QuantumNumber([('Sz',-1,'U1')])
+    b=QuantumNumber([('Sz',1,'U1')])
+    qnc=QuantumNumberCollection([(a,1),(b,1)])
+    config=QNCConfig(priority=DEFAULT_SPIN_PRIORITY)
+    for index in table:
+        config[index]=qnc
+    tree=DegFreTree(config,layers=layers)
+    for layer in layers:
+        print 'layer:',layer
+        for i,index in enumerate(tree.indices(layer)):
             print i,index,tree[index]
         print
     print

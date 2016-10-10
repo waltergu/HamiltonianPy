@@ -732,3 +732,32 @@ class SuperLattice(Lattice):
             max_dist=           max_dist,
             min_dists=          min_dists
             )
+
+    @staticmethod
+    def compose(name,points,vectors=[],nneighbour=1,max_coordinate_number=8):
+        '''
+        Constructor, compose the superlattice directly from its contained points.
+        Parameters:
+            name: string
+                The name of the lattice.
+            points: list of Point
+                The lattice points in a unit cell.
+            vectors: list of 1D ndarray, optional
+                The translation vectors of the lattice.
+            nneighbour: integer, optional
+                The highest order of neighbours.
+            max_coordinate_number: int, optional
+                The max coordinate number for every neighbour.
+                This variable is used in the search for bonds.
+        '''
+        result=Lattice.__new__(SuperLattice)
+        result.name=name
+        for point in points:
+            assert isinstance(point,Point)
+            dict.__setitem__(result,point.pid,point)
+        result.reset(
+            vectors=                vectors,
+            nneighbour=             nneighbour,
+            max_coordinate_number=  max_coordinate_number
+            )
+        return result

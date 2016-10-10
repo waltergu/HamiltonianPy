@@ -21,15 +21,12 @@ def test_mpo():
     config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY)
     for pid in l:
         config[pid]=Spin(S=0.5)
-    table=config.table()
-    labels,map=[],{}
-    for i,index in enumerate(sorted(table.keys(),key=table.get)):
-        L,S,R=i,index.pid,(i+1)%N
-        labels.append((L,S,R))
-        map[index]=S
+    layer=('scope','site','S')
+    degfres=DegFreTree(config,layers=(layer,))
+    table=degfres.table(layer=layer)
+    labels=degfres.labels(layer=layer)
     terms=[SpinTerm('J',3.0,neighbour=1,indexpacks=IndexPackList(SpinPack(1.0,pack=(('WG',m),('WG',m)))))]
     opts=Generator(l.bonds,config,terms=terms,dtype=complex128).operators.values()
-
     for opt in opts:
         stat1,stat2=random.random(2**N)+random.random(2**N)*z,random.random(2**N)+random.random(2**N)*z
         stat1,stat2=stat1/norm(stat1),stat2/norm(stat2)
@@ -40,7 +37,7 @@ def test_mpo():
         cut1,cut2=random.randint(0,N,size=2)
         print 'cut1,cut2:',cut1,cut2
         mps1,mps2=MPS.from_state(stat1,shape=[2]*N,labels=labels,cut=cut1),MPS.from_state(stat2,shape=[2]*N,labels=labels,cut=cut2)
-        optstr=OptStr.from_operator(opt,map)
+        optstr=OptStr.from_operator(opt,degfres,layer)
         overlap2_12=optstr.overlap(mps1,mps2)
         overlap2_11=optstr.overlap(mps1,mps1)
         overlap2_22=optstr.overlap(mps2,mps2)
@@ -48,4 +45,4 @@ def test_mpo():
         print 'overlap2: %s,%s,%s'%(overlap2_12,overlap2_11,overlap2_22)
         print 'difference: %s,%s,%s'%(overlap1_12-overlap2_12,overlap1_11-overlap2_11,overlap1_22-overlap2_22)
         print '-'*80
-    print 
+    print
