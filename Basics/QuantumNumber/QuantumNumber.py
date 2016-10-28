@@ -4,8 +4,9 @@ Quantum number, including:
 '''
 
 from collections import namedtuple,OrderedDict
-from numpy import concatenate
 from copy import copy,deepcopy
+import numpy as np
+import scipy.sparse as sp
 
 __all__=['QuantumNumber','QuantumNumberHistory','QuantumNumberCollection']
 
@@ -98,18 +99,27 @@ class QuantumNumber(tuple):
         '''
         Overloaded addition(+) operator, which supports the addition of two quantum numbers.
         '''
-        values=[]
-        for n1,v1,t1,n2,v2,t2 in zip(self.names,self,self.types,other.names,other,other.types):
-            assert n1==n2
-            assert t1==t2
-            if t1=='U1':
-                values.append(v1+v2)
-            else:
-                values.append((v1+v2)%t1)
-        result=tuple.__new__(self.__class__,values)
-        result.names=self.names
-        result.types=self.types
-        return result
+        if other==0:
+            return self
+        else:
+            values=[]
+            for n1,v1,t1,n2,v2,t2 in zip(self.names,self,self.types,other.names,other,other.types):
+                assert n1==n2
+                assert t1==t2
+                if t1=='U1':
+                    values.append(v1+v2)
+                else:
+                    values.append((v1+v2)%t1)
+            result=tuple.__new__(self.__class__,values)
+            result.names=self.names
+            result.types=self.types
+            return result
+
+    def __radd__(self,other):
+        '''
+        Overloaded addition(+) operator, which supports the addition of two quantum numbers.
+        '''
+        return self.__add__(other)
 
     def __sub__(self,other):
         '''
@@ -184,7 +194,7 @@ class QuantumNumberCollection(OrderedDict):
         n: integer
             The total number of quantum numbers when duplicates are counted duplicately.
         history: dict of QuantumNumberHistory
-            The historical information of the tensorsum of two quantum number collections.
+            The historical information of the kron of two quantum number collections.
     '''
     history={}
 
@@ -222,6 +232,12 @@ class QuantumNumberCollection(OrderedDict):
         '''
         return ''.join(['QNC(',','.join(['%s:(%s:%s)'%(qn,value.start,value.stop) for qn,value in self.items()]),')'])
 
+    def subslice(self,subset):
+        '''
+        The subslice corresponding to the subset.
+        '''
+        return [i for target in subset for i in xrange(self[target].start,self[target].stop)]
+
     @property
     def permutation(self):
         '''
@@ -232,7 +248,7 @@ class QuantumNumberCollection(OrderedDict):
         else:
             return list(xrange(self.n))
 
-    def tensorsum(self,other,history=False):
+    def kron(self,other,history=False):
         '''
         Tensor dot of two quantum number collections.
         Parameters:
@@ -270,6 +286,12 @@ class QuantumNumberCollection(OrderedDict):
                 result=QuantumNumberCollection(contents.iteritems())
             return result
 
+    def subset(self,targets):
+        '''
+        A subsets of the quantum number collection.
+        '''
+        return QuantumNumberCollection([(target,self[target].stop-self[target].start) for target in targets])
+
     def pairs(self,qn):
         '''
         The historical pairs of the addends of a quantum number in the quantum number collection.
@@ -281,12 +303,34 @@ class QuantumNumberCollection(OrderedDict):
         '''
         return self.history[self.id][qn].pairs
 
-    @classmethod
-    def clear_history(cls,qnc=None):
+    @staticmethod
+    def clear_history(*arg):
         '''
         Clear the historical information of the quantum number collection.
         '''
-        if qnc is None:
+        if len(arg)==0:
             QuantumNumberCollection.history.clear()
         else:
-            QuantumNumberCollection.history.pop(self.id,None)
+            for qnc in arg:
+                if isinstance(qnc,QuantumNumberCollection):
+                    QuantumNumberCollection.history.pop(qnc.id,None)
+
+    def reorder(self,array,axes=None):
+        '''
+        Recorder the axes of an array from the ordinary numpy.kron order to the correct quantum number collection order.
+        Parameters:
+            array: ndarray-like
+                The original array in the ordinary numpy.kron order.
+            axes: list of integer, optional
+                The axes of the array to be reordered.
+        Returns: ndarray-like
+            The axes-reordered array.
+        '''
+        axes=xrange(array.ndim) if axes is None else axes
+        result=array
+        for axis in axes:
+            assert self.n==array.shape[axis]
+            temp=[slice(None,None,None)]*array.ndim
+            temp[axis]=self.permutation
+            result=result[tuple(temp)]
+        return result

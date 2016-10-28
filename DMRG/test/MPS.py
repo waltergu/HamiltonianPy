@@ -40,7 +40,7 @@ def test_mps():
         print '-------------------'
 
     for i in xrange(a.nsite+1):
-        c=MPS.from_state(a.state,shape=[2]*N,labels=labels,cut=i)
+        c=MPS.from_state(a.state,shapes=[2]*N,labels=labels,cut=i)
         #print 'c[%s]:\n%s'%(i,c)
         print 'c[%s].state: %s'%(i,c.state)
         print 'c[%s].norm: %s'%(i,c.norm)

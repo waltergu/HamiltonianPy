@@ -24,7 +24,7 @@ def test_mpo():
     layer=('scope','site','S')
     degfres=DegFreTree(config,layers=(layer,))
     table=degfres.table(layer=layer)
-    labels=degfres.labels(layer=layer)
+    labels=degfres.labels(layer=layer).values()
     terms=[SpinTerm('J',3.0,neighbour=1,indexpacks=IndexPackList(SpinPack(1.0,pack=(('WG',m),('WG',m)))))]
     opts=Generator(l.bonds,config,terms=terms,dtype=complex128).operators.values()
     for opt in opts:
@@ -36,7 +36,7 @@ def test_mpo():
         overlap1_22=vdot(stat2,dense.dot(stat2))
         cut1,cut2=random.randint(0,N,size=2)
         print 'cut1,cut2:',cut1,cut2
-        mps1,mps2=MPS.from_state(stat1,shape=[2]*N,labels=labels,cut=cut1),MPS.from_state(stat2,shape=[2]*N,labels=labels,cut=cut2)
+        mps1,mps2=MPS.from_state(stat1,shapes=[2]*N,labels=labels,cut=cut1),MPS.from_state(stat2,shapes=[2]*N,labels=labels,cut=cut2)
         optstr=OptStr.from_operator(opt,degfres,layer)
         overlap2_12=optstr.overlap(mps1,mps2)
         overlap2_11=optstr.overlap(mps1,mps1)

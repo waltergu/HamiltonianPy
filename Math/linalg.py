@@ -1,15 +1,25 @@
 '''
 Linear algebra, including
-1) functions: truncated_svd
+1) functions: dagger,truncated_svd
 2) classes: Lanczos
 '''
 
-__all__=['truncated_svd','Lanczos']
+__all__=['dagger','truncated_svd','Lanczos']
 
 import numpy as np
 import numpy.linalg as nl
 import scipy.linalg as sl
 from copy import copy
+
+def dagger(m):
+    '''
+    The Hermitian conjugate of a matrix.
+    '''
+    assert m.ndim==2
+    if m.dtype in (np.int,np.int8,np.int16,np.int32,np.int64,np.float,np.float16,np.float32,np.float64,np.float128):
+        return m.T
+    else:
+        return m.T.conjugate()
 
 def truncated_svd(m,nmax=None,tol=None,print_truncation_err=False,**karg):
     '''
@@ -34,7 +44,7 @@ def truncated_svd(m,nmax=None,tol=None,print_truncation_err=False,**karg):
     nmax=len(s) if nmax is None else min(nmax,len(s))
     tol=s[nmax-1] if tol is None else tol
     indices=(s>=tol)
-    if print_truncation_err and nmax<len(s): print 'Tensor svd truncation err: %s'%s[~indices].sum()
+    if print_truncation_err and nmax<len(s): print 'Tensor svd truncation err: %s'%(s[~indices]**2).sum()
     return u[:,indices],s[indices],v[indices,:]
 
 class Lanczos:

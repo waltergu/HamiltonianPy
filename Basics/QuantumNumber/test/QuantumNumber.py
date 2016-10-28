@@ -39,7 +39,7 @@ def test_quantum_number_collection():
 
     b=QuantumNumberCollection()
     for i in xrange(2):
-        b=b.tensorsum(a,history=True)
+        b=b.kron(a,history=True)
     print 'b: ',b
     print 'b.permutation:%s'%b.permutation
 
@@ -51,11 +51,11 @@ def test_quantum_number_time():
     b=QuantumNumberCollection()
     t1=time.time()
     for i in xrange(N):
-        b=b.tensorsum(a,history=True)
+        b=b.kron(a,history=True)
     t2=time.time()
     print 'Summation form 1 to %s: %ss.'%(N,t2-t1)
     t3=time.time()
-    c=b.tensorsum(b,history=True)
+    c=b.kron(b,history=True)
     t4=time.time()
     print 'Summation of %s and %s: %ss.'%(N,N,t4-t3)
     print

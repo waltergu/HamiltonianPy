@@ -23,47 +23,59 @@ class OptStr(list):
             The physical labels of the mpo.
     '''
 
-    def __init__(self,value,ms,labels):
+    def __init__(self,value,ms,labels=None):
         '''
         Constructor.
         Parameters:
             value: number
                 The overall coefficient of the optstr.
-            ms: 2d ndarray
+            ms: 2d ndarray/Tensor
                 The matrices of the mpo.
-            labels: list of hashable objects
+            labels: list of hashable objects, optional
                 The second physical labels of the mpo.
         NOTE: For each matrix in the mpo, the first physical label is just the prime of the second.
         '''
-        assert len(ms)==len(labels)
         self.value=value
-        for m,label in zip(ms,labels):
-            assert m.ndim==2
-            self.append(Tensor(m,labels=[prime(label),label]))
-        self.labels=set(labels)
+        self.labels=set()
+        if labels is None:
+            for m in ms:
+                self.append(m)
+        else:
+            assert len(ms)==len(labels)
+            for m,label in zip(ms,labels):
+                self.append(Tensor(m,labels=[label.prime,label]))
 
-    @staticmethod
-    def compose(value,ms):
+    def __str__(self):
         '''
-        Constructor.
-        Parameters:
-            value: number
-                The overall coefficient of the optstr.
-            ms: list of 2d Tensor.
-                The matrices of the mpo.
-        Returns: OptStr
-            The corresponding optstr.
+        Convert an instance to string.
         '''
-        result,labels=OptStr.__new__(OptStr),[]
-        result.value=value
+        result=[]
+        result.append('value: %s'%self.value)
+        result.extend([str(m) for m in self])
+        return '\n'.join(result)
+
+    def append(self,m):
+        '''
+        Overloaded append.
+        '''
+        assert isinstance(m,Tensor) and m.ndim==2 and m.labels[0]==m.labels[1].prime
+        list.append(self,m)
+        self.labels.add(m.labels[1])
+
+    def insert(self,index,m):
+        '''
+        Overloaded insert.
+        '''
+        assert isinstance(m,Tensor) and m.ndim==2 and m.labels[0]==m.labels[1].prime
+        list.insert(self,index,m)
+        self.labels.add(m.labels[1])
+
+    def extend(self,ms):
+        '''
+        Overloaded extend.
+        '''
         for m in ms:
-            assert isinstance(m,Tensor)
-            assert m.ndim==2
-            assert m.labels[0]==prime(m.labels[1])
-            result.append(m)
-            labels.append(m.labels[1])
-        result.labels=set(labels)
-        return result
+            self.append(m)
 
     @staticmethod
     def from_operator(operator,degfres,layer):
@@ -92,22 +104,41 @@ class OptStr(list):
         '''
         return '\n'.join(str(m) for m in self)
 
-    def split(self,A,B):
+    def split(self,A,B,coeff=None):
         '''
-        Split the optstr into three parts, the coefficient, the A part and the B part.
+        Split the optstr according to A and B.
         Parameters:
-            A/B: set of Index
+            A/B: set/dict/list of Index
                 The labels of A/B part.
-        Returns: 3-tuple in the form (value,optstr_a,optstr_b)
-            value: number
-                The coefficient of the optstr.
-            optstr_a/optstr_b: OptStr
-                The A/B part of the optstr.
+            coeff: None, 'A' or 'B'
+                Plase see below.
+        Returns:
+            1) When coeff is None, the returns is a 3-tuple in the form (value,optstr_a,optstr_b)
+                value: number
+                    The coefficient of the optstr.
+                optstr_a/optstr_b: OptStr
+                    The A/B part of the optstr.
+            2) When coeff is 'A' or 'B', the returns is a 2-tuple in the form (optstr_a,optstr_b)
+                optstr_a/optstr_b: OptStr
+                    The A/B part of the optstr.
+                    If coeff=='A', the coefficient of the optstr will be absorbed into optstr_a;
+                    If coeff=='B', the coefficient of the optstr will be absorbed into optstr_b.
         '''
-        value=self.value
-        optstr_a=OptStr.compose(1.0,[m for m in self if m.labels[1] in A])
-        optstr_a=OptStr.compose(1.0,[m for m in self if m.labels[1] in B])
-        return value,optstr_a,optstr_b
+        assert coeff in ('A','B',None)
+        if coeff is None:
+            value=self.value
+            optstr_a=OptStr(1.0,[m for m in self if m.labels[1] in A])
+            optstr_b=OptStr(1.0,[m for m in self if m.labels[1] in B])
+            return value,optstr_a,optstr_b
+        else:
+            if coeff=='A':
+                optstr_a=OptStr(self.value,[m for m in self if m.labels[1] in A])
+                optstr_b=OptStr(1.0,[m for m in self if m.labels[1] in B])
+                return optstr_a,optstr_b
+            else:
+                optstr_a=OptStr(1.0,[m for m in self if m.labels[1] in A])
+                optstr_b=OptStr(self.value,[m for m in self if m.labels[1] in B])
+                return optstr_a,optstr_b
 
     def matrix(self,us,form):
         '''
@@ -122,43 +153,45 @@ class OptStr(list):
             The corresponding matrix representation of the optstr on the basis.
         '''
         result=Tensor(self.value,labels=[])
-        temp=sorted(self,key=lambda m:us.table[m.labels[1]])
-        if form=='L':
-            start,count=us.table[temp[0].labels[1]],0
-            for i,u in enumerate(us[start:]):
-                L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
-                up=u.copy(copy_data=False).conjugate()
-                if S in self.labels:
-                    if i==0:
-                        up.relabel(news=[prime(S),prime(R)],olds=[S,R])
-                    else:
-                        up.relabel(news=[prime(L),prime(S),prime(R)],olds=[L,S,R])
-                    result=contract(result,up,temp[count],u)
-                    count+=1
-                else:
-                    up.relabel(news=[prime(L),prime(R)],olds=[L,R])
-                    result=contract(result,up,u)
-        elif form=='R':
-            end,count=us.table[temp[-1].labels[1]]+1,-1
-            for i,u in enumerate(reversed(us[0:end])):
-                L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
-                up=u.copy(copy_data=False).conjugate()
-                if S in self.labels:
-                    if i==0:
-                        up.relabel(news=[prime(L),prime(S)],olds=[L,S])
-                    else:
-                        up.relabel(news=[prime(L),prime(S),prime(R)],olds=[L,S,R])
-                    result=contract(result,up,temp[count],u)
-                    count-=1
-                else:
-                    up.relabel(news=[prime(L),prime(R)],olds=[L,R])
-                    result=contract(result,up,u)
-        elif form==None:
+        if form=='S' or us.nsite==0:
             assert len(self)==1
-            assert len(us)==0
             result=self[0]*result
         else:
-            raise ValueError("OptStr matrix error: form(%s) not supported."%(form))
+            temp=sorted(self,key=lambda m:us.table[m.labels[1]])
+            if form=='L':
+                start,count=us.table[temp[0].labels[1]],0
+                for i,u in enumerate(us[start:]):
+                    L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
+                    up=u.copy(copy_data=False).conjugate()
+                    if S in self.labels:
+                        if i==0:
+                            up.relabel(news=[S.prime,R.prime],olds=[S,R])
+                        else:
+                            up.relabel(news=[L.prime,S.prime,R.prime],olds=[L,S,R])
+                        result=contract(result,up,temp[count],u)
+                        count+=1
+                    else:
+                        up.relabel(news=[L.prime,R.prime],olds=[L,R])
+                        result=contract(result,up,u)
+            elif form=='R':
+                end,count=us.table[temp[-1].labels[1]]+1,-1
+                for i,u in enumerate(reversed(us[0:end])):
+                    L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
+                    up=u.copy(copy_data=False).conjugate()
+                    if S in self.labels:
+                        if i==0:
+                            up.relabel(news=[L.prime,S.prime],olds=[L,S])
+                        else:
+                            up.relabel(news=[L.prime,S.prime,R.prime],olds=[L,S,R])
+                        result=contract(result,up,temp[count],u)
+                        count-=1
+                    else:
+                        up.relabel(news=[L.prime,R.prime],olds=[L,R])
+                        result=contract(result,up,u)
+            else:
+                raise ValueError("OptStr matrix error: form(%s) not supported."%(form))
+            if result.labels[1]._prime_:
+                result=result.transpose(axes=[1,0])
         return result
 
     def overlap(self,mps1,mps2):
@@ -200,19 +233,19 @@ class OptStr(list):
             Lp,Sp,Rp=u1.labels[MPS.L],u1.labels[MPS.S],u1.labels[MPS.R]
             L,S,R=u2.labels[MPS.L],u2.labels[MPS.S],u2.labels[MPS.R]
             assert L==Lp and S==Sp and R==Rp
-            news,olds=[prime(Lp),prime(Sp),prime(Rp)],[Lp,Sp,Rp]
+            news,olds=[Lp.prime,Sp.prime,Rp.prime],[Lp,Sp,Rp]
             if i==0:
-                news.remove(prime(Lp))
+                news.remove(Lp.prime)
                 olds.remove(Lp)
             if i==end-start-1:
-                news.remove(prime(Rp))
+                news.remove(Rp.prime)
                 olds.remove(Rp)
             if Sp in self.labels:
                 u1.relabel(news=news,olds=olds)
                 result=contract(result,u1,temp[count],u2)
                 count+=1
             else:
-                news.remove(prime(Sp))
+                news.remove(Sp.prime)
                 olds.remove(Sp)
                 u1.relabel(news=news,olds=olds)
                 result=contract(result,u1,u2)
@@ -231,7 +264,8 @@ def opt_str_from_operator_s(operator,degfres,layer):
     table=degfres.table(layer)
     branches=degfres.branches(layer)
     leaves=degfres.leaves(layer)
-    qnc_merge_paths=degfres.qnc_merge_paths(layer)
+    qnc_merge_paths=degfres.qnc_kron_paths(layer)
+    labels=degfres.labels(layer)
     temp={}
     for i,index in enumerate(operator.indices):
         label=branches[index]
@@ -255,10 +289,10 @@ def opt_str_from_operator_s(operator,degfres,layer):
         else:
             qncs=qnc_merge_paths[label]
             for m,qnc in zip(ms,qncs):
-                M=kron(M,m)[qnc.permutation,:][:,qnc.permutation]
-        Ms.append(Tensor(M,labels=[prime(label),label]))
-    Ms.sort(key=lambda m:table[m.labels[1]])
-    return OptStr.compose(operator.value,Ms)
+                M=qnc.reorder(kron(M,m),axes=[0,1])
+        Ms.append(Tensor(M,labels=[labels[label][1].prime,labels[label][1]]))
+    Ms.sort(key=lambda m:table[m.labels[1].tag])
+    return OptStr(operator.value,Ms)
 
 def opt_str_from_operator_f(operator,degfres,layer):
     '''

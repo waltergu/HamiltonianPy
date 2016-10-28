@@ -1,12 +1,13 @@
 '''
-Block test.
+Chain test.
 '''
 
-__all__=['test_block']
+__all__=['test_chain']
 
 from numpy import *
 from HamiltonianPy.Basics import *
 from HamiltonianPy.DMRG import *
 
-def test_block():
-    print 'test_block'
+def test_chain():
+    print 'test_chain'
+    print

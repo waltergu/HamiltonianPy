@@ -23,7 +23,7 @@ def test_kron():
     qn2=QuantumNumber([('Sz',0,'U1')])
     qn3=QuantumNumber([('Sz',-1,'U1')])
     a=QuantumNumberCollection([(qn1,1),(qn2,1),(qn3,1)])
-    b=a.tensorsum(a,history=True)
+    b=a.kron(a,history=True)
     print 'a:%s'%a
     print 'b:%s'%(b)
     sz=SpinMatrix((1,'z'),dtype=float64)
@@ -32,7 +32,7 @@ def test_kron():
     print 'sz:\n%s'%sz
     print 'sp:\n%s'%sp
     print 'sm:\n%s'%sm
-    matrix=kron(sz,sz,a,a,b,target=qn2,format='csr')+kron(sp,sm,a,a,b,target=qn2,format='csr')+kron(sm,sp,a,a,b,target=qn2,format='csr')
+    matrix=kron(sz,sz,b,target=qn2,format='csr')+kron(sp,sm,b,target=qn2,format='csr')+kron(sm,sp,b,target=qn2,format='csr')
     print matrix.todense()
     print
 

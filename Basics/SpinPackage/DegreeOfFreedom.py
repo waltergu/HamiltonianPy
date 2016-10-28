@@ -2,17 +2,17 @@
 Spin degree of freedom package, including:
 1) constants: DEFAULT_SPIN_PRIORITY, DEFAULT_SPIN_LAYERS
 2) classes: SID, Spin, SpinMatrix, SpinPack
-3) functions: Heisenberg, S
+3) functions: Heisenberg, Ising, S
 '''
 
-__all__=['DEFAULT_SPIN_PRIORITY','DEFAULT_SPIN_LAYERS','SID','Spin','SpinMatrix','SpinPack','Heisenberg','S']
+__all__=['DEFAULT_SPIN_PRIORITY','DEFAULT_SPIN_LAYERS','SID','Spin','SpinMatrix','SpinPack','Heisenberg','Ising','S']
 
 from ..DegreeOfFreedom import *
 from numpy import *
 from collections import namedtuple
 import copy
 
-DEFAULT_SPIN_PRIORITY=['socpe','site','S']
+DEFAULT_SPIN_PRIORITY=['scope','site','S']
 DEFAULT_SPIN_LAYERS=[('scope',),('site','S')]
 
 class SID(namedtuple('SID',['S'])):
@@ -185,6 +185,15 @@ def Heisenberg():
     result.append(SpinPack(0.5,('+','-')))
     result.append(SpinPack(0.5,('-','+')))
     result.append(SpinPack(1.0,('z','z')))
+    return result
+
+def Ising(id):
+    '''
+    The Ising spin packs.
+    '''
+    assert id in ('x','y','z','X','Y','Z')
+    result=IndexPackList()
+    result.append(SpinPack(1.0,(id,id)))
     return result
 
 def S(id,matrix=None):

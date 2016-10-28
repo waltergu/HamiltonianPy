@@ -4,7 +4,7 @@ Geometry, including
 2) classes: PID, Point, Bond, Lattice, SuperLattice
 '''
 
-__all__=['azimuthd','azimuth','polard','polar','volume','is_parallel','reciprocals','tiling','translation','rotation','bonds','bonds_between_clusters','SuperLattice','PID','Point','Bond','Lattice']
+__all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'is_parallel', 'reciprocals', 'tiling', 'translation', 'rotation', 'bonds', 'bonds_between_clusters', 'SuperLattice', 'PID', 'Point', 'Bond', 'Lattice']
 
 from numpy import *
 from numpy.linalg import norm,inv
