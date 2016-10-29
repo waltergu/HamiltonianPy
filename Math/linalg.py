@@ -42,7 +42,7 @@ def truncated_svd(m,nmax=None,tol=None,print_truncation_err=False,**karg):
     '''
     u,s,v=sl.svd(m,**karg)
     nmax=len(s) if nmax is None else min(nmax,len(s))
-    tol=s[nmax-1] if tol is None else tol
+    tol=s[nmax-1] if tol is None else max(s[nmax-1],tol)
     indices=(s>=tol)
     if print_truncation_err and nmax<len(s): print 'Tensor svd truncation err: %s'%(s[~indices]**2).sum()
     return u[:,indices],s[indices],v[indices,:]

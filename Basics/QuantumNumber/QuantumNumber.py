@@ -217,11 +217,15 @@ class QuantumNumberCollection(OrderedDict):
         if para is not None:
             for (key,value) in para:
                 if isinstance(value,int) or isinstance(value,long):
-                    self[key]=slice(count,count+value)
-                    count+=value
+                    assert value>=0
+                    if value>0:
+                        self[key]=slice(count,count+value)
+                        count+=value
                 elif isinstance(value,slice):
-                    self[key]=value
-                    count+=value.stop-value.start
+                    assert value.start<=value.stop and value.step is None
+                    if value.start<value.stop:
+                        self[key]=value
+                        count+=value.stop-value.start
                 else:
                     raise ValueError('QuantumNumberCollection construction error: improper parameter(%s).'%(value.__class__.__name__))
         self.n=count

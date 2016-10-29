@@ -14,7 +14,7 @@ def test_idmrg():
     print 'test_idmrg'
 
     # parameters
-    N,J1,J2,h=4,1.0,0.0,0.0
+    N,J1,J2,h=40,1.0,0.0,0.0
 
     # geometry
     p1=Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])

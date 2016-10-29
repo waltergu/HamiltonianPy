@@ -96,7 +96,7 @@ class Chain(MPS):
     '''
     '''
 
-    def __init__(self,mode='QN',optstrs=[],ms=[],labels=None,Lambda=None,cut=None,target=None,format='csr',nmax=200):
+    def __init__(self,mode='QN',optstrs=[],ms=[],labels=None,Lambda=None,cut=None,target=None,format='csr',nmax=200,tol=5*10**-14):
         '''
         Constructor.
         Parameters:
@@ -115,6 +115,7 @@ class Chain(MPS):
         self.target=target
         self.format='csr'
         self.nmax=nmax
+        self.tol=tol
         self.set_blocks_and_connections()
         self._Hs_={"L":[None]*self.nsite,"S":[None]*self.nsite,"R":[None]*self.nsite}
         self.gse=None
@@ -237,23 +238,10 @@ class Chain(MPS):
         '''
         sys,env,qnc=self.sys,self.env,self.cache['qnc']
         ussys,usenv=self.us(sys),self.us(env)
-        print 'Before truncation:'
-        print 'H(sys):\n',self.H(sys)
-        print 'sys.qnc:',sys.qnc
-        print 'H(env):\n',self.H(env)
-        print 'env.qnc:',env.qnc
-        #print 'ussys:\n',ussys
-        #print 'usenv:\n',usenv
         result=kronsum(self.H(env),self.H(sys),qnc=qnc,target=self.target,format=self.format)
-        print 'HBR:\n',result.todense()
-        temp=0
         for optstr in self.connections['LR'][self.cut]:
             a,b=optstr.split(ussys.table,usenv.table,coeff='A')
-            temp+=kron(np.asarray(a.matrix(ussys,'L')),np.asarray(b.matrix(usenv,'R')),qnc=qnc,target=self.target,format=self.format)
-        print 'HCR:\n',temp.todense()
-        result=result+temp
-        print 'matrix:',result.shape
-        print result.todense()
+            result+=kron(np.asarray(a.matrix(ussys,'L')),np.asarray(b.matrix(usenv,'R')),qnc=qnc,target=self.target,format=self.format)
         return result
 
     def two_site_update(self):
@@ -300,25 +288,16 @@ class Chain(MPS):
                 The initial state used to diagonalize the Hamiltonian of the whole chain.
         '''
         sys,env,matrix,qnc=self.sys,self.env,self.matrix,self.cache['qnc']
-        self.gse,Psi=eigsh(matrix,which='SA',v0=v0[qnc[self.target]] if v0 is not None and self.mode=='QN' else v0,k=1)
+        self.gse,Psi=eigsh(matrix,which='SA',v0=v0,k=1)
         self.gse/=self.nsite
-        print 'GSE:',self.gse
-        print 'Psi:',Psi
-        U,S,V,qnc1,qnc2=block_svd(Psi,sys.qnc,env.qnc,qnc=qnc,target=self.target,nmax=self.nmax)
-        print 'U:\n',U
-        print 'S: ',S
-        print 'V:\n',V
+        U,S,V,qnc1,qnc2=block_svd(Psi,sys.qnc,env.qnc,qnc=qnc,target=self.target,nmax=self.nmax,tol=self.tol)
         if self.mode=='QN':
             tsys,tenv=[],[]
-            for qnsys,qnenv in self.cache['qnc'].pairs(self.target):
+            for qnsys,qnenv in qnc.pairs(self.target):
                 tsys.append(qnsys)
                 tenv.append(qnenv)
             syssub=sys.qnc.subslice(tsys)
-            envsub=sys.qnc.subslice(tenv)
-            #print 'syssub:',syssub
-            #print 'envsub:',envsub
-            #print 'U shapes:',(np.asarray(self[sys.pos])[:,:,syssub]).shape,U.shape
-            #print 'V shapes:',V.shape,(np.asarray(self[env.pos])[envsub,:,:]).shape
+            envsub=env.qnc.subslice(tenv)
             self[sys.pos]=Tensor(np.einsum('ijk,kl->ijl',np.asarray(self[sys.pos])[:,:,syssub],U),labels=self[sys.pos].labels)
             self[env.pos]=Tensor(np.einsum('lk,kji->lji',V,np.asarray(self[env.pos])[envsub,:,:]),labels=self[env.pos].labels)
             self._Hs_[sys.form][sys]=dagger(U).dot(self.H(sys)[:,syssub][syssub,:]).dot(U)
@@ -332,17 +311,7 @@ class Chain(MPS):
         QuantumNumberCollection.clear_history(sys.qnc,env.qnc)
         sys.qnc=qnc1
         env.qnc=qnc2
-        print 'After truncation:'
-        print 'H(sys):\n',self.H(sys)
-        print 'sys.qnc:',sys.qnc
-        print 'H(env):\n',self.H(env)
-        print 'env.qnc:',env.qnc
-        print 'H(sys) diff:',np.linalg.norm(self.H(sys)-self.H(sys,True))
-        print 'H(env) diff:',np.linalg.norm(self.H(env)-self.H(env,True))
-        ussys,usenv=self.us(sys),self.us(env)
-        print 'ussys:\n',ussys.state
-        print 'usenv:\n',usenv.state
-        print
+        print 'GSE,nbasis:',self.gse,sys.nbasis
 
     def two_site_grow(self,AL,BL,optstrs):
         '''
@@ -395,20 +364,24 @@ class Chain(MPS):
             self>>=1
         A,Asite,sys=self.A,self.Asite,self.sys
         B,Bsite,env=self.B,self.Bsite,self.env
-        ml=asarray(self[sys.pos]).transpose(axes=[MPS.L,MPS.S,MPS.R]).reshape((A.nbasis*Asite.nbasis,sys.nbasis))
-        mr=asarray(self[env.pos]).transpose(axes=[MPS.L,MPS.S,MPS.R]).reshape((env.nbasis,Bsite.nbasis*B.nbasis))
+        ml=asarray(self[sys.pos]).reshape((A.nbasis*Asite.nbasis,sys.nbasis))
+        mr=asarray(self[env.pos]).reshape((env.nbasis,Bsite.nbasis*B.nbasis))
         self.two_site_update()
         if self.mode=='QN':
-            ml=self.cache['sysqnc'].reorder(ml,axes=[0])
-            mr=self.cache['envqnc'].reorder(mr,axes=[1])
+            ml=sys.qnc.reorder(ml,axes=[0])
+            mr=env.qnc.reorder(mr,axes=[1])
         v0=np.einsum('ik,k,kj->ij',ml,asarray(self.Lambda),mr).ravel()
+        if self.mode=='QN':
+            v0=v0[self.cache['qnc'][self.target]]
         self.two_site_truncate(v0=v0)
 
-def EmptyChain(mode='QN',target=None,format='csr',nmax=200):
+def EmptyChain(mode='QN',target=None,format='csr',nmax=200,tol=5*10**-14):
     '''
     Construt an empty chain.
     Parameters:
         mode,target,format,nmax: optional
             Please see Chain.__init__ for details.
+    Returns: Chain
+        An empty chain.
     '''
-    return Chain(mode=mode,target=target,format=format,nmax=nmax)
+    return Chain(mode=mode,target=target,format=format,nmax=nmax,tol=tol)

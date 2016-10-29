@@ -27,15 +27,3 @@ class fDMRG(Engine):
         self.blocks={layer:{'A':[],'B':[]} for layer in degfres.layers}
         self.connections={}
         self.cache={}
-
-    def set_optstrs(self,layer):
-        '''
-        '''
-        for key,generator in self.generators.items():
-            for operator in generator.operators.values():
-                self.optstrs[layer][key].append(OptStr.from_operator(operator,self.degfres,layer))
-
-    def init_blocks(self,layer):
-        '''
-        '''
-        pass

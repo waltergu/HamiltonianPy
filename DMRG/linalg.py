@@ -62,7 +62,7 @@ def kronsum(m1,m2,qnc=None,target=None,format='csr'):
     if format in ('csr','csc'):result.eliminate_zeros()
     return result
 
-def block_svd(Psi,qnc1,qnc2,qnc=None,target=None,nmax=None,print_truncation_err=True):
+def block_svd(Psi,qnc1,qnc2,qnc=None,target=None,nmax=None,tol=None,print_truncation_err=True):
     '''
     Block svd of the wavefunction Psi according to the bipartition information passed by qnc1 and qnc2.
     Parameters:
@@ -78,7 +78,7 @@ def block_svd(Psi,qnc1,qnc2,qnc=None,target=None,nmax=None,print_truncation_err=
             It takes effect only when qnc1 and qnc2 are QuantumNumberCollection.
         target: QuantumNumber, optional
             The target subspace of the product.
-        nmax,print_truncation_err: optional
+        nmax,tol,print_truncation_err: optional
             For details, please refer to HamiltonianPy.Math.linalg.truncated_svd
     Returns:
         U,S,V: ndarray
@@ -91,10 +91,9 @@ def block_svd(Psi,qnc1,qnc2,qnc=None,target=None,nmax=None,print_truncation_err=
                 The new QuantumNumberCollection after the SVD.
     '''
     if isinstance(qnc1,QuantumNumberCollection) and isinstance(qnc2,QuantumNumberCollection) and isinstance(qnc,QuantumNumberCollection):
-        pairs,Us,Ss,Vs=[],[],[],[]
+        Us,Ss,Vs=[],[],[]
         count=0
         for qn1,qn2 in qnc.pairs(target):
-            pairs.append((qn1,qn2))
             s1,s2=qnc1[qn1],qnc2[qn2]
             n1,n2=s1.stop-s1.start,s2.stop-s2.start
             u,s,v=sl.svd(Psi[count:count+n1*n2].reshape((n1,n2)),full_matrices=False)
@@ -102,32 +101,22 @@ def block_svd(Psi,qnc1,qnc2,qnc=None,target=None,nmax=None,print_truncation_err=
             Ss.append(s)
             Vs.append(v)
             count+=n1*n2
-        if nmax is None:
-            return sl.block_diag(*Us),np.concatenate(Ss),sl.block_diag(*Vs),qnc1,qnc2
-        else:
-            temp=np.sort(np.concatenate([-s for s in Ss]))
-            nmax=min(nmax,len(temp))
-            U,S,V,para1,para2=[],[],[],[],[]
-            for u,s,v,(qn1,qn2) in zip(Us,Ss,Vs,pairs):
-                cut=np.searchsorted(-s,temp[nmax-1],side='right')
-                U.append(u[:,0:cut])
-                S.append(s[0:cut])
-                V.append(v[0:cut,:])
-                para1.append((qn1,cut))
-                para2.append((qn2,cut))
-            if print_truncation_err and nmax<len(temp):
-                print "Tensor svd truncation err: %s."%((temp[nmax:]**2).sum())
-            #print 'Us:',Us
-            #print 'Ss:',Ss
-            #print 'Vs:',Vs
-            #print 'U:\n','\n'.join(str(u) for u in U)
-            #print 'S:\n','\n'.join(str(s) for s in S)
-            #print 'V:\n','\n'.join(str(v) for v in V)
-            #print 'qnc1:',QuantumNumberCollection(para1)
-            #print 'qnc2:',QuantumNumberCollection(para2)
-            return sl.block_diag(*U),np.concatenate(S),sl.block_diag(*V),QuantumNumberCollection(para1),QuantumNumberCollection(para2)
+        temp=np.sort(np.concatenate([-s for s in Ss]))
+        nmax=len(temp) if nmax is None else min(nmax,len(temp))
+        tol=temp[nmax-1] if tol is None else min(-tol,temp[nmax-1])
+        U,S,V,para1,para2=[],[],[],[],[]
+        for u,s,v,(qn1,qn2) in zip(Us,Ss,Vs,qnc.pairs(target)):
+            cut=np.searchsorted(-s,tol,side='right')
+            U.append(u[:,0:cut])
+            S.append(s[0:cut])
+            V.append(v[0:cut,:])
+            para1.append((qn1,cut))
+            para2.append((qn2,cut))
+        if print_truncation_err and nmax<len(temp):
+            print "Tensor svd truncation err: %s."%((temp[nmax:]**2).sum())
+        return sl.block_diag(*U),np.concatenate(S),sl.block_diag(*V),QuantumNumberCollection(para1),QuantumNumberCollection(para2)
     elif (isinstance(qnc1,int) or isinstance(qnc1,long)) and (isinstance(qnc2,int) or isinstance(qnc2,long)):
-        u,s,v=truncated_svd(Psi.reshape((qnc1,qnc2)),full_matrices=False,nmax=nmax,print_truncation_err=print_truncation_err)
+        u,s,v=truncated_svd(Psi.reshape((qnc1,qnc2)),full_matrices=False,nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
         return u,s,v,len(s),len(s)
     else:
         n1,n2,n=qnc1.__class__.__name__,qnc2.__class__.__name__,qnc.__class__.__name__
