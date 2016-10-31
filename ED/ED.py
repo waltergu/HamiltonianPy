@@ -38,7 +38,7 @@ class ED(Engine):
             When it is set to be 1, only spin-down parts of the Green's function is computed and when it is set to be 2, both spin-up and spin-down parts of the Green's function is computed.
         lattice: Lattice
             The lattice the system uses.
-        config: Configuration
+        config: IDFConfig
             The configuration of the degrees of freedom on the lattice.
         terms: list of Term
             The terms of the system.

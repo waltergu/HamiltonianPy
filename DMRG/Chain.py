@@ -18,6 +18,15 @@ from copy import copy,deepcopy
 
 class Block(int):
     '''
+    The block of a chain.
+    Attribues:
+        form: 'L', 'S' or 'R'
+            The form of the block.
+            'L' for left, 'R' for right and 'S' for site.
+        pos: integer
+            The position of the block in the chain.
+        label: Label
+            The label of the block.
     '''
 
     def __new__(cls,nsite,form,pos,label):
@@ -94,6 +103,51 @@ class Block(int):
 
 class Chain(MPS):
     '''
+    The chain of blocks.
+    Attribues:
+        mode: 'QN' or 'NB'
+            'QN' for using good quantum numbers and
+            'NB' for not using good quantum numbers.
+        optstrs: List of OptStr
+            The optstrs on the chain.
+        target: QuantumNumber
+            The target space of the chain.
+        format: string
+            The format of the matrix of the chain.
+        nmax: integer
+            The maximum bond dimension.
+        tol: float64
+            The tolerance of the singular values.
+        _Hs_: dict
+            It has three items:
+            1) _Hs_["L"]: list of 2d ndarray
+                The Hamiltonians of the left blocks.
+            2) _Hs_["S"]: list of 2d ndarray
+                The Hamiltonians of the single-site blocks.
+            3) _Hs_["R"]: list of 2d ndarray
+                The Hamiltonians of the right blocks.
+        blocks: dict
+            It has three items:
+            1) blocks["L"]: list of OptStr
+                The optstrs of the left blocks.
+            2) blocks["S"]: list of OptStr
+                The optstrs of the single-site blocks.
+            3) blocks["R"]: list of OptStr
+                The optstrs of the right blocks.
+        connections: dict
+            It has three items:
+            1) connections["LR"]: list of OptStr
+                The connecting optstrs between the system block and environment block.
+            2) connections["L"]: list of OptStr
+                The connecting optstrs between the single-site block and the A block.
+            3) connections["R"]: list of OptStr
+                The connecting optstrs between the single-site block and the B block.
+        cache: dict
+            It has only one item up to now:
+            1) cache['qnc']: QuantumNumberCollection
+                The quantum number collection of the whole chain.
+        gse: float64
+            The ground state energy per site of the chain.
     '''
 
     def __init__(self,mode='QN',optstrs=[],ms=[],labels=None,Lambda=None,cut=None,target=None,format='csr',nmax=200,tol=5*10**-14):
@@ -107,6 +161,14 @@ class Chain(MPS):
                 The optstrs in the chain.
             ms,labels,Lambda,cut: optional
                 Please see HamiltonianPy.DMRG.MPS.MPS.__init__ for details.
+            target: QuantumNumber
+                The target space of the chain.
+            format: string
+                The format of the matrix of the chain.
+            nmax: integer
+                The maximum bond dimension.
+            tol: float64
+                The tolerance of the singular values.
         '''
         assert mode in ('QN','NB')
         MPS.__init__(self,ms=ms,labels=labels,Lambda=Lambda,cut=cut)
@@ -192,6 +254,13 @@ class Chain(MPS):
         else:
             return Block(nsite=self.nsite,form='R',pos=self.cut+1,label=self[self.cut+1].labels[MPS.L])
 
+    @property
+    def graph(self):
+        '''
+        The graph representation of the chain.
+        '''
+        return ''.join(['A'*(self.cut-1),'..','B'*(self.nsite-self.cut-1)])
+
     def us(self,block):
         '''
         Get the sub-mps corresponding to a block.
@@ -217,7 +286,7 @@ class Chain(MPS):
         Parameters:
             block: Block
                 The block.
-        Retruns: 2d ndarray
+        Returns: 2d ndarray
             The block Hamiltonian.
         '''
         assert isinstance(block,Block)
@@ -248,6 +317,7 @@ class Chain(MPS):
         '''
         The two site update, which resets the central two mps and Hamiltonians of the chain.
         '''
+        print self.graph
         A,Asite,sys=self.A,self.Asite,self.sys
         usa,usasite=self.us(A),self.us(Asite)
         u=np.identity(A.nbasis*Asite.nbasis).reshape((A.nbasis,Asite.nbasis,-1))
@@ -307,11 +377,11 @@ class Chain(MPS):
             self[env.pos]=Tensor(np.einsum('lk,kji->lji',V,np.asarray(self[env.pos])),labels=self[env.pos].labels)
             self._Hs_[sys.form][sys]=dagger(U).dot(self.H(sys)).dot(U)
             self._Hs_[env.form][env]=V.dot(self.H(env)).dot(dagger(V))
-        self.Lambda=Tensor(S,labels=[deepcopy(self[sys.pos].labels[MPS.R])] if self.Lambda is None else self.Lambda.labels)
+        self.Lambda=Tensor(S,labels=[deepcopy(self[sys.pos].labels[MPS.R])])
         QuantumNumberCollection.clear_history(sys.qnc,env.qnc)
         sys.qnc=qnc1
         env.qnc=qnc2
-        print 'GSE,nbasis:',self.gse,sys.nbasis
+        print 'GSE,nbasis:',self.gse[0],sys.nbasis
 
     def two_site_grow(self,AL,BL,optstrs):
         '''
@@ -364,13 +434,13 @@ class Chain(MPS):
             self>>=1
         A,Asite,sys=self.A,self.Asite,self.sys
         B,Bsite,env=self.B,self.Bsite,self.env
-        ml=asarray(self[sys.pos]).reshape((A.nbasis*Asite.nbasis,sys.nbasis))
-        mr=asarray(self[env.pos]).reshape((env.nbasis,Bsite.nbasis*B.nbasis))
+        ml=np.asarray(self[sys.pos]).reshape((A.nbasis*Asite.nbasis,sys.nbasis))
+        mr=np.asarray(self[env.pos]).reshape((env.nbasis,Bsite.nbasis*B.nbasis))
         self.two_site_update()
         if self.mode=='QN':
             ml=sys.qnc.reorder(ml,axes=[0])
             mr=env.qnc.reorder(mr,axes=[1])
-        v0=np.einsum('ik,k,kj->ij',ml,asarray(self.Lambda),mr).ravel()
+        v0=np.einsum('ik,k,kj->ij',ml,np.asarray(self.Lambda),mr).ravel()
         if self.mode=='QN':
             v0=v0[self.cache['qnc'][self.target]]
         self.two_site_truncate(v0=v0)

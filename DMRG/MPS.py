@@ -305,6 +305,7 @@ class MPS(list):
         else:
             s.relabel(news=[L],olds=[(L,)])
             self.Lambda=s
+            L=self[self.cut-2].labels[MPS.R]
             self[self.cut-2]=contract(self[self.cut-2],u)
             self[self.cut-2].relabel(news=[L],olds=[(L,)])
         self.cut=self.cut-1
@@ -314,7 +315,7 @@ class MPS(list):
         Set the A matrix at self.cut and move rightward.
         Parameters:
             M: Tensor
-                The tensor used to set the B matrix.
+                The tensor used to set the A matrix.
             nmax: integer, optional
                 The maximum number of singular values to be kept. 
             tol: float64, optional
@@ -335,6 +336,7 @@ class MPS(list):
         else:
             s.relabel(news=[R],olds=[(R,)])
             self.Lambda=s
+            R=self[self.cut+1].labels[MPS.L]
             self[self.cut+1]=contract(v,self[self.cut+1])
             self[self.cut+1].relabel(news=[R],olds=[(R,)])
         self.cut=self.cut+1
@@ -360,7 +362,7 @@ class MPS(list):
         else:
             k=other
         for i in xrange(k):
-            M=contract(self[self.cut-1],self.Lambda,select=self.Lambda.labels)
+            M=Tensor(np.asarray(contract(self[self.cut-1],self.Lambda,select=self.Lambda.labels)),labels=self[self.cut-1].labels)
             self._set_B_and_lmove_(M,nmax,tol)
         return self
 
@@ -394,7 +396,7 @@ class MPS(list):
         else:
             k=other
         for i in xrange(k):
-            M=contract(self.Lambda,self[self.cut],select=self.Lambda.labels)
+            M=Tensor(np.asarray(contract(self.Lambda,self[self.cut],select=self.Lambda.labels)),labels=self[self.cut].labels)
             self._set_A_and_rmove_(M,nmax,tol)
         return self
 
@@ -454,37 +456,6 @@ class MPS(list):
         ms=[m.copy(copy_data=copy_data) for m in self]
         Lambda=None if self.Lambda is None else self.Lambda.copy(copy_data=copy_data)
         return MPS(ms,Lambda=Lambda,cut=self.cut)
-
-#    def to_vidal(self):
-#        '''
-#        Convert to the Vidal MPS representation.
-#        Returns: Vidal
-#            The corresponding Vidal representation.
-#        '''
-#        Gammas,Lambdas,labels=[],[],[]
-#        for i,M in enumerate(self):
-#            L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
-#            if i==0:
-#                temp=M
-#            else:
-#                if i==self.cut:
-#                    temp=contract(v*np.asarray(s)[:,newaxis],self.Lambda,M)
-#                else:
-#                    temp=contract(v*np.asarray(old)[:,newaxis],M)
-#                temp.relabel(news=[L],olds=[(L,)])
-#            labels.append((L,S,R))
-#            if i==0:
-#                Gammas.append(np.asarray(u))
-#            else:
-#                Gammas.append(np.asarray(u)/np.asarray(old)[:,newaxis])
-#            old=new
-#            if i<len(self)-1:
-#                Lambdas.append(np.asarray(new))
-#            else:
-#                norm=abs((np.asarray(v)*np.asarray(new)[:,newaxis])[0,0])
-#                if abs(norm-1.0)>self.err:
-#                    raise ValueError('MPS to_vidal error: the norm(%s) of original MPS does not equal to 1.'%norm)
-#        return Vidal(Gammas,Lambdas,labels)
 
 class Vidal(object):
     '''

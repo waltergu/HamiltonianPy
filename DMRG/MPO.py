@@ -146,9 +146,10 @@ class OptStr(list):
         Parameters:
             us: MPS
                 The representing mixed mps of the basis.
-            form: 'L' or 'R'
+            form: 'L', 'R' or 'S'
                 When 'L', us is left canonical;
-                When 'R', us is right canonical.
+                When 'R', us is right canonical;
+                When 'S', us is omitted.
         Returns: 2d Tensor
             The corresponding matrix representation of the optstr on the basis.
         '''

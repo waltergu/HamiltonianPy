@@ -28,13 +28,13 @@ def test_idmrg():
     # idfconfig
     idfconfig=IDFConfig(priority=DEFAULT_SPIN_PRIORITY)
     for i in xrange(N):
-        idfconfig[p1.pid._replace(scope=i)]=Spin(S=0.5)
-        #idfconfig[p2.pid._replace(scope=i)]=Spin(S=0.5)
+        idfconfig[p1.pid._replace(scope=i)]=Spin(S=1.0)
+        #idfconfig[p2.pid._replace(scope=i)]=Spin(S=1.0)
 
     # qncconfig
     qncconfig=QNCConfig(priority=DEFAULT_SPIN_PRIORITY)
     for index in idfconfig.table():
-        qncconfig[index]=SpinQNC(S=0.5)
+        qncconfig[index]=SpinQNC(S=1.0)
 
     # degfres
     t1=time.time()

@@ -13,7 +13,7 @@ class fDMRG(Engine):
     '''
     '''
 
-    def __init__(self,name,lattice,terms,config,degfres,mps=None,**karg):
+    def __init__(self,name,lattice,terms,config,degfres,chain,**karg):
         '''
         '''
         self.name=name
@@ -21,9 +21,14 @@ class fDMRG(Engine):
         self.terms=terms
         self.config=config
         self.degfres=degfres
-        self.mps=mps
-        self.generators={'h':Generator(bonds=self.lattice.bonds,config=self.config,terms=self.terms)}
-        self.optstrs={layer:{'h':[]} for layer in degfres.layers}
-        self.blocks={layer:{'A':[],'B':[]} for layer in degfres.layers}
-        self.connections={}
-        self.cache={}
+        self.chain=chain
+
+    def sweep(self,nstates):
+        '''
+        '''
+        for nstate in nstates:
+            self.chain.nmax=nstate
+            while self.chain.cut>1:
+                self.chain.two_site_sweep(direction='L')
+            while self.chain.cut<self.chain.nsite-1:
+                self.chain.two_site_sweep(direction='R')

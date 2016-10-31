@@ -1,10 +1,10 @@
 '''
 Infinite DMRG, including:
-1) functions: TwoSiteLattices
+1) functions: TwoSiteGrowOfLattices
 2) classes: iDMRG
 '''
 
-__all__=['TwoSiteLattices','iDMRG']
+__all__=['TwoSiteGrowOfLattices','iDMRG']
 
 import numpy as np
 from ..Basics import *
@@ -13,9 +13,18 @@ from MPS import *
 from MPO import *
 from Chain import *
 
-def TwoSiteLattices(scopes,block,vector):
+def TwoSiteGrowOfLattices(scopes,block,vector):
     '''
-    
+    Return a generator over a sequence of SuperLattice with blocks added two-by-two in the center.
+    Parameters:
+        scopes: list of string
+            The scopes of the blocks to be added two-by-two into the SuperLattice.
+        block: Lattice
+            The building block of the SuperLattice.
+        vector: 1d ndarray
+            The translation vector of the left blocks and right blocks before the addition of two new ones.
+    Returns: generator
+        A generator over the sequence of SuperLattice with blocks added two-by-two in the center.
     '''
     assert len(scopes)%2==0
     for i in xrange(len(scopes)/2):
@@ -33,11 +42,44 @@ def TwoSiteLattices(scopes,block,vector):
 
 class iDMRG(Engine):
     '''
+    Infinite density matrix renormalization group method.
+    Attribues:
+        name: sting
+            The name of the iDMRG.
+        block: Lattice
+            The building block of the iDMRG.
+        vector: 1d ndarray
+            The translation vector of the left blocks and right blocks before the addition of two new ones.
+        lattice: SuperLattice
+            The final lattice of the iDMRG.
+        terms: list of Term
+            The terms of the iDMRG.
+        config: IDFConfig
+            The configuration of the internal degrees of freedom on the lattice.
+        degfres: DegFreTree
+            The physical degrees of freedom tree.
+        chain: Chain
+            The chain of the iDMRG.
     '''
 
     def __init__(self,name,block,vector,terms,config,degfres,chain,**karg):
         '''
         Constructor.
+        Parameters:
+            name: sting
+                The name of the iDMRG.
+            block: Lattice
+                The building block of the iDMRG.
+            vector: 1d ndarray
+                The translation vector of the left blocks and right blocks before the addition of two new ones.
+            terms: list of Term
+                The terms of the iDMRG.
+            config: IDFConfig
+                The configuration of the internal degrees of freedom on the lattice.
+            degfres: DegFreTree
+                The physical degrees of freedom tree.
+            chain: Chain
+                The initial chain.
         '''
         self.name=name
         self.block=block
@@ -48,7 +90,7 @@ class iDMRG(Engine):
         self.chain=chain
         indices=sorted(self.degfres.indices(layer=self.degfres.layers[0]),key=lambda index: index.to_tuple(priority=self.degfres.priority))
         scopes=[index.pid.scope for index in indices]
-        for lattice in TwoSiteLattices(scopes=scopes,block=self.block,vector=self.vector):
+        for lattice in TwoSiteGrowOfLattices(scopes=scopes,block=self.block,vector=self.vector):
             optstrs=[]
             for operator in Generator(bonds=lattice.bonds,config=self.config,terms=self.terms,dtype=np.float64).operators.values():
                 optstrs.append(OptStr.from_operator(operator,degfres=self.degfres,layer=self.degfres.layers[0]))
@@ -56,3 +98,4 @@ class iDMRG(Engine):
             AL=Label([('layer',self.degfres.layers[0]),('tag',A)],[('qnc',self.degfres[A])])
             BL=Label([('layer',self.degfres.layers[0]),('tag',B)],[('qnc',self.degfres[B])])
             self.chain.two_site_grow(AL,BL,optstrs)
+        self.lattice=lattice

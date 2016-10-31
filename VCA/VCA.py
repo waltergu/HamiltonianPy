@@ -45,7 +45,7 @@ class VCA(ED):
             The configuration of the degrees of freedom on the unit cell.
         lattice: Lattice
             The cluster the system uses.
-        config: Configuration
+        config: IDFConfig
             The configuration of the degrees of freedom on the lattice.
         terms: list of Term
             The terms of the system.

@@ -23,7 +23,7 @@ class TBA(Engine):
             The chemical potential of the system.
         lattice: Lattice
             The lattice of the system.
-        config: Configuration
+        config: IDFConfig
             The configuration of degrees of freedom.
         terms: list of Term
             The terms of the system.
