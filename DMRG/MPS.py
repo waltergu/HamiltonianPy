@@ -7,7 +7,7 @@ __all__=['MPS','Vidal']
 
 import numpy as np
 from HamiltonianPy.Math.Tensor import *
-from HamiltonianPy.Math.linalg import truncated_svd
+from HamiltonianPy.Math.linalg import truncated_svd,TOL
 from copy import copy,deepcopy
 
 class MPS(list):
@@ -73,7 +73,7 @@ class MPS(list):
                 self.cut=cut
 
     @staticmethod
-    def from_state(state,shapes,labels,cut=0,nmax=None,tol=None,print_truncation_err=False):
+    def from_state(state,shapes,labels,cut=0,nmax=None,tol=None):
         '''
         Convert the normal representation of a state to the matrix product representation.
         Parameters:
@@ -85,7 +85,7 @@ class MPS(list):
                 Please see MPS.__init__ for details.
             cut: integer, optional
                 The index of the connecting link.
-            namx,tol,print_truncation_err: optional
+            namx,tol: optional
                 For details, please refer to HamiltonianPy.Math.linalg.truncated_svd.
         Returns: MPS
             The corresponding mixed-canonical mps.
@@ -94,7 +94,8 @@ class MPS(list):
             raise ValueError("MPS.from_state error: the original state must be a pure state.")
         ms,nd=[None]*len(shapes),1
         for i in xrange(cut):
-            u,s,v=truncated_svd(state.reshape((nd*shapes[i],-1)),full_matrices=False,nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
+            u,s,v,err=truncated_svd(state.reshape((nd*shapes[i],-1)),full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=True)
+            if err>TOL: print 'MPS.from_state truncation err: %s.'%err
             ms[i]=u.reshape((nd,shapes[i],-1))
             if i==cut-1:
                 if cut==len(shapes):
@@ -108,13 +109,15 @@ class MPS(list):
         for i in xrange(len(shapes)-1,cut-1,-1):
             if i==cut:
                 if cut==0:
-                    u,s,v=truncated_svd(state.reshape((-1,shapes[i]*nd)),full_matrices=False,nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
+                    u,s,v,err=truncated_svd(state.reshape((-1,shapes[i]*nd)),full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=True)
+                    if err>TOL:print 'MPS.from_state truncation err: %s.'%err
                     ms[i]=v.reshape((-1,shapes[i],nd))
                     Lambda=u.dot(s)
                 else:
                     ms[i]=state.reshape((-1,shapes[i],nd))
             else:
-                u,s,v=truncated_svd(state.reshape((-1,shapes[i]*nd)),full_matrices=False,nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
+                u,s,v,err=truncated_svd(state.reshape((-1,shapes[i]*nd)),full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=True)
+                if err>TOL:print 'MPS.from_state truncation err: %s.'%err
                 ms[i]=v.reshape((-1,shapes[i],nd))
                 state=np.einsum('ij,j->ij',u,s)
             nd=len(s)
@@ -279,7 +282,7 @@ class MPS(list):
         else:
             raise ValueError("MPS _set_ABL_ error: the labels of m(%s) and Lambda(%s) do not match."%(m.labels,Lambda.labels))
 
-    def _set_B_and_lmove_(self,M,nmax=None,tol=None,print_truncation_err=True):
+    def _set_B_and_lmove_(self,M,nmax=None,tol=None):
         '''
         Set the B matrix at self.cut and move leftward.
         Parameters:
@@ -289,13 +292,12 @@ class MPS(list):
                 The maximum number of singular values to be kept. 
             tol: float64, optional
                 The truncation tolerance.
-            print_truncation_err: logical, optional
-                If it is True, the truncation err will be printed.
         '''
         if self.cut==0:
             raise ValueError('MPS _set_B_and_lmove_ error: the cut is already zero.')
         L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
-        u,s,v=M.svd([L],(L,),[S,R],nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
+        u,s,v,err=M.svd([L],(L,),[S,R],nmax=nmax,tol=tol,return_truncation_err=True)
+        if err>TOL:print 'MPS _set_B_and_lmove_ truncation err: %s.'%err
         v.relabel(news=[L],olds=[(L,)])
         self[self.cut-1]=v
         if self.cut==1:
@@ -310,7 +312,7 @@ class MPS(list):
             self[self.cut-2].relabel(news=[L],olds=[(L,)])
         self.cut=self.cut-1
 
-    def _set_A_and_rmove_(self,M,nmax=None,tol=None,print_truncation_err=True):
+    def _set_A_and_rmove_(self,M,nmax=None,tol=None):
         '''
         Set the A matrix at self.cut and move rightward.
         Parameters:
@@ -320,13 +322,12 @@ class MPS(list):
                 The maximum number of singular values to be kept. 
             tol: float64, optional
                 The truncation tolerance.
-            print_truncation_err: logical, optional
-                If it is True, the truncation err will be printed.
         '''
         if self.cut==self.nsite:
             raise ValueError('MPS _set_A_and_rmove_ error: the cut is already maximum.')
         L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
-        u,s,v=M.svd([L,S],(R,),[R],nmax=nmax,tol=tol,print_truncation_err=print_truncation_err)
+        u,s,v,err=M.svd([L,S],(R,),[R],nmax=nmax,tol=tol,return_truncation_err=True)
+        if err>TOL:print 'MPS _set_B_and_lmove_ truncation err: %s.'%err
         u.relabel(news=[R],olds=[(R,)])
         self[self.cut]=u
         if self.cut==self.nsite-1:
@@ -440,7 +441,7 @@ class MPS(list):
                     buff=matrix.T.conjugate().dot(matrix) if i<self.cut else matrix.dot(matrix.T.conjugate())
                 else:
                     buff+=matrix.T.conjugate().dot(matrix) if i<self.cut else matrix.dot(matrix.T.conjugate())
-            result.append((abs(buff-np.identity(M.shape[self.R if i<self.cut else self.L]))<5*10**-14).all())
+            result.append((abs(buff-np.identity(M.shape[self.R if i<self.cut else self.L]))<TOL).all())
         return result
 
     def copy(self,copy_data=False):

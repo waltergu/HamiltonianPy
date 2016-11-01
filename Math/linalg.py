@@ -1,15 +1,18 @@
 '''
 Linear algebra, including
-1) functions: dagger,truncated_svd
-2) classes: Lanczos
+1) constants: TOL
+2) functions: dagger,truncated_svd
+3) classes: Lanczos
 '''
 
-__all__=['dagger','truncated_svd','Lanczos']
+__all__=['TOL','dagger','truncated_svd','Lanczos']
 
 import numpy as np
 import numpy.linalg as nl
 import scipy.linalg as sl
 from copy import copy
+
+TOL=5*10**-14
 
 def dagger(m):
     '''
@@ -21,7 +24,7 @@ def dagger(m):
     else:
         return m.T.conjugate()
 
-def truncated_svd(m,nmax=None,tol=None,print_truncation_err=False,**karg):
+def truncated_svd(m,nmax=None,tol=None,return_truncation_err=False,**karg):
     '''
     Perform the truncated svd.
     Parameters:
@@ -33,19 +36,25 @@ def truncated_svd(m,nmax=None,tol=None,print_truncation_err=False,**karg):
         tol: float64, optional
             The truncation tolerance.
             If it is None, it takes no effect.
-        print_truncation_err: logical, optional
-            If it is True, the truncation err will be printed.
+        return_truncation_err: logical, optional
+            If it is True, the truncation err will be returned.
         For other parameters, please see http://docs.scipy.org/doc/numpy/reference/generated/numpy.linalg.svd.html for details.
     Returns:
         u,s,v: ndarray
             The truncated result.
+        err: float64, optional
+            The truncation error.
     '''
     u,s,v=sl.svd(m,**karg)
     nmax=len(s) if nmax is None else min(nmax,len(s))
     tol=s[nmax-1] if tol is None else max(s[nmax-1],tol)
     indices=(s>=tol)
-    if print_truncation_err and nmax<len(s): print 'Tensor svd truncation err: %s'%(s[~indices]**2).sum()
-    return u[:,indices],s[indices],v[indices,:]
+    if return_truncation_err:
+        u,s,v,err=u[:,indices],s[indices],v[indices,:],(s[~indices]**2).sum()
+        return u,s,v,err
+    else:
+        u,s,v=u[:,indices],s[indices],v[indices,:]
+        return u,s,v
 
 class Lanczos:
     '''

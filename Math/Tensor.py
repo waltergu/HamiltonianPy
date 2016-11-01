@@ -265,7 +265,7 @@ class Tensor(ndarray):
         else:
             raise ValueError("Tensor take error: label and axis cannot be None simultaneously.")
 
-    def svd(self,labels1,new,labels2,**karg):
+    def svd(self,labels1,new,labels2,nmax=None,tol=None,return_truncation_err=False,**karg):
         '''
         Perform the svd.
         Parameters:
@@ -273,9 +273,13 @@ class Tensor(ndarray):
                 The axis labels of the two groups.
             new: any hashable object
                 The new axis label after the svd.
-            For other parameters, please see HamiltonianPy.Math.linalg.truncated_svd for details.
+            nmax,tol,return_truncation_err:
+                Please refer to HamiltonianPy.Math.linalg.truncated_svd for details.
         Returns:
             U,S,V: Tensor
+                The result tensor.
+            err: float64, optional
+                The truncation error.
         '''
         def axes_and_shape(labels):
             axes=[self.axis(label) for label in labels]
@@ -286,11 +290,16 @@ class Tensor(ndarray):
         if set(xrange(self.ndim))-set(axes1+axes2):
             raise ValueError('Tensor svd error: all axis should be divided into two group to perform the svd.')
         m=asarray(self).transpose(axes1+axes2).reshape((product(shape1),)+(product(shape2),))
-        u,s,v=truncated_svd(m,full_matrices=False,**karg)
+        temp=truncated_svd(m,full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=return_truncation_err,**karg)
+        u,s,v=temp[0],temp[1],temp[2]
         U=Tensor(u.reshape(shape1+(-1,)),labels=labels1+[new])
         S=Tensor(s,labels=[new])
         V=Tensor(v.reshape((-1,)+shape2),labels=[new]+labels2)
-        return U,S,V
+        if return_truncation_err:
+            err=temp[3]
+            return U,S,V,err
+        else:
+            return U,S,V
 
 def contract(*tensors,**karg):
     '''

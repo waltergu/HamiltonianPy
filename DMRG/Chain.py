@@ -8,6 +8,7 @@ __all__=['Block','Chain','EmptyChain']
 
 import numpy as np
 import scipy.sparse as sp
+import time
 from scipy.sparse.linalg import eigsh
 from ..Basics import *
 from ..Math import dagger,Tensor,Label
@@ -142,12 +143,24 @@ class Chain(MPS):
                 The connecting optstrs between the single-site block and the A block.
             3) connections["R"]: list of OptStr
                 The connecting optstrs between the single-site block and the B block.
+        logger: TimerLogger
+            The timers to record the time that every process consumes.
+        info: dict
+            It has five items up to now:
+            1) info['gse']: float64
+                The ground state energy per site of the chain.
+            2) info['overlap']: complex128
+                The overlap between the new state and the predicted state.
+            3) info['nbasis']: integer
+                The number of bond dimension at the current position.
+            4) info['err']: float64
+                The truncation error.
+            5) info['nnz']: integer
+                The number of non-zeros of the whole chain's Hamiltonian.
         cache: dict
             It has only one item up to now:
             1) cache['qnc']: QuantumNumberCollection
                 The quantum number collection of the whole chain.
-        gse: float64
-            The ground state energy per site of the chain.
     '''
 
     def __init__(self,mode='QN',optstrs=[],ms=[],labels=None,Lambda=None,cut=None,target=None,format='csr',nmax=200,tol=5*10**-14):
@@ -180,8 +193,10 @@ class Chain(MPS):
         self.tol=tol
         self.set_blocks_and_connections()
         self._Hs_={"L":[None]*self.nsite,"S":[None]*self.nsite,"R":[None]*self.nsite}
-        self.gse=None
         self.cache={'qnc':None}
+        self.info={'gse':None,'overlap':None,'nbasis':None}
+        self.logger=TimerLogger('Preparation','Hamiltonian','Diagonalization','Truncation','Total')
+        self.logger.proceed('Total')
 
     def set_blocks_and_connections(self):
         '''
@@ -317,7 +332,8 @@ class Chain(MPS):
         '''
         The two site update, which resets the central two mps and Hamiltonians of the chain.
         '''
-        print self.graph
+        print 'ChainRep:',self.graph
+        self.logger.proceed('Preparation')
         A,Asite,sys=self.A,self.Asite,self.sys
         usa,usasite=self.us(A),self.us(Asite)
         u=np.identity(A.nbasis*Asite.nbasis).reshape((A.nbasis,Asite.nbasis,-1))
@@ -349,6 +365,7 @@ class Chain(MPS):
             self[env.pos]=Tensor(v,labels=self[env.pos].labels)
             self._Hs_[sys.form][sys]=ha
             self._Hs_[env.form][env]=hb
+        self.logger.suspend('Preparation')
 
     def two_site_truncate(self,v0=None):
         '''
@@ -357,10 +374,18 @@ class Chain(MPS):
             v0: 1d ndarray
                 The initial state used to diagonalize the Hamiltonian of the whole chain.
         '''
-        sys,env,matrix,qnc=self.sys,self.env,self.matrix,self.cache['qnc']
-        self.gse,Psi=eigsh(matrix,which='SA',v0=v0,k=1)
-        self.gse/=self.nsite
-        U,S,V,qnc1,qnc2=block_svd(Psi,sys.qnc,env.qnc,qnc=qnc,target=self.target,nmax=self.nmax,tol=self.tol)
+        sys,env,qnc=self.sys,self.env,self.cache['qnc']
+        self.logger.proceed('Hamiltonian')
+        matrix=self.matrix
+        self.info['nnz']=matrix.nnz
+        self.logger.suspend('Hamiltonian')
+        self.logger.proceed('Diagonalization')
+        gse,Psi=eigsh(matrix,which='SA',v0=v0,k=1)
+        self.info['gse']=gse/self.nsite
+        self.info['overlap']=None if v0 is None else Psi[:,0].conjugate().dot(v0)
+        self.logger.suspend('Diagonalization')
+        self.logger.proceed('Truncation')
+        U,S,V,qnc1,qnc2,err=block_svd(Psi,sys.qnc,env.qnc,qnc=qnc,target=self.target,nmax=self.nmax,tol=self.tol,return_truncation_err=True)
         if self.mode=='QN':
             tsys,tenv=[],[]
             for qnsys,qnenv in qnc.pairs(self.target):
@@ -381,7 +406,9 @@ class Chain(MPS):
         QuantumNumberCollection.clear_history(sys.qnc,env.qnc)
         sys.qnc=qnc1
         env.qnc=qnc2
-        print 'GSE,nbasis:',self.gse[0],sys.nbasis
+        self.logger.suspend('Truncation')
+        self.info['nbasis']=sys.nbasis
+        self.info['err']=err
 
     def two_site_grow(self,AL,BL,optstrs):
         '''
@@ -420,6 +447,11 @@ class Chain(MPS):
         self._Hs_["R"].extend([None,None])
         self.two_site_update()
         self.two_site_truncate()
+        self.logger.record()
+        print self.logger
+        print 'nnz,nbasis,err: %s,%s,%s.'%(self.info['nnz'],self.info['nbasis'],self.info['err'])
+        print 'gse: %s.'%(self.info['gse'][0])
+        print
 
     def two_site_sweep(self,direction):
         '''
@@ -442,8 +474,15 @@ class Chain(MPS):
             mr=env.qnc.reorder(mr,axes=[1])
         v0=np.einsum('ik,k,kj->ij',ml,np.asarray(self.Lambda),mr).ravel()
         if self.mode=='QN':
+            v0=self.cache['qnc'].reorder(v0,axes=[0])
             v0=v0[self.cache['qnc'][self.target]]
+        v0/=np.linalg.norm(v0)
         self.two_site_truncate(v0=v0)
+        self.logger.record()
+        print self.logger
+        print 'nnz,nbasis,overlap,err: %s,%s,%s,%s.'%(self.info['nnz'],self.info['nbasis'],self.info['overlap'],self.info['err'])
+        print 'gse: %s.'%(self.info['gse'][0])
+        print
 
 def EmptyChain(mode='QN',target=None,format='csr',nmax=200,tol=5*10**-14):
     '''

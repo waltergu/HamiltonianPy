@@ -15,7 +15,8 @@ def test_fdmrg():
     print 'test_fdmrg'
     # parameters
     N,J1,J2,h=20,1.0,0.0,0.0
-    spin=1.0
+    spin=0.5
+    qn_on=True
 
     # geometry
     p1=Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
@@ -39,8 +40,10 @@ def test_fdmrg():
 
     # degfres
     t1=time.time()
-    #degfres=DegFreTree(idfconfig,layers=DEFAULT_SPIN_LAYERS,priority=DEFAULT_SPIN_PRIORITY)
-    degfres=DegFreTree(qncconfig,layers=DEFAULT_SPIN_LAYERS,priority=DEFAULT_SPIN_PRIORITY)
+    if qn_on:
+        degfres=DegFreTree(qncconfig,layers=DEFAULT_SPIN_LAYERS,priority=DEFAULT_SPIN_PRIORITY)
+    else:
+        degfres=DegFreTree(idfconfig,layers=DEFAULT_SPIN_LAYERS,priority=DEFAULT_SPIN_PRIORITY)
     t2=time.time()
     print 'degfres construction: %ss.'%(t2-t1)
 
@@ -52,6 +55,12 @@ def test_fdmrg():
             #SpinTerm('J1',J1,neighbour=1,indexpacks=Ising('z')),
     ]
 
+    # chain
+    if qn_on:
+        chain=EmptyChain(mode='QN',nmax=20,target=SpinQN(Sz=0.0))
+    else:
+        chain=EmptyChain(mode='NB',nmax=20,target=None)
+
     idmrg=iDMRG(
         name=       'iDMRG',
         block=      block,
@@ -59,8 +68,7 @@ def test_fdmrg():
         terms=      terms,
         config=     idfconfig,
         degfres=    degfres,
-        #chain=      EmptyChain(mode='NB',nmax=20,target=None)
-        chain=      EmptyChain(mode='QN',nmax=20,target=SpinQN(Sz=0.0))
+        chain=      chain
     )
     print '\n'*2
     print 'Here goes the fDMRG'
@@ -72,5 +80,5 @@ def test_fdmrg():
         degfres=    degfres,
         chain=      idmrg.chain
     )
-    fdmrg.sweep([30,40,60,100])
+    fdmrg.sweep([20,30,60,200])
     print

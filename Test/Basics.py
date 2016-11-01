@@ -5,6 +5,9 @@ Basics test.
 __all__=['test_basics']
 
 def test_basics(arg):
+    if arg in ('timer','basics','all'):
+        from HamiltonianPy.Basics.test.Timer import test_timer
+        test_timer()
     if arg in ('geometry','basics','all'):
         from HamiltonianPy.Basics.test.Geometry import test_geometry
         test_geometry()
