@@ -15,7 +15,7 @@ def test_fdmrg():
     print 'test_fdmrg'
     # parameters
     N,J1,J2,h=20,1.0,0.0,0.0
-    spin=0.5
+    spin=1.0
     qn_on=True
 
     # geometry
@@ -80,5 +80,5 @@ def test_fdmrg():
         degfres=    degfres,
         chain=      idmrg.chain
     )
-    fdmrg.sweep([20,30,60,200])
+    fdmrg.sweep([20,30,60,100])
     print

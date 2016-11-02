@@ -42,8 +42,9 @@ def test_block_svd():
     u,s,v,n1,n2=block_svd(a,3,3)
     print 'u,s,v:\n%s\n%s\n%s'%(u,s,v)
     print 'u*s*v:\n%s'%(einsum('ij,j,jk->ik',u,s,v))
-    u,s,v,n1,n2=block_svd(a,3,3,nmax=2,print_truncation_err=True)
+    u,s,v,n1,n2,err=block_svd(a,3,3,nmax=2,return_truncation_err=True)
     print 'truncated u,s,v:\n%s\n%s\n%s'%(u,s,v)
+    print 'truncation error: %s'%err
     b=einsum('ij,j,jk->ik',u,s,v).reshape((9,))
     print 'truncated a:\n%s'%(b)
     print 'err:%s'%(norm(b-a))
