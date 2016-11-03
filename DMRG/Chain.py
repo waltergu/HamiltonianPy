@@ -195,7 +195,7 @@ class Chain(MPS):
         self._Hs_={"L":[None]*self.nsite,"S":[None]*self.nsite,"R":[None]*self.nsite}
         self.cache={'qnc':None}
         self.info={'gse':None,'overlap':None,'nbasis':None}
-        self.logger=TimerLogger('Preparation','Hamiltonian','Diagonalization','Truncation','Total')
+        self.logger=TimerLogger('Preparation','kron1','kron2','kron3','kron4','kronsum1','kronsum2','kronsum3','kronsum4','Hamiltonian','Diagonalization','Truncation','Total')
         self.logger.proceed('Total')
 
     def set_blocks_and_connections(self):
@@ -322,10 +322,10 @@ class Chain(MPS):
         '''
         sys,env,qnc=self.sys,self.env,self.cache['qnc']
         ussys,usenv=self.us(sys),self.us(env)
-        result=kronsum(self.H(env),self.H(sys),qnc=qnc,target=self.target,format=self.format)
+        result=kronsum(self.H(env),self.H(sys),qnc=qnc,target=self.target,format=self.format,logger=self.logger)
         for optstr in self.connections['LR'][self.cut]:
             a,b=optstr.split(ussys.table,usenv.table,coeff='A')
-            result+=kron(np.asarray(a.matrix(ussys,'L')),np.asarray(b.matrix(usenv,'R')),qnc=qnc,target=self.target,format=self.format)
+            result+=kron(np.asarray(a.matrix(ussys,'L')),np.asarray(b.matrix(usenv,'R')),qnc=qnc,target=self.target,format=self.format,logger=self.logger)
         return result
 
     def two_site_update(self):

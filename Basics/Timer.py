@@ -180,4 +180,7 @@ class TimerLogger(object):
             keys=self.keys
         for key in keys:
             timer=getattr(self,key)
-            timer.record()
+            try:
+                timer.record()
+            except AssertionError:
+                raise AssertionError("TimerLogger record error: %s not started yet."%(key))

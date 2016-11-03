@@ -80,5 +80,5 @@ def test_fdmrg():
         degfres=    degfres,
         chain=      idmrg.chain
     )
-    fdmrg.sweep([20,30,60,100])
+    fdmrg.sweep([20,30,60,100,100])
     print

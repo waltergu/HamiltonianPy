@@ -45,7 +45,7 @@ class HexagonDataBase:
             self.points.append(Point(pid=PID(scope=scope,site=2),rcoord=[0.5,sqrt(3)/2],icoord=[0.0,0.0]))
             self.points.append(Point(pid=PID(scope=scope,site=3),rcoord=[0.5,-sqrt(3)/6],icoord=[0.0,0.0]))
             self.vectors.append(array([1.0,0.0]))
-            self.vectors.append(array([0.0,sqrt(3.0)]))        
+            self.vectors.append(array([0.0,sqrt(3.0)]))
         elif name=='H6':
             self.points.append(Point(pid=PID(scope=scope,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0]))
             self.points.append(Point(pid=PID(scope=scope,site=1),rcoord=[0.0,sqrt(3)/3],icoord=[0.0,0.0]))

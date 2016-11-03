@@ -8,10 +8,11 @@ import scipy.linalg as sl
 import scipy.sparse as sp
 from ..Math.linalg import truncated_svd
 from ..Basics import QuantumNumber,QuantumNumberCollection
+import time
 
 __all__=['kron','kronsum','block_svd']
 
-def kron(m1,m2,qnc=None,target=None,format='csr'):
+def kron(m1,m2,qnc=None,target=None,format='csr',**karg):
     '''
     Kronecker product of two matrices.
     Parameters:
@@ -27,16 +28,33 @@ def kron(m1,m2,qnc=None,target=None,format='csr'):
         The product.
     '''
     if isinstance(qnc,QuantumNumberCollection):
-        result=qnc.reorder(sp.kron(m1,m2,format=format))
-        if target is not None:
-            assert isinstance(target,QuantumNumber)
-            result=result[qnc[target],qnc[target]]
+        logger=karg.get('logger',None)
+        if logger is not None:
+            logger.proceed('kron1')
+            result=sp.kron(m1,m2)
+            logger.suspend('kron1')
+            logger.proceed('kron2')
+            result=result.asformat(format)
+            logger.suspend('kron2')
+            logger.proceed('kron3')
+            result=qnc.reorder(result)
+            logger.suspend('kron3')
+            logger.proceed('kron4')
+            if target is not None:
+                assert isinstance(target,QuantumNumber)
+                result=result[qnc[target],qnc[target]]
+            logger.suspend('kron4')
+        else:
+            result=qnc.reorder(sp.kron(m1,m2,format=format))
+            if target is not None:
+                assert isinstance(target,QuantumNumber)
+                result=result[qnc[target],qnc[target]]
     else:
         result=sp.kron(m1,m2,format=format)
     #if format in ('csr','csc'):result.eliminate_zeros()
     return result
 
-def kronsum(m1,m2,qnc=None,target=None,format='csr'):
+def kronsum(m1,m2,qnc=None,target=None,format='csr',**karg):
     '''
     Kronecker sum of two matrices.
     Please see scipy.sparse.kronsum for details.
@@ -53,10 +71,27 @@ def kronsum(m1,m2,qnc=None,target=None,format='csr'):
         The Kronecker sum.
     '''
     if isinstance(qnc,QuantumNumberCollection):
-        result=qnc.reorder(sp.kronsum(m1,m2,format=format))
-        if target is not None:
-            assert isinstance(target,QuantumNumber)
-            result=result[qnc[target],qnc[target]]
+        logger=karg.get('logger',None)
+        if logger is not None:
+            logger.proceed('kronsum1')
+            result=sp.kronsum(m1,m2)
+            logger.suspend('kronsum1')
+            logger.proceed('kronsum2')
+            result=result.asformat(format)
+            logger.suspend('kronsum2')
+            logger.proceed('kronsum3')
+            result=qnc.reorder(result)
+            logger.suspend('kronsum3')
+            logger.proceed('kronsum4')
+            if target is not None:
+                assert isinstance(target,QuantumNumber)
+                result=result[qnc[target],qnc[target]]
+            logger.suspend('kronsum4')
+        else:
+            result=qnc.reorder(sp.kronsum(m1,m2,format=format))
+            if target is not None:
+                assert isinstance(target,QuantumNumber)
+                result=result[qnc[target],qnc[target]]
     else:
         result=sp.kronsum(m1,m2,format=format)
     if format in ('csr','csc'):result.eliminate_zeros()
