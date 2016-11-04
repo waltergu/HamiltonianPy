@@ -89,7 +89,7 @@ class TimerLogger(object):
     Timer logger for code executing.
     Attribues:
         keys: list of string
-            The jobs to be timed.
+            The names of the timers.
     '''
 
     def __init__(self,*keys):
@@ -97,9 +97,9 @@ class TimerLogger(object):
         Constructor.
         Parameters:
             keys: list of string.
-                The jobs to be timed.
+                The names of the timers.
         '''
-        self.keys=keys
+        self.keys=list(keys)
         for key in keys:
             setattr(self,key,Timer())
 
@@ -116,6 +116,38 @@ class TimerLogger(object):
         result[3]='{0:s}'.format('Accumulation').center(14)+''.join(['{0:e}'.format(getattr(self,key).time).center(lens[key]) for key in keys])
         result[4]=result[0]
         return '\n'.join(result)
+
+    def add_timer(self,key):
+        '''
+        Add a timer.
+        Parameters:
+            key: string
+                The name of the timer.
+        '''
+        self.keys.append(key)
+        setattr(self,key,Timer())
+
+    def has_timer(self,key):
+        '''
+        Judge whether a timer has existed.
+        Parameters:
+            key: string
+                The name of the timer.
+        Returns: logical
+            True for the timer has existed and False for not.
+        '''
+        return key in self.keys
+
+    def delete_timer(self,key):
+        '''
+        Delete a timer if it exists.
+        Parameters:
+            key: string
+                The name of the timer.
+        '''
+        if self.has_timer(key):
+            self.keys.remove(key)
+            delattr(self,key)
 
     def start(self,*keys):
         '''

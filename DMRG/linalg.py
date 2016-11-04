@@ -8,11 +8,12 @@ import scipy.linalg as sl
 import scipy.sparse as sp
 from ..Math.linalg import truncated_svd
 from ..Basics import QuantumNumber,QuantumNumberCollection
+from linalg_Fortran import *
 import time
 
 __all__=['kron','kronsum','block_svd']
 
-def kron(m1,m2,qnc=None,target=None,format='csr',**karg):
+def kron(m1,m2,qnc1=None,qnc2=None,qnc=None,target=None,format='csr',**karg):
     '''
     Kronecker product of two matrices.
     Parameters:
@@ -29,21 +30,52 @@ def kron(m1,m2,qnc=None,target=None,format='csr',**karg):
     '''
     if isinstance(qnc,QuantumNumberCollection):
         logger=karg.get('logger',None)
-        if logger is not None:
+        hh=0
+        if hh==0:
+            for timer in ('kron1','kron2','kron3'):
+                if not logger.has_timer(timer):
+                    logger.add_timer(timer)
+#            result=0.0
+#            if m1.shape!=(0,0) or m2.shape!=(0,0):
+#                logger.proceed('kron1')
+#                temp1=np.zeros(m1.shape,dtype=m1.dtype)
+#                temp2=np.zeros(m2.shape,dtype=m2.dtype)
+#                for rqn1,rqn2 in qnc.pairs(target):
+#                    for cqn1,cqn2 in qnc.pairs(target):
+#                        temp1[...]=0.0
+#                        temp2[...]=0.0
+#                        temp1[qnc1[rqn1],qnc1[cqn1]]=m1[qnc1[rqn1],qnc1[cqn1]]
+#                        temp2[qnc2[rqn2],qnc2[cqn2]]=m2[qnc2[rqn2],qnc2[cqn2]]
+#                        result+=sp.kron(temp1,temp2)
+#                result=result.asformat('coo')
+#                antipermutation=np.argsort(qnc.permutation)
+#                result.row=antipermutation[result.row]
+#                result.col=antipermutation[result.col]
+#                logger.suspend('kron1')
+#                logger.proceed('kron2')
+#                result=result.asformat('csr')
+#                logger.suspend('kron2')
+#                result=result[qnc[target],qnc[target]]
             logger.proceed('kron1')
-            result=sp.kron(m1,m2)
+            ndata=sp.coo_matrix(m1).nnz*sp.coo_matrix(m2).nnz
+            antipermutation=np.argsort(qnc.permutation)
+            pairs=np.array([[qnc1[qn1].start+1,qnc1[qn1].stop,qnc2[qn2].start+1,qnc2[qn2].stop] for qn1,qn2 in qnc.pairs(target)])
             logger.suspend('kron1')
             logger.proceed('kron2')
-            result=result.asformat(format)
+            data,row,col,ndata=fkron(m1,m2,pairs.T,antipermutation,5*10**-14,ndata=ndata)
             logger.suspend('kron2')
             logger.proceed('kron3')
-            result=qnc.reorder(result)
+            result=sp.coo_matrix((data[0:ndata-1],(row[0:ndata-1],col[0:ndata-1])),shape=(qnc.n,qnc.n))
+            result=result.asformat('csr')[qnc[target],qnc[target]]
             logger.suspend('kron3')
-            logger.proceed('kron4')
+        elif hh==1:
+            if not logger.has_timer('kron'):logger.add_timer('kron')
+            logger.proceed('kron')
+            result=qnc.reorder(sp.kron(m1,m2,format=format))
             if target is not None:
                 assert isinstance(target,QuantumNumber)
                 result=result[qnc[target],qnc[target]]
-            logger.suspend('kron4')
+            logger.suspend('kron')
         else:
             result=qnc.reorder(sp.kron(m1,m2,format=format))
             if target is not None:
@@ -54,7 +86,7 @@ def kron(m1,m2,qnc=None,target=None,format='csr',**karg):
     #if format in ('csr','csc'):result.eliminate_zeros()
     return result
 
-def kronsum(m1,m2,qnc=None,target=None,format='csr',**karg):
+def kronsum(m1,m2,qnc1=None,qnc2=None,qnc=None,target=None,format='csr',**karg):
     '''
     Kronecker sum of two matrices.
     Please see scipy.sparse.kronsum for details.
@@ -72,21 +104,41 @@ def kronsum(m1,m2,qnc=None,target=None,format='csr',**karg):
     '''
     if isinstance(qnc,QuantumNumberCollection):
         logger=karg.get('logger',None)
-        if logger is not None:
-            logger.proceed('kronsum1')
-            result=sp.kronsum(m1,m2)
-            logger.suspend('kronsum1')
-            logger.proceed('kronsum2')
-            result=result.asformat(format)
-            logger.suspend('kronsum2')
-            logger.proceed('kronsum3')
-            result=qnc.reorder(result)
-            logger.suspend('kronsum3')
-            logger.proceed('kronsum4')
+        hh=1
+        if hh==0:
+            for timer in ('kronsum1','kronsum2'):
+                if not logger.has_timer(timer):
+                    logger.add_timer(timer)
+            result=0.0
+            if m1.shape!=(0,0) or m2.shape!=(0,0):
+                logger.proceed('kronsum1')
+                temp1=np.zeros(m1.shape,dtype=m1.dtype)
+                temp2=np.zeros(m2.shape,dtype=m2.dtype)
+                pairs=qnc.pairs(target)
+                for rqn2,rqn1 in pairs:
+                    for cqn2,cqn1 in pairs:
+                        temp1[...]=0.0
+                        temp2[...]=0.0
+                        temp1[qnc1[rqn1],qnc1[cqn1]]=m1[qnc1[rqn1],qnc1[cqn1]]
+                        temp2[qnc2[rqn2],qnc2[cqn2]]=m2[qnc2[rqn2],qnc2[cqn2]]
+                        result+=sp.kronsum(temp1,temp2)
+                result=result.asformat('coo')
+                antipermutation=np.argsort(qnc.permutation)
+                result.row=antipermutation[result.row]
+                result.col=antipermutation[result.col]
+                logger.suspend('kronsum1')
+                logger.proceed('kronsum2')
+                result=result.asformat('csr')
+                logger.suspend('kronsum2')
+                result=result[qnc[target],qnc[target]]
+        elif hh==1:
+            if not logger.has_timer('kronsum'):logger.add_timer('kronsum')
+            logger.proceed('kronsum')
+            result=qnc.reorder(sp.kronsum(m1,m2,format=format))
             if target is not None:
                 assert isinstance(target,QuantumNumber)
                 result=result[qnc[target],qnc[target]]
-            logger.suspend('kronsum4')
+            logger.suspend('kronsum')
         else:
             result=qnc.reorder(sp.kronsum(m1,m2,format=format))
             if target is not None:

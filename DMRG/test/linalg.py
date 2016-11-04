@@ -31,7 +31,7 @@ def test_kron():
     print 'sz:\n%s'%sz
     print 'sp:\n%s'%sp
     print 'sm:\n%s'%sm
-    matrix=kron(sz,sz,b,target=qn2,format='csr')+kron(sp,sm,b,target=qn2,format='csr')+kron(sm,sp,b,target=qn2,format='csr')
+    matrix=kron(sz,sz,a,a,b,target=qn2,format='csr')+kron(sp,sm,a,a,b,target=qn2,format='csr')/2+kron(sm,sp,a,a,b,target=qn2,format='csr')/2
     print matrix.todense()
     print
 
