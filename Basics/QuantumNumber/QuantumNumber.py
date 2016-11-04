@@ -193,8 +193,14 @@ class QuantumNumberCollection(OrderedDict):
     Attributes:
         n: integer
             The total number of quantum numbers when duplicates are counted duplicately.
-        history: dict of QuantumNumberHistory
-            The historical information of the kron of two quantum number collections.
+        history: dict with each of its (key,value) pairs
+            key: integer
+                The id of the quantum number collection whose history is recorded.
+            value: OrderedDict, with each of its (key,value) pairs
+                key: QuantumNumber
+                    The quantum number contained in the quantum number collection whose history is recorded.
+                value: QuantumNumberHistory
+                    The historical information.
     '''
     history={}
 
@@ -236,21 +242,37 @@ class QuantumNumberCollection(OrderedDict):
         '''
         return ''.join(['QNC(',','.join(['%s:(%s:%s)'%(qn,value.start,value.stop) for qn,value in self.items()]),')'])
 
-    def subslice(self,subset):
+    def subslice(self,targets=[]):
         '''
-        The subslice corresponding to the subset.
+        The subslice with the corresponding quantum numbers in targets.
+        Parameters:
+            targets: list of QuantumNumber, optional
+                The quantum numbers whose slices wanted to be extracted.
+        Returns: list of integer
+            The subslice.
         '''
-        return [i for target in subset for i in xrange(self[target].start,self[target].stop)]
+        return [i for target in targets for i in xrange(self[target].start,self[target].stop)]
 
-    @property
-    def permutation(self):
+    def permutation(self,targets=[]):
         '''
-        The permutation of the current order with respect to the direct product order.
+        The permutation of the current order (ordered quantum numbers) with respect to the ordinary numpy.kron order (disordered quantum numbers).
+        Parameters:
+            targets: list of QuantumNumber, optional
+                The quantum numbers whose permutation wanted to be extracted.
+        Returns: list of integer
+            The permutation array.
         '''
         if self.id in self.history:
-            return [i for value in self.history[self.id].values() for slice in value.slices for i in xrange(slice.start,slice.stop)]
+            if len(targets)==0:
+                histories=self.history[self.id].values()
+            else:
+                histories=[self.history[self.id][target] for target in targets]
+            return [i for history in histories for slice in history.slices for i in xrange(slice.start,slice.stop)]
         else:
-            return list(xrange(self.n))
+            if len(targets)==0:
+                return list(xrange(self.n))
+            else:
+                return [i for i in xrange(self[target].start,self[target].stop) for target in targets]
 
     def kron(self,other,history=False):
         '''
@@ -258,7 +280,7 @@ class QuantumNumberCollection(OrderedDict):
         Parameters:
             self,other: QuantumNumberCollection
                 The quantum number collections to be tensor dotted.
-            history: logical
+            history: logical, optional
                 When True, the historical information of the tensor dot process will be recorded.
                 Otherwise not.
         '''
@@ -290,9 +312,14 @@ class QuantumNumberCollection(OrderedDict):
                 result=QuantumNumberCollection(contents.iteritems())
             return result
 
-    def subset(self,targets):
+    def subset(self,targets=[]):
         '''
         A subsets of the quantum number collection.
+        Parameters:
+            targets: list of QuantumNumber, optional
+                The quantum numbers of the subset.
+        Returns: QuantumNumberCollection
+            The subset.
         '''
         return QuantumNumberCollection([(target,self[target].stop-self[target].start) for target in targets])
 
@@ -319,7 +346,7 @@ class QuantumNumberCollection(OrderedDict):
                 if isinstance(qnc,QuantumNumberCollection):
                     QuantumNumberCollection.history.pop(qnc.id,None)
 
-    def reorder(self,array,axes=None,method='ind'):
+    def reorder(self,array,axes=None,targets=[]):
         '''
         Recorder the axes of an array from the ordinary numpy.kron order to the correct quantum number collection order.
         Parameters:
@@ -327,34 +354,17 @@ class QuantumNumberCollection(OrderedDict):
                 The original array in the ordinary numpy.kron order.
             axes: list of integer, optional
                 The axes of the array to be reordered.
+            targets: list of QuantumNumber, optional
+                When its length is nonzero, some sub slices of the array tagged by the quantum numbers in it will be extracted.
         Returns: ndarray-like
             The axes-reordered array.
         '''
+        result=array
+        permutation=self.permutation(targets)
         axes=xrange(array.ndim) if axes is None else axes
-        if method=='coo':
-            P=sp.coo_matrix((np.ones(self.n),(range(self.n),self.permutation)),shape=(self.n,self.n))
-            if array.ndim==1:
-                if len(axes)==0:
-                    result=array
-                else:
-                    assert len(axes)==1 and axes[0]==0
-                    result=P.dot(array)
-            elif array.ndim==2:
-                assert len(axes)<=2
-                result=array
-                for axis in axes:
-                    assert axis in (0,1)
-                    if axis==0:
-                        result=P.dot(result)
-                    if axis==1:
-                        result=result.dot(P.T)
-            else:
-                raise ValueError("QuantumNumberCollection reorder error: only 1d and 2d arrays supports 'coo' method.")
-        else:
-            result=array
-            for axis in axes:
-                assert self.n==array.shape[axis]
-                temp=[slice(None,None,None)]*array.ndim
-                temp[axis]=self.permutation
-                result=result[tuple(temp)]
+        for axis in axes:
+            assert self.n==array.shape[axis]
+            temp=[slice(None,None,None)]*array.ndim
+            temp[axis]=permutation
+            result=result[tuple(temp)]
         return result
