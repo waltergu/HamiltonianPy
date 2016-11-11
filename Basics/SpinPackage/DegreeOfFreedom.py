@@ -7,6 +7,7 @@ Spin degree of freedom package, including:
 
 __all__=['DEFAULT_SPIN_PRIORITY','DEFAULT_SPIN_LAYERS','SID','Spin','SpinMatrix','SpinPack','Heisenberg','Ising','S']
 
+from ..Geometry import PID
 from ..DegreeOfFreedom import *
 from numpy import *
 from collections import namedtuple
@@ -43,7 +44,7 @@ class Spin(Internal):
             S: integer or half integer
                 The total spin.
         '''
-        if abs(2*S-int(2*S))>10**-6:
+        if S is not None and abs(2*S-int(2*S))>10**-6:
             raise ValueError('Spin construction error: S(%s) is not an integer or half integer.')
         self.S=S
 
@@ -59,22 +60,19 @@ class Spin(Internal):
         '''
         return self.S==other.S
 
-    def ndegfre(self,*arg,**karg):
+    def indices(self,pid,mask=[]):
         '''
-        Return the number of the spin degrees of freedom.
-        '''
-        return int(2*self.S)+1
-
-    def indices(self,pid):
-        '''
-        Return a list of all the allowed indices within this internal degrees of freedom combined with an extra spatial part.
+        Return a list of all the masked indices within this internal degrees of freedom combined with an extra spatial part.
         Parameters:
             pid: PID
                 The extra spatial part of the indices.
+            mask: list of string, optional
+                The attributes that will be masked to None.
         Returns: list of Index
-            The allowed indices.
+            The indices.
         '''
-        return [Index(pid=pid,iid=SID(S=self.S))]
+        pid=pid._replace(**{key:None for key in set(mask)&set(PID._fields)})
+        return [Index(pid=pid,iid=SID(None))] if 'S' in mask else [Index(pid=pid,iid=SID(S=self.S))]
 
 class SpinMatrix(ndarray):
     '''

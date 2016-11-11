@@ -5,80 +5,108 @@ Finite DMRG test.
 __all__=['test_fdmrg']
 
 import numpy as np
+import HamiltonianPy as HP
 from HamiltonianPy.Basics import *
 from HamiltonianPy.DMRG.Chain import*
 from HamiltonianPy.DMRG.iDMRG import *
 from HamiltonianPy.DMRG.fDMRG import *
-import time
 
 def test_fdmrg():
     print 'test_fdmrg'
+    test_fdmrg_spin()
+    test_fdmrg_spinless_fermion()
+    test_fdmrg_spinful_fermion()
+
+def test_fdmrg_spin():
+    print 'test_fdmrg_spin'
     # parameters
-    N,J1,J2,h=20,1.0,0.0,0.0
-    spin=0.5
-    qn_on=True
+    N,J,spin,qn_on=20,1.0,0.5,True
 
     # geometry
-    p1=Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
-    points,a1=[p1],np.array([0.0,1.0])
-    #p2=Point(PID(scope=0,site=1),rcoord=[0.0,1.0],icoord=[0.0,0.0])
-    #points,a1=[p1,p2],np.array([0.0,2.0])
-    block=Lattice(name='WG',points=points,nneighbour=2)
-    #block=Lattice(name='WG',points=points,nneighbour=2,vectors=[a1])
+    block=Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2)
     vector=np.array([1.0,0.0])
 
-    # idfconfig
-    idfconfig=IDFConfig(priority=DEFAULT_SPIN_PRIORITY)
-    for i in xrange(N):
-        idfconfig[p1.pid._replace(scope=i)]=Spin(S=spin)
-        #idfconfig[p2.pid._replace(scope=i)]=Spin(S=spin)
+    # terms
+    #terms=[SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())]
+    terms=[SpinTerm('J',J,neighbour=1,indexpacks=IndexPackList(SpinPack(0.5,('+','-')),SpinPack(0.5,('-','+'))))]
 
-    # qncconfig
-    qncconfig=QNCConfig(priority=DEFAULT_SPIN_PRIORITY)
-    for index in idfconfig.table():
-        qncconfig[index]=SpinQNC(S=spin)
-
-    # degfres
-    t1=time.time()
+    # config & degfres & chain & target
+    priority,layers=DEFAULT_SPIN_PRIORITY,DEFAULT_SPIN_LAYERS
+    config=IDFConfig(priority=priority,map=lambda pid: Spin(S=spin))
     if qn_on:
-        degfres=DegFreTree(qncconfig,layers=DEFAULT_SPIN_LAYERS,priority=DEFAULT_SPIN_PRIORITY)
+        degfres=DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SpinQNC(S=spin))
+        chain=EmptyChain(mode='QN',nmax=20)
+        targets=[SpinQN(Sz=0.0)]*(N/2)
     else:
-        degfres=DegFreTree(idfconfig,layers=DEFAULT_SPIN_LAYERS,priority=DEFAULT_SPIN_PRIORITY)
-    t2=time.time()
-    print 'degfres construction: %ss.'%(t2-t1)
+        degfres=DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: int(spin*2+1))
+        chain=EmptyChain(mode='NB',nmax=20)
+        targets=[None]*(N/2)
+
+    # dmrg
+    idmrg=iDMRG(name='iDMRG',block=block,vector=vector,terms=terms,config=config,degfres=degfres,chain=chain,dtype=np.float64)
+    idmrg.grow(scopes=range(N),targets=targets)
+    fdmrg=fDMRG(name='fDMRG',lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain)
+    fdmrg.sweep([20,30,60,100,200,200])
+    print
+
+def test_fdmrg_spinless_fermion():
+    print 'test_fdmrg_spinless_fermion'
+    # parameters
+    N,t,qn_on=20,-0.5,True
+
+    # geometry
+    block=Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2)
+    vector=np.array([1.0,0.0])
 
     # terms
-    terms=[
-            SpinTerm('h',h,neighbour=0,indexpacks=S('z')),
-            SpinTerm('J1',J1,neighbour=1,indexpacks=Heisenberg()),
-            #SpinTerm('J2',J2,neighbour=2,indexpacks=Heisenberg()),
-            #SpinTerm('J1',J1,neighbour=1,indexpacks=Ising('z')),
-    ]
+    terms=[Hopping('t',t,neighbour=1)]
 
-    # chain
+    # idfconfig
+    priority,layers=('scope','site','orbital','spin','nambu'),[('scope','site','orbital','spin')]
+    config=IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=1,nnambu=1))
     if qn_on:
-        chain=EmptyChain(mode='QN',nmax=20,target=SpinQN(Sz=0.0))
+        degfres=DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: QuantumNumberCollection([(QuantumNumber([('N',1,'U1')]),1),(QuantumNumber([('N',0,'U1')]),1)]))
+        chain=EmptyChain(mode='QN',nmax=20)
+        targets=[QuantumNumber([('N',num,'U1')]) for num in xrange(1,N/2+1)]
     else:
-        chain=EmptyChain(mode='NB',nmax=20,target=None)
+        degfres=DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: 2)
+        chain=EmptyChain(mode='NB',nmax=20)
+        targets=[None]*(N/2)
 
-    idmrg=iDMRG(
-        name=       'iDMRG',
-        block=      block,
-        vector=     vector,
-        terms=      terms,
-        config=     idfconfig,
-        degfres=    degfres,
-        chain=      chain
-    )
-    print '\n'*2
-    print 'Here goes the fDMRG'
-    fdmrg=fDMRG(
-        name=       'fDMRG',
-        lattice=    idmrg.lattice,
-        terms=      terms,
-        config=     idfconfig,
-        degfres=    degfres,
-        chain=      idmrg.chain
-    )
+    # dmrg
+    idmrg=iDMRG(name='iDMRG',block=block,vector=vector,terms=terms,config=config,degfres=degfres,chain=chain,dtype=np.float64)
+    idmrg.grow(scopes=range(N),targets=targets)
+    fdmrg=fDMRG(name='fDMRG',lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain)
     fdmrg.sweep([20,30,60,100,200,200])
+    print
+
+def test_fdmrg_spinful_fermion():
+    print 'test_fdmrg_spinful_fermion'
+    # parameters
+    N,t,qn_on=20,-0.25,True
+
+    # geometry
+    block=Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2)
+    vector=np.array([1.0,0.0])
+
+    # terms
+    terms=[Hopping('t',t,neighbour=1)]
+
+    # idfconfig
+    priority,layers=('scope','site','orbital','spin','nambu'),[('scope','site','orbital'),('spin',)]
+    config=IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1))
+    if qn_on:
+        degfres=DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: QuantumNumberCollection([(FermiQN(N=1,Sz=0.5) if index.spin==1 else FermiQN(N=1,Sz=-0.5),1),(FermiQN(N=0,Sz=0.0),1)]))
+        chain=EmptyChain(mode='QN',nmax=20)
+        targets=[FermiQN(N=num*2,Sz=0.0) for num in xrange(1,N/2+1)]
+    else:
+        degfres=DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: 2)
+        chain=EmptyChain(mode='NB',nmax=20)
+        targets=[None]*(N/2)
+
+    # dmrg
+    idmrg=iDMRG(name='iDMRG',block=block,vector=vector,terms=terms,config=config,degfres=degfres,chain=chain,dtype=np.float64)
+    idmrg.grow(scopes=range(N),targets=targets)
+    fdmrg=fDMRG(name='fDMRG',lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain)
+    fdmrg.sweep([20,30,50,50,50])
     print

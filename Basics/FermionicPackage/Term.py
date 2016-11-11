@@ -260,6 +260,11 @@ def to_operators(mesh,bond,config,table=None):
             result+=F_Quadratic(mesh[i,j],indices=(eindex.replace(nambu=1-eindex.nambu),sindex),rcoords=[bond.rcoord],icoords=[bond.icoord],seqs=None)
         elif eindex in table and sindex in table:
             result+=F_Quadratic(mesh[i,j],indices=(eindex.replace(nambu=1-eindex.nambu),sindex),rcoords=[bond.rcoord],icoords=[bond.icoord],seqs=(table[eindex],table[sindex]))
+        else:
+            etemp=eindex.replace(nambu=None)
+            stemp=sindex.replace(nambu=None)
+            if stemp in table and etemp in table:
+                result+=F_Quadratic(mesh[i,j],indices=(eindex.replace(nambu=1-eindex.nambu),sindex),rcoords=[bond.rcoord],icoords=[bond.icoord],seqs=(table[etemp],table[stemp]))
     return result
 
 class Hubbard(Term):
@@ -442,11 +447,17 @@ class HubbardList(TermList):
             index2=Index(bond.epoint.pid,dgr.state_index(j))
             index3=Index(bond.epoint.pid,dgr.state_index(k))
             index4=Index(bond.epoint.pid,dgr.state_index(l))
+            if table is None:
+                seqs=None
+            elif index1 in table and index2 in table and index3 in table and index4 in table:
+                seqs=(table[index1],table[index2],table[index3],table[index4])
+            else:
+                seqs=(table[index1.mask('nambu')],table[index2.mask('nambu')],table[index3.mask('nambu')],table[index4.mask('nambu')])
             result+=F_Hubbard(
                 value=      mesh[i,j,k,l],
                 indices=    (index1.replace(nambu=CREATION),index2.replace(nambu=CREATION),index3,index4),
                 rcoords=    [bond.epoint.rcoord],
                 icoords=    [bond.epoint.icoord],
-                seqs=       None if table is None else (table[index1],table[index2],table[index3],table[index4])
+                seqs=       seqs
                 )
         return result

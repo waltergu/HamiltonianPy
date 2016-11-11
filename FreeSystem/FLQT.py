@@ -17,14 +17,14 @@ class FLQT(TBA):
     Supported methods include:
     1) FLQTEB: calculate the quasi-energy bands.
     '''
-    def __init__(self,filling=0,mu=0,lattice=None,config=None,terms=None,nambu=False,**karg):
+    def __init__(self,filling=0,mu=0,lattice=None,config=None,terms=None,mask=['nambu'],**karg):
         super(FLQT,self).__init__(
             filling=    filling,
             mu=         mu,
             lattice=    lattice,
             config=     config,
             terms=      terms,
-            nambu=      nambu
+            mask=      mask
             )
 
     def evolution(self,t=[],**karg):

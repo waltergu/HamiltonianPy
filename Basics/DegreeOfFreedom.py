@@ -1,9 +1,9 @@
 '''
 Degrees of freedom in a lattice, including:
-1) classes: Table, Index, Internal, IDFConfig, QNCConfig, DegFreTree, IndexPack, IndexPackList
+1) classes: Table, Index, Internal, IDFConfig, DegFreTree, IndexPack, IndexPackList
 '''
 
-__all__=['Table','Index','Internal','IDFConfig','QNCConfig','DegFreTree','IndexPack','IndexPackList']
+__all__=['Table','Index','Internal','IDFConfig','DegFreTree','IndexPack','IndexPackList']
 
 import numpy as np
 from Geometry import PID
@@ -16,6 +16,7 @@ class Table(dict):
     '''
     This class provides the methods to get an index from its sequence number or vice versa.
     '''
+
     def __init__(self,indices=[],key=None):
         '''
         Constructor.
@@ -95,6 +96,7 @@ class Index(tuple):
     '''
     This class provides an index for a microscopic degree of freedom, including the spatial part and interanl part.
     '''
+
     def __new__(cls,pid,iid):
         '''
         Constructor.
@@ -197,20 +199,16 @@ class Internal(object):
     This class is the base class for all internal degrees of freedom in a single point.
     '''
 
-    def ndegfre(self,*arg,**karg):
+    def indices(self,pid,mask=[]):
         '''
-        Return the number of the interanl degrees of freedom.
-        '''
-        raise NotImplementedError()
-
-    def indices(self,pid,**karg):
-        '''
-        Return a list of all the allowed indices within this internal degrees of freedom combined with an extra spatial part.
+        Return a list of all the masked indices within this internal degrees of freedom combined with an extra spatial part.
         Parameters:
             pid: PID
                 The extra spatial part of the indices.
+            mask: list of string, optional
+                The attributes that will be masked to None.
         Returns: list of Index
-            The allowed indices.
+            The indices.
         '''
         raise NotImplementedError("%s indices error: it is not implemented."%self.__class__.__name__)
 
@@ -225,21 +223,39 @@ class IDFConfig(dict):
     Attributes:
         priority: list of string 
             The sequence priority of the allowed indices that can be defined on a lattice.
+        map: function
+            This function maps the pid of a lattice point to the interanl degrees of freedom on it.
     '''
 
-    def __init__(self,contents={},priority=None):
+    def __init__(self,priority,pids=[],map=None):
         '''
         Constructor.
         Parameters:
-            contents: dict, optional
-                The contents of the IDFConfig.
-                See IDFConfig.__setitem__ for details.
+            priority: list of string
+                The sequence priority of the allowed indices that can be defined on the lattice.
+            pids: list of PID, optional
+                The pids of the lattice points where the interanl degrees of freedom live.
+            map: function, optional
+                This function maps the pid of a lattice point to the interanl degrees of freedom on it.
+        '''
+        self.reset(priority=priority,pids=pids,map=map)
+
+    def reset(self,priority=None,pids=[],map=None):
+        '''
+        Reset the idfconfig.
+        Parameters:
+            pids: list of PID, optional
+                The pids of the lattice points where the interanl degrees of freedom live.
+            map: function, optional
+                This function maps the pid of a lattice point to the interanl degrees of freedom on it.
             priority: list of string, optional
                 The sequence priority of the allowed indices that can be defined on the lattice.
         '''
-        for key,value in contents.items():
-            self[key]=value
-        self.priority=priority
+        self.clear()
+        if priority is not None: self.priority=priority
+        if map is not None: self.map=map
+        for pid in pids:
+            self[pid]=self.map(pid)
 
     def __setitem__(self,key,value):
         '''
@@ -254,67 +270,11 @@ class IDFConfig(dict):
         assert isinstance(value,Internal)
         dict.__setitem__(self,key,value)
 
-    def table(self,**karg):
+    def table(self,mask=[]):
         '''
         Return a Table instance that contains all the allowed indices which can be defined on a lattice.
         '''
-        return Table([index for key,value in self.items() for index in value.indices(key,**karg)],key=lambda index: index.to_tuple(priority=self.priority))
-
-    def __add__(self,other):
-        '''
-        Add two configurations.
-        '''
-        assert self.priority==other.priority
-        result=Configuration(priority=self.priority)
-        result.update(self)
-        result.update(other)
-        return result
-
-class QNCConfig(dict):
-    '''
-    Configuration of the quantum number collections associated with indices.
-    For each of its (key,value) pairs,
-        key: Index
-            The index with which the quantum number collections is associated.
-        value: QuantumNumberCollection
-            The associated quantum number collection with the index.
-    Attributes:
-        priority: list of string
-            The sequence priority of the indices.
-    '''
-
-    def __init__(self,contents={},priority=None):
-        '''
-        Constructor.
-        Parameters:
-            contents: dict, optional
-                The contents of the QNCConfig.
-                See QNCConfig.__setitem__ for details.
-            priority: list of string, optional
-                The sequence priority of the indices.
-        '''
-        for key,value in contents.items():
-            self[key]=value
-        self.priority=priority
-
-    def __setitem__(self,key,value):
-        '''
-        Set the value of an item.
-        Parameters:
-            key: Index
-                The index with which the quantum number collections is associated.
-            value: QuantumNumberCollection
-                The associated quantum number collection with the index.
-        '''
-        assert isinstance(key,Index)
-        assert isinstance(value,QuantumNumberCollection)
-        dict.__setitem__(self,key,value)
-
-    def table(self):
-        '''
-        The index-sequence table according to self.priority.
-        '''
-        return Table(self,key=lambda index: index.to_tuple(priority=self.priority))
+        return Table([index for key,value in self.items() for index in value.indices(key,mask)],key=lambda index: index.to_tuple(priority=self.priority))
 
 class DegFreTree(Tree):
     '''
@@ -326,96 +286,92 @@ class DegFreTree(Tree):
             When an integer, it is the number of degrees of freedom that the index represents;
             When a QuantumNumberCollection, it is the quantum number collection that the index is associated with.
     Attributes:
-        mode: 'QNC' or 'IDF'
+        mode: 'QN' or 'NB'
             The mode of the DegFreTree.
         layers: list of tuples of string
             The tag of each layer of indices.
         priority: lsit of string
             The sequence priority of the allowed indices.
+        map: function
+            This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
         cache: dict
             The cache of the degfretree.
     '''
 
-    def __init__(self,config,layers,priority=None):
+    def __init__(self,mode,layers,priority,leaves=[],map=None):
         '''
         Constructor.
         Parameters:
-            config: IDFConfig or QNCConfig
-                When IDFConfig, it is the configuration of the interanl degrees of freedom in a lattice;
-                When QNCConfig, it is the configuration of quantum number collections associated with all the indices in a lattice.
+            mode: 'QN' or 'NB'
+                The mode of the DegFreTree.
             layers: list of tuples of string
+                The tag of each layer of indices.
+            priority: lsit of string
+                The sequence priority of the allowed indices.
+            leaves: list of Index, optional
+                The leaves (bottom indices) of the DegFreTree.
+            map: function, optional
+                This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
+        '''
+        self.reset(mode=mode,layers=layers,priority=priority,leaves=leaves,map=map)
+
+    def reset(self,mode=None,layers=None,priority=None,leaves=[],map=None):
+        '''
+        Reset the DegFreTree.
+        Parameters:
+            mode: 'QN' or 'NB', optional
+                The mode of the DegFreTree.
+            layers: list of tuples of string, optional
                 The tag of each layer of indices.
             priority: lsit of string, optional
                 The sequence priority of the allowed indices.
+            leaves: list of Index, optional
+                The leaves (bottom indices) of the DegFreTree.
+            map: function, optional
+                This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
         '''
+        self.clear()
         Tree.__init__(self)
-        self.layers=layers
-        self.priority=config.priority if priority is None else priority
+        assert mode in (None,'QN','NB')
+        if mode is not None: self.mode=mode
+        if layers is not None: self.layers=layers
+        if priority is not None: self.priority=priority
+        if map is not None: self.map=map
         self.cache={}
-        if isinstance(config,IDFConfig):
-            self.mode='IDF'
-            self._from_idf_(config)
-        elif isinstance(config,QNCConfig):
-            self.mode='QNC'
-            self._from_qnc_(config)
-        else:
-            raise ValueError("DegFreTree construction error: the type of config(%s) is neither IDFConfig or QNCConfig."%(config.__class__.__name__))
-
-    def _from_idf_(self,config):
-        '''
-        Construt the main body from an instance of IDFConfig.
-        '''
-        temp=[key for layer in self.layers for key in layer]
-        assert set(list(xrange(len(PID._fields))))==set([temp.index(key) for key in PID._fields])
-        indices=config.table().keys()
-        temp=set(temp)|set(indices[0].__dict__)
-        self.add_leaf(parent=None,leaf=tuple([None]*len(temp)),data=None)
-        buff=temp
-        for layer in self.layers:
-            buff=buff-set(layer)
-            leaves=set([index.replace(**{key:None for key in buff}) for index in indices])
-            for leaf in leaves:
-                self.add_leaf(parent=leaf.replace(**{key:None for key in layer}),leaf=leaf,data=None)
-        temp-=set(PID._fields)
-        self._distribute_indices_()
-        for layer in reversed(self.layers):
-            for index in self.indices(layer):
-                if any([getattr(index,key) is None for key in PID._fields]):
-                    self[index]=np.product([self[child] for child in self.children(index)])
-                else:
-                    self[index]=config[index.pid].ndegfre(select=[key for key in temp if getattr(index,key) is None],factor=2)
-
-    def _from_qnc_(self,config):
-        '''
-        Construt the main body from an instance of QNCConfig.
-        '''
-        temp=[key for layer in self.layers for key in layer]
-        assert set(list(xrange(len(PID._fields))))==set([temp.index(key) for key in PID._fields])
-        temp=set(temp)
-        self.add_leaf(parent=None,leaf=tuple([None]*len(temp|set(config.keys()[0].__dict__))),data=None)
-        for layer in self.layers:
-            temp-=set(layer)
-            leaves=set([index.replace(**{key:None for key in temp}) for index in config])
-            for leaf in leaves:
-                self.add_leaf(parent=leaf.replace(**{key:None for key in layer}),leaf=leaf,data=None)
-        self._distribute_indices_()
-        for i,layer in enumerate(reversed(self.layers)):
-            key=('qnc_kron_paths',layer)
-            self.cache[key]={}
-            if i==0:
-                for index in self.indices(layer):
-                    self.cache[key][index]=[config[index]]
-                    self[index]=config[index]
+        if len(leaves)>0:
+            temp=[key for layer in self.layers for key in layer]
+            assert set(range(len(PID._fields)))==set([temp.index(key) for key in PID._fields])
+            temp=set(temp)
+            self.add_leaf(parent=None,leaf=tuple([None]*len(temp|set(leaves[0].__dict__))),data=None)
+            for layer in self.layers:
+                temp-=set(layer)
+                indices=set([index.replace(**{key:None for key in temp}) for index in leaves])
+                for index in indices:
+                    self.add_leaf(parent=index.replace(**{key:None for key in layer}),leaf=index,data=None)
+            self._distribute_indices_()
+            if self.mode=='QN':
+                for i,layer in enumerate(reversed(self.layers)):
+                    key=('qnc_kron_paths',layer)
+                    self.cache[key]={}
+                    if i==0:
+                        for index in self.indices(layer):
+                            content=self.map(index)
+                            self.cache[key][index]=[content]
+                            self[index]=content
+                    else:
+                        for label,indices in self.leaves(layer).items():
+                            buff=[]
+                            for j,index in enumerate(indices):
+                                if j==0:
+                                    buff.append(self[index])
+                                else:
+                                    buff.append(buff[j-1].kron(self[index],history=True))
+                            self.cache[key][label]=buff
+                            self[label]=buff[-1]
             else:
-                for label,indices in self.leaves(layer).items():
-                    buff=[]
-                    for j,index in enumerate(indices):
-                        if j==0:
-                            buff.append(self[index])
-                        else:
-                            buff.append(buff[j-1].kron(self[index],history=True))
-                    self.cache[key][label]=buff
-                    self[label]=buff[-1]
+                for i,layer in enumerate(reversed(self.layers)):
+                   for index in self.indices(layer):
+                        self[index]=self.map(index) if i==0 else np.product([self[child] for child in self.children(index)])
 
     def _distribute_indices_(self):
         '''
@@ -435,7 +391,7 @@ class DegFreTree(Tree):
         Returns: integer
             The number of degrees of freedom.
         '''
-        if self.mode=='IDF':
+        if self.mode=='NB':
             return self[index]
         else:
             return self[index].n
@@ -444,7 +400,7 @@ class DegFreTree(Tree):
         '''
         The indices in a layer.
         Parameters:
-            layer: string
+            layer: tuple of string
                 The layer where the indices are restricted.
         Returns: list of Index
             The indices in the requested layer.
@@ -455,7 +411,7 @@ class DegFreTree(Tree):
         '''
         Return a index-sequence table with the index restricted on a specific layer.
         Parameters:
-            layer: string
+            layer: tuple of string
                 The layer where the indices are restricted.
         Returns: Table
             The index-sequence table.
@@ -464,38 +420,59 @@ class DegFreTree(Tree):
             self.cache[('table',layer)]=Table(self.indices(layer),key=lambda index: index.to_tuple(priority=self.priority))
         return self.cache[('table',layer)]
 
-    def labels(self,layer):
+    def reversed_table(self,layer):
+        '''
+        Return the reversed sequence-index table with the index restricted on a specific layer.
+        Parameters:
+            layer: tuple of string
+                The layer where the indices are restricted.
+        Returns: Table
+            The sequence-index table.
+        '''
+        if ('reversed_table',layer) not in self.cache:
+            self.cache[('reversed_table',layer)]=self.table(layer).reversed_table
+        return self.cache[('reversed_table',layer)]
+
+    def labels(self,layer,full_labels=True):
         '''
         Return a list of three-labels of a specific layer.
         Parameters:
-            layer: string
+            layer: tuple of string
                 The layer where the labels are restricted.
-        Returns: OrderedDict of 3-tuple of Label
-            Each 3-tuple (L,S,R) is in the following form
+            full_labels: logical, optional
+                When True the full labels including the bond labels and physical labels will be returned;
+                When Flase, only the physical labels will be returned.
+        Returns: 
+            When full_labels is True: OrderedDict of 3-tuple (L,S,R)
+            When full_labels is False: OrderedDict of Label S
+            L,S,R are in the following form:
                 L=Label([('layer',layer),('tag',i)],[('qnc':None)])
                 S=Label([('layer',layer),('tag',index)],[('qnc',self[index])])
                 R=Label([('layer',layer),('tag',(i+1)%len(indices))],[('qnc':None)])
             with,
-                layer: string
+                layer: tuple of string
                     The layer where the labels are restricted.
                 tag: Index
                     The physical degrees of freedom of the labels restricted on this layer.
                 i: integer
                     The sequence of the labels restricted on this layer.
                 N: integer or QuantumNumberCollection
-                    When self.mode=='QNC', it is a QuantumNumberCollection, the quantum number collection of the physical degrees of freedom;
-                    When self.mode=='IDF', it is a integer, the number of the physical degrees of freedom.
+                    When self.mode=='QN', it is a QuantumNumberCollection, the quantum number collection of the physical degrees of freedom;
+                    When self.mode=='NB', it is a integer, the number of the physical degrees of freedom.
         '''
-        if ('labels',layer) not in self.cache:
+        if ('labels',layer,full_labels) not in self.cache:
             result=OrderedDict()
             indices=sorted(self.indices(layer),key=lambda index: index.to_tuple(priority=self.priority))
             for i,index in enumerate(indices):
-                L=Label([('layer',layer),('tag',i)],[('qnc',None)])
                 S=Label([('layer',layer),('tag',index)],[('qnc',self[index])])
-                R=Label([('layer',layer),('tag',(i+1)%len(indices))],[('qnc',None)])
-                result[index]=(L,S,R)
-            self.cache[('labels',layer)]=result
-        return self.cache[('labels',layer)]
+                if full_labels:
+                    L=Label([('layer',layer),('tag',i)],[('qnc',None)])
+                    R=Label([('layer',layer),('tag',(i+1)%len(indices))],[('qnc',None)])
+                    result[index]=(L,S,R)
+                else:
+                    result[index]=S
+            self.cache[('labels',layer,full_labels)]=result
+        return self.cache[('labels',layer,full_labels)]
 
     def branches(self,layer):
         '''
@@ -505,7 +482,7 @@ class DegFreTree(Tree):
             branch: index
                 The branch restricted on a layer where the leaf comes from.
         Parameters:
-            layer: string
+            layer: tuple of string
                 The layer where the branches are restricted.
         Returns: as above.
         '''
@@ -522,7 +499,7 @@ class DegFreTree(Tree):
             leaves: list of index
                 The leaves of the branch in a certain order.
         Parameters:
-            layer: string
+            layer: tuple of string
                 The layer where the branches are restricted.
         Returns: as above.
         '''
@@ -546,11 +523,11 @@ class DegFreTree(Tree):
             qncs: list of QuantumNumberCollection
                 The kron path of the quantum number collection corresponding to the branch.
         Parameters:
-            layer: string
+            layer: tuple of string
                 The layer where the branches are restricted.
         Returns: as above.
         '''
-        return self.cache.get(('qncs',layer),None)
+        return self.cache.get(('qnc_kron_paths',layer),None)
 
 class IndexPack(object):
     '''

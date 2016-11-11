@@ -28,7 +28,8 @@ def test_scmf():
         name=       'H2_SCMF',
         lattice=    Lattice(name='H2_SCMF',points=H2.points,vectors=H2.vectors,nneighbour=2),
         config=     IDFConfig(
-                        {p.pid:Fermi(atom=0,norbital=1,nspin=2,nnambu=1) if p.pid.site%2==0 else Fermi(atom=1,norbital=1,nspin=2,nnambu=1) for p in H2.points},
+                        pids=[p.pid for p in H2.points],
+                        map=lambda pid: Fermi(atom=pid.site%2,norbital=1,nspin=2,nnambu=1),
                         priority=DEFAULT_FERMIONIC_PRIORITY
                         ),
         mu=         0,
@@ -41,7 +42,7 @@ def test_scmf():
         orders=     [
                     Onsite('afm',0.2,indexpacks=sigmaz('sp')*sigmaz('sl'),modulate=lambda **karg: -U*karg['afm']/2 if 'afm' in karg else None)
                     ],
-        nambu=      False
+        mask=      ['nambu']
         )
     h2.iterate(KSpace(reciprocals=h2.lattice.reciprocals,nk=100),error=10**-5,n=400)
     h2.register(EB(hexagon_gkm(nk=100),save_data=False,plot=True,show=True,run=TBAEB))

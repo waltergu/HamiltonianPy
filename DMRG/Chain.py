@@ -357,6 +357,7 @@ class Chain(MPS):
             self[env.pos]=Tensor(env.qnc.reorder(v,axes=[0]),labels=self[env.pos].labels)
             self._Hs_[sys.form][sys]=sys.qnc.reorder(ha,axes=[0,1])
             self._Hs_[env.form][env]=env.qnc.reorder(hb,axes=[0,1])
+            #print "self.cache['qnc']:",self.cache['qnc']
         else:
             sys.qnc=A.qnc*Asite.qnc
             env.qnc=Bsite.qnc*B.qnc
@@ -410,7 +411,7 @@ class Chain(MPS):
         self.info['nbasis']=sys.nbasis
         self.info['err']=err
 
-    def two_site_grow(self,AL,BL,optstrs):
+    def two_site_grow(self,AL,BL,optstrs,target=None):
         '''
         Two site grow of the chain.
         Parameters:
@@ -418,6 +419,8 @@ class Chain(MPS):
                 The labels for the two added sites.
             optstrs: list of OptStr
                 The optstrs of the new chain.
+            target: QuantumNumber, optional
+                The new target space.
         '''
         assert self.cut==None or self.cut==self.nsite/2
         assert AL not in self.table and BL not in self.table
@@ -445,6 +448,7 @@ class Chain(MPS):
         self._Hs_["L"].extend([None,None])
         self._Hs_["S"].extend([None,None])
         self._Hs_["R"].extend([None,None])
+        self.target=target
         self.two_site_update()
         self.two_site_truncate()
         self.logger.record()

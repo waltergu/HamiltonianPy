@@ -28,7 +28,7 @@ def test_flqt():
                     Onsite('mu',0.0,modulate=lambda **karg: mu1 if karg.get('t',0.0)<0.5 else mu2),
                     Pairing('delta',0.5,neighbour=1,amplitude=lambda bond: 1 if bond.rcoord[0]>0 else -1)
                     ],
-        nambu=True
+        mask=       []
         )
     a.register(EB(path=BaseSpace({'tag':'t','mesh':array([0,1])}),save_data=False,run=TBAEB))
     a.register(EB(ts=TSpace(array([0,0.5,1])),save_data=False,run=FLQTEB))

@@ -27,8 +27,8 @@ class TBA(Engine):
             The configuration of degrees of freedom.
         terms: list of Term
             The terms of the system.
-        nambu: logical
-            A flag to tag whether the Nambu space is used.
+        mask: list of string
+            A list to tell whether or not to use the nambu space.
         generators: dict of Generator
             The operator generators, which has the following entries:
             1) entry 'h': the generator for the Hamiltonian.
@@ -39,7 +39,7 @@ class TBA(Engine):
         4) TBACN: calculate the Chern number and Berry curvature.
     '''
     
-    def __init__(self,filling=0,mu=0,lattice=None,config=None,terms=None,nambu=False,**karg):
+    def __init__(self,filling=0,mu=0,lattice=None,config=None,terms=None,mask=['nambu'],**karg):
         '''
         Constructor.
         Parameters:
@@ -53,17 +53,17 @@ class TBA(Engine):
                 The configuration of degrees of freedom.
             terms: list of Term
                 The terms of the system.
-            nambu: logical
-                A flag to tag whether the Nambu space is used.
+            mask: list of string
+                A list to tell whether or not to use the nambu space.
         '''
         self.filling=filling
         self.mu=mu
         self.lattice=lattice
         self.config=config
         self.terms=terms
-        self.nambu=nambu
+        self.mask=mask
         self.generators={}
-        self.generators['h']=Generator(bonds=lattice.bonds,config=config,table=config.table(nambu=nambu),terms=terms)
+        self.generators['h']=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms)
         self.name.update(const=self.generators['h'].parameters['const'],alter=self.generators['h'].parameters['alter'])
 
     def update(self,**karg):
@@ -91,7 +91,7 @@ class TBA(Engine):
         for opt in self.generators['h'].operators.values():
             phase=1 if len(k)==0 else exp(-1j*inner(k,opt.rcoords[0]))
             result[opt.seqs]+=opt.value*phase
-            if self.nambu:
+            if 'nambu' not in self.mask:
                 i,j=opt.seqs
                 if i<nmatrix/2 and j<nmatrix/2: result[j+nmatrix/2,i+nmatrix/2]+=-opt.value*conjugate(phase)
         result+=conjugate(result.T)

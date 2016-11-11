@@ -1,11 +1,11 @@
 '''
 Linear algebra, including
 1) constants: TOL
-2) functions: dagger,truncated_svd
+2) functions: parity,dagger,truncated_svd
 3) classes: Lanczos
 '''
 
-__all__=['TOL','dagger','truncated_svd','Lanczos']
+__all__=['TOL','parity','dagger','truncated_svd','Lanczos']
 
 import numpy as np
 import numpy.linalg as nl
@@ -13,6 +13,24 @@ import scipy.linalg as sl
 from copy import copy
 
 TOL=5*10**-14
+
+def parity(permutation):
+    '''
+    Determine the parity of a permutation.
+    Parameters:
+        permutation: list of integer
+            A permutation of integers from 0 to N-1.
+    Returns: -1 or +1
+        -1 for odd permutation, and
+        +1 for even permutation.
+    '''
+    result=1
+    for i in xrange(len(permutation)-1):
+        if permutation[i]!=i:
+            result*=-1
+            pos=min(xrange(i,len(permutation)),key=permutation.__getitem__)
+            permutation[i],permutation[pos]=permutation[pos],permutation[i]
+    return result
 
 def dagger(m):
     '''

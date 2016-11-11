@@ -240,3 +240,12 @@ class Tree(dict):
                 queue=expansion+queue[1:]
             elif mode is self.WIDTH:
                 queue=queue[1:]+expansion
+
+    def clear(self):
+        '''
+        Clear the contents of the tree.
+        '''
+        dict.clear(self)
+        self.root=None
+        self._parent={}
+        self._children={}

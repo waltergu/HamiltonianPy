@@ -41,8 +41,8 @@ def test_fermi():
     print 'a: %s'%a
     print 'b: %s'%b
     print 'a!=b: %s'%(a!=b)
-    print 'a.indices(nambu=False): %s'%a.indices(pid=PID(site=0),nambu=False)
-    print 'a.indices(nambu=True): %s'%a.indices(pid=PID(site=0),nambu=True)
+    print 'a.indices(mask=["nambu"]): %s'%a.indices(pid=PID(site=0),mask=['nambu'])
+    print 'a.indices(mask=[]): %s'%a.indices(pid=PID(site=0),mask=[])
     for i in xrange(a.norbital*a.nspin*a.nnambu):
         fid=a.state_index(i)
         print 'a.state_index(%s): '%i,fid
@@ -55,7 +55,7 @@ def test_idfconfig():
     a[PID(site=0)]=Fermi(atom=0,norbital=1,nspin=2,nnambu=2)
     a[PID(site=1)]=Fermi(atom=1,norbital=1,nspin=2,nnambu=2)
     print 'a: %s'%a
-    print 'a.table:%s'%a.table(nambu=True)
+    print 'a.table:%s'%a.table(mask=[])
     print
 
 def test_indexpack():

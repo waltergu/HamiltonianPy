@@ -33,32 +33,14 @@ def kron(m1,m2,qnc1=None,qnc2=None,qnc=None,target=None,format='csr',**karg):
         assert isinstance(qnc2,QuantumNumberCollection)
         assert isinstance(target,QuantumNumber)
         logger=karg.get('logger',None)
-        hh=1
-        if hh==0:
-            for timer in ('kron1','kron2','kron3'):
-                if not logger.has_timer(timer):
-                    logger.add_timer(timer)
-            logger.proceed('kron1')
-            ndata=sp.coo_matrix(m1).nnz*sp.coo_matrix(m2).nnz
-            antipermutation=np.argsort(qnc.permutation())
-            pairs=np.array([[qnc1[qn1].start+1,qnc1[qn1].stop,qnc2[qn2].start+1,qnc2[qn2].stop] for qn1,qn2 in qnc.pairs(target)])
-            logger.suspend('kron1')
-            logger.proceed('kron2')
-            data,row,col,ndata=fkron(m1,m2,pairs.T,antipermutation,5*10**-14,ndata=ndata)
-            logger.suspend('kron2')
-            logger.proceed('kron3')
-            result=sp.coo_matrix((data[0:ndata-1],(row[0:ndata-1],col[0:ndata-1])),shape=(qnc.n,qnc.n))
-            result=result.asformat('csr')[qnc[target],qnc[target]]
-            logger.suspend('kron3')
-        else:
-            if not logger.has_timer('kron'):logger.add_timer('kron')
-            if not logger.has_timer('k.reorder'):logger.add_timer('k.reorder')
-            logger.proceed('kron')
-            result=sp.kron(m1,m2,format=format)
-            logger.suspend('kron')
-            logger.proceed('k.reorder')
-            result=qnc.reorder(result,targets=[target])
-            logger.suspend('k.reorder')
+        if not logger.has_timer('kron'):logger.add_timer('kron')
+        if not logger.has_timer('k.reorder'):logger.add_timer('k.reorder')
+        logger.proceed('kron')
+        result=sp.kron(m1,m2,format=format)
+        logger.suspend('kron')
+        logger.proceed('k.reorder')
+        result=qnc.reorder(result,targets=[target])
+        logger.suspend('k.reorder')
     else:
         result=sp.kron(m1,m2,format=format)
     return result
@@ -84,42 +66,14 @@ def kronsum(m1,m2,qnc1=None,qnc2=None,qnc=None,target=None,format='csr',**karg):
         assert isinstance(qnc2,QuantumNumberCollection)
         assert isinstance(target,QuantumNumber)
         logger=karg.get('logger',None)
-        hh=1
-        if hh==0:
-            for timer in ('kronsum1','kronsum2'):
-                if not logger.has_timer(timer):
-                    logger.add_timer(timer)
-            result=0.0
-            if m1.shape!=(0,0) or m2.shape!=(0,0):
-                logger.proceed('kronsum1')
-                temp1=np.zeros(m1.shape,dtype=m1.dtype)
-                temp2=np.zeros(m2.shape,dtype=m2.dtype)
-                pairs=qnc.pairs(target)
-                for rqn2,rqn1 in pairs:
-                    for cqn2,cqn1 in pairs:
-                        temp1[...]=0.0
-                        temp2[...]=0.0
-                        temp1[qnc1[rqn1],qnc1[cqn1]]=m1[qnc1[rqn1],qnc1[cqn1]]
-                        temp2[qnc2[rqn2],qnc2[cqn2]]=m2[qnc2[rqn2],qnc2[cqn2]]
-                        result+=sp.kronsum(temp1,temp2)
-                result=result.asformat('coo')
-                antipermutation=np.argsort(qnc.permutation())
-                result.row=antipermutation[result.row]
-                result.col=antipermutation[result.col]
-                logger.suspend('kronsum1')
-                logger.proceed('kronsum2')
-                result=result.asformat('csr')
-                logger.suspend('kronsum2')
-                result=result[qnc[target],qnc[target]]
-        else:
-            if not logger.has_timer('kronsum'):logger.add_timer('kronsum')
-            if not logger.has_timer('ks.reorder'):logger.add_timer('ks.reorder')
-            logger.proceed('kronsum')
-            result=sp.kronsum(m1,m2,format=format)
-            logger.suspend('kronsum')
-            logger.proceed('ks.reorder')
-            result=qnc.reorder(result,targets=[target])
-            logger.suspend('ks.reorder')
+        if not logger.has_timer('kronsum'):logger.add_timer('kronsum')
+        if not logger.has_timer('ks.reorder'):logger.add_timer('ks.reorder')
+        logger.proceed('kronsum')
+        result=sp.kronsum(m1,m2,format=format)
+        logger.suspend('kronsum')
+        logger.proceed('ks.reorder')
+        result=qnc.reorder(result,targets=[target])
+        logger.suspend('ks.reorder')
     else:
         result=sp.kronsum(m1,m2,format=format)
     return result

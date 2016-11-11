@@ -47,6 +47,6 @@ def tba_construct(bc='op'):
                     Onsite('mu',0.0,modulate=lambda **karg:karg.get('mu',None)),
                     Pairing('delta',0.4,neighbour=1,amplitude=lambda bond: 1 if bond.rcoord[0]>0 else -1)
                     ],
-        nambu=      True
+        mask=      []
         )
     return result

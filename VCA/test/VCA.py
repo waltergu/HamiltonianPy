@@ -40,7 +40,7 @@ def test_vca():
                         #Onsite('mu',-U/2),
                         Hubbard('U',U)
                         ],
-            nambu=      False,
+            mask=      ['nambu'],
             weiss=[     Onsite('afm',0.2,indexpacks=sigmaz('sp'),amplitude=lambda bond: 1 if bond.spoint.pid.site in (0,3) else -1,modulate=lambda **karg:karg.get('afm',None))]
             )
     gfc=GFC(nstep=200,save_data=False,vtype='RD',run=EDGFC)

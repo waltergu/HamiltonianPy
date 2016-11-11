@@ -24,7 +24,7 @@ class op:
 class SCMF(TBA):
     '''
     '''
-    def __init__(self,filling=0,mu=0,temperature=0,lattice=None,config=None,terms=None,orders=None,nambu=False,**karg):
+    def __init__(self,filling=0,mu=0,temperature=0,lattice=None,config=None,terms=None,orders=None,mask=['nambu'],**karg):
         '''
         Constructor.
         '''
@@ -35,9 +35,9 @@ class SCMF(TBA):
         self.config=config
         self.terms=terms
         self.orders=orders
-        self.nambu=nambu
+        self.mask=mask
         self.generators={}
-        self.generators['h']=Generator(bonds=lattice.bonds,config=config,table=config.table(nambu=nambu),terms=terms+orders)
+        self.generators['h']=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms+orders)
         self.name.update(const=self.generators['h'].parameters['const'])
         self.name.update(alter=self.generators['h'].parameters['alter'])
         self.ops=OrderedDict()
@@ -49,7 +49,7 @@ class SCMF(TBA):
             v=order.value
             m=zeros((nmatrix,nmatrix),dtype=complex128)
             buff=deepcopy(order);buff.value=1
-            for opt in Generator(bonds=self.lattice.bonds,config=self.config,table=self.config.table(nambu=self.nambu),terms=[buff]).operators.values():
+            for opt in Generator(bonds=self.lattice.bonds,config=self.config,table=self.config.table(mask=self.mask),terms=[buff]).operators.values():
                 m[opt.seqs]+=opt.value
             m+=conjugate(m.T)
             self.ops[order.id]=op(v,m)

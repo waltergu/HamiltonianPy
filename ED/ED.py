@@ -42,8 +42,8 @@ class ED(Engine):
             The configuration of the degrees of freedom on the lattice.
         terms: list of Term
             The terms of the system.
-        nambu: logical
-            A flag to tag whether the anomalous Green's function are computed.
+        mask: list of string
+            A list to tell whether or not to compute the anomalous Green's function.
         generators: dict of Generator
             It has only one entries:
             1) 'h': Generator
@@ -66,7 +66,7 @@ class ED(Engine):
         4) EDGF: calculates the single-particle Green's function.
     '''
 
-    def __init__(self,ensemble='c',filling=0.5,mu=0,basis=None,nspin=1,lattice=None,config=None,terms=None,nambu=False,**karg):
+    def __init__(self,ensemble='c',filling=0.5,mu=0,basis=None,nspin=1,lattice=None,config=None,terms=None,mask=['nambu'],**karg):
         '''
         Constructor.
         '''
@@ -82,9 +82,9 @@ class ED(Engine):
         self.lattice=lattice
         self.config=config
         self.terms=terms
-        self.nambu=nambu
+        self.mask=mask
         self.generators={}
-        self.generators['h']=Generator(bonds=lattice.bonds,config=config,table=config.table(nambu=False),terms=terms)
+        self.generators['h']=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms)
         self.name.update(const=self.generators['h'].parameters['const'])
         self.name.update(alter=self.generators['h'].parameters['alter'])
         self.operators={}
@@ -103,7 +103,7 @@ class ED(Engine):
 
     def set_operators_single_particle(self):
         self.operators['sp']=OperatorCollection()
-        temp=self.config.table(nambu=self.nambu)
+        temp=self.config.table()
         table=temp if self.nspin==2 else temp.subset(select=lambda index: True if index.spin==0 else False)
         for index,sequence in table.iteritems():
             pid=PID(scope=index.scope,site=index.site)

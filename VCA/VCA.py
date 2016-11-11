@@ -52,8 +52,8 @@ class VCA(ED):
             The weiss terms are not included in this list.
         weiss: list of Term
             The Weiss terms of the system.
-        nambu: logical
-            A flag to tag whether the anomalous Green's function are computed.
+        mask: list of string
+            A list to tell whether or not to compute the anomalous Green's function.
         generators: dict of Generator
             It has four entries:
             1) 'h': Generator
@@ -100,7 +100,7 @@ class VCA(ED):
         10) VCAFS: calculates the Fermi surface.
     '''
 
-    def __init__(self,ensemble='c',filling=0.5,mu=0,basis=None,nspin=1,cell=None,celfig=None,lattice=None,config=None,terms=None,weiss=None,nambu=False,**karg):
+    def __init__(self,ensemble='c',filling=0.5,mu=0,basis=None,nspin=1,cell=None,celfig=None,lattice=None,config=None,terms=None,weiss=None,mask=['nambu'],**karg):
         '''
         Constructor.
         '''
@@ -114,35 +114,35 @@ class VCA(ED):
         self.basis=basis
         self.nspin=nspin if basis.basis_type=='FS' else 2
         self.cell=cell
-        self.celfig=celfig if celfig is not None else IDFConfig({key:config[key] for key in cell.keys()},priority=config.priority)
+        self.celfig=celfig if celfig is not None else IDFConfig(pids=cell,map=config.get,priority=config.priority)
         self.lattice=lattice
         self.config=config
         self.terms=terms
         self.weiss=weiss
-        self.nambu=nambu
+        self.mask=mask
         self.generators={}
         self.generators['h']=Generator(
                     bonds=      [bond for bond in lattice.bonds if bond.is_intra_cell()],
                     config=     config,
-                    table=      config.table(nambu=False),
+                    table=      config.table(mask=['nambu']),
                     terms=      terms
                     )
         self.generators['h_w']=Generator(
                     bonds=      [bond for bond in lattice.bonds],
                     config=     config,
-                    table=      config.table(nambu=False),
+                    table=      config.table(mask=['nambu']),
                     terms=      weiss
                     )
         self.generators['pt_h']=Generator(
                     bonds=      [bond for bond in lattice.bonds if not bond.is_intra_cell()],
                     config=     config,
-                    table=      config.table(nambu=nambu) if self.nspin==2 else config.table(nambu=nambu).subset(select=lambda index: True if index.spin==0 else False),
+                    table=      config.table(mask=mask) if self.nspin==2 else config.table(mask=mask).subset(select=lambda index: True if index.spin==0 else False),
                     terms=      [term for term in terms if isinstance(term,Quadratic)],
                     )
         self.generators['pt_w']=Generator(
                     bonds=      [bond for bond in lattice.bonds],
                     config=     config,
-                    table=      config.table(nambu=nambu) if self.nspin==2 else config.table(nambu=nambu).subset(select=lambda index: True if index.spin==0 else False),
+                    table=      config.table(mask=mask) if self.nspin==2 else config.table(mask=mask).subset(select=lambda index: True if index.spin==0 else False),
                     terms=      None if weiss is None else [term*(-1) for term in weiss],
                     )
         self.name.update(const=self.generators['h'].parameters['const'])
@@ -171,15 +171,15 @@ class VCA(ED):
         table=self.generators['pt_h'].table
         self.operators['pt_h']=OperatorCollection()
         for opt in self.generators['pt_h'].operators.values():
-            if opt.indices[1] in table: self.operators['pt_h']+=opt
+            if opt.indices[1].mask(*self.mask) in table: self.operators['pt_h']+=opt
         table=self.generators['pt_w'].table 
         self.operators['pt_w']=OperatorCollection()
         for opt in self.generators['pt_w'].operators.values():
-            if opt.indices[1] in table: self.operators['pt_w']+=opt
+            if opt.indices[1].mask(*self.mask) in table: self.operators['pt_w']+=opt
 
     def set_operators_cell_single_particle(self):
         self.operators['csp']=OperatorCollection()
-        temp=self.celfig.table(nambu=self.nambu)
+        temp=self.celfig.table()
         table=temp if self.nspin==2 else temp.subset(select=lambda index: True if index.spin==0 else False)
         for index,seq in table.iteritems():
             pid=PID(scope=index.scope,site=index.site)
@@ -507,7 +507,7 @@ def VCAOP(engine,app):
     for i,term in enumerate(app.terms):
         buff=deepcopy(term);buff.value=1
         m=zeros((nmatrix,nmatrix),dtype=complex128)
-        for opt in Generator(bonds=engine.lattice.bonds,config=engine.config,table=engine.config.table(nambu=engine.nambu),terms=[buff]).operators.values():
+        for opt in Generator(bonds=engine.lattice.bonds,config=engine.config,table=engine.config.table(mask=engine.mask),terms=[buff]).operators.values():
             m[opt.seqs]+=opt.value
         m+=conjugate(m.T)
         app.ms[i,:,:]=m

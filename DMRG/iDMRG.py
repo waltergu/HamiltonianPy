@@ -17,7 +17,7 @@ def TwoSiteGrowOfLattices(scopes,block,vector):
     '''
     Return a generator over a sequence of SuperLattice with blocks added two-by-two in the center.
     Parameters:
-        scopes: list of string
+        scopes: list of hashable objects
             The scopes of the blocks to be added two-by-two into the SuperLattice.
         block: Lattice
             The building block of the SuperLattice.
@@ -60,9 +60,13 @@ class iDMRG(Engine):
             The physical degrees of freedom tree.
         chain: Chain
             The chain of the iDMRG.
+        mask: [] or ['nambu']
+            [] for spin systems and ['nambu'] for fermionic systems.
+        dtype: np.float64, np.complex128
+            The data type.
     '''
 
-    def __init__(self,name,block,vector,terms,config,degfres,chain,**karg):
+    def __init__(self,name,block,vector,terms,config,degfres,chain,mask=['nambu'],dtype=np.complex128,**karg):
         '''
         Constructor.
         Parameters:
@@ -80,6 +84,10 @@ class iDMRG(Engine):
                 The physical degrees of freedom tree.
             chain: Chain
                 The initial chain.
+            mask: [] or ['nambu']
+                [] for spin systems and ['nambu'] for fermionic systems.
+            dtype: np.float64,np.complex128, optional
+                The data type.
         '''
         self.name=name
         self.block=block
@@ -88,14 +96,30 @@ class iDMRG(Engine):
         self.config=config
         self.degfres=degfres
         self.chain=chain
-        indices=sorted(self.degfres.indices(layer=self.degfres.layers[0]),key=lambda index: index.to_tuple(priority=self.degfres.priority))
-        scopes=[index.pid.scope for index in indices]
-        for lattice in TwoSiteGrowOfLattices(scopes=scopes,block=self.block,vector=self.vector):
-            optstrs=[]
-            for operator in Generator(bonds=lattice.bonds,config=self.config,terms=self.terms,dtype=np.float64).operators.values():
-                optstrs.append(OptStr.from_operator(operator,degfres=self.degfres,layer=self.degfres.layers[0]))
-            A,B=indices.pop(0),indices.pop(-1)
-            AL=Label([('layer',self.degfres.layers[0]),('tag',A)],[('qnc',self.degfres[A])])
-            BL=Label([('layer',self.degfres.layers[0]),('tag',B)],[('qnc',self.degfres[B])])
-            self.chain.two_site_grow(AL,BL,optstrs)
+        self.mask=mask
+        self.dtype=dtype
+
+    def grow(self,scopes,targets=None):
+        '''
+        Two site growth of the idmrg.
+        Parameters:
+            scopes: list of hashable objects
+                The scopes of the blocks to be added two-by-two into the chain.
+            targets: sequence of QuantumNumber,optional
+                The target space at each growth of the chain.
+        '''
+        layer=self.degfres.layers[0]
+        for i,(lattice,target) in enumerate(zip(TwoSiteGrowOfLattices(scopes=scopes,block=self.block,vector=self.vector),targets)):
+            QuantumNumberCollection.history.clear()
+            self.config.reset(pids=lattice)
+            self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
+            operators=Generator(bonds=lattice.bonds,config=self.config,terms=self.terms,dtype=self.dtype).operators
+            if self.mask==['nambu']:
+                for operator in operators.values():
+                    operators+=operator.dagger
+            optstrs=[OptStr.from_operator(operator,degfres=self.degfres,layer=layer) for operator in operators.values()]
+            indices=sorted(self.degfres.indices(layer=layer),key=lambda index: index.to_tuple(priority=self.degfres.priority))
+            AL=Label([('layer',layer),('tag',indices[i])],[('qnc',self.degfres[indices[i]])])
+            BL=Label([('layer',layer),('tag',indices[i+1])],[('qnc',self.degfres[indices[i+1]])])
+            self.chain.two_site_grow(AL,BL,optstrs,target)
         self.lattice=lattice

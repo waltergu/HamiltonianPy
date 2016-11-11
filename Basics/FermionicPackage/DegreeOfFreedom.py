@@ -8,6 +8,7 @@ Fermionic degree of freedom package, including:
 __all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','DEFAULT_FERMI_LAYERS','FID','Fermi','FermiPack','sigmax','sigmay','sigmaz']
 
 from numpy import *
+from ..Geometry import PID
 from ..DegreeOfFreedom import *
 from copy import copy
 from collections import namedtuple
@@ -82,49 +83,23 @@ class Fermi(Internal):
         '''
         return self.atom==other.atom and self.norbital==other.norbital and self.nspin==other.nspin and self.nnambu==other.nnambu
 
-    def ndegfre(self,select=None,factor=1,*arg,**karg):
+    def indices(self,pid,mask=[]):
         '''
-        Return the number of the fermionic degrees of freedom modified by select.
-        Parameters:
-            select: list of string, optional
-                Only the indices in select can be varied in the counting of the number of the degrees of freedom.
-                When None, the total number of the fermionic degrees of freedom is returned.
-            nnambu: 1 or 2, optional
-                The extra factor that the result will be multiplied.
-        Returns: number
-            The requested number of the fermionic degrees of freedom.
-        '''
-        assert factor in (1,2)
-        if factor==2:
-            assert self.nnambu==1
-            result=2
-        else:
-            result=1
-        for key in (['orbital','spin','nambu'] if select is None else select):
-            result*=getattr(self,'n'+key)
-        return result
-
-    def indices(self,pid,nambu=False):
-        '''
-        Return a list of all the allowed indices within this internal degrees of freedom combined with an extra spatial part.
+        Return a list of all the masked indices within this internal degrees of freedom combined with an extra spatial part.
         Parameters:
             pid: PID
                 The extra spatial part of the indices.
-            nambu: logical, optional
-                A flag to tag whether or not the nambu space is used.
+            mask: list of string, optional
+                The attributes that will be masked to None.
         Returns: list of Index
-            The allowed indices.
+            The indices.
         '''
         result=[]
-        if nambu:
-            for buff in xrange(self.nnambu):
-                for spin in xrange(self.nspin):
-                    for orbital in xrange(self.norbital):
-                        result.append(Index(pid=pid,iid=FID(orbital=orbital,spin=spin,nambu=buff)))
-        else:
-            for spin in xrange(self.nspin):
-                for orbital in xrange(self.norbital):
-                    result.append(Index(pid=pid,iid=FID(orbital=orbital,spin=spin,nambu=ANNIHILATION)))
+        pid=pid._replace(**{key:None for key in set(mask)&set(PID._fields)})
+        for nambu in (None,) if 'nambu' in mask else xrange(self.nnambu):
+            for spin in (None,) if 'spin' in mask else xrange(self.nspin):
+                for orbital in (None,) if 'orbital' in mask else xrange(self.norbital):
+                    result.append(Index(pid=pid,iid=FID(orbital=orbital,spin=spin,nambu=nambu)))
         return result
 
     def seq_state(self,fid):

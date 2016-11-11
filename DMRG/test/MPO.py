@@ -22,7 +22,7 @@ def test_mpo():
     for pid in l:
         config[pid]=Spin(S=0.5)
     layer=('scope','site','S')
-    degfres=DegFreTree(config,layers=(layer,))
+    degfres=DegFreTree(mode='NB',layers=(layer,),priority=DEFAULT_SPIN_PRIORITY,leaves=config.table().keys(),map=lambda index:2)
     table=degfres.table(layer=layer)
     labels=degfres.labels(layer=layer).values()
     terms=[SpinTerm('J',3.0,neighbour=1,indexpacks=IndexPackList(SpinPack(1.0,pack=(('WG',m),('WG',m)))))]

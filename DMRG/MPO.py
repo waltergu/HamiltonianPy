@@ -6,9 +6,11 @@ Matrix product operator, including:
 __all__=['OptStr']
 
 from numpy import *
-from HamiltonianPy.Basics import OperatorF,OperatorS
-from HamiltonianPy.Math.Tensor import *
+from HamiltonianPy.Basics import OperatorF,OperatorS,CREATION
+from HamiltonianPy.Math.Tensor import Tensor,contract
+from HamiltonianPy.Math.linalg import parity
 from MPS import *
+from collections import OrderedDict
 import warnings
 
 class OptStr(list):
@@ -86,23 +88,17 @@ class OptStr(list):
                 The operator which is to be converted to the optstr form.
             degfres: DegFreTree
                 The degfretree of the system.
-            layer: string
+            layer: tuple of string
                 The layer where the optstr is to be transformed from the operator.
         Returns: OptStr
             The corresponding OptStr.
         '''
         if isinstance(operator,OperatorS):
-            return opt_str_from_operator_s(operator,degfres,layer)
+            return optstr_from_operators(operator,degfres,layer)
         elif isinstance(operator,OperatorF):
-            return opt_str_from_operator_f(operator,degfres,layer)
+            return optstr_from_operatorf(operator,degfres,layer)
         else:
             raise ValueError("OptStr.from_operator error: the class of the operator(%s) not supported."%(operator.__class__.__name__))
-
-    def __str__(self):
-        '''
-        Convert an instance to string.
-        '''
-        return '\n'.join(str(m) for m in self)
 
     def split(self,A,B,coeff=None):
         '''
@@ -257,47 +253,82 @@ class OptStr(list):
             mps2._set_ABL_(m2,Lambda2)
         return asarray(result)
 
-def opt_str_from_operator_s(operator,degfres,layer):
+    @staticmethod
+    def from_contents(value,contents,degfres,layer):
+        '''
+        Construt an optstr from contents by combining "small" physical degrees of freedom into "big" ones.
+        Parameters:
+            value: number
+                The coefficient of the optstr.
+            contents: list 2-tuple in the form (leaf,m)
+                leaf: Index
+                    The original "small" physical degrees of freedom.
+                m: 2d ndarray
+                    The matrix corresponding to the "small" physical degrees of freedom.
+            degfres: DegFreTree
+                The physical degrees of freedom.
+            layer: tuple of string
+                The layer where the "big" physical degrees of freedom of the optstr are restricted.
+        Returns: OptStr
+            The constructed optstr.
+        '''
+        ms,temp=[],{}
+        for i,(leaf,m) in enumerate(contents):
+            assert degfres.is_leaf(leaf)
+            branch=degfres.branches(layer)[leaf]
+            ms.append(m)
+            if branch in temp:
+                temp[branch][leaf]=i
+            else:
+                temp[branch]={leaf:i}
+        Ms=[1]*len(temp)
+        for i,(branch,seqs) in enumerate(temp.items()):
+            buff=[(ms[seqs[index]] if index in seqs else identity(degfres.ndegfre(index))) for index in degfres.leaves(layer)[branch]]
+            if degfres.mode=='NB':
+                for m in buff:
+                    Ms[i]=kron(Ms[i],m)
+            else:
+                for m,qnc in zip(buff,degfres.qnc_kron_paths(layer)[branch]):
+                    Ms[i]=qnc.reorder(kron(Ms[i],m),axes=[0,1])
+            label=degfres.labels(layer,full_labels=False)[branch]
+            Ms[i]=Tensor(Ms[i],labels=[label.prime,label])
+        Ms.sort(key=lambda m:degfres.table(layer)[m.labels[0].tag])
+        return OptStr(value,Ms)
+
+def optstr_from_operators(operator,degfres,layer):
     '''
     Convert an OperatorS to its corresponding OptStr form.
     For details, please see OptStr.from_operator.
     '''
-    table=degfres.table(layer)
-    branches=degfres.branches(layer)
-    leaves=degfres.leaves(layer)
-    qnc_merge_paths=degfres.qnc_kron_paths(layer)
-    labels=degfres.labels(layer)
-    temp={}
-    for i,index in enumerate(operator.indices):
-        label=branches[index]
-        if label in temp:
-            temp[label][index]=i
-        else:
-            temp[label]={index:i}
-    Ms=[]
-    for label,seqs in temp.items():
-        group=leaves[label]
-        ms=[None]*len(group)
-        for i,index in enumerate(group):
-            if index in seqs:
-                ms[i]=operator.spins[seqs[index]]
-            else:
-                ms[i]=identity(int(index.S*2)+1)
-        M=1
-        if qnc_merge_paths is None:
-            for m in ms:
-                M=kron(M,m)
-        else:
-            qncs=qnc_merge_paths[label]
-            for m,qnc in zip(ms,qncs):
-                M=qnc.reorder(kron(M,m),axes=[0,1])
-        Ms.append(Tensor(M,labels=[labels[label][1].prime,labels[label][1]]))
-    Ms.sort(key=lambda m:table[m.labels[1].tag])
-    return OptStr(operator.value,Ms)
+    return OptStr.from_contents(operator.value,[(index,matrix) for index,matrix in zip(operator.indices,operator.spins)],degfres,layer)
 
-def opt_str_from_operator_f(operator,degfres,layer):
+def optstr_from_operatorf(operator,degfres,layer):
     '''
     Convert an OperatorF to its corresponding OptStr form.
     For details, please see OptStr.from_operator.
     '''
-    pass
+    length=len(operator.indices)
+    assert length%2==0
+    table=degfres.table(degfres.layers[-1])
+    permutation=sorted(range(length),key=lambda k:table[operator.indices[k].replace(nambu=None)])
+    temp,counts=OrderedDict(),[]
+    for k in permutation:
+        leaf=operator.indices[k].replace(nambu=None)
+        m=array([[0.0,1.0],[0.0,0.0]]) if operator.indices[k].nambu==CREATION else array([[0.0,0.0],[1.0,0.0]])
+        if leaf in temp:
+            counts[-1]+=1
+            temp[leaf]=temp[leaf].dot(m)
+        else:
+            counts.append(1)
+            temp[leaf]=m
+    contents=[]
+    keys,reversed_table=temp.keys(),degfres.reversed_table(degfres.layers[-1])
+    for i in xrange(table[keys[0]],table[keys[-1]]+1):
+        leaf=reversed_table[i]
+        if leaf in temp:
+            assert counts[0] in (1,2)
+            length-=counts.pop(0)
+            contents.append((leaf,temp[leaf] if length%2==0 else temp[leaf].dot(array([[-1.0,0.0],[0.0,1.0]]))))
+        elif length%2!=0:
+            contents.append((leaf,array([[-1.0,0.0],[0.0,1.0]])))
+    return OptStr.from_contents(operator.value*parity(permutation),contents,degfres,layer)

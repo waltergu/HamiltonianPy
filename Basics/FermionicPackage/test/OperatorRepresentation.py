@@ -20,7 +20,7 @@ def test_f_opt_rep():
         config[point.pid]=Fermi(atom=0,norbital=1,nspin=2,nnambu=2)
     l=Lattice(name="WG",points=points)
     l.plot(pid_on=True)
-    table=config.table(nambu=True)
+    table=config.table(mask=[])
     a=+Hopping('t',1.0,neighbour=1,indexpacks=sigmaz("SP"))
     b=+Onsite('mu',1.0,neighbour=0,indexpacks=sigmaz("SP"))
     c=+Pairing('delta',1.0,neighbour=1,indexpacks=sigmaz("SP"))
