@@ -357,7 +357,6 @@ class Chain(MPS):
             self[env.pos]=Tensor(env.qnc.reorder(v,axes=[0]),labels=self[env.pos].labels)
             self._Hs_[sys.form][sys]=sys.qnc.reorder(ha,axes=[0,1])
             self._Hs_[env.form][env]=env.qnc.reorder(hb,axes=[0,1])
-            #print "self.cache['qnc']:",self.cache['qnc']
         else:
             sys.qnc=A.qnc*Asite.qnc
             env.qnc=Bsite.qnc*B.qnc
