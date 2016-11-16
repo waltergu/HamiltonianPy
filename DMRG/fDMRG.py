@@ -27,8 +27,7 @@ class fDMRG(Engine):
         '''
         '''
         for nstate in nstates:
-            self.chain.nmax=nstate
             while self.chain.cut>1:
-                self.chain.two_site_sweep(direction='L')
+                self.chain.two_site_sweep(direction='L',nmax=nstate)
             while self.chain.cut<self.chain.nsite-1:
-                self.chain.two_site_sweep(direction='R')
+                self.chain.two_site_sweep(direction='R',nmax=nstate)

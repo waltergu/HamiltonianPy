@@ -66,7 +66,7 @@ class iDMRG(Engine):
             The data type.
     '''
 
-    def __init__(self,name,block,vector,terms,config,degfres,chain,mask=['nambu'],dtype=np.complex128,**karg):
+    def __init__(self,name,block,vector,terms,config,degfres,chain,mask=[],dtype=np.complex128,**karg):
         '''
         Constructor.
         Parameters:
@@ -99,7 +99,7 @@ class iDMRG(Engine):
         self.mask=mask
         self.dtype=dtype
 
-    def grow(self,scopes,targets=None):
+    def grow(self,scopes,targets=None,nmax=200,tol=5*10**-14):
         '''
         Two site growth of the idmrg.
         Parameters:
@@ -107,6 +107,10 @@ class iDMRG(Engine):
                 The scopes of the blocks to be added two-by-two into the chain.
             targets: sequence of QuantumNumber,optional
                 The target space at each growth of the chain.
+            nmax: integer
+                The maximum singular values to be kept.
+            tol: float64
+                The tolerance of the singular values.
         '''
         layer=self.degfres.layers[0]
         for i,(lattice,target) in enumerate(zip(TwoSiteGrowOfLattices(scopes=scopes,block=self.block,vector=self.vector),targets)):
@@ -121,5 +125,5 @@ class iDMRG(Engine):
             indices=sorted(self.degfres.indices(layer=layer),key=lambda index: index.to_tuple(priority=self.degfres.priority))
             AL=Label([('layer',layer),('tag',indices[i])],[('qnc',self.degfres[indices[i]])])
             BL=Label([('layer',layer),('tag',indices[i+1])],[('qnc',self.degfres[indices[i+1]])])
-            self.chain.two_site_grow(AL,BL,optstrs,target)
+            self.chain.two_site_grow(AL,BL,optstrs,target,nmax=nmax,tol=tol)
         self.lattice=lattice

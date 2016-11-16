@@ -113,12 +113,6 @@ class Chain(MPS):
             The optstrs on the chain.
         target: QuantumNumber
             The target space of the chain.
-        format: string
-            The format of the matrix of the chain.
-        nmax: integer
-            The maximum bond dimension.
-        tol: float64
-            The tolerance of the singular values.
         _Hs_: dict
             It has three items:
             1) _Hs_["L"]: list of 2d ndarray
@@ -163,7 +157,7 @@ class Chain(MPS):
                 The quantum number collection of the whole chain.
     '''
 
-    def __init__(self,mode='QN',optstrs=[],ms=[],labels=None,Lambda=None,cut=None,target=None,format='csr',nmax=200,tol=5*10**-14):
+    def __init__(self,mode='QN',optstrs=[],ms=[],labels=None,Lambda=None,cut=None,target=None):
         '''
         Constructor.
         Parameters:
@@ -176,23 +170,14 @@ class Chain(MPS):
                 Please see HamiltonianPy.DMRG.MPS.MPS.__init__ for details.
             target: QuantumNumber
                 The target space of the chain.
-            format: string
-                The format of the matrix of the chain.
-            nmax: integer
-                The maximum bond dimension.
-            tol: float64
-                The tolerance of the singular values.
         '''
         assert mode in ('QN','NB')
         MPS.__init__(self,ms=ms,labels=labels,Lambda=Lambda,cut=cut)
         self.mode=mode
         self.optstrs=optstrs
-        self.target=target
-        self.format='csr'
-        self.nmax=nmax
-        self.tol=tol
         self.set_blocks_and_connections()
-        self._Hs_={"L":[None]*self.nsite,"S":[None]*self.nsite,"R":[None]*self.nsite}
+        self.set_Hs_()
+        self.target=target
         self.cache={'qnc':None}
         self.info={'gse':None,'overlap':None,'nbasis':None}
         self.logger=TimerLogger('Preparation','Hamiltonian','Diagonalization','Truncation','Total')
@@ -220,6 +205,46 @@ class Chain(MPS):
         for i in xrange(1,self.nsite):
             self.blocks["L"][i]=self.blocks["L"][i-1]+self.blocks["S"][i-1]+self.connections["L"][i]
             self.blocks["R"][i]=self.blocks["R"][i-1]+self.blocks["S"][i-1]+self.connections["R"][i]
+
+    def set_Hs_(self):
+        '''
+        Set the Hamiltonians of blocks.
+        '''
+        self._Hs_={"L":[None]*self.nsite,"S":[None]*self.nsite,"R":[None]*self.nsite}
+        if self.cut is not None:
+            for i in xrange(self.cut-1):
+                new=Block(nsite=self.nsite,form='L',pos=i,label=self[i].labels[MPS.R])
+                site=Block(nsite=self.nsite,form='S',pos=i,label=self[i].labels[MPS.S])
+                if i==0:
+                    self._Hs_['L'][new]=np.zeros((new.nbasis,new.nbasis))
+                else:
+                    self._Hs_['L'][new]=np.einsum('ikm,ij,jkn->mn',np.asarray(self[new.pos]).conjugate(),self.H(old),np.asarray(self[new.pos]))
+                us=self.us(new)
+                for optstr in self.blocks['S'][site]+self.connections['L'][new]:
+                    self._Hs_['L'][new]+=np.asarray(optstr.matrix(us=us,form='L'))
+                old=new
+            for i in reversed(range(self.cut,self.nsite)):
+                new=Block(nsite=self.nsite,form='R',pos=i,label=self[i].labels[MPS.L])
+                site=Block(nsite=self.nsite,form='S',pos=i,label=self[i].labels[MPS.S])
+                if i==self.nsite-1:
+                    self._Hs_['R'][new]=np.zeros((new.nbasis,new.nbasis))
+                else:
+                    self._Hs_['R'][new]=np.einsum('mki,ij,nkj->mn',np.asarray(self[new.pos]).conjugate(),self.H(old),np.asarray(self[new.pos]))
+                us=self.us(new)
+                for optstr in self.blocks['S'][site]+self.connections['R'][new]:
+                    self._Hs_['R'][new]+=np.asarray(optstr.matrix(us=us,form='R'))
+                old=new
+
+    def update(self,optstrs):
+        '''
+        Update the chain.
+        Parameters:
+            optstrs: list of OptStr
+                The new optstrs of the chain.
+        '''
+        self.optstrs=optstrs
+        self.set_blocks_and_connections()
+        self.set_Hs_()
 
     @property
     def sys(self):
@@ -301,6 +326,9 @@ class Chain(MPS):
         Parameters:
             block: Block
                 The block.
+            force: logical, optional
+                When True, the H are forced to be recalculated.
+                Otherwise not.
         Returns: 2d ndarray
             The block Hamiltonian.
         '''
@@ -322,10 +350,10 @@ class Chain(MPS):
         '''
         sys,env,qnc=self.sys,self.env,self.cache['qnc']
         ussys,usenv=self.us(sys),self.us(env)
-        result=kronsum(self.H(env),self.H(sys),qnc1=env.qnc,qnc2=sys.qnc,qnc=qnc,target=self.target,format=self.format,logger=self.logger)
+        result=kronsum(self.H(env),self.H(sys),qnc1=env.qnc,qnc2=sys.qnc,qnc=qnc,target=self.target,format='csr',logger=self.logger)
         for optstr in self.connections['LR'][self.cut]:
             a,b=optstr.split(ussys.table,usenv.table,coeff='A')
-            result+=kron(np.asarray(a.matrix(ussys,'L')),np.asarray(b.matrix(usenv,'R')),qnc1=sys.qnc,qnc2=env.qnc,qnc=qnc,target=self.target,format=self.format,logger=self.logger)
+            result+=kron(np.asarray(a.matrix(ussys,'L')),np.asarray(b.matrix(usenv,'R')),qnc1=sys.qnc,qnc2=env.qnc,qnc=qnc,target=self.target,format='csr',logger=self.logger)
         return result
 
     def two_site_update(self):
@@ -367,12 +395,16 @@ class Chain(MPS):
             self._Hs_[env.form][env]=hb
         self.logger.suspend('Preparation')
 
-    def two_site_truncate(self,v0=None):
+    def two_site_truncate(self,v0=None,nmax=200,tol=5*10**-14):
         '''
         The two site truncation, which truncates the central two site mps and Hamiltonians.
         Parameters:
             v0: 1d ndarray
                 The initial state used to diagonalize the Hamiltonian of the whole chain.
+            nmax: integer
+                The maximum singular values to be kept.
+            tol: float64
+                The tolerance of the singular values.
         '''
         sys,env,qnc=self.sys,self.env,self.cache['qnc']
         self.logger.proceed('Hamiltonian')
@@ -385,7 +417,7 @@ class Chain(MPS):
         self.info['overlap']=None if v0 is None else Psi[:,0].conjugate().dot(v0)
         self.logger.suspend('Diagonalization')
         self.logger.proceed('Truncation')
-        U,S,V,qnc1,qnc2,err=block_svd(Psi,sys.qnc,env.qnc,qnc=qnc,target=self.target,nmax=self.nmax,tol=self.tol,return_truncation_err=True)
+        U,S,V,qnc1,qnc2,err=block_svd(Psi,sys.qnc,env.qnc,qnc=qnc,target=self.target,nmax=nmax,tol=tol,return_truncation_err=True)
         if self.mode=='QN':
             tsys,tenv=[],[]
             for qnsys,qnenv in qnc.pairs(self.target):
@@ -410,7 +442,7 @@ class Chain(MPS):
         self.info['nbasis']=sys.nbasis
         self.info['err']=err
 
-    def two_site_grow(self,AL,BL,optstrs,target=None):
+    def two_site_grow(self,AL,BL,optstrs,target=None,nmax=200,tol=5*10**-14):
         '''
         Two site grow of the chain.
         Parameters:
@@ -420,6 +452,10 @@ class Chain(MPS):
                 The optstrs of the new chain.
             target: QuantumNumber, optional
                 The new target space.
+            nmax: integer
+                The maximum singular values to be kept.
+            tol: float64
+                The tolerance of the singular values.
         '''
         assert self.cut==None or self.cut==self.nsite/2
         assert AL not in self.table and BL not in self.table
@@ -449,19 +485,23 @@ class Chain(MPS):
         self._Hs_["R"].extend([None,None])
         self.target=target
         self.two_site_update()
-        self.two_site_truncate()
+        self.two_site_truncate(nmax=nmax,tol=tol)
         self.logger.record()
         print self.logger
         print 'nnz,nbasis,err: %s,%s,%s.'%(self.info['nnz'],self.info['nbasis'],self.info['err'])
         print 'gse: %s.'%(self.info['gse'][0])
         print
 
-    def two_site_sweep(self,direction):
+    def two_site_sweep(self,direction,nmax=200,tol=5*10**-14):
         '''
         Two site sweep of the chain.
         Parameters:
             direction: 'L' or 'R'
                 The direction of the sweep.
+            nmax: integer
+                The maximum singular values to be kept.
+            tol: float64
+                The tolerance of the singular values.
         '''
         if direction=='L':
             self<<=1
@@ -480,20 +520,20 @@ class Chain(MPS):
             v0=self.cache['qnc'].reorder(v0,axes=[0])
             v0=v0[self.cache['qnc'][self.target]]
         v0/=np.linalg.norm(v0)
-        self.two_site_truncate(v0=v0)
+        self.two_site_truncate(v0=v0,nmax=nmax,tol=tol)
         self.logger.record()
         print self.logger
         print 'nnz,nbasis,overlap,err: %s,%s,%s,%s.'%(self.info['nnz'],self.info['nbasis'],self.info['overlap'],self.info['err'])
         print 'gse: %s.'%(self.info['gse'][0])
         print
 
-def EmptyChain(mode='QN',target=None,format='csr',nmax=200,tol=5*10**-14):
+def EmptyChain(mode='QN',target=None):
     '''
     Construt an empty chain.
     Parameters:
-        mode,target,format,nmax: optional
+        mode,target: optional
             Please see Chain.__init__ for details.
     Returns: Chain
         An empty chain.
     '''
-    return Chain(mode=mode,target=target,format=format,nmax=nmax,tol=tol)
+    return Chain(mode=mode,target=target)
