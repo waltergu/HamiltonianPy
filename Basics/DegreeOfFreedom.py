@@ -280,32 +280,28 @@ class Label(tuple):
     '''
     The label of one dimension of a tensor.
     Attributes:
-        immutable: tuple of string
+        immutable: ('identifier','_prime_')
             The names of the immutable part of the label.
+        qnc: integer or QuantumNumberCollection
+            When integer, it is the dimension of the label;
+            When QuantumNumberCollection, it is the quantum number collection of the label.
     '''
 
-    def __new__(cls,immutable=[],mutable=None):
+    def __new__(cls,identifier,prime=False,qnc=None):
         '''
         Parameters:
-            immutable/mutable: sequence of (key,value) pair, optional
-                The immutable/mutable part of the label, with
-                    key: string
-                        The attributes of the label
-                    value: any object
-                        The corresponding value.
+            identifier: any hashable object
+                The index of the label
+            prime: logical, optional
+                When True, the label is in the prime form;
+                otherwise not.
+            qnc: integer or QuantumNumberCollection, optional
+                When integer, it is the dimension of the label;
+                When QuantumNumberCollection, it is the quantum number collection of the label.
         '''
-        attr_i,value_i=[],[]
-        for attr,value in immutable:
-            attr_i.append(attr)
-            value_i.append(value)
-        if '_prime_' not in attr_i:
-            attr_i.append('_prime_')
-            value_i.append(False)
-        self=tuple.__new__(cls,value_i)
-        tuple.__setattr__(self,'immutable',tuple(attr_i))
-        if mutable is not None:
-            for attr,value in mutable:
-                tuple.__setattr__(self,attr,value)
+        self=tuple.__new__(cls,(identifier,prime))
+        tuple.__setattr__(self,'immutable',('identifier','_prime_'))
+        tuple.__setattr__(self,'qnc',qnc)
         return self
 
     def replace(self,**karg):
@@ -320,11 +316,12 @@ class Label(tuple):
         Returns: Label
             The new label.
         '''
-        temp_i=[(key,karg.pop(key,value)) for key,value in zip(self.immutable,self)]
-        temp_m=[(key,karg.pop(key,value)) for key,value in self.__dict__.iteritems()]
+        result=tuple.__new__(self.__class__,[karg.pop(key,value) for key,value in zip(self.immutable,self)])
+        for key,value in self.__dict__.iteritems():
+            tuple.__setattr__(result,key,karg.pop(key,value))
         if karg:
             raise ValueError("Label replace error: %s are not the attributes of the label."%karg.keys())
-        return Label(temp_i,temp_m)
+        return result
 
     def __repr__(self):
         '''
@@ -551,11 +548,11 @@ class DegFreTree(Tree):
             When full_labels is True: OrderedDict of 3-tuple (L,S,R)
             When full_labels is False: OrderedDict of Label S
             L,S,R are in the following form:
-                L=Label([('tag',i)],[('qnc':None)])
-                S=Label([('tag',index)],[('qnc',self[index])])
-                R=Label([('tag',(i+1)%len(indices))],[('qnc':None)])
+                L=Label(identifier=i,qnc=None)
+                S=Label(identifier=index,qnc=self[index])
+                R=Label(identifier=(i+1)%len(indices),qnc=None)
             with,
-                tag: Index
+                identifier: Index
                     The physical degrees of freedom of the labels restricted on this layer.
                 i: integer
                     The sequence of the labels restricted on this layer.
@@ -567,10 +564,10 @@ class DegFreTree(Tree):
             result=OrderedDict()
             indices=sorted(self.indices(layer),key=lambda index: index.to_tuple(priority=self.priority))
             for i,index in enumerate(indices):
-                S=Label([('tag',index)],[('qnc',self[index])])
+                S=Label(identifier=index,qnc=self[index])
                 if full_labels:
-                    L=Label([('tag',i)],[('qnc',None)])
-                    R=Label([('tag',(i+1)%len(indices) if cyclic else i+1)],[('qnc',None)])
+                    L=Label(identifier=i,qnc=None)
+                    R=Label(identifier=(i+1)%len(indices),qnc=None)
                     result[index]=(L,S,R)
                 else:
                     result[index]=S

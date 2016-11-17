@@ -28,19 +28,20 @@ def kron(m1,m2,qnc1=None,qnc2=None,qnc=None,target=None,format='csr',**karg):
     Returns: sparse matrix whose format is specified by the parameter format
         The product.
     '''
+    m1,m2=np.asarray(m1),np.asarray(m2)
     if isinstance(qnc,QuantumNumberCollection):
         assert isinstance(qnc1,QuantumNumberCollection)
         assert isinstance(qnc2,QuantumNumberCollection)
         assert isinstance(target,QuantumNumber)
-        logger=karg.get('logger',None)
-        if not logger.has_timer('kron'):logger.add_timer('kron')
-        if not logger.has_timer('k.reorder'):logger.add_timer('k.reorder')
-        logger.proceed('kron')
+        #logger=karg.get('logger',None)
+        #if not logger.has_timer('kron'):logger.add_timer('kron')
+        #if not logger.has_timer('k.reorder'):logger.add_timer('k.reorder')
+        #logger.proceed('kron')
         result=sp.kron(m1,m2,format=format)
-        logger.suspend('kron')
-        logger.proceed('k.reorder')
+        #logger.suspend('kron')
+        #logger.proceed('k.reorder')
         result=qnc.reorder(result,targets=[target])
-        logger.suspend('k.reorder')
+        #logger.suspend('k.reorder')
     else:
         result=sp.kron(m1,m2,format=format)
     return result
@@ -61,19 +62,20 @@ def kronsum(m1,m2,qnc1=None,qnc2=None,qnc=None,target=None,format='csr',**karg):
     Returns: sparse matrix whose format is specified by the parameter format
         The Kronecker sum.
     '''
+    m1,m2=np.asarray(m1),np.asarray(m2)
     if isinstance(qnc,QuantumNumberCollection):
         assert isinstance(qnc1,QuantumNumberCollection)
         assert isinstance(qnc2,QuantumNumberCollection)
         assert isinstance(target,QuantumNumber)
-        logger=karg.get('logger',None)
-        if not logger.has_timer('kronsum'):logger.add_timer('kronsum')
-        if not logger.has_timer('ks.reorder'):logger.add_timer('ks.reorder')
-        logger.proceed('kronsum')
+        #logger=karg.get('logger',None)
+        #if not logger.has_timer('kronsum'):logger.add_timer('kronsum')
+        #if not logger.has_timer('ks.reorder'):logger.add_timer('ks.reorder')
+        #logger.proceed('kronsum')
         result=sp.kronsum(m1,m2,format=format)
-        logger.suspend('kronsum')
-        logger.proceed('ks.reorder')
+        #logger.suspend('kronsum')
+        #logger.proceed('ks.reorder')
         result=qnc.reorder(result,targets=[target])
-        logger.suspend('ks.reorder')
+        #logger.suspend('ks.reorder')
     else:
         result=sp.kronsum(m1,m2,format=format)
     return result
@@ -99,9 +101,9 @@ def block_svd(Psi,qnc1,qnc2,qnc=None,target=None,nmax=None,tol=None,return_trunc
     Returns:
         U,S,V: ndarray
             The svd decomposition of Psi
-        QNC1,QNC2: integer or QuantumNumberCollection
-            Their types coincide with those of qnc1 and qnc2.
-            1) integers
+        QNC: integer or QuantumNumberCollection
+            Its type coincides with those of qnc1 and qnc2.
+            1) integer
                 The number of the new singular values after the SVD
             2) QuantumNumberCollection
                 The new QuantumNumberCollection after the SVD.
@@ -122,29 +124,28 @@ def block_svd(Psi,qnc1,qnc2,qnc=None,target=None,nmax=None,tol=None,return_trunc
         temp=np.sort(np.concatenate([-s for s in Ss]))
         nmax=len(temp) if nmax is None else min(nmax,len(temp))
         tol=temp[nmax-1] if tol is None else min(-tol,temp[nmax-1])
-        U,S,V,para1,para2=[],[],[],[],[]
+        U,S,V,para=[],[],[],[]
         for u,s,v,(qn1,qn2) in zip(Us,Ss,Vs,qnc.pairs(target)):
             cut=np.searchsorted(-s,tol,side='right')
             U.append(u[:,0:cut])
             S.append(s[0:cut])
             V.append(v[0:cut,:])
-            para1.append((qn1,cut))
-            para2.append((qn2,cut))
+            para.append((qn1,cut))
         U,S,V=sl.block_diag(*U),np.concatenate(S),sl.block_diag(*V)
-        QNC1,QNC2=QuantumNumberCollection(para1),QuantumNumberCollection(para2)
+        QNC=QuantumNumberCollection(para)
         if return_truncation_err:
             err=(temp[nmax:]**2).sum()
-            return U,S,V,QNC1,QNC2,err
+            return U,S,V,QNC,err
         else:
-            return U,S,V,QNC1,QNC2
+            return U,S,V,QNC
     elif (isinstance(qnc1,int) or isinstance(qnc1,long)) and (isinstance(qnc2,int) or isinstance(qnc2,long)):
         temp=truncated_svd(Psi.reshape((qnc1,qnc2)),full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=return_truncation_err)
         U,S,V=temp[0],temp[1],temp[2]
         if return_truncation_err:
             err=temp[3]
-            return U,S,V,len(S),len(S),err
+            return U,S,V,len(S),err
         else:
-            return U,S,V,len(S),len(S)
+            return U,S,V,len(S)
     else:
         n1,n2,n=qnc1.__class__.__name__,qnc2.__class__.__name__,qnc.__class__.__name__
         raise ValueError("block_svd error: the type of qnc1(%s), qnc2(%s) and qnc(%s) do not match."%(n1,n2,n))

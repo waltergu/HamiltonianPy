@@ -122,7 +122,7 @@ class iDMRG(Engine):
                     operators+=operator.dagger
             optstrs=[OptStr.from_operator(operator,degfres=self.degfres,layer=layer) for operator in operators.values()]
             indices=sorted(self.degfres.indices(layer=layer),key=lambda index: index.to_tuple(priority=self.degfres.priority))
-            AL=Label([('tag',indices[i])],[('qnc',self.degfres[indices[i]])])
-            BL=Label([('tag',indices[i+1])],[('qnc',self.degfres[indices[i+1]])])
+            AL=Label(identifier=indices[i],qnc=self.degfres[indices[i]])
+            BL=Label(identifier=indices[i+1],qnc=self.degfres[indices[i+1]])
             self.chain.two_site_grow(AL,BL,optstrs,target,nmax=nmax,tol=tol)
         self.lattice=lattice

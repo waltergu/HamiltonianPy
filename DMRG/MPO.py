@@ -292,7 +292,7 @@ class OptStr(list):
                     Ms[i]=qnc.reorder(kron(Ms[i],m),axes=[0,1])
             label=degfres.labels(layer,full_labels=False)[branch]
             Ms[i]=Tensor(Ms[i],labels=[label.prime,label])
-        Ms.sort(key=lambda m:degfres.table(layer)[m.labels[0].tag])
+        Ms.sort(key=lambda m:degfres.table(layer)[m.labels[0].identifier])
         return OptStr(value,Ms)
 
 def optstr_from_operators(operator,degfres,layer):

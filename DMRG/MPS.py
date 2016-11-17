@@ -6,6 +6,7 @@ Matrix product state, including:
 __all__=['MPS','Vidal']
 
 import numpy as np
+from HamiltonianPy.Basics import Label
 from HamiltonianPy.Math.Tensor import *
 from HamiltonianPy.Math.linalg import truncated_svd,TOL
 from copy import copy,deepcopy
@@ -128,6 +129,7 @@ class MPS(list):
         Overloaded append.
         '''
         assert isinstance(m,Tensor) and m.ndim==3
+        assert all([isinstance(label,Label) for label in m.labels])
         list.append(self,m)
         self.table[m.labels[self.S]]=self.nsite-1
 
@@ -136,6 +138,7 @@ class MPS(list):
         Overloaded insert.
         '''
         assert isinstance(m,Tensor) and m.ndim==3
+        assert all([isinstance(label,Label) for label in m.labels])
         list.insert(self,index,m)
         self.table={m.labels[self.S]:i for i,m in enumerate(self)}
 

@@ -186,6 +186,13 @@ class QuantumNumber(tuple):
         result.types=self.types+other.types
         return result
 
+    @property
+    def zeros(self):
+        '''
+        Return a new quantum number with all the values equal to zero.
+        '''
+        return QuantumNumber([(name,0,type) for name,type in zip(self.names,self.types)])
+
 class QuantumNumberHistory(namedtuple('QuantumNumberHistory',['pairs','slices'])):
     '''
     The historical information of a quantum number.

@@ -71,26 +71,18 @@ class Block(int):
         '''
         The number of basis on this block.
         '''
-        if self.label in ('QN','NB'):
-            return 1
+        qnc=self.label.qnc
+        if isinstance(qnc,QuantumNumberCollection):
+            return qnc.n
         else:
-            qnc=self.label.qnc
-            if isinstance(qnc,QuantumNumberCollection):
-                return qnc.n
-            else:
-                return qnc
+            return qnc
 
     @property
     def qnc(self):
         '''
         The quantum number collections of the block.
         '''
-        if self.label=='QN':
-            return QuantumNumberCollection()
-        elif self.label=='NB':
-            return 1
-        else:
-            return self.label.qnc
+        return self.label.qnc
 
     @qnc.setter
     def qnc(self,value):
@@ -265,8 +257,9 @@ class Chain(MPS):
         '''
         The A block.
         '''
-        if self.cut<=1:
-            return Block(nsite=self.nsite,form='L',pos=None,label=self.mode)
+        assert self.cut>0
+        if self.cut==1:
+            return Block(nsite=self.nsite,form='L',pos=None,label=self[0].labels[MPS.L])
         else:
             return Block(nsite=self.nsite,form='L',pos=self.cut-2,label=self[self.cut-2].labels[MPS.R])
 
@@ -289,8 +282,9 @@ class Chain(MPS):
         '''
         The B block.
         '''
-        if self.cut>=self.nsite-1:
-            return Block(nsite=self.nsite,form='R',pos=None,label=self.mode)
+        assert self.cut<self.nsite
+        if self.cut==self.nsite-1:
+            return Block(nsite=self.nsite,form='R',pos=None,label=self[-1].labels[MPS.R])
         else:
             return Block(nsite=self.nsite,form='R',pos=self.cut+1,label=self[self.cut+1].labels[MPS.L])
 
@@ -350,10 +344,11 @@ class Chain(MPS):
         '''
         sys,env,qnc=self.sys,self.env,self.cache['qnc']
         ussys,usenv=self.us(sys),self.us(env)
-        result=kronsum(self.H(env),self.H(sys),qnc1=env.qnc,qnc2=sys.qnc,qnc=qnc,target=self.target,format='csr',logger=self.logger)
+        target=None if self.mode=='NB' else self.target.zeros
+        result=kronsum(self.H(env),self.H(sys),qnc1=env.qnc,qnc2=sys.qnc,qnc=qnc,target=target,format='csr')
         for optstr in self.connections['LR'][self.cut]:
             a,b=optstr.split(ussys.table,usenv.table,coeff='A')
-            result+=kron(np.asarray(a.matrix(ussys,'L')),np.asarray(b.matrix(usenv,'R')),qnc1=sys.qnc,qnc2=env.qnc,qnc=qnc,target=self.target,format='csr',logger=self.logger)
+            result+=kron(a.matrix(ussys,'L'),b.matrix(usenv,'R'),qnc1=sys.qnc,qnc2=env.qnc,qnc=qnc,target=target,format='csr')
         return result
 
     def two_site_update(self):
@@ -368,19 +363,19 @@ class Chain(MPS):
         ha=np.kron(self.H(A),np.identity(Asite.nbasis))+np.kron(np.identity(A.nbasis),self.H(Asite))
         for optstr in self.connections[sys.form][sys]:
             a,b=optstr.split(usa.table,usasite.table,coeff='B')
-            ha+=np.kron(np.asarray(a.matrix(usa,'L')),np.asarray(b.matrix(usasite,'S')))
+            ha+=np.kron(a.matrix(usa,'L'),b.matrix(usasite,'S'))
         B,Bsite,env=self.B,self.Bsite,self.env
         usb,usbsite=self.us(B),self.us(Bsite)
         v=np.identity(Bsite.nbasis*B.nbasis).reshape((-1,Bsite.nbasis,B.nbasis))
         hb=np.kron(self.H(Bsite),np.identity(B.nbasis))+np.kron(np.identity(Bsite.nbasis),self.H(B))
         for optstr in self.connections[env.form][env]:
             a,b=optstr.split(usbsite.table,usb.table,coeff='A')
-            hb+=np.kron(np.asarray(a.matrix(usbsite,'S')),np.asarray(b.matrix(usb,'R')))
+            hb+=np.kron(a.matrix(usbsite,'S'),b.matrix(usb,'R'))
         if self.mode=='QN':
             QuantumNumberCollection.clear_history(sys.qnc,env.qnc,self.cache['qnc'])
-            sys.qnc=A.qnc.kron(Asite.qnc,history=True)
-            env.qnc=Bsite.qnc.kron(B.qnc,history=True)
-            self.cache['qnc']=sys.qnc.kron(env.qnc,history=True)
+            sys.qnc=A.qnc.kron(Asite.qnc,'+',history=True)
+            env.qnc=Bsite.qnc.kron(B.qnc,'-',history=True)
+            self.cache['qnc']=sys.qnc.kron(env.qnc,'+',history=True)
             self[sys.pos]=Tensor(sys.qnc.reorder(u,axes=[2]),labels=self[sys.pos].labels)
             self[env.pos]=Tensor(env.qnc.reorder(v,axes=[0]),labels=self[env.pos].labels)
             self._Hs_[sys.form][sys]=sys.qnc.reorder(ha,axes=[0,1])
@@ -417,10 +412,10 @@ class Chain(MPS):
         self.info['overlap']=None if v0 is None else Psi[:,0].conjugate().dot(v0)
         self.logger.suspend('Diagonalization')
         self.logger.proceed('Truncation')
-        U,S,V,qnc1,qnc2,err=block_svd(Psi,sys.qnc,env.qnc,qnc=qnc,target=self.target,nmax=nmax,tol=tol,return_truncation_err=True)
         if self.mode=='QN':
+            U,S,V,new,err=block_svd(Psi,sys.qnc,env.qnc,qnc=qnc,target=self.target.zeros,nmax=nmax,tol=tol,return_truncation_err=True)
             tsys,tenv=[],[]
-            for qnsys,qnenv in qnc.pairs(self.target):
+            for qnsys,qnenv in qnc.pairs(self.target.zeros):
                 tsys.append(qnsys)
                 tenv.append(qnenv)
             syssub=sys.qnc.subslice(tsys)
@@ -430,14 +425,15 @@ class Chain(MPS):
             self._Hs_[sys.form][sys]=dagger(U).dot(self.H(sys)[:,syssub][syssub,:]).dot(U)
             self._Hs_[env.form][env]=V.dot(self.H(env)[:,envsub][envsub,:]).dot(dagger(V))
         else:
+            U,S,V,new,err=block_svd(Psi,sys.qnc,env.qnc,nmax=nmax,tol=tol,return_truncation_err=True)
             self[sys.pos]=Tensor(np.einsum('ijk,kl->ijl',np.asarray(self[sys.pos]),U),labels=self[sys.pos].labels)
             self[env.pos]=Tensor(np.einsum('lk,kji->lji',V,np.asarray(self[env.pos])),labels=self[env.pos].labels)
             self._Hs_[sys.form][sys]=dagger(U).dot(self.H(sys)).dot(U)
             self._Hs_[env.form][env]=V.dot(self.H(env)).dot(dagger(V))
         self.Lambda=Tensor(S,labels=[deepcopy(self[sys.pos].labels[MPS.R])])
         QuantumNumberCollection.clear_history(sys.qnc,env.qnc)
-        sys.qnc=qnc1
-        env.qnc=qnc2
+        sys.qnc=new
+        env.qnc=new
         self.logger.suspend('Truncation')
         self.info['nbasis']=sys.nbasis
         self.info['err']=err
@@ -459,21 +455,23 @@ class Chain(MPS):
         '''
         assert self.cut==None or self.cut==self.nsite/2
         assert AL not in self.table and BL not in self.table
-        for i,m in enumerate(self[self.nsite/2:]):
-            m.labels[MPS.L]=m.labels[MPS.L].replace(tag=m.labels[MPS.L].tag+2)
-            if i<self.nsite/2-1:
-                m.labels[MPS.R]=m.labels[MPS.R].replace(tag=m.labels[MPS.R].tag+2)
+        if self.mode=='QN':
+            diff=QuantumNumberCollection([] if target==self.target else [(target if self.target is None else target-self.target,1)])
+        for m in self[self.nsite/2:]:
+            L,R=m.labels[MPS.L],m.labels[MPS.R]
+            m.labels[MPS.L]=L.replace(identifier=L.identifier+2,qnc=L.qnc.kron(diff) if self.mode=='QN' else L.qnc)
+            m.labels[MPS.R]=R.replace(identifier=(R.identifier+2)%(self.nsite+2),qnc=R.qnc.kron(diff) if self.mode=='QN' else R.qnc)
         alabels,blabels=[None]*3,[None]*3
         if self.cut is None:
-            alabels[MPS.L]=Label([('tag',0)],[('qnc',None)])
-            blabels[MPS.R]=Label([('tag',0)],[('qnc',None)])
+            alabels[MPS.L]=Label(identifier=0,qnc=1 if target is None else QuantumNumberCollection([(target.zeros,1)]))
+            blabels[MPS.R]=Label(identifier=0,qnc=1 if target is None else QuantumNumberCollection([(target,1)]))
             self.cut=0
         else:
             alabels[MPS.L]=deepcopy(self[self.cut-1].labels[MPS.R])
             blabels[MPS.R]=deepcopy(self[self.cut].labels[MPS.L])
         alabels[MPS.S],blabels[MPS.S]=AL,BL
-        alabels[MPS.R]=Label([('tag',self.cut+1)],[('qnc',None)])
-        blabels[MPS.L]=Label([('tag',self.cut+1)],[('qnc',None)])
+        alabels[MPS.R]=Label(identifier=self.cut+1,qnc=None)
+        blabels[MPS.L]=Label(identifier=self.cut+1,qnc=None)
         self.insert(self.cut,Tensor([[[0.0]]],labels=alabels))
         self.insert(self.cut+1,Tensor([[[0.0]]],labels=blabels))
         self.cut+=1
@@ -517,7 +515,7 @@ class Chain(MPS):
         v0=np.einsum('ik,k,kj->ij',ml,np.asarray(self.Lambda),mr).ravel()
         if self.mode=='QN':
             v0=self.cache['qnc'].reorder(v0,axes=[0])
-            v0=v0[self.cache['qnc'][self.target]]
+            v0=v0[self.cache['qnc'][self.target.zeros]]
         v0/=np.linalg.norm(v0)
         self.two_site_truncate(v0=v0,nmax=nmax,tol=tol)
         self.logger.record()
@@ -526,13 +524,13 @@ class Chain(MPS):
         print 'gse: %s.'%(self.info['gse'][0])
         print
 
-def EmptyChain(mode='QN',target=None):
+def EmptyChain(mode='QN'):
     '''
     Construt an empty chain.
     Parameters:
-        mode,target: optional
+        mode: optional
             Please see Chain.__init__ for details.
     Returns: Chain
         An empty chain.
     '''
-    return Chain(mode=mode,target=target)
+    return Chain(mode=mode)
