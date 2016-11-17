@@ -1,16 +1,16 @@
 '''
 Degrees of freedom in a lattice, including:
-1) classes: Table, Index, Internal, IDFConfig, DegFreTree, IndexPack, IndexPackList
+1) classes: Table, Index, Internal, IDFConfig, Label, DegFreTree, IndexPack, IndexPackList
 '''
 
-__all__=['Table','Index','Internal','IDFConfig','DegFreTree','IndexPack','IndexPackList']
+__all__=['Table','Index','Internal','IDFConfig','Label','DegFreTree','IndexPack','IndexPackList']
 
 import numpy as np
 from Geometry import PID
-from copy import copy
+from copy import copy,deepcopy
 from collections import OrderedDict
 from QuantumNumber import QuantumNumberCollection
-from ..Math import Tree,Label
+from ..Math import Tree
 
 class Table(dict):
     '''
@@ -276,6 +276,108 @@ class IDFConfig(dict):
         '''
         return Table([index for key,value in self.items() for index in value.indices(key,mask)],key=lambda index: index.to_tuple(priority=self.priority))
 
+class Label(tuple):
+    '''
+    The label of one dimension of a tensor.
+    Attributes:
+        immutable: tuple of string
+            The names of the immutable part of the label.
+    '''
+
+    def __new__(cls,immutable=[],mutable=None):
+        '''
+        Parameters:
+            immutable/mutable: sequence of (key,value) pair, optional
+                The immutable/mutable part of the label, with
+                    key: string
+                        The attributes of the label
+                    value: any object
+                        The corresponding value.
+        '''
+        attr_i,value_i=[],[]
+        for attr,value in immutable:
+            attr_i.append(attr)
+            value_i.append(value)
+        if '_prime_' not in attr_i:
+            attr_i.append('_prime_')
+            value_i.append(False)
+        self=tuple.__new__(cls,value_i)
+        tuple.__setattr__(self,'immutable',tuple(attr_i))
+        if mutable is not None:
+            for attr,value in mutable:
+                tuple.__setattr__(self,attr,value)
+        return self
+
+    def replace(self,**karg):
+        '''
+        Return a new label with some of its attributes parts replaced.
+        Parameters:
+            karg: dict in the form (key,value), with
+                key: string
+                    The attributes of the label
+                value: any object
+                    The corresponding value.
+        Returns: Label
+            The new label.
+        '''
+        temp_i=[(key,karg.pop(key,value)) for key,value in zip(self.immutable,self)]
+        temp_m=[(key,karg.pop(key,value)) for key,value in self.__dict__.iteritems()]
+        if karg:
+            raise ValueError("Label replace error: %s are not the attributes of the label."%karg.keys())
+        return Label(temp_i,temp_m)
+
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        if self[-1]:
+            return "Label%s%s"%((tuple.__repr__(self[0:-1])),"'")
+        else:
+            return "Label%s"%(tuple.__repr__(self[0:-1]))
+
+    def __getattr__(self,key):
+        '''
+        Overloaded operator(.).
+        '''
+        return self[self.immutable.index(key)]
+
+    def __setattr__(self,key,value):
+        '''
+        The setter of overloaded operator(.).
+        '''
+        if key not in self.immutable:
+            tuple.__setattr__(self,key,value)
+        else:
+            raise TypeError("Label __setattr__ error: %s is immutable."%key)
+
+    def __copy__(self):
+        '''
+        Copy.
+        '''
+        result=tuple.__new__(self.__class__,self)
+        tuple.__setattr__(result,'__dict__',copy(self.__dict__))
+        return result
+
+    def __deepcopy__(self,memo):
+        '''
+        Deepcopy.
+        '''
+        result=tuple.__new__(self.__class__,self)
+        tuple.__setattr__(result,'__dict__',deepcopy(self.__dict__))
+        return result
+
+    @property
+    def prime(self):
+        '''
+        The prime of the label.
+        '''
+        temp=list(self)
+        temp[-1]=not temp[-1]
+        result=tuple.__new__(self.__class__,temp)
+        for key,value in self.__dict__.iteritems():
+            tuple.__setattr__(result,key,value)
+        return result
+
 class DegFreTree(Tree):
     '''
     The tree of the layered degrees of freedom.
@@ -433,7 +535,7 @@ class DegFreTree(Tree):
             self.cache[('reversed_table',layer)]=self.table(layer).reversed_table
         return self.cache[('reversed_table',layer)]
 
-    def labels(self,layer,full_labels=True):
+    def labels(self,layer,full_labels=True,cyclic=True):
         '''
         Return a list of three-labels of a specific layer.
         Parameters:
@@ -442,16 +544,17 @@ class DegFreTree(Tree):
             full_labels: logical, optional
                 When True the full labels including the bond labels and physical labels will be returned;
                 When Flase, only the physical labels will be returned.
+            cyclic: logical, optional
+                When True, the bond labels are in the cyclic form;
+                otherwise not.
         Returns: 
             When full_labels is True: OrderedDict of 3-tuple (L,S,R)
             When full_labels is False: OrderedDict of Label S
             L,S,R are in the following form:
-                L=Label([('layer',layer),('tag',i)],[('qnc':None)])
-                S=Label([('layer',layer),('tag',index)],[('qnc',self[index])])
-                R=Label([('layer',layer),('tag',(i+1)%len(indices))],[('qnc':None)])
+                L=Label([('tag',i)],[('qnc':None)])
+                S=Label([('tag',index)],[('qnc',self[index])])
+                R=Label([('tag',(i+1)%len(indices))],[('qnc':None)])
             with,
-                layer: tuple of string
-                    The layer where the labels are restricted.
                 tag: Index
                     The physical degrees of freedom of the labels restricted on this layer.
                 i: integer
@@ -464,10 +567,10 @@ class DegFreTree(Tree):
             result=OrderedDict()
             indices=sorted(self.indices(layer),key=lambda index: index.to_tuple(priority=self.priority))
             for i,index in enumerate(indices):
-                S=Label([('layer',layer),('tag',index)],[('qnc',self[index])])
+                S=Label([('tag',index)],[('qnc',self[index])])
                 if full_labels:
-                    L=Label([('layer',layer),('tag',i)],[('qnc',None)])
-                    R=Label([('layer',layer),('tag',(i+1)%len(indices))],[('qnc',None)])
+                    L=Label([('tag',i)],[('qnc',None)])
+                    R=Label([('tag',(i+1)%len(indices) if cyclic else i+1)],[('qnc',None)])
                     result[index]=(L,S,R)
                 else:
                     result[index]=S

@@ -11,7 +11,7 @@ import scipy.sparse as sp
 import time
 from scipy.sparse.linalg import eigsh
 from ..Basics import *
-from ..Math import dagger,Tensor,Label
+from ..Math import dagger,Tensor
 from MPS import *
 from MPO import *
 from linalg import kron,kronsum,block_svd
@@ -459,22 +459,21 @@ class Chain(MPS):
         '''
         assert self.cut==None or self.cut==self.nsite/2
         assert AL not in self.table and BL not in self.table
-        assert AL.layer==BL.layer
         for i,m in enumerate(self[self.nsite/2:]):
             m.labels[MPS.L]=m.labels[MPS.L].replace(tag=m.labels[MPS.L].tag+2)
             if i<self.nsite/2-1:
                 m.labels[MPS.R]=m.labels[MPS.R].replace(tag=m.labels[MPS.R].tag+2)
         alabels,blabels=[None]*3,[None]*3
         if self.cut is None:
-            alabels[MPS.L]=Label([('layer',AL.layer),('tag',0)],[('qnc',None)])
-            blabels[MPS.R]=Label([('layer',BL.layer),('tag',0)],[('qnc',None)])
+            alabels[MPS.L]=Label([('tag',0)],[('qnc',None)])
+            blabels[MPS.R]=Label([('tag',0)],[('qnc',None)])
             self.cut=0
         else:
             alabels[MPS.L]=deepcopy(self[self.cut-1].labels[MPS.R])
             blabels[MPS.R]=deepcopy(self[self.cut].labels[MPS.L])
         alabels[MPS.S],blabels[MPS.S]=AL,BL
-        alabels[MPS.R]=Label([('layer',AL.layer),('tag',self.cut+1)],[('qnc',None)])
-        blabels[MPS.L]=Label([('layer',BL.layer),('tag',self.cut+1)],[('qnc',None)])
+        alabels[MPS.R]=Label([('tag',self.cut+1)],[('qnc',None)])
+        blabels[MPS.L]=Label([('tag',self.cut+1)],[('qnc',None)])
         self.insert(self.cut,Tensor([[[0.0]]],labels=alabels))
         self.insert(self.cut+1,Tensor([[[0.0]]],labels=blabels))
         self.cut+=1

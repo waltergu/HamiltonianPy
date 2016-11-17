@@ -20,15 +20,15 @@ def test_fdmrg():
 def test_fdmrg_spin():
     print 'test_fdmrg_spin'
     # parameters
-    N,J,spin,qn_on=20,1.0,0.5,True
+    N,J,spin,qn_on=20,1.0,1.0,True
 
     # geometry
     block=Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2)
     vector=np.array([1.0,0.0])
 
     # terms
-    #terms=[SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())]
-    terms=[SpinTerm('J',J,neighbour=1,indexpacks=IndexPackList(SpinPack(0.5,('+','-')),SpinPack(0.5,('-','+'))))]
+    terms=[SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())]
+    #terms=[SpinTerm('J',J,neighbour=1,indexpacks=IndexPackList(SpinPack(0.5,('+','-')),SpinPack(0.5,('-','+'))))]
 
     # config & degfres & chain & target
     priority,layers=DEFAULT_SPIN_PRIORITY,DEFAULT_SPIN_LAYERS
@@ -36,7 +36,7 @@ def test_fdmrg_spin():
     if qn_on:
         degfres=DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SpinQNC(S=spin))
         chain=EmptyChain(mode='QN')
-        targets=[SpinQN(Sz=0.0)]*(N/2)
+        targets=[SpinQN(Sz=1.0)]*(N/2)
     else:
         degfres=DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: int(spin*2+1))
         chain=EmptyChain(mode='NB')

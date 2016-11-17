@@ -1,6 +1,6 @@
 '''
 Tensor and tensor operations, including:
-1) classes: Label, Tensor
+1) classes: Tensor
 2) functions: contract
 '''
 
@@ -10,109 +10,7 @@ from collections import namedtuple,Counter,OrderedDict
 from copy import copy,deepcopy
 from HamiltonianPy.Math.linalg import truncated_svd
 
-__all__=['Label','contract','Tensor']
-
-class Label(tuple):
-    '''
-    The label of one dimension of a tensor.
-    Attributes:
-        immutable: tuple of string
-            The names of the immutable part of the label.
-    '''
-
-    def __new__(cls,immutable=[],mutable=None):
-        '''
-        Parameters:
-            immutable/mutable: sequence of (key,value) pair, optional
-                The immutable/mutable part of the label, with
-                    key: string
-                        The attributes of the label
-                    value: any object
-                        The corresponding value.
-        '''
-        attr_i,value_i=[],[]
-        for attr,value in immutable:
-            attr_i.append(attr)
-            value_i.append(value)
-        if '_prime_' not in attr_i:
-            attr_i.append('_prime_')
-            value_i.append(False)
-        self=tuple.__new__(cls,value_i)
-        tuple.__setattr__(self,'immutable',tuple(attr_i))
-        if mutable is not None:
-            for attr,value in mutable:
-                tuple.__setattr__(self,attr,value)
-        return self
-
-    def replace(self,**karg):
-        '''
-        Return a new label with some of its attributes parts replaced.
-        Parameters:
-            karg: dict in the form (key,value), with
-                key: string
-                    The attributes of the label
-                value: any object
-                    The corresponding value.
-        Returns: Label
-            The new label.
-        '''
-        temp_i=[(key,karg.pop(key,value)) for key,value in zip(self.immutable,self)]
-        temp_m=[(key,karg.pop(key,value)) for key,value in self.__dict__.iteritems()]
-        if karg:
-            raise ValueError("Label replace error: %s are not the attributes of the label."%karg.keys())
-        return Label(temp_i,temp_m)
-
-    def __repr__(self):
-        '''
-        Convert an instance to string.
-        '''
-        if self[-1]:
-            return "Label%s%s"%((tuple.__repr__(self[0:-1])),"'")
-        else:
-            return "Label%s"%(tuple.__repr__(self[0:-1]))
-
-    def __getattr__(self,key):
-        '''
-        Overloaded operator(.).
-        '''
-        return self[self.immutable.index(key)]
-
-    def __setattr__(self,key,value):
-        '''
-        The setter of overloaded operator(.).
-        '''
-        if key not in self.immutable:
-            tuple.__setattr__(self,key,value)
-        else:
-            raise TypeError("Label __setattr__ error: %s is immutable."%key)
-
-    def __copy__(self):
-        '''
-        Copy.
-        '''
-        result=tuple.__new__(self.__class__,self)
-        tuple.__setattr__(result,'__dict__',copy(self.__dict__))
-        return result
-
-    def __deepcopy__(self,memo):
-        '''
-        Deepcopy.
-        '''
-        result=tuple.__new__(self.__class__,self)
-        tuple.__setattr__(result,'__dict__',deepcopy(self.__dict__))
-        return result
-
-    @property
-    def prime(self):
-        '''
-        The prime of the label.
-        '''
-        temp=list(self)
-        temp[-1]=not temp[-1]
-        result=tuple.__new__(self.__class__,temp)
-        for key,value in self.__dict__.iteritems():
-            tuple.__setattr__(result,key,value)
-        return result
+__all__=['contract','Tensor']
 
 class Tensor(ndarray):
     '''
