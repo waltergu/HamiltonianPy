@@ -286,6 +286,7 @@ class Label(tuple):
             When integer, it is the dimension of the label;
             When QuantumNumberCollection, it is the quantum number collection of the label.
     '''
+    repr_form=1
 
     def __new__(cls,identifier,prime=False,qnc=None):
         '''
@@ -323,14 +324,42 @@ class Label(tuple):
             raise ValueError("Label replace error: %s are not the attributes of the label."%karg.keys())
         return result
 
+    @classmethod
+    def repr_qnc_on(cls,id=False):
+        '''
+        Turn on the qnc part in the repr, and optionally, the id of the qnc.
+        '''
+        if id:
+            cls.repr_form=2
+        else:
+            cls.repr_form=1
+
+    @classmethod
+    def repr_qnc_off(cls):
+        '''
+        Turn off the qnc part in the repr.
+        '''
+        cls.repr_form=0
+
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        if self[-1]:
-            return "Label%s%s"%((tuple.__repr__(self[0:-1])),"'")
+        if self.repr_form==0:
+            if self[-1]:
+                return "Label%s%s"%((tuple.__repr__(self[0:-1])),"'")
+            else:
+                return "Label%s"%(tuple.__repr__(self[0:-1]))
+        elif self.repr_form==1:
+            if self[-1]:
+                return "Label%s%s,with qnc=%s"%((tuple.__repr__(self[0:-1])),"'",self.qnc)
+            else:
+                return "Label%s,with qnc=%s"%(tuple.__repr__(self[0:-1]),self.qnc)
         else:
-            return "Label%s"%(tuple.__repr__(self[0:-1]))
+            if self[-1]:
+                return "Label%s%s,with qnc(id=%s)=%s"%((tuple.__repr__(self[0:-1])),"'",id(self.qnc),self.qnc)
+            else:
+                return "Label%s,with qnc(id=%s)=%s"%(tuple.__repr__(self[0:-1]),id(self.qnc),self.qnc)
 
     def __getattr__(self,key):
         '''

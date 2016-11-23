@@ -227,11 +227,14 @@ class QuantumNumberCollection(OrderedDict):
     '''
     history={}
 
-    def __init__(self,para=None):
+    def __init__(self,para=[],history=False):
         '''
         Constructor.
         Parameters:
-            para: list of 2-tuple
+            para: list of QuantumNumber or 2-tuple
+            1) QuantumNumber:
+                The quantum numbers of the quantum number collection.
+            2) 2-tuple:
                 tuple[0]: QuantumNumber
                     The quantum number.
                 tuple[1]: integer or slice
@@ -239,10 +242,28 @@ class QuantumNumberCollection(OrderedDict):
                         The number of the duplicates of the quantum number
                     2) slice:
                         The corresponding slice of the quantum number.
+            history: logical, optional
+                When para is a list of QuantumNumber and history is True, the permutation information will be recorded.
         '''
         OrderedDict.__init__(self)
+        temp=np.array([isinstance(qn,QuantumNumber) for qn in para])
+        if all(temp):
+            contents=OrderedDict()
+            if history:
+                record=OrderedDict()
+                for i,qn in enumerate(para):
+                    if qn not in contents:
+                        contents[qn]=0
+                        record[qn]=QuantumNumberHistory(pairs=[],slices=[])
+                    contents[qn]+=1
+                    record[qn].slices.append(slice(i,i+1))
+                QuantumNumberCollection.history[id(self)]=record
+            else:
+                for qn in para:
+                    contents[qn]=contents.get(qn,0)+1
+            para=contents.items()
         count=0
-        if para is not None:
+        if all(temp) or all(~temp):
             for (key,value) in para:
                 if isinstance(value,int) or isinstance(value,long):
                     assert value>=0
@@ -256,6 +277,8 @@ class QuantumNumberCollection(OrderedDict):
                         count+=value.stop-value.start
                 else:
                     raise ValueError('QuantumNumberCollection construction error: improper parameter(%s).'%(value.__class__.__name__))
+        else:
+            raise ValueError('QuantumNumberCollection construction error: improper parameter type.')
         self.n=count
 
     def __repr__(self):
@@ -263,6 +286,12 @@ class QuantumNumberCollection(OrderedDict):
         Convert an instance to string.
         '''
         return ''.join(['QNC(',','.join(['%s:(%s:%s)'%(qn,value.start,value.stop) for qn,value in self.items()]),')'])
+
+    def __neg__(self):
+        '''
+        Overloaded negative(-) operator.
+        '''
+        return QuantumNumberCollection([(-key,value) for key,value in self.iteritems()])
 
     def subslice(self,targets=()):
         '''
@@ -274,6 +303,18 @@ class QuantumNumberCollection(OrderedDict):
             The subslice.
         '''
         return [i for target in targets for i in xrange(self[target].start,self[target].stop)]
+
+    def expansion(self,targets=None):
+        '''
+        The expansion of the quantum number collection.
+        Parameters:
+            targets: list of QuantumNumber, optional
+                The quantum numbers to be expanded.
+        Returns: list of QuantumNumber
+            The expanded quantum numbers.
+        '''
+        targets=self.keys() if targets is None else targets
+        return [key for key in targets for i in xrange(self[key].start,self[key].stop)]
 
     def permutation(self,targets=None):
         '''
@@ -291,24 +332,24 @@ class QuantumNumberCollection(OrderedDict):
             result=range(self.n) if targets is None else [i for i in xrange(self[target].start,self[target].stop) for target in targets]
         return result
 
-    def kron(self,other,opt='+',history=False):
+    def kron(self,other,action='+',history=False):
         '''
         Tensor dot of two quantum number collections.
         Parameters:
             self,other: QuantumNumberCollection
                 The quantum number collections to be tensor dotted.
-            opt: '+' or '-'
+            action: '+' or '-'
                 When '+', the elements from self and other are added;
                 Wehn '-', the elements from self and other are subtracted.
             history: logical, optional
                 When True, the historical information of the tensor dot process will be recorded.
                 Otherwise not.
         '''
-        assert opt in ('+-')
+        assert action in ('+-')
         if len(other)==0:
             return copy(self)
         elif len(self)==0:
-            if opt=='+':
+            if action=='+':
                 return copy(other)
             else:
                 return QuantumNumberCollection([(-key,value) for key,value in other.items()])
@@ -318,7 +359,7 @@ class QuantumNumberCollection(OrderedDict):
                 record=OrderedDict()
                 for qn1,v1 in self.items():
                     for qn2,v2 in other.items():
-                        sum=qn1+qn2 if opt=='+' else qn1-qn2
+                        sum=qn1+qn2 if action=='+' else qn1-qn2
                         if sum not in contents:
                             contents[sum]=0
                             record[sum]=QuantumNumberHistory(pairs=[],slices=[])
@@ -326,14 +367,14 @@ class QuantumNumberCollection(OrderedDict):
                         record[sum].pairs.append((qn1,qn2))
                         for i in xrange(v1.start,v1.stop):
                             record[sum].slices.append(slice(i*other.n+v2.start,i*other.n+v2.stop))
-                result=QuantumNumberCollection(contents.iteritems())
+                result=QuantumNumberCollection(contents.items())
                 QuantumNumberCollection.history[id(result)]=record
             else:
                 for qn1,v1 in self.items():
                     for qn2,v2 in other.items():
-                        sum=qn1+qn2 if opt=='+' else qn1-qn2
+                        sum=qn1+qn2 if action=='+' else qn1-qn2
                         contents[sum]=contents.get(sum,0)+(v2.stop-v2.start)*(v1.stop-v1.start)
-                result=QuantumNumberCollection(contents.iteritems())
+                result=QuantumNumberCollection(contents.items())
             return result
 
     def subset(self,targets=()):

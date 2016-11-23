@@ -7,6 +7,7 @@ __all__=['test_fdmrg']
 import numpy as np
 import HamiltonianPy as HP
 from HamiltonianPy.Basics import *
+from HamiltonianPy.DMRG.MPS import *
 from HamiltonianPy.DMRG.Chain import*
 from HamiltonianPy.DMRG.iDMRG import *
 from HamiltonianPy.DMRG.fDMRG import *
@@ -14,8 +15,8 @@ from HamiltonianPy.DMRG.fDMRG import *
 def test_fdmrg():
     print 'test_fdmrg'
     test_fdmrg_spin()
-    #test_fdmrg_spinless_fermion()
-    #test_fdmrg_spinful_fermion()
+    test_fdmrg_spinless_fermion()
+    test_fdmrg_spinful_fermion()
 
 def test_fdmrg_spin():
     print 'test_fdmrg_spin'
@@ -27,8 +28,8 @@ def test_fdmrg_spin():
     vector=np.array([1.0,0.0])
 
     # terms
-    #terms=[SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())]
-    terms=[SpinTerm('J',J,neighbour=1,indexpacks=IndexPackList(SpinPack(0.5,('+','-')),SpinPack(0.5,('-','+'))))]
+    terms=[SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())]
+    #terms=[SpinTerm('J',J,neighbour=1,indexpacks=IndexPackList(SpinPack(0.5,('+','-')),SpinPack(0.5,('-','+'))))]
 
     # config & degfres & chain & target
     priority,layers=DEFAULT_SPIN_PRIORITY,DEFAULT_SPIN_LAYERS
@@ -43,11 +44,12 @@ def test_fdmrg_spin():
         targets=[None]*(N/2)
 
     # dmrg
-    idmrg=iDMRG(name='iDMRG',block=block,vector=vector,terms=terms,config=config,degfres=degfres,chain=chain,dtype=np.float64)
+    idmrg=iDMRG(name='iDMRG(spin-%s)'%(spin),block=block,vector=vector,terms=terms,config=config,degfres=degfres,chain=chain,dtype=np.float64)
     idmrg.grow(scopes=range(N),targets=targets,nmax=20)
-    fdmrg=fDMRG(name='fDMRG',lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain)
+    fdmrg=fDMRG(name='fDMRG(spin-%s)'%(spin),lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain)
     #fdmrg.chain.update(optstrs=fdmrg.chain.optstrs)
     fdmrg.sweep([20,30,60,100,200,200])
+    #check_block(fdmrg.name,fdmrg.chain)
     print
 
 def test_fdmrg_spinless_fermion():
@@ -75,10 +77,11 @@ def test_fdmrg_spinless_fermion():
         targets=[None]*(N/2)
 
     # dmrg
-    idmrg=iDMRG(name='iDMRG',block=block,vector=vector,terms=terms,config=config,degfres=degfres,mask=['nambu'],chain=chain,dtype=np.float64)
+    idmrg=iDMRG(name='iDMRG(fermion-no-spin)',block=block,vector=vector,terms=terms,config=config,degfres=degfres,mask=['nambu'],chain=chain,dtype=np.float64)
     idmrg.grow(scopes=range(N),targets=targets,nmax=20)
-    fdmrg=fDMRG(name='fDMRG',lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain)
+    fdmrg=fDMRG(name='fDMRG(fermion-no-spin)',lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain)
     fdmrg.sweep([20,30,60,100,200,200])
+    #check_block(fdmrg.name,fdmrg.chain)
     print
 
 def test_fdmrg_spinful_fermion():
@@ -106,8 +109,31 @@ def test_fdmrg_spinful_fermion():
         targets=[None]*(N/2)
 
     # dmrg
-    idmrg=iDMRG(name='iDMRG',block=block,vector=vector,terms=terms,config=config,degfres=degfres,mask=['nambu'],chain=chain,dtype=np.float64)
+    idmrg=iDMRG(name='iDMRG(fermion-spin-1/2)',block=block,vector=vector,terms=terms,config=config,degfres=degfres,mask=['nambu'],chain=chain,dtype=np.float64)
     idmrg.grow(scopes=range(N),targets=targets,nmax=20)
-    fdmrg=fDMRG(name='fDMRG',lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain)
+    fdmrg=fDMRG(name='fDMRG(fermion-spin-1/2)',lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain)
     fdmrg.sweep([20,30,50,50,50])
+    #check_block(fdmrg.name,fdmrg.chain)
+    print
+
+def check_block(name,mps):
+    print '%s check block'%(name)
+    direction,count='L',0
+    while count<2:
+        if direction=='L':
+            try:
+                mps<<=1
+            except:
+                direction='R'
+                count+=1
+        else:
+            try:
+                mps>>=1
+            except:
+                direction='L'
+        print 'cut:',mps.cut
+        for m in mps:
+            L,S,R=m.labels
+            _generate_qnc_(np.asarray(m),bond=L.qnc,site=S.qnc,mode='R')
+            _generate_qnc_(np.asarray(m),site=S.qnc,bond=R.qnc,mode='L')
     print

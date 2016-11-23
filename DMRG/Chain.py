@@ -14,7 +14,7 @@ from ..Basics import *
 from ..Math import dagger,Tensor
 from MPS import *
 from MPO import *
-from linalg import kron,kronsum,block_svd
+from linalg import kron,kronsum,vblock_svd
 from copy import copy,deepcopy
 
 class Block(int):
@@ -98,9 +98,6 @@ class Chain(MPS):
     '''
     The chain of blocks.
     Attribues:
-        mode: 'QN' or 'NB'
-            'QN' for using good quantum numbers and
-            'NB' for not using good quantum numbers.
         optstrs: List of OptStr
             The optstrs on the chain.
         target: QuantumNumber
@@ -149,23 +146,19 @@ class Chain(MPS):
                 The quantum number collection of the whole chain.
     '''
 
-    def __init__(self,mode='QN',optstrs=[],ms=[],labels=None,Lambda=None,cut=None,target=None):
+    def __init__(self,optstrs=[],mode='QN',ms=[],labels=None,Lambda=None,cut=None,target=None):
         '''
         Constructor.
         Parameters:
-            mode: 'QN' or 'NB'
-                'QN' for using good quantum numbers and
-                'NB' for not using good quantum numbers.
             optstrs: list of OptStr, optional
                 The optstrs in the chain.
-            ms,labels,Lambda,cut: optional
+            mode,ms,labels,Lambda,cut: optional
                 Please see HamiltonianPy.DMRG.MPS.MPS.__init__ for details.
             target: QuantumNumber
                 The target space of the chain.
         '''
         assert mode in ('QN','NB')
-        MPS.__init__(self,ms=ms,labels=labels,Lambda=Lambda,cut=cut)
-        self.mode=mode
+        MPS.__init__(self,mode=mode,ms=ms,labels=labels,Lambda=Lambda,cut=cut)
         self.optstrs=optstrs
         self.set_blocks_and_connections()
         self.set_Hs_()
@@ -355,7 +348,6 @@ class Chain(MPS):
         '''
         The two site update, which resets the central two mps and Hamiltonians of the chain.
         '''
-        print 'ChainRep:',self.graph
         self.logger.proceed('Preparation')
         A,Asite,sys=self.A,self.Asite,self.sys
         usa,usasite=self.us(A),self.us(Asite)
@@ -413,24 +405,24 @@ class Chain(MPS):
         self.logger.suspend('Diagonalization')
         self.logger.proceed('Truncation')
         if self.mode=='QN':
-            U,S,V,new,err=block_svd(Psi,sys.qnc,env.qnc,qnc=qnc,target=self.target.zeros,nmax=nmax,tol=tol,return_truncation_err=True)
             tsys,tenv=[],[]
             for qnsys,qnenv in qnc.pairs(self.target.zeros):
                 tsys.append(qnsys)
                 tenv.append(qnenv)
-            syssub=sys.qnc.subslice(tsys)
-            envsub=env.qnc.subslice(tenv)
-            self[sys.pos]=Tensor(np.einsum('ijk,kl->ijl',np.asarray(self[sys.pos])[:,:,syssub],U),labels=self[sys.pos].labels)
-            self[env.pos]=Tensor(np.einsum('lk,kji->lji',V,np.asarray(self[env.pos])[envsub,:,:]),labels=self[env.pos].labels)
-            self._Hs_[sys.form][sys]=dagger(U).dot(self.H(sys)[:,syssub][syssub,:]).dot(U)
-            self._Hs_[env.form][env]=V.dot(self.H(env)[:,envsub][envsub,:]).dot(dagger(V))
+            U,S,V,new,err=vblock_svd(Psi,sys.qnc.subset(tsys),env.qnc.subset(tenv),nmax=nmax,tol=tol,return_truncation_err=True)
+            sysslice=sys.qnc.subslice(tsys)
+            envslice=env.qnc.subslice(tenv)
+            self[sys.pos]=Tensor(np.einsum('ijk,kl->ijl',np.asarray(self[sys.pos])[:,:,sysslice],U),labels=self[sys.pos].labels)
+            self[env.pos]=Tensor(np.einsum('lk,kji->lji',V,np.asarray(self[env.pos])[envslice,:,:]),labels=self[env.pos].labels)
+            self._Hs_[sys.form][sys]=dagger(U).dot(self.H(sys)[:,sysslice][sysslice,:]).dot(U)
+            self._Hs_[env.form][env]=V.dot(self.H(env)[:,envslice][envslice,:]).dot(dagger(V))
         else:
-            U,S,V,new,err=block_svd(Psi,sys.qnc,env.qnc,nmax=nmax,tol=tol,return_truncation_err=True)
+            U,S,V,new,err=vblock_svd(Psi,sys.qnc,env.qnc,nmax=nmax,tol=tol,return_truncation_err=True)
             self[sys.pos]=Tensor(np.einsum('ijk,kl->ijl',np.asarray(self[sys.pos]),U),labels=self[sys.pos].labels)
             self[env.pos]=Tensor(np.einsum('lk,kji->lji',V,np.asarray(self[env.pos])),labels=self[env.pos].labels)
             self._Hs_[sys.form][sys]=dagger(U).dot(self.H(sys)).dot(U)
             self._Hs_[env.form][env]=V.dot(self.H(env)).dot(dagger(V))
-        self.Lambda=Tensor(S,labels=[deepcopy(self[sys.pos].labels[MPS.R])])
+        self.Lambda=Tensor(S,labels=[self[sys.pos].labels[MPS.R]])
         QuantumNumberCollection.clear_history(sys.qnc,env.qnc)
         sys.qnc=new
         env.qnc=new
@@ -459,8 +451,8 @@ class Chain(MPS):
             diff=QuantumNumberCollection([] if target==self.target else [(target if self.target is None else target-self.target,1)])
         for m in self[self.nsite/2:]:
             L,R=m.labels[MPS.L],m.labels[MPS.R]
-            m.labels[MPS.L]=L.replace(identifier=L.identifier+2,qnc=L.qnc.kron(diff) if self.mode=='QN' else L.qnc)
-            m.labels[MPS.R]=R.replace(identifier=(R.identifier+2)%(self.nsite+2),qnc=R.qnc.kron(diff) if self.mode=='QN' else R.qnc)
+            m.labels[MPS.L]=L.replace(identifier=L.identifier+2,qnc=L.qnc.kron(diff,'+') if self.mode=='QN' else L.qnc)
+            m.labels[MPS.R]=R.replace(identifier=0 if R.identifier==0 else R.identifier+2,qnc=R.qnc.kron(diff,'+') if self.mode=='QN' else R.qnc)
         alabels,blabels=[None]*3,[None]*3
         if self.cut is None:
             alabels[MPS.L]=Label(identifier=0,qnc=1 if target is None else QuantumNumberCollection([(target.zeros,1)]))
@@ -481,6 +473,7 @@ class Chain(MPS):
         self._Hs_["S"].extend([None,None])
         self._Hs_["R"].extend([None,None])
         self.target=target
+        print 'ChainRep: %s(++)'%(self.graph)
         self.two_site_update()
         self.two_site_truncate(nmax=nmax,tol=tol)
         self.logger.record()
@@ -502,8 +495,10 @@ class Chain(MPS):
         '''
         if direction=='L':
             self<<=1
+            print 'ChainRep: %s(<<)'%(self.graph)
         else:
             self>>=1
+            print 'ChainRep: %s(>>)'%(self.graph)
         A,Asite,sys=self.A,self.Asite,self.sys
         B,Bsite,env=self.B,self.Bsite,self.env
         ml=np.asarray(self[sys.pos]).reshape((A.nbasis*Asite.nbasis,sys.nbasis))

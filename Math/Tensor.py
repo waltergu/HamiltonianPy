@@ -141,9 +141,9 @@ class Tensor(ndarray):
             indices: integer / list of integers
                 The indices of the values to extract.
             label: any hashable object, optional
-                The label of the axis along which to select values.
+                The label of the axis along which to take values.
             axis: integer, optional
-                The axis along which to select values.
+                The axis along which to take values.
             NOTE: label and axis should not be assigned at the same time. 
                   But if this does happen, axis will be omitted.
         Returns: Tensor
@@ -207,7 +207,7 @@ def contract(*tensors,**karg):
             The tensors to be contracted.
         karg['sequence']: list of tuple, 'sequential','reversed'
             The contraction sequence of the tensors.
-        karg['select']: list of hashable objects
+        karg['reserve']: list of hashable objects
             The labels that are repeated but not summed over.
     Returns: Tensor
         The contracted tensor.
@@ -234,12 +234,15 @@ def _contract_(*tensors,**karg):
     '''
     Contract a small collection of tensors.
     '''
-    select={key:True for key in karg.get('select',[])}
+    replace,reserve={},{}
+    for key in karg.get('reserve',[]):
+        replace[key]=key
+        reserve[key]=True
     lists=[tensor.labels for tensor in tensors]
-    alls=[label for labels in lists for label in labels]
+    alls=[replace.get(label,label) for labels in lists for label in labels]
     counts=Counter(alls)
     table={key:i for i,key in enumerate(counts)}
     subscripts=[''.join(chr(table[label]+97) for label in labels) for labels in lists]
-    contracted_labels=[label for label in alls if (counts[label]==1 or select.pop(label,False))]
+    contracted_labels=[label for label in alls if (counts[label]==1 or reserve.pop(label,False))]
     contracted_subscript=''.join(chr(table[label]+97) for label in contracted_labels)
     return Tensor(einsum('%s->%s'%(','.join(subscripts),contracted_subscript),*tensors),labels=contracted_labels)
