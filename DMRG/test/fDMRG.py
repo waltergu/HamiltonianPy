@@ -46,7 +46,7 @@ def test_fdmrg_spin():
     # dmrg
     idmrg=iDMRG(name='iDMRG(spin-%s)'%(spin),block=block,vector=vector,terms=terms,config=config,degfres=degfres,chain=chain,dtype=np.float64)
     idmrg.grow(scopes=range(N),targets=targets,nmax=20)
-    fdmrg=fDMRG(name='fDMRG(spin-%s)'%(spin),lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain)
+    fdmrg=fDMRG(name='fDMRG(spin-%s)'%(spin),lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain,mask=idmrg.mask,dtype=idmrg.dtype)
     #fdmrg.chain.update(optstrs=fdmrg.chain.optstrs)
     fdmrg.sweep([20,30,60,100,200,200])
     #check_block(fdmrg.name,fdmrg.chain)
@@ -79,7 +79,7 @@ def test_fdmrg_spinless_fermion():
     # dmrg
     idmrg=iDMRG(name='iDMRG(fermion-no-spin)',block=block,vector=vector,terms=terms,config=config,degfres=degfres,mask=['nambu'],chain=chain,dtype=np.float64)
     idmrg.grow(scopes=range(N),targets=targets,nmax=20)
-    fdmrg=fDMRG(name='fDMRG(fermion-no-spin)',lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain)
+    fdmrg=fDMRG(name='fDMRG(fermion-no-spin)',lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain,mask=idmrg.mask,dtype=idmrg.dtype)
     fdmrg.sweep([20,30,60,100,200,200])
     #check_block(fdmrg.name,fdmrg.chain)
     print
@@ -87,14 +87,14 @@ def test_fdmrg_spinless_fermion():
 def test_fdmrg_spinful_fermion():
     print 'test_fdmrg_spinful_fermion'
     # parameters
-    N,t,qn_on=20,-0.25,True
+    N,t,U,qn_on=20,-1,1.0,True
 
     # geometry
     block=Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2)
     vector=np.array([1.0,0.0])
 
     # terms
-    terms=[Hopping('t',t,neighbour=1)]
+    terms=[Hopping('t',t,neighbour=1),Hubbard('U',U)]
 
     # idfconfig
     priority,layers=('scope','site','orbital','spin','nambu'),[('scope','site','orbital'),('spin',)]
@@ -111,9 +111,11 @@ def test_fdmrg_spinful_fermion():
     # dmrg
     idmrg=iDMRG(name='iDMRG(fermion-spin-1/2)',block=block,vector=vector,terms=terms,config=config,degfres=degfres,mask=['nambu'],chain=chain,dtype=np.float64)
     idmrg.grow(scopes=range(N),targets=targets,nmax=20)
-    fdmrg=fDMRG(name='fDMRG(fermion-spin-1/2)',lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain)
-    fdmrg.sweep([20,30,50,50,50])
+    fdmrg=fDMRG(name='fDMRG(fermion-spin-1/2)',lattice=idmrg.lattice,terms=idmrg.terms,config=idmrg.config,degfres=idmrg.degfres,chain=idmrg.chain,mask=idmrg.mask,dtype=idmrg.dtype)
+    fdmrg.sweep([20,30])
     #check_block(fdmrg.name,fdmrg.chain)
+    fdmrg.level_up(n=1)
+    fdmrg.sweep([50,100])
     print
 
 def check_block(name,mps):
@@ -134,6 +136,6 @@ def check_block(name,mps):
         print 'cut:',mps.cut
         for m in mps:
             L,S,R=m.labels
-            _generate_qnc_(np.asarray(m),bond=L.qnc,site=S.qnc,mode='R')
-            _generate_qnc_(np.asarray(m),site=S.qnc,bond=R.qnc,mode='L')
+            bond_qnc_generation(np.asarray(m),bond=L.qnc,site=S.qnc,mode='R')
+            bond_qnc_generation(np.asarray(m),site=S.qnc,bond=R.qnc,mode='L')
     print

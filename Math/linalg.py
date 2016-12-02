@@ -12,7 +12,7 @@ import numpy.linalg as nl
 import scipy.linalg as sl
 from copy import copy
 
-TOL=5*10**-14
+TOL=5*10**-12
 
 def parity(permutation):
     '''

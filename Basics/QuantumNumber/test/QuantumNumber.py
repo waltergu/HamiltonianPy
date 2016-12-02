@@ -42,6 +42,8 @@ def test_quantum_number_collection():
         b=b.kron(a,history=True)
     print 'b: ',b
     print 'b.permutation:%s'%b.permutation
+    QuantumNumberCollection.clear_history()
+    print
 
 import time
 def test_quantum_number_time():
@@ -58,4 +60,5 @@ def test_quantum_number_time():
     c=b.kron(b,history=True)
     t4=time.time()
     print 'Summation of %s and %s: %ss.'%(N,N,t4-t3)
+    QuantumNumberCollection.clear_history()
     print

@@ -369,7 +369,7 @@ class Label(tuple):
 
     def __setattr__(self,key,value):
         '''
-        The setter of overloaded operator(.).
+        The setter of the overloaded operator(.).
         '''
         if key not in self.immutable:
             tuple.__setattr__(self,key,value)
@@ -470,45 +470,37 @@ class DegFreTree(Tree):
             temp=[key for layer in self.layers for key in layer]
             assert set(range(len(PID._fields)))==set([temp.index(key) for key in PID._fields])
             temp=set(temp)
-            self.add_leaf(parent=None,leaf=tuple([None]*len(temp|set(leaves[0].__dict__))),data=None)
+            self.add_leaf(parent=None,leaf=tuple([None]*len(leaves[0])),data=None)
             for layer in self.layers:
                 temp-=set(layer)
                 indices=set([index.replace(**{key:None for key in temp}) for index in leaves])
-                for index in indices:
+                self.cache[('indices',layer)]=sorted(indices,key=lambda index: index.to_tuple(priority=self.priority))
+                self.cache[('table',layer)]=Table(self.indices(layer=layer))
+                self.cache[('reversed_table',layer)]=self.table(layer=layer).reversed_table
+                for index in self.indices(layer=layer):
                     self.add_leaf(parent=index.replace(**{key:None for key in layer}),leaf=index,data=None)
-            self._distribute_indices_()
             if self.mode=='QN':
                 for i,layer in enumerate(reversed(self.layers)):
-                    key=('qnc_kron_paths',layer)
+                    key=('qnc_evolutions',layer)
                     self.cache[key]={}
                     if i==0:
                         for index in self.indices(layer):
-                            content=self.map(index)
-                            self.cache[key][index]=[content]
-                            self[index]=content
+                            self[index]=self.map(index)
+                            self.cache[key][index]=[self[index]]
                     else:
-                        for label,indices in self.leaves(layer).items():
+                        for index in self.indices(layer):
                             buff=[]
-                            for j,index in enumerate(indices):
+                            for j,child in enumerate(self.children(index)):
                                 if j==0:
-                                    buff.append(self[index])
+                                    buff.append(self[child])
                                 else:
-                                    buff.append(buff[j-1].kron(self[index],history=True))
-                            self.cache[key][label]=buff
-                            self[label]=buff[-1]
+                                    buff.append(buff[j-1].kron(self[child],'+',history=True))
+                            self.cache[key][index]=buff
+                            self[index]=buff[-1]
             else:
                 for i,layer in enumerate(reversed(self.layers)):
                    for index in self.indices(layer):
                         self[index]=self.map(index) if i==0 else np.product([self[child] for child in self.children(index)])
-
-    def _distribute_indices_(self):
-        '''
-        Distribute the indices into layers.
-        '''
-        pool=[self.root]
-        for i in xrange(len(self.layers)):
-            pool=[node for key in pool for node in self.children(key)]
-            self.cache[('indices',self.layers[i])]=pool
 
     def ndegfre(self,index):
         '''
@@ -544,8 +536,6 @@ class DegFreTree(Tree):
         Returns: Table
             The index-sequence table.
         '''
-        if ('table',layer) not in self.cache:
-            self.cache[('table',layer)]=Table(self.indices(layer),key=lambda index: index.to_tuple(priority=self.priority))
         return self.cache[('table',layer)]
 
     def reversed_table(self,layer):
@@ -557,22 +547,31 @@ class DegFreTree(Tree):
         Returns: Table
             The sequence-index table.
         '''
-        if ('reversed_table',layer) not in self.cache:
-            self.cache[('reversed_table',layer)]=self.table(layer).reversed_table
         return self.cache[('reversed_table',layer)]
 
-    def labels(self,layer,full_labels=True,cyclic=True):
+    def qnc_evolutions(self,layer):
         '''
-        Return a list of three-labels of a specific layer.
+        Retrun a dict in the form {branch:qncs}
+            branch: index
+                A branch on a specific layer.
+            qncs: list of QuantumNumberCollection
+                The kron path of the quantum number collection corresponding to the branch.
+        Parameters:
+            layer: tuple of string
+                The layer where the branches are restricted.
+        Returns: as above.
+        '''
+        return self.cache.get(('qnc_evolutions',layer),None)
+
+    def labels(self,layer,full_labels=True):
+        '''
+        Return a OrderedDict of labels on a specific layer.
         Parameters:
             layer: tuple of string
                 The layer where the labels are restricted.
             full_labels: logical, optional
                 When True the full labels including the bond labels and physical labels will be returned;
                 When Flase, only the physical labels will be returned.
-            cyclic: logical, optional
-                When True, the bond labels are in the cyclic form;
-                otherwise not.
         Returns: 
             When full_labels is True: OrderedDict of 3-tuple (L,S,R)
             When full_labels is False: OrderedDict of Label S
@@ -602,61 +601,6 @@ class DegFreTree(Tree):
                     result[index]=S
             self.cache[('labels',layer,full_labels)]=result
         return self.cache[('labels',layer,full_labels)]
-
-    def branches(self,layer):
-        '''
-        Retrun a dict in the form {leaf:branch}
-            leaf: index
-                A leaf of the degfretree.
-            branch: index
-                The branch restricted on a layer where the leaf comes from.
-        Parameters:
-            layer: tuple of string
-                The layer where the branches are restricted.
-        Returns: as above.
-        '''
-        if ('branches',layer) not in self.cache:
-            attrs=[attr for value in self.layers[0:self.layers.index(layer)+1] for attr in value]
-            self.cache[('branches',layer)]={index:index.select(*attrs) for index in self.indices(self.layers[-1])}
-        return self.cache[('branches',layer)]
-
-    def leaves(self,layer):
-        '''
-        Return a dict in the form {branch:leaves}
-            branch: index
-                A branch on a specific layer.
-            leaves: list of index
-                The leaves of the branch in a certain order.
-        Parameters:
-            layer: tuple of string
-                The layer where the branches are restricted.
-        Returns: as above.
-        '''
-        if ('leaves',layer) not in self.cache:
-            result={}
-            attrs=[attr for value in self.layers[0:self.layers.index(layer)+1] for attr in value]
-            for index in sorted(self.indices(self.layers[-1]),key=self.table(self.layers[-1]).get):
-                label=index.select(*attrs)
-                if label in result:
-                    result[label].append(index)
-                else:
-                    result[label]=[index]
-            self.cache[('leaves',layer)]=result
-        return self.cache[('leaves',layer)]
-
-    def qnc_kron_paths(self,layer):
-        '''
-        Retrun a dict in the form {branch:qncs}
-            branch: index
-                A branch on a specific layer.
-            qncs: list of QuantumNumberCollection
-                The kron path of the quantum number collection corresponding to the branch.
-        Parameters:
-            layer: tuple of string
-                The layer where the branches are restricted.
-        Returns: as above.
-        '''
-        return self.cache.get(('qnc_kron_paths',layer),None)
 
 class IndexPack(object):
     '''

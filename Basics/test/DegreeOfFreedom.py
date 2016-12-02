@@ -56,6 +56,7 @@ def test_deg_fre_tree():
         for i,index in enumerate(tree.indices(layer)):
             print i,index,tree[index].n,tree[index]
         print
+    QuantumNumberCollection.clear_history()
 
     config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY)
     for site in xrange(4):
@@ -83,4 +84,5 @@ def test_deg_fre_tree():
         for i,index in enumerate(tree.indices(layer)):
             print i,index,tree[index]
         print
+    QuantumNumberCollection.clear_history()
     print

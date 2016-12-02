@@ -1,56 +1,15 @@
 '''
 Matrix product state, including:
-1) functions: _generate_qnc_
-2) classes: MPS, Vidal
+1) classes: MPS, Vidal
 '''
 
-__all__=['_generate_qnc_','MPS','Vidal']
+__all__=['MPS','Vidal']
 
 import numpy as np
-from HamiltonianPy.Basics import Label,QuantumNumberCollection
+from HamiltonianPy.Basics import Label,QuantumNumberCollection,bond_qnc_generation,mb_svd,kron,kronsum,expanded_svd
 from HamiltonianPy.Math.Tensor import *
 from HamiltonianPy.Math.linalg import truncated_svd,TOL
-from HamiltonianPy.DMRG.linalg import mblock_svd
 from copy import copy,deepcopy
-
-def _generate_qnc_(m,bond,site,mode='L',history=False):
-    '''
-    Generate the qnc of the left/right dimension of m.
-    Parameters:
-        m: 3d ndarray-like
-            The matrix whose qnc is to be generated.
-        bond,site: QuantumNumberCollection
-            The bond qnc and site qnc of m.
-        mode: 'L' or 'R', optional
-            When 'L', the left bond qnc is to be generated;
-            When 'R', the right bond qnc is to be generated.
-        history: True or False, optional
-            When True, the permutation information will be recorded;
-            Otherwise not.
-    Returns: QuantumNumberCollection
-        The generated bond qnc.
-    '''
-    assert m.ndim==3 and mode in 'LR'
-    bqnc,sqnc=bond.expansion(),site.expansion()
-    if mode=='L':
-        indices=sorted(np.argwhere(np.abs(m)>TOL),key=lambda row: row[0])
-        result=[None]*m.shape[0]
-        for index in indices:
-            L,S,R=index
-            if result[L] is None:
-                result[L]=bqnc[R]-sqnc[S]
-            else:
-                assert result[L]==bqnc[R]-sqnc[S]
-    else:
-        indices=sorted(np.argwhere(np.abs(m)>TOL),key=lambda row: row[2])
-        result=[None]*m.shape[2]
-        for index in indices:
-            L,S,R=index
-            if result[R] is None:
-                result[R]=bqnc[L]+sqnc[S]
-            else:
-                assert result[R]==bqnc[L]+sqnc[S]
-    return QuantumNumberCollection(result,history=history)
 
 class MPS(list):
     '''
@@ -94,6 +53,7 @@ class MPS(list):
             cut: integer, optional
                 The index of the connecting link.
         '''
+        assert mode in ('QN','NB')
         self.mode=mode
         if (Lambda is None)!=(cut is None):
             raise ValueError('MPS construction error: cut and Lambda should be both or neither be None.')
@@ -172,7 +132,7 @@ class MPS(list):
             nd=len(s)
         return MPS(ms=ms,labels=labels,Lambda=Lambda,cut=cut)
 
-    def generate_qnc(self,inbond,sites):
+    def qnc_generation(self,inbond,sites):
         '''
         Generate the qnc of the MPS.
         Parameters:
@@ -192,7 +152,7 @@ class MPS(list):
             m=site.reorder(m,axes=[MPS.S])
             m.labels[MPS.L].qnc=old
             m.labels[MPS.S].qnc=site
-            new=_generate_qnc_(m,bond=old,site=site,mode='R',history=True)
+            new=bond_qnc_generation(m,bond=old,site=site,mode='R',history=True)
             m=new.reorder(m,axes=[MPS.R])
             m.labels[MPS.R].qnc=new
             if i+1==self.cut:
@@ -380,11 +340,11 @@ class MPS(list):
         m=np.asarray(M).reshape((M.shape[MPS.L],-1))
         if self.mode=='QN':
             col=S.qnc.kron(R.qnc,action='-',history=True)
-            u,s,v,qnc,err=mblock_svd(col.reorder(m,axes=[1]),L.qnc,-col,mode='L',nmax=nmax,tol=tol,return_truncation_err=True)
+            u,s,v,qnc,err=mb_svd(col.reorder(m,axes=[1]),L.qnc,-col,nmax=nmax,tol=tol,return_truncation_err=True)
             v=v[:,np.argsort(col.permutation())]
             QuantumNumberCollection.clear_history(col)
         else:
-            u,s,v,qnc,err=mblock_svd(m,nmax=nmax,tol=tol,return_truncation_err=True)
+            u,s,v,qnc,err=mb_svd(m,nmax=nmax,tol=tol,return_truncation_err=True)
         self[self.cut-1]=Tensor(v.reshape((-1,M.shape[MPS.S],M.shape[MPS.R])),labels=[L.replace(qnc=qnc),S,R])
         if self.cut==1:
             if len(s)>1: raise ValueError('MPS _set_B_and_lmove_ error(not supported operation): the MPS is a mixed state.')
@@ -412,11 +372,11 @@ class MPS(list):
         m=np.asarray(M).reshape((-1,M.shape[MPS.R]))
         if self.mode=='QN':
             row=L.qnc.kron(S.qnc,action='+',history=True)
-            u,s,v,qnc,err=mblock_svd(row.reorder(m,axes=[0]),row,R.qnc,mode='R',nmax=nmax,tol=tol,return_truncation_err=True)
+            u,s,v,qnc,err=mb_svd(row.reorder(m,axes=[0]),row,R.qnc,nmax=nmax,tol=tol,return_truncation_err=True)
             u=u[np.argsort(row.permutation()),:]
             QuantumNumberCollection.clear_history(row)
         else:
-            u,s,v,qnc,err=mblock_svd(m,nmax=nmax,tol=tol,return_truncation_err=True)
+            u,s,v,qnc,err=mb_svd(m,nmax=nmax,tol=tol,return_truncation_err=True)
         self[self.cut]=Tensor(u.reshape((M.shape[MPS.L],M.shape[MPS.S],-1)),labels=[L,S,R.replace(qnc=qnc)])
         if self.cut==self.nsite-1:
             if len(s)>1: raise ValueError('MPS _set_A_and_rmove_ error(not supported operation): the MPS is a mixed state.')
@@ -540,6 +500,101 @@ class MPS(list):
         ms=[m.copy(copy_data=copy_data) for m in self]
         Lambda=None if self.Lambda is None else self.Lambda.copy(copy_data=copy_data)
         return MPS(ms=ms,Lambda=Lambda,cut=self.cut)
+
+    # NOT DEBUGED COED
+    def level_down(self,degfres,n=1):
+        '''
+        Construt a new mps with the physical indices which are n-level down in the degfres.
+        Parameters:
+            degfres: DegFreTree
+                The tree of the physical degrees of freedom.
+            n: integer, optional
+                The degree of level to go down.
+        Returns: MPS
+            The new MPS.
+        '''
+        assert n>=0
+        assert self.mode==degfres.mode
+        result=self if n==0 else copy(self)
+        for count in xrange(n):
+            level=degfres.level(next(iter(result.table)).identifier)
+            if level==1:
+                raise ValueError("MPS level_down error: at the %s-th loop, level(%s) is already at the bottom."%(count,level))
+            result._reset_(reset=None)
+            olds=degfres.labels(layer=degfres.layers[level-1],full_labels=False)
+            news=degfres.labels(layer=degfres.layers[level-2],full_labels=True)
+            ms=[None]*len(news)
+            if result.mode=='NB':
+                for k,parent in enumerate(news.keys()):
+                    for i,child in enumerate(degfres.children(parent)):
+                        if i==0:
+                            ms[k]=np.asarray(result[result.table[olds[child]]])
+                        else:
+                            ms[k]=np.einsum('ijk,klm->ijlm',ms[k],np.asarray(result[result.table[olds[child]]]))
+                            shape=ms[k].shape
+                            ms[k]=ms[k].reshape((shape[0],-1,shape[-1]))
+                result=MPS(mode='NB',ms=ms,labels=news.values(),Lambda=None,cut=None)
+            else:
+                labels=[]
+                qncs=degfres.qnc_evolutions(layer=degfres.layers[level-2])
+                for k,L,S,R in enumerate(news.values()):
+                    for i,child,sqnc in enumerate(zip(degfres.children(S.identifier),qncs[S.identifier])):
+                        pos=result.table[olds[child]]
+                        if i==0:
+                            ms[k]=np.asarray(result[pos])
+                            lqnc=result[pos].labels[MPS.L].qnc
+                        else:
+                            ms[k]=np.einsum('ijk,klm->ijlm',ms[k],np.asarray(result[pos]))
+                            shape=ms[k].shape
+                            ms[k]=sqnc.reorder(ms[k].reshape((shape[0],-1,shape[-1])),axes=[1])
+                        if i==len(degfres.children(S.identifier)):
+                            rqnc=result[pos].labels[MPS.R].qnc
+                    labels.append((L.replace(qnc=lqnc),S.replace(qnc=sqnc),R.replace(qnc=rqnc)))
+                result=MPS(mode='QN',ms=ms,labels=labels,Lambda=None,cut=None)
+        return result
+
+    def level_up(self,degfres,n=1,nmax=None,tol=None):
+        '''
+        Construt a new mps with the physical indices which are n-level up in the degfres.
+        Parameters:
+            degfres: DegFreTree
+                The tree of the physical degrees of freedom.
+            n: integer, optional
+                The degree of level to go up.
+            nmax: integer, optional
+                The maximum number of singular values to be kept.
+            tol: float64, optional
+                The tolerance of the singular values.
+        Returns: MPS
+            The new MPS.
+        '''
+        assert n>=0
+        assert self.mode==degfres.mode
+        result=self if n==0 else copy(self)
+        for count in xrange(n):
+            level=degfres.level(next(iter(result.table)).identifier)
+            if level==len(degfres.layers):
+                raise ValueError("MPS level_up error: at the %s-th loop, level(%s) is already at the top."%(count,level))
+            labels=degfres.labels(layer=degfres.layers[level],full_labels=True)
+            assert result.Lambda is not None
+            result>>=(result.nsite-result.cut,nmax,tol)
+            ms,ls=[],[]
+            for i,m in enumerate(reversed(result)):
+                if i==0:
+                    L,S,R=m.labels[MPS.L],m.labels[MPS.S],m.labels[MPS.R]
+                    m=np.einsum('ijk,k->ijk',np.asarray(m),np.asarray(result.Lambda))
+                else:
+                    L,S,R=m.labels[MPS.L],m.labels[MPS.S],ls[0][MPS.L]
+                    m=np.einsum('ijk,kl,l->ijl',np.asarray(m),u,s)
+                children=degfres.children(S.identifier)
+                expansion=[degfres[child] for child in children]
+                u,s,vs,qncs=expanded_svd(m,expansion=expansion,L=L.qnc,S=S.qnc,R=R.qnc,mode='vs',nmax=nmax,tol=tol)
+                for k in reversed(xrange(len(children))):
+                    Left,Site,Right=labels[children[k]]
+                    ms.insert(0,vs[k])
+                    ls.insert(0,(Left.replace(qnc=qncs[k]),Site,Right.replace(qnc=qncs[k+1] if k+1<len(children) else R.qnc)))
+            result=MPS(mode=result.mode,ms=ms,labels=ls,Lambda=u.dot(s),cut=0)
+        return result
 
 class Vidal(object):
     '''

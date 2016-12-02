@@ -5,13 +5,13 @@ Matrix product operator, including:
 
 __all__=['OptStr']
 
-from numpy import *
+import warnings
+import numpy as np
+from collections import OrderedDict
 from HamiltonianPy.Basics import OperatorF,OperatorS,CREATION
 from HamiltonianPy.Math.Tensor import Tensor,contract
 from HamiltonianPy.Math.linalg import parity
 from MPS import *
-from collections import OrderedDict
-import warnings
 
 class OptStr(list):
     '''
@@ -154,9 +154,9 @@ class OptStr(list):
             assert len(self)==1
             result=self[0]*result
         else:
-            temp=sorted(self,key=lambda m:us.table[m.labels[1]])
+            ms=sorted(self,key=lambda m:us.table[m.labels[1]])
             if form=='L':
-                start,count=us.table[temp[0].labels[1]],0
+                start,count=us.table[ms[0].labels[1]],0
                 for i,u in enumerate(us[start:]):
                     L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
                     up=u.copy(copy_data=False).conjugate()
@@ -165,13 +165,13 @@ class OptStr(list):
                             up.relabel(news=[S.prime,R.prime],olds=[S,R])
                         else:
                             up.relabel(news=[L.prime,S.prime,R.prime],olds=[L,S,R])
-                        result=contract(result,up,temp[count],u)
+                        result=contract(result,up,ms[count],u)
                         count+=1
                     else:
                         up.relabel(news=[L.prime,R.prime],olds=[L,R])
                         result=contract(result,up,u)
             elif form=='R':
-                end,count=us.table[temp[-1].labels[1]]+1,-1
+                end,count=us.table[ms[-1].labels[1]]+1,-1
                 for i,u in enumerate(reversed(us[0:end])):
                     L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
                     up=u.copy(copy_data=False).conjugate()
@@ -180,7 +180,7 @@ class OptStr(list):
                             up.relabel(news=[L.prime,S.prime],olds=[L,S])
                         else:
                             up.relabel(news=[L.prime,S.prime,R.prime],olds=[L,S,R])
-                        result=contract(result,up,temp[count],u)
+                        result=contract(result,up,ms[count],u)
                         count-=1
                     else:
                         up.relabel(news=[L.prime,R.prime],olds=[L,R])
@@ -210,9 +210,9 @@ class OptStr(list):
                 mps._reset_(merge='L',reset=None)
             return m,Lambda
         assert mps1.table==mps2.table
-        temp=sorted(self,key=lambda m:mps1.table[m.labels[1]])
+        ms=sorted(self,key=lambda m:mps1.table[m.labels[1]])
         if mps1 is mps2:
-            start,end,count=mps1.table[temp[0].labels[1]],mps1.table[temp[-1].labels[1]]+1,0
+            start,end,count=mps1.table[ms[0].labels[1]],mps1.table[ms[-1].labels[1]]+1,0
             if mps1.cut<start or mps1.cut>end:
                 warnings.warn("OptStr overlap warning: the cut of the mps is %s and will be moved into the range [%s,%s]."%(mps1.cut,start,end))
                 if mps1.cut<start:
@@ -239,7 +239,7 @@ class OptStr(list):
                 olds.remove(Rp)
             if Sp in self.labels:
                 u1.relabel(news=news,olds=olds)
-                result=contract(result,u1,temp[count],u2)
+                result=contract(result,u1,ms[count],u2)
                 count+=1
             else:
                 news.remove(Sp.prime)
@@ -251,56 +251,74 @@ class OptStr(list):
         else:
             mps1._set_ABL_(m1,Lambda1)
             mps2._set_ABL_(m2,Lambda2)
-        return asarray(result)
+        return np.asarray(result)
 
-    @staticmethod
-    def from_contents(value,contents,degfres,layer):
+    def level_down(self,degfres,n=1):
         '''
-        Construt an optstr from contents by combining "small" physical degrees of freedom into "big" ones.
+        Create a new OptStr with the physical indices which are n-level down in the degfres.
         Parameters:
-            value: number
-                The coefficient of the optstr.
-            contents: list 2-tuple in the form (leaf,m)
-                leaf: Index
-                    The original "small" physical degrees of freedom.
-                m: 2d ndarray
-                    The matrix corresponding to the "small" physical degrees of freedom.
             degfres: DegFreTree
-                The physical degrees of freedom.
-            layer: tuple of string
-                The layer where the "big" physical degrees of freedom of the optstr are restricted.
+                The tree of the physical degrees of freedom.
+            n: integer, optional
+                The degree of level to go down.
         Returns: OptStr
-            The constructed optstr.
+            The new OptStr.
         '''
-        ms,temp=[],{}
-        for i,(leaf,m) in enumerate(contents):
-            assert degfres.is_leaf(leaf)
-            branch=degfres.branches(layer)[leaf]
-            ms.append(m)
-            if branch in temp:
-                temp[branch][leaf]=i
-            else:
-                temp[branch]={leaf:i}
-        Ms=[1]*len(temp)
-        for i,(branch,seqs) in enumerate(temp.items()):
-            buff=[(ms[seqs[index]] if index in seqs else identity(degfres.ndegfre(index))) for index in degfres.leaves(layer)[branch]]
-            if degfres.mode=='NB':
-                for m in buff:
-                    Ms[i]=kron(Ms[i],m)
-            else:
-                for m,qnc in zip(buff,degfres.qnc_kron_paths(layer)[branch]):
-                    Ms[i]=qnc.reorder(kron(Ms[i],m),axes=[0,1])
-            label=degfres.labels(layer,full_labels=False)[branch]
-            Ms[i]=Tensor(Ms[i],labels=[label.prime,label])
-        Ms.sort(key=lambda m:degfres.table(layer)[m.labels[0].identifier])
-        return OptStr(value,Ms)
+        assert n>=0
+        result=self
+        for count in xrange(n):
+            level=degfres.level(result[0].labels[0].identifier)
+            if level==1:
+                raise ValueError("OptStr level_down error: at the %s-th loop, level(%s) is already at the bottom."%(count,level))
+            layer=degfres.layers[level-2]
+            ms,groups=[],{}
+            for i,m in enumerate(result):
+                ms.append(np.asarray(m))
+                index=m.labels[0].identifier
+                assert degfres.level(index)==level
+                parent=degfres.parent(index)
+                if parent in groups:
+                    groups[parent][index]=i
+                else:
+                    groups[parent]={index:i}
+            Ms=[1]*len(groups)
+            for i,(parent,seqs) in enumerate(groups.items()):
+                buff=[(ms[seqs[index]] if index in seqs else np.identity(degfres.ndegfre(index))) for index in degfres.children(parent)]
+                if degfres.mode=='NB':
+                    for m in buff:
+                        Ms[i]=np.kron(Ms[i],m)
+                else:
+                    for m,qnc in zip(buff,degfres.qnc_evolutions(layer)[parent]):
+                        Ms[i]=qnc.reorder(np.kron(Ms[i],m),axes=[0,1])
+                label=degfres.labels(layer,full_labels=False)[parent]
+                Ms[i]=Tensor(Ms[i],labels=[label.prime,label])
+            Ms.sort(key=lambda m:degfres.table(layer)[m.labels[0].identifier])
+            result=OptStr(result.value,Ms)
+        return result
+
+    def level_up(self,degrees,n=1):
+        '''
+        Create a new OptStr with the physical indices which are n-level up in the degfres.
+        Parameters:
+            degfres: DegFreTree
+                The tree of the physical degrees of freedom.
+            n: integer, optional
+                The degree of level to go up.
+        Returns: OptStr
+            The new OptStr.
+        '''
+        raise NotImplementedError("OptStr level_up error: too hard to implement.")
 
 def optstr_from_operators(operator,degfres,layer):
     '''
     Convert an OperatorS to its corresponding OptStr form.
     For details, please see OptStr.from_operator.
     '''
-    return OptStr.from_contents(operator.value,[(index,matrix) for index,matrix in zip(operator.indices,operator.spins)],degfres,layer)
+    ms=[]
+    labels=degfres.labels(layer=degfres.layers[-1],full_labels=False)
+    for index,matrix in zip(operator.indices,operator.spins):
+        ms.append(Tensor(matrix,labels=[labels[index].prime,labels[index]]))
+    return OptStr(operator.value,ms=ms).level_down(degfres,n=len(degfres.layers)-degfres.layers.index(layer)-1)
 
 def optstr_from_operatorf(operator,degfres,layer):
     '''
@@ -311,24 +329,28 @@ def optstr_from_operatorf(operator,degfres,layer):
     assert length%2==0
     table=degfres.table(degfres.layers[-1])
     permutation=sorted(range(length),key=lambda k:table[operator.indices[k].replace(nambu=None)])
-    temp,counts=OrderedDict(),[]
+    groups,counts=OrderedDict(),[]
     for k in permutation:
         leaf=operator.indices[k].replace(nambu=None)
-        m=array([[0.0,1.0],[0.0,0.0]]) if operator.indices[k].nambu==CREATION else array([[0.0,0.0],[1.0,0.0]])
-        if leaf in temp:
+        m=np.array([[0.0,1.0],[0.0,0.0]]) if operator.indices[k].nambu==CREATION else np.array([[0.0,0.0],[1.0,0.0]])
+        if leaf in groups:
             counts[-1]+=1
-            temp[leaf]=temp[leaf].dot(m)
+            groups[leaf]=groups[leaf].dot(m)
         else:
             counts.append(1)
-            temp[leaf]=m
-    contents=[]
-    keys,reversed_table=temp.keys(),degfres.reversed_table(degfres.layers[-1])
+            groups[leaf]=m
+    ms=[]
+    keys=groups.keys()
+    reversed_table=degfres.reversed_table(degfres.layers[-1])
+    labels=degfres.labels(layer=degfres.layers[-1],full_labels=False)
+    zmatrix=np.array([[-1.0,0.0],[0.0,1.0]])
     for i in xrange(table[keys[0]],table[keys[-1]]+1):
         leaf=reversed_table[i]
-        if leaf in temp:
+        ls=[labels[leaf].prime,labels[leaf]]
+        if leaf in groups:
             assert counts[0] in (1,2)
             length-=counts.pop(0)
-            contents.append((leaf,temp[leaf] if length%2==0 else temp[leaf].dot(array([[-1.0,0.0],[0.0,1.0]]))))
+            ms.append(Tensor(groups[leaf] if length%2==0 else groups[leaf].dot(zmatrix),labels=ls))
         elif length%2!=0:
-            contents.append((leaf,array([[-1.0,0.0],[0.0,1.0]])))
-    return OptStr.from_contents(operator.value*parity(permutation),contents,degfres,layer)
+            ms.append(Tensor(zmatrix,labels=ls))
+    return OptStr(operator.value*parity(permutation),ms=ms).level_down(degfres,n=len(degfres.layers)-degfres.layers.index(layer)-1)

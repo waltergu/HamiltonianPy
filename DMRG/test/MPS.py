@@ -71,7 +71,7 @@ def test_mps_qnc():
     state[0,1,0,1]=1.0/sqrt(2.0)
     state[1,0,1,0]=1.0/sqrt(2.0)
     mps=MPS.from_state(state.reshape(-1),labels=labels,shapes=shapes,cut=0,tol=TOL)
-    mps.generate_qnc(inbond=QuantumNumberCollection([(SpinQN(Sz=0),1)]),sites=[SpinQNC(0.5)]*N)
+    mps.qnc_generation(inbond=QuantumNumberCollection([(SpinQN(Sz=0),1)]),sites=[SpinQNC(0.5)]*N)
     Label.repr_qnc_on()
     print mps
     Label.repr_qnc_off()

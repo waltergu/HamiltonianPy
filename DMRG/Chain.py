@@ -8,13 +8,11 @@ __all__=['Block','Chain','EmptyChain']
 
 import numpy as np
 import scipy.sparse as sp
-import time
 from scipy.sparse.linalg import eigsh
 from ..Basics import *
 from ..Math import dagger,Tensor
 from MPS import *
 from MPO import *
-from linalg import kron,kronsum,vblock_svd
 from copy import copy,deepcopy
 
 class Block(int):
@@ -157,7 +155,6 @@ class Chain(MPS):
             target: QuantumNumber
                 The target space of the chain.
         '''
-        assert mode in ('QN','NB')
         MPS.__init__(self,mode=mode,ms=ms,labels=labels,Lambda=Lambda,cut=cut)
         self.optstrs=optstrs
         self.set_blocks_and_connections()
@@ -172,7 +169,7 @@ class Chain(MPS):
         '''
         Set the blocks and connections of the chain.
         '''
-        temp=[[] for i in xrange(self.nsite)]
+        temp=[[] for i in xrange(self.nsite+1)]
         self.blocks={"L":deepcopy(temp),"S":deepcopy(temp),"R":deepcopy(temp)}
         self.connections={"LR":deepcopy(temp),"L":deepcopy(temp),"R":deepcopy(temp)}
         for optstr in self.optstrs:
@@ -195,7 +192,7 @@ class Chain(MPS):
         '''
         Set the Hamiltonians of blocks.
         '''
-        self._Hs_={"L":[None]*self.nsite,"S":[None]*self.nsite,"R":[None]*self.nsite}
+        self._Hs_={"L":[None]*(self.nsite+1),"S":[None]*self.nsite,"R":[None]*(self.nsite+1)}
         if self.cut is not None:
             for i in xrange(self.cut-1):
                 new=Block(nsite=self.nsite,form='L',pos=i,label=self[i].labels[MPS.R])
@@ -344,6 +341,34 @@ class Chain(MPS):
             result+=kron(a.matrix(ussys,'L'),b.matrix(usenv,'R'),qnc1=sys.qnc,qnc2=env.qnc,qnc=qnc,target=target,format='csr')
         return result
 
+    def level_up(self,optstrs,degfres,n=1,nmax=None,tol=None):
+        '''
+        Construt a new chain with the physical indices which are n-level up in the degfres.
+        Parameters:
+            optstrs: list of OptStr
+                The new optstrs in the new level.
+            degfres,n,nmax,tol:
+                See MPS.level_up for details.
+        Returns: Chain
+            The new chain.
+        '''
+        buff=MPS.level_up(self,degfres,n=n,nmax=nmax,tol=tol)
+        return Chain(optstrs=optstrs,mode=self.mode,ms=list(buff),Lambda=buff.Lambda,cut=buff.cut,target=self.target)
+
+    def level_down(self,optstrs,degfres,n=1):
+        '''
+        Construt a new chain with the physical indices which are n-level down in the degfres.
+        Parameters:
+            optstrs: list of OptStr
+                The new optstrs in the new level.
+            degfres,n: 
+                See MPS.level_down for details.
+        Returns: Chain
+            The new chain.
+        '''
+        buff=MPS.level_down(self,degfres,n=n)
+        return Chain(optstrs=optstrs,mode=self.mode,ms=list(buff),Lambda=buff.Lambda,cut=buff.cut,target=self.target)
+
     def two_site_update(self):
         '''
         The two site update, which resets the central two mps and Hamiltonians of the chain.
@@ -364,7 +389,6 @@ class Chain(MPS):
             a,b=optstr.split(usbsite.table,usb.table,coeff='A')
             hb+=np.kron(a.matrix(usbsite,'S'),b.matrix(usb,'R'))
         if self.mode=='QN':
-            QuantumNumberCollection.clear_history(sys.qnc,env.qnc,self.cache['qnc'])
             sys.qnc=A.qnc.kron(Asite.qnc,'+',history=True)
             env.qnc=Bsite.qnc.kron(B.qnc,'-',history=True)
             self.cache['qnc']=sys.qnc.kron(env.qnc,'+',history=True)
@@ -409,7 +433,7 @@ class Chain(MPS):
             for qnsys,qnenv in qnc.pairs(self.target.zeros):
                 tsys.append(qnsys)
                 tenv.append(qnenv)
-            U,S,V,new,err=vblock_svd(Psi,sys.qnc.subset(tsys),env.qnc.subset(tenv),nmax=nmax,tol=tol,return_truncation_err=True)
+            U,S,V,new,err=vb_svd(Psi,sys.qnc.subset(tsys),env.qnc.subset(tenv),nmax=nmax,tol=tol,return_truncation_err=True)
             sysslice=sys.qnc.subslice(tsys)
             envslice=env.qnc.subslice(tenv)
             self[sys.pos]=Tensor(np.einsum('ijk,kl->ijl',np.asarray(self[sys.pos])[:,:,sysslice],U),labels=self[sys.pos].labels)
@@ -417,13 +441,13 @@ class Chain(MPS):
             self._Hs_[sys.form][sys]=dagger(U).dot(self.H(sys)[:,sysslice][sysslice,:]).dot(U)
             self._Hs_[env.form][env]=V.dot(self.H(env)[:,envslice][envslice,:]).dot(dagger(V))
         else:
-            U,S,V,new,err=vblock_svd(Psi,sys.qnc,env.qnc,nmax=nmax,tol=tol,return_truncation_err=True)
+            U,S,V,new,err=vb_svd(Psi,sys.qnc,env.qnc,nmax=nmax,tol=tol,return_truncation_err=True)
             self[sys.pos]=Tensor(np.einsum('ijk,kl->ijl',np.asarray(self[sys.pos]),U),labels=self[sys.pos].labels)
             self[env.pos]=Tensor(np.einsum('lk,kji->lji',V,np.asarray(self[env.pos])),labels=self[env.pos].labels)
             self._Hs_[sys.form][sys]=dagger(U).dot(self.H(sys)).dot(U)
             self._Hs_[env.form][env]=V.dot(self.H(env)).dot(dagger(V))
         self.Lambda=Tensor(S,labels=[self[sys.pos].labels[MPS.R]])
-        QuantumNumberCollection.clear_history(sys.qnc,env.qnc)
+        QuantumNumberCollection.clear_history(sys.qnc,env.qnc,self.cache['qnc'])
         sys.qnc=new
         env.qnc=new
         self.logger.suspend('Truncation')

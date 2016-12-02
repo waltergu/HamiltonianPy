@@ -241,6 +241,22 @@ class Tree(dict):
             elif mode is self.WIDTH:
                 queue=queue[1:]+expansion
 
+    def level(self,node):
+        '''
+        Return the level of the node in the tree.
+        Parameters:
+            node: hashable object
+                The node whose level is to be queried.
+        Returns: integer
+            The level of the node in the tree.
+        '''
+        result=0
+        while 1:
+            node=self.parent(node)
+            if node is None: break
+            result+=1
+        return result
+
     def clear(self):
         '''
         Clear the contents of the tree.
