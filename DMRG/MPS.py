@@ -6,7 +6,7 @@ Matrix product state, including:
 __all__=['MPS','Vidal']
 
 import numpy as np
-from HamiltonianPy.Basics import Label,QuantumNumberCollection,bond_qnc_generation,mb_svd,kron,kronsum,expanded_svd
+from HamiltonianPy.Basics import Label,QuantumNumberCollection,bond_qnc_generation,mb_svd,expanded_svd
 from HamiltonianPy.Math.Tensor import *
 from HamiltonianPy.Math.linalg import truncated_svd,TOL
 from copy import copy,deepcopy

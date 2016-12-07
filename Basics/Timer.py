@@ -110,7 +110,7 @@ class TimerLogger(object):
         keys=self.keys
         lens={key:14 if len(key)+2<14 else len(key)+2 for key in keys}
         result=[None,None,None,None,None]
-        result[0]=(sum(lens.values())+14)*'-'
+        result[0]=(sum(lens.values())+14)*'*'
         result[1]='{0:s}'.format('Time (seconds)').center(14)+''.join(['{0:s}'.format(key).center(lens[key]) for key in keys])
         result[2]='{0:s}'.format('Current Step').center(14)+''.join(['{0:e}'.format(getattr(self,key).records[-1]).center(lens[key]) for key in keys])
         result[3]='{0:s}'.format('Accumulation').center(14)+''.join(['{0:e}'.format(getattr(self,key).time).center(lens[key]) for key in keys])

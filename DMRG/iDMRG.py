@@ -124,5 +124,5 @@ class iDMRG(Engine):
             indices=sorted(self.degfres.indices(layer=layer),key=lambda index: index.to_tuple(priority=self.degfres.priority))
             AL=Label(identifier=indices[i],qnc=self.degfres[indices[i]])
             BL=Label(identifier=indices[i+1],qnc=self.degfres[indices[i+1]])
-            self.chain.two_site_grow(AL,BL,optstrs,target,nmax=nmax,tol=tol)
+            self.chain.two_site_grow('%s(++)'%(self.name),AL,BL,optstrs,target,nmax=nmax,tol=tol)
         self.lattice=lattice

@@ -26,14 +26,22 @@ class fDMRG(Engine):
         self.mask=mask
         self.dtype=dtype
 
+    @classmethod
+    def from_idmrg(cls,idmrg,**karg):
+        '''
+        '''
+        attrs=['din','dout','name','lattice','terms','config','degfres','chain','mask','dtype']
+        return cls(**{attr:karg.get(attr,idmrg.__dict__.get(attr)) for attr in attrs})
+
     def sweep(self,nstates):
         '''
         '''
-        for nstate in nstates:
+        for i,nstate in enumerate(nstates):
+            suffix='st'if i==0 else ('nd' if i==1 else ('rd' if i==2 else 'th'))
             while self.chain.cut>1:
-                self.chain.two_site_sweep(direction='L',nmax=nstate)
+                self.chain.two_site_sweep(info='%s %s%s sweep(<<)'%(self.name,i+1,suffix),direction='L',nmax=nstate)
             while self.chain.cut<self.chain.nsite-1:
-                self.chain.two_site_sweep(direction='R',nmax=nstate)
+                self.chain.two_site_sweep(info='%s %s%s sweep(>>)'%(self.name,i+1,suffix),direction='R',nmax=nstate)
 
     def level_up(self,n=1):
         '''

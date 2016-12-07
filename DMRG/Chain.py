@@ -10,7 +10,7 @@ import numpy as np
 import scipy.sparse as sp
 from scipy.sparse.linalg import eigsh
 from ..Basics import *
-from ..Math import dagger,Tensor
+from ..Math import kron,kronsum,dagger,Tensor
 from MPS import *
 from MPO import *
 from copy import copy,deepcopy
@@ -283,7 +283,12 @@ class Chain(MPS):
         '''
         The graph representation of the chain.
         '''
-        return ''.join(['A'*(self.cut-1),'..','B'*(self.nsite-self.cut-1)])
+        result=[]
+        temp=''.join(['A'*(self.cut-1),'..','B'*(self.nsite-self.cut-1)])
+        while temp:
+            result.append(temp[0:87])
+            temp=temp[87:]
+        return '\n'.join(result)
 
     def us(self,block):
         '''
@@ -332,13 +337,13 @@ class Chain(MPS):
         '''
         The Hamiltonian of the whole chain.
         '''
-        sys,env,qnc=self.sys,self.env,self.cache['qnc']
+        sys,env=self.sys,self.env
         ussys,usenv=self.us(sys),self.us(env)
-        target=None if self.mode=='NB' else self.target.zeros
-        result=kronsum(self.H(env),self.H(sys),qnc1=env.qnc,qnc2=sys.qnc,qnc=qnc,target=target,format='csr')
+        rows,cols=(None,None) if self.mode=='NB' else (self.cache['subslice'],self.cache['subslice'])
+        result=kronsum(self.H(env),self.H(sys),rows=rows,cols=cols,format='csr')
         for optstr in self.connections['LR'][self.cut]:
             a,b=optstr.split(ussys.table,usenv.table,coeff='A')
-            result+=kron(a.matrix(ussys,'L'),b.matrix(usenv,'R'),qnc1=sys.qnc,qnc2=env.qnc,qnc=qnc,target=target,format='csr')
+            result+=kron(a.matrix(ussys,'L'),b.matrix(usenv,'R'),rows=rows,cols=cols,format='csr')
         return result
 
     def level_up(self,optstrs,degfres,n=1,nmax=None,tol=None):
@@ -396,6 +401,10 @@ class Chain(MPS):
             self[env.pos]=Tensor(env.qnc.reorder(v,axes=[0]),labels=self[env.pos].labels)
             self._Hs_[sys.form][sys]=sys.qnc.reorder(ha,axes=[0,1])
             self._Hs_[env.form][env]=env.qnc.reorder(hb,axes=[0,1])
+            permutation=self.cache['qnc'].permutation(targets=[self.target.zeros])
+            antipermutation=np.argsort(permutation)
+            self.cache['subslice']=np.array(permutation)[antipermutation]
+            self.cache['permutation']=np.argsort(antipermutation)
         else:
             sys.qnc=A.qnc*Asite.qnc
             env.qnc=Bsite.qnc*B.qnc
@@ -433,7 +442,7 @@ class Chain(MPS):
             for qnsys,qnenv in qnc.pairs(self.target.zeros):
                 tsys.append(qnsys)
                 tenv.append(qnenv)
-            U,S,V,new,err=vb_svd(Psi,sys.qnc.subset(tsys),env.qnc.subset(tenv),nmax=nmax,tol=tol,return_truncation_err=True)
+            U,S,V,new,err=vb_svd(Psi[self.cache['permutation']],sys.qnc.subset(tsys),env.qnc.subset(tenv),nmax=nmax,tol=tol,return_truncation_err=True)
             sysslice=sys.qnc.subslice(tsys)
             envslice=env.qnc.subslice(tenv)
             self[sys.pos]=Tensor(np.einsum('ijk,kl->ijl',np.asarray(self[sys.pos])[:,:,sysslice],U),labels=self[sys.pos].labels)
@@ -454,10 +463,12 @@ class Chain(MPS):
         self.info['nbasis']=sys.nbasis
         self.info['err']=err
 
-    def two_site_grow(self,AL,BL,optstrs,target=None,nmax=200,tol=5*10**-14):
+    def two_site_grow(self,info,AL,BL,optstrs,target=None,nmax=200,tol=5*10**-14):
         '''
         Two site grow of the chain.
         Parameters:
+            info: string
+                The information to be printed on screen.
             AL,BL: Label
                 The labels for the two added sites.
             optstrs: list of OptStr
@@ -497,7 +508,7 @@ class Chain(MPS):
         self._Hs_["S"].extend([None,None])
         self._Hs_["R"].extend([None,None])
         self.target=target
-        print 'ChainRep: %s(++)'%(self.graph)
+        print '%s\n%s'%(info,self.graph)
         self.two_site_update()
         self.two_site_truncate(nmax=nmax,tol=tol)
         self.logger.record()
@@ -506,10 +517,12 @@ class Chain(MPS):
         print 'gse: %s.'%(self.info['gse'][0])
         print
 
-    def two_site_sweep(self,direction,nmax=200,tol=5*10**-14):
+    def two_site_sweep(self,info,direction,nmax=200,tol=5*10**-14):
         '''
         Two site sweep of the chain.
         Parameters:
+            info: string
+                The information to be printed on screen.
             direction: 'L' or 'R'
                 The direction of the sweep.
             nmax: integer
@@ -519,10 +532,9 @@ class Chain(MPS):
         '''
         if direction=='L':
             self<<=1
-            print 'ChainRep: %s(<<)'%(self.graph)
         else:
             self>>=1
-            print 'ChainRep: %s(>>)'%(self.graph)
+        print '%s\n%s'%(info,self.graph)
         A,Asite,sys=self.A,self.Asite,self.sys
         B,Bsite,env=self.B,self.Bsite,self.env
         ml=np.asarray(self[sys.pos]).reshape((A.nbasis*Asite.nbasis,sys.nbasis))
@@ -532,9 +544,7 @@ class Chain(MPS):
             ml=sys.qnc.reorder(ml,axes=[0])
             mr=env.qnc.reorder(mr,axes=[1])
         v0=np.einsum('ik,k,kj->ij',ml,np.asarray(self.Lambda),mr).ravel()
-        if self.mode=='QN':
-            v0=self.cache['qnc'].reorder(v0,axes=[0])
-            v0=v0[self.cache['qnc'][self.target.zeros]]
+        if self.mode=='QN': v0=v0[self.cache['subslice']]
         v0/=np.linalg.norm(v0)
         self.two_site_truncate(v0=v0,nmax=nmax,tol=tol)
         self.logger.record()

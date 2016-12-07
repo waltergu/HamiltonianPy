@@ -1,6 +1,6 @@
 '''
 Linear algebra, including:
-1) functions: bond_qnc_generation,kron, kronsum, vb_svd, mb_svd,expanded_svd
+1) functions: bond_qnc_generation,vb_svd,mb_svd,expanded_svd
 '''
 
 import numpy as np
@@ -8,10 +8,9 @@ import scipy.linalg as sl
 import scipy.sparse as sp
 from ...Math.linalg import truncated_svd,TOL
 from QuantumNumber import *
-from linalg_Fortran import *
 from itertools import ifilter
 
-__all__=['bond_qnc_generation','kron','kronsum','vb_svd','mb_svd','expanded_svd']
+__all__=['bond_qnc_generation','vb_svd','mb_svd','expanded_svd']
 
 def bond_qnc_generation(m,bond,site,mode='L',history=False):
     '''
@@ -51,59 +50,6 @@ def bond_qnc_generation(m,bond,site,mode='L',history=False):
             else:
                 assert result[R]==bqnc[L]+sqnc[S]
     return QuantumNumberCollection(result,history=history)
-
-def kron(m1,m2,qnc1=None,qnc2=None,qnc=None,target=None,format='csr',**karg):
-    '''
-    Kronecker product of two matrices.
-    Parameters:
-        m1,m2: 2d ndarray-like
-            The matrices.
-        qnc1,qnc2,qnc: QuantumNumberCollection, optional
-            The corresponding quantum number collection of the m1/m2/product.
-        target: QuantumNumber
-            The target subspace of the product.
-        format: string, optional
-            The format of the product.
-    Returns: sparse matrix whose format is specified by the parameter format
-        The product.
-    '''
-    m1,m2=np.asarray(m1),np.asarray(m2)
-    if isinstance(qnc,QuantumNumberCollection):
-        assert isinstance(qnc1,QuantumNumberCollection)
-        assert isinstance(qnc2,QuantumNumberCollection)
-        assert isinstance(target,QuantumNumber)
-        result=sp.kron(m1,m2,format=format)
-        result=qnc.reorder(result,targets=[target])
-    else:
-        result=sp.kron(m1,m2,format=format)
-    return result
-
-def kronsum(m1,m2,qnc1=None,qnc2=None,qnc=None,target=None,format='csr',**karg):
-    '''
-    Kronecker sum of two matrices.
-    Please see scipy.sparse.kronsum for details.
-    Parameters:
-        m1,m2: 2d ndarray-like
-            The matrices.
-        qnc1,qnc2,qnc: QuantumNumberCollection, optional
-            The corresponding quantum number collection of the m1/m2/product.
-        target: QuantumNumber
-            The target subspace of the product.
-        format: string, optional
-            The format of the product.
-    Returns: sparse matrix whose format is specified by the parameter format
-        The Kronecker sum.
-    '''
-    m1,m2=np.asarray(m1),np.asarray(m2)
-    if isinstance(qnc,QuantumNumberCollection):
-        assert isinstance(qnc1,QuantumNumberCollection)
-        assert isinstance(qnc2,QuantumNumberCollection)
-        assert isinstance(target,QuantumNumber)
-        result=sp.kronsum(m1,m2,format=format)
-        result=qnc.reorder(result,targets=[target])
-    else:
-        result=sp.kronsum(m1,m2,format=format)
-    return result
 
 def vb_svd(Psi,qnc1,qnc2,mode='L',nmax=None,tol=None,return_truncation_err=False):
     '''
