@@ -60,20 +60,6 @@ class Tree(dict):
         super(Tree,self).__setitem__(leaf,data)
         self._children[leaf]=[]
 
-    def __setitem__(self,node,data):
-        '''
-        Set the data of an existing node.
-        Parameters:
-            node: hashable object
-                The node.
-            para: any object
-                The data of the node.
-        '''
-        if node in self:
-            dict.__setitem__(self,node,data)
-        else:
-            raise ValueError('Tree __setitem__ error: the node of the tree does not exist.')
-
     def add_subtree(self,subtree,parent=None):
         '''
         Add a subtree.

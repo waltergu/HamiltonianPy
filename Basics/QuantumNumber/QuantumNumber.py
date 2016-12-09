@@ -52,23 +52,27 @@ class QuantumNumber(tuple):
         self.types=tuple(types)
         return self
 
+    def __getnewargs__(self):
+        '''
+        Return the arguments for QuantumNumber.__new__.
+        Required by copy and pickle.
+        '''
+        return (zip(self.names,self,self.types),)
+
+    def __getstate__(self):
+        '''
+        Since QuantumNumber.__new__ constructs everything, self.__dict__ can be omitted for copy and pickle.
+        '''
+        pass
+
     def __getattr__(self,key):
         '''
         Overloaded dot(.) operator.
         '''
-        return self[self.names.index(key)]
-
-    def __copy__(self):
-        '''
-        Copy.
-        '''
-        return self.replace(**{key:value for key,value in zip(self.names,self)})
-
-    def __deepcopy__(self,memo):
-        '''
-        Deep copy.
-        '''
-        return self.replace(**{key:value for key,value in zip(self.names,self)})
+        try:
+            return self[self.names.index(key)]
+        except ValueError:
+            raise AttributeError()
 
     @classmethod
     def set_repr_form(cls,para):

@@ -20,7 +20,7 @@ class Tensor(ndarray):
             The labels of the axes.
     '''
 
-    def __new__(cls,array,labels,*args,**kargs):
+    def __new__(cls,array,labels):
         '''
         Initialize an instance through the explicit construction, i.e. constructor.
         Parameters:
@@ -29,7 +29,7 @@ class Tensor(ndarray):
             labels: list of hashable objects
                 The labels of the Tensor.
         '''
-        temp=asarray(array,*args,**kargs)
+        temp=asarray(array)
         if len(labels)!=temp.ndim:
             raise ValueError("Tensor construction error: the number of labels(%s) and the dimension(%s) of tensors are not equal."%(len(labels),temp.ndim))
         result=temp.view(cls)
@@ -44,6 +44,19 @@ class Tensor(ndarray):
             return
         else:
             self.labels=getattr(obj,'labels',None)
+
+    def __getnewargs__(self):
+        '''
+        Return the arguments for Tensor.__new__.
+        Required by copy and pickle.
+        '''
+        return (asarray(self),self.labels)
+
+    def __getstate__(self):
+        '''
+        Since Tensor.__new__ constructs everything, self.__dict__ can be omitted for copy and pickle.
+        '''
+        pass
 
     def __str__(self):
         '''

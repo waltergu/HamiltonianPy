@@ -173,7 +173,7 @@ def truncated_svd(m,nmax=None,tol=None,return_truncation_err=False,**karg):
         u,s,v=u[:,indices],s[indices],v[indices,:]
         return u,s,v
 
-class Lanczos:
+class Lanczos(object):
     '''
     The Lanczos algorithm to deal with csr-formed sparse Hermitian matrices.
     Attributes:
