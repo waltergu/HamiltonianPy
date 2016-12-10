@@ -52,11 +52,11 @@ class Tensor(ndarray):
         '''
         return (asarray(self),self.labels)
 
-    def __getstate__(self):
-        '''
-        Since Tensor.__new__ constructs everything, self.__dict__ can be omitted for copy and pickle.
-        '''
-        pass
+    #def __getstate__(self):
+    #    '''
+    #    Since Tensor.__new__ constructs everything, self.__dict__ can be omitted for copy and pickle.
+    #    '''
+    #    pass
 
     def __str__(self):
         '''
