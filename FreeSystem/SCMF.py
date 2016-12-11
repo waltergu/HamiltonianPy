@@ -14,7 +14,7 @@ from scipy.optimize import broyden1,broyden2
 from scipy.linalg import eigh
 import time
 
-class op:
+class op(object):
     '''
     '''
     def __init__(self,value,matrix):

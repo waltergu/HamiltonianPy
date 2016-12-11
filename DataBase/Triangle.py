@@ -8,7 +8,7 @@ __all__=['TriangleDataBase']
 from numpy import array,sqrt
 from ..Basics.Geometry import *
 
-class TriangleDataBase:
+class TriangleDataBase(object):
     '''
     Triangular lattice data base.
     Attributes:

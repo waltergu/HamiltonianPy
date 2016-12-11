@@ -8,7 +8,7 @@ __all__=['HexagonDataBase']
 from numpy import *
 from ..Basics.Geometry import *
 
-class HexagonDataBase:
+class HexagonDataBase(object):
     '''
     Hexagonal lattice data base.
     Attributes:
