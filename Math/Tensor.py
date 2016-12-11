@@ -45,25 +45,26 @@ class Tensor(ndarray):
         else:
             self.labels=getattr(obj,'labels',None)
 
-    def __getnewargs__(self):
+    def __reduce__(self):
         '''
-        Return the arguments for Tensor.__new__.
-        Required by copy and pickle.
+        numpy.ndarray uses __reduce__ to pickle. Therefore this mehtod needs overriding for subclasses.
         '''
-        return (asarray(self),self.labels)
+        pickle=super(Tensor,self).__reduce__()
+        return (pickle[0],pickle[1],pickle[2]+(self.labels,))
 
-    #def __getstate__(self):
-    #    '''
-    #    Since Tensor.__new__ constructs everything, self.__dict__ can be omitted for copy and pickle.
-    #    '''
-    #    pass
+    def __setstate__(self,state):
+        '''
+        Set the state of the Tensor for pickle and copy.
+        '''
+        self.labels=state[-1]
+        super(Tensor,self).__setstate__(state[0:-1])
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
         if self.ndim>1:
-            return "%s(labels=%s,\ndata=%s)"%(self.__class__.__name__,self.labels,ndarray.__str__(self))
+            return "%s(labels=%s,data=\n%s)"%(self.__class__.__name__,self.labels,ndarray.__str__(self))
         else:
             return "%s(labels=%s, data=%s)"%(self.__class__.__name__,self.labels,ndarray.__str__(self))
 

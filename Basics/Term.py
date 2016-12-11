@@ -20,6 +20,7 @@ class Term(object):
         modulate: function
             A function used to alter the value of the term.
     '''
+
     def __init__(self,id,mode,value,modulate=None):
         self.id=id
         self.mode=mode
@@ -50,6 +51,7 @@ class TermList(list):
     '''
     This class packs several instances of Term's subclasses as a whole for convenience.
     '''
+
     def __new__(cls,*arg):
         '''
         Constructor.

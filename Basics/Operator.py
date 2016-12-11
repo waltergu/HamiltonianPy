@@ -17,6 +17,7 @@ class Operator(object):
         value: number
             The overall factor of the operator.
     '''
+
     def __init__(self,value):
         '''
         Constructor.
@@ -80,6 +81,11 @@ class Operator(object):
 class OperatorCollection(dict):
     '''
     This class packs several operators as a whole for convenience.
+    For each of its (key,value) pairs:
+        key: any hashable object
+            The id of an operator.
+        value: Operator
+            The corresponding operator.
     '''
     
     def __str__(self):

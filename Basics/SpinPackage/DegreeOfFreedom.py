@@ -127,6 +127,29 @@ class SpinMatrix(ndarray):
             raise ValueError('SpinMatrix construction error: id must be a tuple.')
         return result
 
+    def __array_finalize__(self,obj):
+        '''
+        Initialize an instance through both explicit and implicit constructions, i.e. construtor, view and slice.
+        '''
+        if obj is None:
+            return
+        else:
+            self.pid=getattr(obj,'id',None)
+
+    def __reduce__(self):
+        '''
+        numpy.ndarray uses __reduce__ to pickle. Therefore this mehtod needs overriding for subclasses.
+        '''
+        pickle=super(SpinMatrix,self).__reduce__()
+        return (pickle[0],pickle[1],pickle[2]+(self.pid,))
+
+    def __setstate__(self,state):
+        '''
+        Set the state of the SpinMatrix for pickle and copy.
+        '''
+        self.pid=state[-1]
+        super(SpinMatrix,self).__setstate__(state[0:-1])
+
     def __str__(self):
         '''
         Convert an instance to string.

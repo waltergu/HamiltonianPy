@@ -10,7 +10,7 @@ from numpy import *
 from numpy.linalg import norm
 from collections import OrderedDict
 
-class Generator:
+class Generator(object):
     '''
     This class provides methods to generate and update operators according to terms, bonds and configuration of degrees of freedom.
     Attributes:

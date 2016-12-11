@@ -11,7 +11,7 @@ from math import factorial
 from itertools import combinations
 from numba import jit
 
-class BasisF:
+class BasisF(object):
     '''
     Basis of fermionic systems in the occupation number representation. 
     It provides a unified description of the three often-encountered cases:

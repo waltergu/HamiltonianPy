@@ -95,6 +95,11 @@ class Table(dict):
 class Index(tuple):
     '''
     This class provides an index for a microscopic degree of freedom, including the spatial part and interanl part.
+    Attribues:
+        names: tuple of string
+            The names of the microscopic degrees of freedom.
+        icls: Class
+            The class of the interanl part of the index.
     '''
 
     def __new__(cls,pid,iid):
@@ -106,23 +111,32 @@ class Index(tuple):
             iid: namedtuple
                 The internal index, i.e. the internal part in a point of the index.
         '''
+
         self=super(Index,cls).__new__(cls,pid+iid)
-        self.__dict__=OrderedDict()
-        self.__dict__.update(pid._asdict())
-        self.__dict__.update(iid._asdict())
+        self.names=pid._fields+iid._fields
+        self.icls=iid.__class__
         return self
 
-    def __copy__(self):
+    def __getnewargs__(self):
         '''
-        Copy.
+        Return the arguments for Index.__new__, required by copy and pickle.
         '''
-        return self.replace(**self.__dict__)
+        return (self.pid,self.iid)
 
-    def __deepcopy__(self,memo):
+    def __getstate__(self):
         '''
-        Deep copy.
+        Since Index.__new__ constructs everything, self.__dict__ can be omitted for copy and pickle.
         '''
-        return self.replace(**self.__dict__)
+        pass
+
+    def __getattr__(self,key):
+        '''
+        Overloaded dot(.) operator.
+        '''
+        try:
+            return self[self.names.index(key)]
+        except ValueError:
+            raise AttributeError()
 
     @property
     def pid(self):
@@ -131,28 +145,28 @@ class Index(tuple):
         '''
         return PID(**{key:getattr(self,key) for key in PID._fields})
 
-    def iid(self,cls):
+    @property
+    def iid(self):
         '''
         The iid part of the index.
         '''
-        return cls(**{key:value for key,value in self.__dict__.items() if key not in PID._fields})
+        return self.icls(**{key:getattr(self,key) for key in self.names if key not in PID._fields})
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return ''.join(['Index(','=%r, '.join(self.__dict__.keys()),'=%r)'])%self
+        return ''.join(['Index(','=%r, '.join(self.names),'=%r)'])%self
 
     def replace(self,**karg):
         '''
         Return a new Index object with specified fields replaced with new values.
         '''
-        result=tuple.__new__(Index,map(karg.pop,self.__dict__.keys(),self))
+        result=tuple.__new__(Index,map(karg.pop,self.names,self))
         if karg:
             raise ValueError('Index replace error: it got unexpected field names: %r'%karg.keys())
-        result.__dict__=OrderedDict()
-        for key,value in zip(self.__dict__.keys(),result):
-            result.__dict__[key]=value
+        result.names=self.names
+        result.icls=self.icls
         return result
 
     def mask(self,*arg):
@@ -175,7 +189,7 @@ class Index(tuple):
         Returns: Index
             The selected index.
         '''
-        return self.mask(*[key for key in self.__dict__ if key not in arg])
+        return self.mask(*[key for key in self.names if key not in arg])
 
     def to_tuple(self,priority):
         '''
@@ -190,9 +204,9 @@ class Index(tuple):
         '''
         if len(set(priority))<len(priority):
             raise ValueError('Index to_tuple error: the priority has duplicates.')
-        if len(priority)!=len(self.__dict__):
+        if len(priority)!=len(self.names):
             raise ValueError("Index to_tuple error: the priority doesn't cover all the attributes.")
-        return tuple(map(self.__dict__.get,priority))
+        return tuple([getattr(self,name) for name in priority])
 
 class Internal(object):
     '''
@@ -278,9 +292,9 @@ class IDFConfig(dict):
 
 class Label(tuple):
     '''
-    The label of one dimension of a tensor.
+    The label of a dimension of a tensor.
     Attributes:
-        immutable: ('identifier','_prime_')
+        names: ('identifier','_prime_')
             The names of the immutable part of the label.
         qnc: integer or QuantumNumberCollection
             When integer, it is the dimension of the label;
@@ -301,45 +315,30 @@ class Label(tuple):
                 When QuantumNumberCollection, it is the quantum number collection of the label.
         '''
         self=tuple.__new__(cls,(identifier,prime))
-        tuple.__setattr__(self,'immutable',('identifier','_prime_'))
-        tuple.__setattr__(self,'qnc',qnc)
+        self.names=('identifier','_prime_')
+        self.qnc=qnc
         return self
 
-    def replace(self,**karg):
+    def __getnewargs__(self):
         '''
-        Return a new label with some of its attributes parts replaced.
-        Parameters:
-            karg: dict in the form (key,value), with
-                key: string
-                    The attributes of the label
-                value: any object
-                    The corresponding value.
-        Returns: Label
-            The new label.
+        Return the arguments for Label.__new__, required by copy and pickle.
         '''
-        result=tuple.__new__(self.__class__,[karg.pop(key,value) for key,value in zip(self.immutable,self)])
-        for key,value in self.__dict__.iteritems():
-            tuple.__setattr__(result,key,karg.pop(key,value))
-        if karg:
-            raise ValueError("Label replace error: %s are not the attributes of the label."%karg.keys())
-        return result
+        return tuple(self)+(self.qnc,)
 
-    @classmethod
-    def repr_qnc_on(cls,id=False):
+    def __getstate__(self):
         '''
-        Turn on the qnc part in the repr, and optionally, the id of the qnc.
+        Since Label.__new__ constructs everything, self.__dict__ can be omitted for copy and pickle.
         '''
-        if id:
-            cls.repr_form=2
-        else:
-            cls.repr_form=1
+        pass
 
-    @classmethod
-    def repr_qnc_off(cls):
+    def __getattr__(self,key):
         '''
-        Turn off the qnc part in the repr.
+        Overloaded operator(.).
         '''
-        cls.repr_form=0
+        try:
+            return self[self.names.index(key)]
+        except ValueError:
+            raise AttributeError()
 
     def __repr__(self):
         '''
@@ -361,36 +360,41 @@ class Label(tuple):
             else:
                 return "Label%s,with qnc(id=%s)=%s"%(tuple.__repr__(self[0:-1]),id(self.qnc),self.qnc)
 
-    def __getattr__(self,key):
+    def replace(self,**karg):
         '''
-        Overloaded operator(.).
+        Return a new label with some of its attributes replaced.
+        Parameters:
+            karg: dict in the form (key,value), with
+                key: string
+                    The attributes of the label
+                value: any object
+                    The corresponding value.
+        Returns: Label
+            The new label.
         '''
-        return self[self.immutable.index(key)]
+        result=tuple.__new__(self.__class__,map(karg.pop,self.names,self))
+        for key,value in self.__dict__.iteritems():
+            setattr(result,key,karg.pop(key,value))
+        if karg:
+            raise ValueError("Label replace error: %s are not the attributes of the label."%karg.keys())
+        return result
 
-    def __setattr__(self,key,value):
+    @classmethod
+    def repr_qnc_on(cls,id=False):
         '''
-        The setter of the overloaded operator(.).
+        Turn on the qnc part in the repr, and optionally, the id of the qnc.
         '''
-        if key not in self.immutable:
-            tuple.__setattr__(self,key,value)
+        if id:
+            cls.repr_form=2
         else:
-            raise TypeError("Label __setattr__ error: %s is immutable."%key)
+            cls.repr_form=1
 
-    def __copy__(self):
+    @classmethod
+    def repr_qnc_off(cls):
         '''
-        Copy.
+        Turn off the qnc part in the repr.
         '''
-        result=tuple.__new__(self.__class__,self)
-        tuple.__setattr__(result,'__dict__',copy(self.__dict__))
-        return result
-
-    def __deepcopy__(self,memo):
-        '''
-        Deepcopy.
-        '''
-        result=tuple.__new__(self.__class__,self)
-        tuple.__setattr__(result,'__dict__',deepcopy(self.__dict__))
-        return result
+        cls.repr_form=0
 
     @property
     def prime(self):

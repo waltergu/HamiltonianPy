@@ -212,6 +212,7 @@ class Tree(dict):
             if return_form==Tree.DATA, the returned iterator runs over the data of the node in the tree;
             if return_form==Tree.NODE, the returned iterator runs over the nodes in the tree.
         '''
+        assert self.root is not None
         node=self.root if (node is None) else node
         queue=[(node,self[node])]
         while queue:

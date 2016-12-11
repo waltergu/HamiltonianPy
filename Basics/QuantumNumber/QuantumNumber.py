@@ -54,8 +54,7 @@ class QuantumNumber(tuple):
 
     def __getnewargs__(self):
         '''
-        Return the arguments for QuantumNumber.__new__.
-        Required by copy and pickle.
+        Return the arguments for QuantumNumber.__new__, required by copy and pickle.
         '''
         return (zip(self.names,self,self.types),)
 

@@ -134,7 +134,11 @@ PID.__new__.__defaults__=(None,)*len(PID._fields)
 
 class Point(ndarray):
     '''
-    Point.
+    Point, which is a 2d ndarray with a shape of (2,N), with N being the dimension of the coordinates, and
+        Point[0,:]:
+            The rcoord part of the Point.
+        Point[1,:]:
+            The icoord part of the Point.
     Attributes:
         pid: PID
             The specific ID of a point.
@@ -165,6 +169,20 @@ class Point(ndarray):
             return
         else:
             self.pid=getattr(obj,'pid',None)
+
+    def __reduce__(self):
+        '''
+        numpy.ndarray uses __reduce__ to pickle. Therefore this mehtod needs overriding for subclasses.
+        '''
+        pickle=super(Point,self).__reduce__()
+        return (pickle[0],pickle[1],pickle[2]+(self.pid,))
+
+    def __setstate__(self,state):
+        '''
+        Set the state of the Point for pickle and copy.
+        '''
+        self.pid=state[-1]
+        super(Point,self).__setstate__(state[0:-1])
 
     @property
     def rcoord(self):
@@ -285,7 +303,7 @@ def rotation(cluster,angle=0,axis=None,center=None):
     else:
         return [dot(m,rcoord-center)+center for rcoord in cluster]
 
-class Bond:
+class Bond(object):
     '''
     This class describes the bond in a lattice.
     Attributes:

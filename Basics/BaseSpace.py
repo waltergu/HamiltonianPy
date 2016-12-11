@@ -13,16 +13,23 @@ from collections import OrderedDict
 import matplotlib.pyplot as plt
 import itertools
 
-class BaseSpace:
+class BaseSpace(object):
     '''
     This class provides a unified description of all kinds of parameter spaces.
     Attibutes:
-        mesh: OrderedDict with its keys being any hashable object and values being ndarray
-            The mesh of the parameter space.
-            Its keys represent the name of the parameter space when its length ==1 or the tags of different parameter axis when its length >1.
-            Its values contain the corresponding meshes.
-        volume: OrderedDict with its keys being any hashable object and values being float
-            The volume of the parameter space. 
+        mesh: OrderedDict in the form (key,value), with
+            key: any hashable object
+                When len(mesh)==1, the name of the parameter space;
+                When len(mesh)>1, the tags of the axes of the parameter space.
+            value: ndarray
+                When len(mesh)==1, the data mesh of the parameter space;
+                When len(mesh)>1, the data mesh of each axis of the parameter space.
+        volume: OrderedDict in the form (key,value), with
+            key: any hashable object
+               The same as the keys of mesh.
+            value: float64
+                When len(volume)==1, the volume of the parameter space;
+                When len(volume)>1, the volume of each axis of the parameter space.
             This attribute is not always initialized or used.
     '''
     def __init__(self,*paras):

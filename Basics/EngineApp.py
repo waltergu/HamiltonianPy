@@ -11,7 +11,7 @@ from numpy.linalg import norm
 import os
 import time
 
-class Name:
+class Name(object):
     '''
     This class provides an engine with a name.
     Attributes:
@@ -28,6 +28,12 @@ class Name:
     '''
     
     def __init__(self,prefix='',suffix=''):
+        '''
+        Constructor.
+        Parameters:
+            prefix, suffix: string, optional
+                The prefix and suffix of the Name.
+        '''
         self.prefix=prefix
         self.suffix=suffix
         self._const=OrderedDict()
@@ -35,9 +41,18 @@ class Name:
         self._full=OrderedDict()
     
     def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
         return self.full
 
     def update(self,const=None,alter=None):
+        '''
+        Update the parameters of the engine.
+        Parameters:
+            const, alter: dict, optional
+                The new parameters.
+        '''
         if const is not None:
             self._const.update(const)
             self._full.update(const)
