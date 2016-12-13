@@ -165,9 +165,13 @@ class DMRG(Engine):
             5) info['nnz']: integer
                 The number of non-zeros of the whole chain's Hamiltonian.
         cache: dict
-            It has only one item up to now:
+            It has three items up to now:
             1) cache['qnc']: QuantumNumberCollection
                 The quantum number collection of the whole chain.
+            2) subslice: list of integer
+                The subslice of the DMRG's target space in the kron order.
+            3) permutation: list of integer
+                The permutation of the DMRG's target space to be in the order with respect to cache['qnc'].
     '''
 
     def __init__(self,name,mps,lattice,terms,config,degfres,layer=None,mask=[],target=None,dtype=np.complex128,**karg):
