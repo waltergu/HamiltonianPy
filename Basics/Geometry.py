@@ -534,7 +534,7 @@ class Lattice(dict):
     max_coordinate_number=8
     debug=False
 
-    def __init__(self,name,points,vectors=[],nneighbour=1,max_coordinate_number=8):
+    def __init__(self,name=None,points=[],vectors=[],nneighbour=1,max_coordinate_number=8):
         '''
         Constructor.
         Parameters:
@@ -616,7 +616,8 @@ class Lattice(dict):
             self.reciprocals=reciprocals(vectors)
         if nneighbour is not None:
             self.nneighbour=nneighbour
-        self.bonds,self.min_dists=bonds(
+        if len(self)>0:
+            self.bonds,self.min_dists=bonds(
                 cluster=    self.values(),
                 vectors=    self.vectors,
                 mode=       'nb',
@@ -624,7 +625,10 @@ class Lattice(dict):
                             'max_coordinate_number':Lattice.max_coordinate_number,
                             'return_min_dists':True
                         }
-        )
+                )
+        else:
+            self.bonds=[]
+            self.min_dists=[]
 
     def plot(self,fig=None,ax=None,show=True,save=False,close=True,pid_on=False):
         '''

@@ -1,25 +1,23 @@
 '''
-Finite DMRG test.
+DMRG test.
 '''
 
-__all__=['test_fdmrg']
+__all__=['test_dmrg']
 
 import numpy as np
 import HamiltonianPy as HP
 from HamiltonianPy.Basics import *
 from HamiltonianPy.DMRG.MPS import *
-from HamiltonianPy.DMRG.Chain import*
-from HamiltonianPy.DMRG.iDMRG import *
-from HamiltonianPy.DMRG.fDMRG import *
+from HamiltonianPy.DMRG.DMRG import *
 
-def test_fdmrg():
-    print 'test_fdmrg'
-    test_fdmrg_spin()
-    test_fdmrg_spinless_fermion()
-    test_fdmrg_spinful_fermion()
+def test_dmrg():
+    print 'test_dmrg'
+    test_dmrg_spin()
+    #test_dmrg_spinless_fermion()
+    #test_dmrg_spinful_fermion()
 
-def test_fdmrg_spin():
-    print 'test_fdmrg_spin'
+def test_dmrg_spin():
+    print 'test_dmrg_spin'
     # parameters
     N,J,spin,qn_on=20,1.0,0.5,True
 
@@ -36,24 +34,22 @@ def test_fdmrg_spin():
     config=IDFConfig(priority=priority,map=lambda pid: Spin(S=spin))
     if qn_on:
         degfres=DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SpinQNC(S=spin))
-        chain=EmptyChain(mode='QN')
+        mps=MPS(mode='QN')
         targets=[SpinQN(Sz=0.0)]*(N/2)
     else:
         degfres=DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: int(spin*2+1))
-        chain=EmptyChain(mode='NB')
+        mps=MPS(mode='NB')
         targets=[None]*(N/2)
 
     # dmrg
-    idmrg=iDMRG(name='iDMRG(spin-%s)'%(spin),block=block,vector=vector,terms=terms,config=config,degfres=degfres,chain=chain,dtype=np.float64)
-    idmrg.grow(scopes=range(N),targets=targets,nmax=20)
-    fdmrg=fDMRG.from_idmrg(idmrg,name='fDMRG(spin-%s)'%(spin))
-    #fdmrg.chain.update(optstrs=fdmrg.chain.optstrs)
-    fdmrg.sweep([20,30,60,100,200,200])
-    #check_block(fdmrg.name,fdmrg.chain)
+    dmrg=DMRG(name='spin-%s'%(spin),mps=mps,lattice=Lattice(),terms=terms,config=config,degfres=degfres,mask=[],dtype=np.float64)
+    dmrg.register(TSG(name='GTOWTH',block=block,vector=vector,scopes=range(N),targets=targets,nmax=20,run=DMRGTSG))
+    dmrg.register(TSS(name='SWEEP',BS=[{}]*4,nmaxs=[50,100,200,200],run=DMRGTSS))
+    #check_block(dmrg.status,dmrg.mps)
     print
 
-def test_fdmrg_spinless_fermion():
-    print 'test_fdmrg_spinless_fermion'
+def test_dmrg_spinless_fermion():
+    print 'test_dmrg_spinless_fermion'
     # parameters
     N,t,qn_on=20,-0.5,True
 
@@ -69,23 +65,22 @@ def test_fdmrg_spinless_fermion():
     config=IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=1,nnambu=1))
     if qn_on:
         degfres=DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: QuantumNumberCollection([(QuantumNumber([('N',1,'U1')]),1),(QuantumNumber([('N',0,'U1')]),1)]))
-        chain=EmptyChain(mode='QN')
+        mps=MPS(mode='QN')
         targets=[QuantumNumber([('N',num,'U1')]) for num in xrange(1,N/2+1)]
     else:
         degfres=DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: 2)
-        chain=EmptyChain(mode='NB')
+        mps=MPS(mode='NB')
         targets=[None]*(N/2)
 
     # dmrg
-    idmrg=iDMRG(name='iDMRG(fermion-no-spin)',block=block,vector=vector,terms=terms,config=config,degfres=degfres,mask=['nambu'],chain=chain,dtype=np.float64)
-    idmrg.grow(scopes=range(N),targets=targets,nmax=20)
-    fdmrg=fDMRG.from_idmrg(idmrg,name='fDMRG(fermion-no-spin)')
-    fdmrg.sweep([20,30,60,100,200,200])
-    #check_block(fdmrg.name,fdmrg.chain)
+    dmrg=DMRG(name='fermion-no-spin',mps=mps,lattice=Lattice(),terms=terms,config=config,degfres=degfres,mask=['nambu'],dtype=np.float64)
+    dmrg.register(TSG(name='GTOWTH',block=block,vector=vector,scopes=range(N),targets=targets,nmax=20,run=DMRGTSG))
+    dmrg.register(TSS(name='SWEEP',BS=[{}]*4,nmaxs=[50,100,200,200],run=DMRGTSS))
+    #check_block(dmrg.status,dmrg.mps)
     print
 
-def test_fdmrg_spinful_fermion():
-    print 'test_fdmrg_spinful_fermion'
+def test_dmrg_spinful_fermion():
+    print 'test_dmrg_spinful_fermion'
     # parameters
     N,t,U,qn_on=20,-1.0,1.0,True
 
@@ -101,21 +96,20 @@ def test_fdmrg_spinful_fermion():
     config=IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1))
     if qn_on:
         degfres=DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: QuantumNumberCollection([(FermiQN(N=1,Sz=0.5) if index.spin==1 else FermiQN(N=1,Sz=-0.5),1),(FermiQN(N=0,Sz=0.0),1)]))
-        chain=EmptyChain(mode='QN')
+        mps=MPS(mode='QN')
         targets=[FermiQN(N=num*2,Sz=0.0) for num in xrange(1,N/2+1)]
     else:
         degfres=DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: 2)
-        chain=EmptyChain(mode='NB')
+        mps=MPS(mode='NB')
         targets=[None]*(N/2)
 
     # dmrg
-    idmrg=iDMRG(name='iDMRG(fermion-spin-1/2)',block=block,vector=vector,terms=terms,config=config,degfres=degfres,mask=['nambu'],chain=chain,dtype=np.float64)
-    idmrg.grow(scopes=range(N),targets=targets,nmax=20)
-    fdmrg=fDMRG.from_idmrg(idmrg,name='fDMRG(fermion-spin-1/2)')
-    fdmrg.sweep([20,30])
-    #check_block(fdmrg.name,fdmrg.chain)
-    fdmrg.level_up(n=1)
-    fdmrg.sweep([50,100,200,200])
+    dmrg=DMRG(name='fermion-spin-0.5',mps=mps,lattice=Lattice(),terms=terms,config=config,degfres=degfres,mask=['nambu'],dtype=np.float64)
+    dmrg.register(TSG(name='GTOWTH',block=block,vector=vector,scopes=range(N),targets=targets,nmax=20,run=DMRGTSG))
+    dmrg.register(TSS(name='SWEEP',BS=[{}]*2,nmaxs=[20,30],run=DMRGTSS))
+    dmrg.level_up(n=1)
+    dmrg.register(TSS(name='SWEEP',BS=[{}]*4,nmaxs=[50,100,200,200],run=DMRGTSS))
+    #check_block(dmrg.status,dmrg.mps)
     print
 
 def check_block(name,mps):

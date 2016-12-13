@@ -415,6 +415,7 @@ def VCAGPM(engine,app):
             print paras
             result[i,0:nbs]=array(paras.values())
             result[i,nbs]=gp(paras.values(),paras.keys())
+            print result
         app.gpm=amin(result[:,nbs])
         index=argmin(result[:,nbs])
         app.bsm={key:value for key,value in zip(paras.keys(),result[index,0:nbs])}

@@ -520,7 +520,7 @@ class DegFreTree(Tree):
         else:
             return self[index].n
 
-    def indices(self,layer):
+    def indices(self,layer=None):
         '''
         The indices in a layer.
         Parameters:
@@ -529,9 +529,10 @@ class DegFreTree(Tree):
         Returns: list of Index
             The indices in the requested layer.
         '''
+        layer=self.layers[0] if layer is None else layer
         return self.cache[('indices',layer)]
 
-    def table(self,layer):
+    def table(self,layer=None):
         '''
         Return a index-sequence table with the index restricted on a specific layer.
         Parameters:
@@ -540,9 +541,10 @@ class DegFreTree(Tree):
         Returns: Table
             The index-sequence table.
         '''
+        layer=self.layers[0] if layer is None else layer
         return self.cache[('table',layer)]
 
-    def reversed_table(self,layer):
+    def reversed_table(self,layer=None):
         '''
         Return the reversed sequence-index table with the index restricted on a specific layer.
         Parameters:
@@ -551,9 +553,10 @@ class DegFreTree(Tree):
         Returns: Table
             The sequence-index table.
         '''
+        layer=self.layers[0] if layer is None else layer
         return self.cache[('reversed_table',layer)]
 
-    def qnc_evolutions(self,layer):
+    def qnc_evolutions(self,layer=None):
         '''
         Retrun a dict in the form {branch:qncs}
             branch: index
@@ -565,9 +568,10 @@ class DegFreTree(Tree):
                 The layer where the branches are restricted.
         Returns: as above.
         '''
+        layer=self.layers[0] if layer is None else layer
         return self.cache.get(('qnc_evolutions',layer),None)
 
-    def labels(self,layer,full_labels=True):
+    def labels(self,layer=None,full_labels=True):
         '''
         Return a OrderedDict of labels on a specific layer.
         Parameters:
@@ -592,6 +596,7 @@ class DegFreTree(Tree):
                     When self.mode=='QN', it is a QuantumNumberCollection, the quantum number collection of the physical degrees of freedom;
                     When self.mode=='NB', it is a integer, the number of the physical degrees of freedom.
         '''
+        layer=self.layers[0] if layer is None else layer
         if ('labels',layer,full_labels) not in self.cache:
             result=OrderedDict()
             indices=sorted(self.indices(layer),key=lambda index: index.to_tuple(priority=self.priority))

@@ -37,6 +37,6 @@ def test_ed():
                         ]
         )
     a.register(EB(id='EB',path=BaseSpace({'tag':'U','mesh':linspace(0.0,5.0,100)}),ns=6,save_data=False,run=EDEB))
-    a.register(DOS(id='DOS',emin=-5,emax=5,ne=501,eta=0.05,save_data=False,run=EDDOS,plot=True,show=True),dependence=[GFC(nstep=4,save_data=False,vtype='RD',paras={'U':0.0},run=EDGFC)])
+    a.register(DOS(id='DOS',emin=-5,emax=5,ne=501,eta=0.05,save_data=False,run=EDDOS,plot=True,show=True),dependence=[GFC(id='GFC',nstep=4,save_data=False,vtype='RD',paras={'U':0.0},run=EDGFC)])
     a.runapps()
     print
