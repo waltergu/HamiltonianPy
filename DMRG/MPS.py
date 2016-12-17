@@ -6,10 +6,11 @@ Matrix product state, including:
 __all__=['MPS','Vidal']
 
 import numpy as np
-from HamiltonianPy.Basics import Label,QuantumNumberCollection,bond_qnc_generation,mb_svd,expanded_svd
+from HamiltonianPy.Basics import Label,Status,QuantumNumberCollection,bond_qnc_generation,mb_svd,expanded_svd
 from HamiltonianPy.Math.Tensor import *
 from HamiltonianPy.Math.linalg import truncated_svd,TOL
 from copy import copy,deepcopy
+from collections import OrderedDict
 
 class MPS(list):
     '''
@@ -24,12 +25,6 @@ class MPS(list):
             The Lambda matrix (singular values) on the connecting link.
         cut: integer
             The index of the connecting link.
-        table: dict
-            For each of its (key,value) pair,
-                key: any hashable object
-                    The site label of each matrix in the mps.
-                value: integer
-                    The index of the corresponding matrix in the mps.
     Note the left-canonical MPS, right-canonical MPS and mixed-canonical MPS are considered as special cases of this form.
     '''
     L,S,R=0,1,2
@@ -62,9 +57,9 @@ class MPS(list):
             self.cut=None
         elif cut<0 or cut>len(ms):
             raise ValueError('MPS construction error: the cut(%s) is out of range [0,%s].'%(cut,len(ms)))
-        self.table={}
         if labels is None:
             for i,m in enumerate(ms):
+                assert isinstance(m,Tensor) and m.ndim==3
                 self.append(m)
             if Lambda is not None and cut is not None:
                 assert isinstance(Lambda,Tensor)
@@ -73,6 +68,7 @@ class MPS(list):
         else:
             assert len(ms)==len(labels)
             for m,label in zip(ms,labels):
+                assert m.ndim==3
                 self.append(Tensor(m,labels=list(label)))
             if Lambda is not None and cut is not None:
                 if cut==0:
@@ -163,30 +159,28 @@ class MPS(list):
         QuantumNumberCollection.clear_history(new)
         self.mode='QN'
 
-    def append(self,m):
+    @property
+    def status(self):
         '''
-        Overloaded append.
+        The status of the MPS.
         '''
-        assert isinstance(m,Tensor) and m.ndim==3
-        assert all([isinstance(label,Label) for label in m.labels])
-        list.append(self,m)
-        self.table[m.labels[self.S]]=self.nsite-1
+        result=OrderedDict()
+        result['nsite']=self.nsite
+        result['nmax']=np.array([m.shape[MPS.L] for m in self]).max()
+        return Status(alter=result)
 
-    def insert(self,index,m):
+    @property
+    def table(self):
         '''
-        Overloaded insert.
+        The table of the mps.
+        Returns: dict
+            For each of its (key,value) pair,
+                key: Label
+                    The site label of each matrix in the mps.
+                value: integer
+                    The index of the corresponding matrix in the mps.
         '''
-        assert isinstance(m,Tensor) and m.ndim==3
-        assert all([isinstance(label,Label) for label in m.labels])
-        list.insert(self,index,m)
-        self.table={m.labels[self.S]:i for i,m in enumerate(self)}
-
-    def extend(self,ms):
-        '''
-        Overloaded extend.
-        '''
-        for m in ms:
-            self.append(m)
+        return {m.labels[MPS.S]:i for i,m in enumerate(self)}
 
     @property
     def As(self):
@@ -230,12 +224,13 @@ class MPS(list):
                 The MPS is a mixed state with the columns being the contained pure states.
                 The singular value for each pure state is omitted.
         '''
+        table=self.table
         if self.cut in (0,self.nsite,None):
             result=contract(*self,sequence='sequential')
         else:
             A,B=contract(*self.As,sequence='sequential'),contract(*self.Bs,sequence='sequential')
             result=contract(A,self.Lambda,B)
-        legs=set(result.labels)-set(self.table)
+        legs=set(result.labels)-set(table)
         if len(legs)==0:
             return np.asarray(result).ravel()
         elif len(legs)==2:
@@ -245,7 +240,7 @@ class MPS(list):
                 flag=False
             buff,temp=1,1
             for label,n in zip(result.labels,result.shape):
-                if label not in self.table and n>1:
+                if label not in table and n>1:
                     temp=n
                 else:
                     buff*=n
@@ -313,16 +308,18 @@ class MPS(list):
             Lambda: Tensor
                 The singular values at the connecting link of the mps.
         '''
-        L,S,R=m.labels[MPS.L],m.labels[MPS.S],m.labels[MPS.R]
-        pos=self.table[S]
-        self[pos]=m
-        self.Lambda=Lambda
-        if Lambda.labels[0]==L:
-            self.cut=pos
-        elif Lambda.labels[0]==R:
-            self.cut=pos+1
-        else:
-            raise ValueError("MPS _set_ABL_ error: the labels of m(%s) and Lambda(%s) do not match."%(m.labels,Lambda.labels))
+        if isinstance(m,Tensor) and isinstance(Lambda,Tensor):
+            assert m.ndim==3 and Lambda.ndim==1
+            L,S,R=m.labels[MPS.L],m.labels[MPS.S],m.labels[MPS.R]
+            pos=self.table[S]
+            self[pos]=m
+            self.Lambda=Lambda
+            if Lambda.labels[0]==L:
+                self.cut=pos
+            elif Lambda.labels[0]==R:
+                self.cut=pos+1
+            else:
+                raise ValueError("MPS _set_ABL_ error: the labels of m(%s) and Lambda(%s) do not match."%(m.labels,Lambda.labels))
 
     def _set_B_and_lmove_(self,M,nmax=None,tol=None):
         '''
@@ -501,6 +498,66 @@ class MPS(list):
         Lambda=None if self.Lambda is None else self.Lambda.copy(copy_data=copy_data)
         return MPS(ms=ms,Lambda=Lambda,cut=self.cut)
 
+    def relabel(self,news,olds=None):
+        '''
+        Change the labels of the MPS.
+        Parameters:
+            news: list of 3-tuples of Label
+                The new labels of the MPS.
+            olds: list of 3-tuples of Label, optional
+                The old labels of the MPS.
+        '''
+        if olds is None:
+            assert len(news)==self.nsite
+            for m,new in zip(self,news):
+                m.relabel(new)
+        else:
+            table=self.table
+            assert len(news)==len(olds)
+            for new,old in zip(news,olds):
+                self[table[old[MPS.S]]].relabel(new)
+
+    @staticmethod
+    def overlap(mps1,mps2):
+        '''
+        The overlap between two mps.
+        Parameters:
+            mps1,mps2: MPS
+                The MPS between which the overlap is calculated.
+        Returns: number
+            The overlap.
+        '''
+        def reset_and_protect(mps):
+            if mps.cut is None:
+                m,Lambda=None,None
+            elif mps.cut<mps.nsite:
+                m,Lambda=mps[mps.cut],mps.Lambda
+                mps._reset_(merge='R',reset=None)
+            else:
+                m,Lambda=mps[mps.cut-1],mps.Lambda
+                mps._reset_(merge='L',reset=None)
+            return m,Lambda
+        u1,Lambda1=reset_and_protect(mps1)
+        u2,Lambda2=reset_and_protect(mps2)
+        result=[]
+        for i,(m1,m2) in enumerate(zip(mps1,mps2)):
+            assert m1.labels==m2.labels
+            L,R=m1.labels[MPS.L],m1.labels[MPS.R]
+            news,olds=[L.prime,R.prime],[L,R]
+            m1=m1.copy(copy_data=False).conjugate()
+            if i==0:
+                news.remove(L.prime)
+                olds.remove(L)
+            if i==mps1.nsite-1:
+                news.remove(R.prime)
+                olds.remove(R)
+            m1.relabel(news=news,olds=olds)
+            result.append(m1)
+            result.append(m2)
+        mps1._set_ABL_(u1,Lambda1)
+        mps2._set_ABL_(u2,Lambda2)
+        return np.asarray(contract(*result,sequence='sequential'))
+
     # NOT DEBUGED COED
     def level_down(self,degfres,n=1):
         '''
@@ -516,8 +573,9 @@ class MPS(list):
         assert n>=0
         assert self.mode==degfres.mode
         result=self if n==0 else copy(self)
+        table=result.table
         for count in xrange(n):
-            level=degfres.level(next(iter(result.table)).identifier)
+            level=degfres.level(next(iter(table)).identifier)
             if level==1:
                 raise ValueError("MPS level_down error: at the %s-th loop, level(%s) is already at the bottom."%(count,level))
             result._reset_(reset=None)
@@ -528,9 +586,9 @@ class MPS(list):
                 for k,parent in enumerate(news.keys()):
                     for i,child in enumerate(degfres.children(parent)):
                         if i==0:
-                            ms[k]=np.asarray(result[result.table[olds[child]]])
+                            ms[k]=np.asarray(result[table[olds[child]]])
                         else:
-                            ms[k]=np.einsum('ijk,klm->ijlm',ms[k],np.asarray(result[result.table[olds[child]]]))
+                            ms[k]=np.einsum('ijk,klm->ijlm',ms[k],np.asarray(result[table[olds[child]]]))
                             shape=ms[k].shape
                             ms[k]=ms[k].reshape((shape[0],-1,shape[-1]))
                 result=MPS(mode='NB',ms=ms,labels=news.values(),Lambda=None,cut=None)
@@ -539,7 +597,7 @@ class MPS(list):
                 qncs=degfres.qnc_evolutions(layer=degfres.layers[level-2])
                 for k,L,S,R in enumerate(news.values()):
                     for i,child,sqnc in enumerate(zip(degfres.children(S.identifier),qncs[S.identifier])):
-                        pos=result.table[olds[child]]
+                        pos=table[olds[child]]
                         if i==0:
                             ms[k]=np.asarray(result[pos])
                             lqnc=result[pos].labels[MPS.L].qnc
@@ -571,8 +629,9 @@ class MPS(list):
         assert n>=0
         assert self.mode==degfres.mode
         result=self if n==0 else copy(self)
+        table=result.table
         for count in xrange(n):
-            level=degfres.level(next(iter(result.table)).identifier)
+            level=degfres.level(next(iter(table)).identifier)
             if level==len(degfres.layers):
                 raise ValueError("MPS level_up error: at the %s-th loop, level(%s) is already at the top."%(count,level))
             labels=degfres.labels(layer=degfres.layers[level],full_labels=True)

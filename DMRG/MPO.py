@@ -154,9 +154,10 @@ class OptStr(list):
             assert len(self)==1
             result=self[0]*result
         else:
-            ms=sorted(self,key=lambda m:us.table[m.labels[1]])
+            table=us.table
+            ms=sorted(self,key=lambda m:table[m.labels[1]])
             if form=='L':
-                start,count=us.table[ms[0].labels[1]],0
+                start,count=table[ms[0].labels[1]],0
                 for i,u in enumerate(us[start:]):
                     L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
                     up=u.copy(copy_data=False).conjugate()
@@ -171,7 +172,7 @@ class OptStr(list):
                         up.relabel(news=[L.prime,R.prime],olds=[L,R])
                         result=contract(result,up,u)
             elif form=='R':
-                end,count=us.table[ms[-1].labels[1]]+1,-1
+                end,count=table[ms[-1].labels[1]]+1,-1
                 for i,u in enumerate(reversed(us[0:end])):
                     L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
                     up=u.copy(copy_data=False).conjugate()
@@ -209,10 +210,11 @@ class OptStr(list):
                 m,Lambda=mps[mps.cut-1],mps.Lambda
                 mps._reset_(merge='L',reset=None)
             return m,Lambda
-        assert mps1.table==mps2.table
-        ms=sorted(self,key=lambda m:mps1.table[m.labels[1]])
+        #assert mps1.table==mps2.table
+        table=mps1.table
+        ms=sorted(self,key=lambda m:table[m.labels[1]])
         if mps1 is mps2:
-            start,end,count=mps1.table[ms[0].labels[1]],mps1.table[ms[-1].labels[1]]+1,0
+            start,end,count=table[ms[0].labels[1]],table[ms[-1].labels[1]]+1,0
             if mps1.cut<start or mps1.cut>end:
                 warnings.warn("OptStr overlap warning: the cut of the mps is %s and will be moved into the range [%s,%s]."%(mps1.cut,start,end))
                 if mps1.cut<start:

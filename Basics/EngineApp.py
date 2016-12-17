@@ -1,116 +1,15 @@
 '''
 Engine and App, including:
-1) classes: Status, Engine, App
+1) classes: Engine, App
 '''
 
-__all__=['Status','Engine','App']
+__all__=['Engine','App']
 
 from collections import OrderedDict
 from numpy import array
-from numpy.linalg import norm
-from Constant import RZERO
+from DegreeOfFreedom import Status
 import os
 import time
-
-class Status(object):
-    '''
-    This class provides an engine/app with a stauts.
-    Attributes:
-        name: any hashable object
-            The name of the engine/app.
-        info: any object
-            Additional information of the engine/app.
-        data: OrderedDict
-            The data of the engine/app.
-            In current version, these are the parameters of the engine/app.
-        _const_: OrderedDict
-            The constant parameters of the engine/app.
-        _alter_: OrderedDict
-            The alterable parameters of the engine/app.
-    '''
-
-    def __init__(self,name='',info=''):
-        '''
-        Constructor.
-        Parameters:
-            name: any hashable object
-                The name of the engine/app.
-            info: any object
-                Additional information of the engine/app.
-        '''
-        self.name=name
-        self.info=info
-        self.data=OrderedDict()
-        self._const_=OrderedDict()
-        self._alter_=OrderedDict()
-
-    def __str__(self):
-        '''
-        Convert an instance to string.
-        '''
-        result=[]
-        result.append(str(self.name))
-        if len(self._const_)>0:result.append('_'.join([str(v) for v in self._const_.values()]))
-        if len(self._alter_)>0:result.append('_'.join([str(v) for v in self._alter_.values()]))
-        result.append(str(self.info))
-        return '_'.join(result)
-
-    def update(self,const=None,alter=None):
-        '''
-        Update the parameters of the engine/app.
-        Parameters:
-            const, alter: dict, optional
-                The new parameters.
-        '''
-        if const is not None:
-            self._const_.update(const)
-            self.data.update(const)
-        if alter is not None:
-            self._alter_.update(alter)
-            self.data.update(alter)
-
-    @property
-    def const(self):
-        '''
-        This method returns a string representation of the status containing only the constant parameters.
-        '''
-        result=[]
-        result.append(str(self.name))
-        if len(self._const_)>0:result.append('_'.join([str(v) for v in self._const_.values()]))
-        result.append(str(self.info))
-        return '_'.join(result)
-
-    @property
-    def alter(self):
-        '''
-        This method returns a string representation of the status containing only the alterable parameters.
-        '''
-        result=[]
-        result.append(str(self.name))
-        if len(self._alter_)>0:result.append('_'.join([str(v) for v in self._alter_.values()]))
-        result.append(str(self.info))
-        return '_'.join(result)
-
-    def __le__(self,other):
-        '''
-        Overloaded operator(<=).
-        If self.data is a subset of other.data, return True. Otherwise False.
-        '''
-        try:
-            for key,value in self.data.iteritems():
-                if norm(value-other.data[key])>RZERO:
-                    return False
-            else:
-                return True
-        except KeyError:
-            return False
-
-    def __ge__(self,other):
-        '''
-        Overloaded operator(>=).
-        If other.data is a subset of self.data, return True. Otherwise False.
-        '''
-        return other.__le__(self)
 
 class Engine(object):
     '''

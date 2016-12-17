@@ -242,11 +242,12 @@ class DMRG(Engine):
         '''
         Set the blocks and connections of the DMRG.
         '''
+        table=self.mps.table
         temp=[[] for i in xrange(self.mps.nsite+1)]
         self.blocks={"L":deepcopy(temp),"S":deepcopy(temp),"R":deepcopy(temp)}
         self.connections={"LR":deepcopy(temp),"L":deepcopy(temp),"R":deepcopy(temp)}
         for optstr in self.optstrs['h']:
-            temp=sorted([self.mps.table[label] for label in optstr.labels])
+            temp=sorted([table[label] for label in optstr.labels])
             if len(temp)==1:
                 self.blocks["S"][temp[0]].append(optstr)
             else:
@@ -401,10 +402,11 @@ class DMRG(Engine):
         '''
         sys,env=self.sys,self.env
         ussys,usenv=self.us(sys),self.us(env)
+        tablesys,tableenv=ussys.table,usenv.table
         rows,cols=(None,None) if self.mps.mode=='NB' else (self.cache['subslice'],self.cache['subslice'])
         result=kronsum(self.H(env),self.H(sys),rows=rows,cols=cols,format='csr')
         for optstr in self.connections['LR'][self.mps.cut]:
-            a,b=optstr.split(ussys.table,usenv.table,coeff='A')
+            a,b=optstr.split(tablesys,tableenv,coeff='A')
             result+=kron(a.matrix(ussys,'L'),b.matrix(usenv,'R'),rows=rows,cols=cols,format='csr')
         return result
 
@@ -415,17 +417,19 @@ class DMRG(Engine):
         self.logger.proceed('Preparation')
         A,Asite,sys=self.A,self.Asite,self.sys
         usa,usasite=self.us(A),self.us(Asite)
+        tablea,tableasite=usa.table,usasite.table
         u=np.identity(A.nbasis*Asite.nbasis).reshape((A.nbasis,Asite.nbasis,-1))
         ha=np.kron(self.H(A),np.identity(Asite.nbasis))+np.kron(np.identity(A.nbasis),self.H(Asite))
         for optstr in self.connections[sys.form][sys]:
-            a,b=optstr.split(usa.table,usasite.table,coeff='B')
+            a,b=optstr.split(tablea,tableasite,coeff='B')
             ha+=np.kron(a.matrix(usa,'L'),b.matrix(usasite,'S'))
         B,Bsite,env=self.B,self.Bsite,self.env
         usb,usbsite=self.us(B),self.us(Bsite)
+        tableb,tablebsite=usb.table,usbsite.table
         v=np.identity(Bsite.nbasis*B.nbasis).reshape((-1,Bsite.nbasis,B.nbasis))
         hb=np.kron(self.H(Bsite),np.identity(B.nbasis))+np.kron(np.identity(Bsite.nbasis),self.H(B))
         for optstr in self.connections[env.form][env]:
-            a,b=optstr.split(usbsite.table,usb.table,coeff='A')
+            a,b=optstr.split(tablebsite,tableb,coeff='A')
             hb+=np.kron(a.matrix(usbsite,'S'),b.matrix(usb,'R'))
         if self.mps.mode=='QN':
             sys.qnc=A.qnc.kron(Asite.qnc,'+',history=True)
@@ -604,7 +608,8 @@ def DMRGTSG(engine,app):
         AL=Label(identifier=indices[i],qnc=engine.degfres[indices[i]])
         BL=Label(identifier=indices[i+1],qnc=engine.degfres[indices[i+1]])
         assert engine.mps.cut==None or engine.mps.cut==engine.mps.nsite/2
-        assert AL not in engine.mps.table and BL not in engine.mps.table
+        table=engine.mps.table
+        assert AL not in table and BL not in table
         target=app.targets[i]
         if engine.mps.mode=='QN':
             diff=QuantumNumberCollection([] if target==engine.target else [(target if engine.target is None else target-engine.target,1)])
@@ -640,7 +645,7 @@ def DMRGTSG(engine,app):
         print 'gse: %s.'%(engine.info['gse'][0])
         print
     if app.save_data:
-        with open('%s/%s_mps.dat'%(engine.din,engine.status),'wb') as fout:
+        with open('%s/%s_imps_%s.dat'%(engine.din,engine.status,engine.mps.status),'wb') as fout:
             pk.dump(engine.mps,fout,2)
 
 class TSS(App):
@@ -700,12 +705,12 @@ def DMRGTSS(engine,app):
     for i,(parameters,nmax) in enumerate(zip(app.BS,app.nmaxs)):
         app.status.update(alter=parameters)
         cmp=app.status<=engine.status
-        if not cmp: engine.update(parameters)
+        if not cmp: engine.update(**parameters)
         suffix='st'if i==0 else ('nd' if i==1 else ('rd' if i==2 else 'th'))
         while engine.mps.cut>1:
             two_site_sweep(info='%s %s%s sweep(<<)'%(engine.status,i+1,suffix),direction='<<',nmax=nmax,tol=app.tol)
         while engine.mps.cut<engine.mps.nsite-1:
             two_site_sweep(info='%s %s%s sweep(>>)'%(engine.status,i+1,suffix),direction='>>',nmax=nmax,tol=app.tol)
     if app.save_data:
-        with open('%s/%s_mps.dat'%(engine.din,engine.status),'wb') as fout:
+        with open('%s/%s_fmps_%s.dat'%(engine.din,engine.status,engine.mps.status),'wb') as fout:
             pk.dump(engine.mps,fout,2)

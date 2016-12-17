@@ -1,16 +1,122 @@
 '''
 Degrees of freedom in a lattice, including:
-1) classes: Table, Index, Internal, IDFConfig, Label, DegFreTree, IndexPack, IndexPackList
+1) classes: Status,Table, Index, Internal, IDFConfig, Label, DegFreTree, IndexPack, IndexPackList
 '''
 
-__all__=['Table','Index','Internal','IDFConfig','Label','DegFreTree','IndexPack','IndexPackList']
+__all__=['Status','Table','Index','Internal','IDFConfig','Label','DegFreTree','IndexPack','IndexPackList']
 
 import numpy as np
+from numpy.linalg import norm
+from Constant import RZERO
 from Geometry import PID
 from copy import copy,deepcopy
 from collections import OrderedDict
 from QuantumNumber import QuantumNumberCollection
 from ..Math import Tree
+
+class Status(object):
+    '''
+    This class provides an object with a stauts.
+    Attributes:
+        name: any hashable object
+            The name of the object.
+        info: any object
+            Additional information of the object.
+        data: OrderedDict
+            The data of the object.
+            In current version, these are the parameters of the object.
+        _const_: OrderedDict
+            The constant parameters of the object.
+        _alter_: OrderedDict
+            The alterable parameters of the object.
+    '''
+
+    def __init__(self,name='',info='',const=None,alter=None):
+        '''
+        Constructor.
+        Parameters:
+            name: any hashable object
+                The name of the object.
+            info: any object
+                Additional information of the object.
+            const,alter: OrderedDict, optional
+                The constant/alterable parameters of the object.
+        '''
+        self.name=name
+        self.info=info
+        self._const_=OrderedDict() if const is None else const
+        self._alter_=OrderedDict() if alter is None else alter
+        self.data=OrderedDict()
+        self.data.update(self._const_)
+        self.data.update(self._alter_)
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        result=[]
+        if len(str(self.name))>0:result.append(str(self.name))
+        if len(self._const_)>0:result.append('_'.join([str(v) for v in self._const_.values()]))
+        if len(self._alter_)>0:result.append('_'.join([str(v) for v in self._alter_.values()]))
+        if len(str(self.info))>0:result.append(str(self.info))
+        return '_'.join(result)
+
+    def update(self,const=None,alter=None):
+        '''
+        Update the parameters of the object.
+        Parameters:
+            const, alter: dict, optional
+                The new parameters.
+        '''
+        if const is not None:
+            self._const_.update(const)
+            self.data.update(const)
+        if alter is not None:
+            self._alter_.update(alter)
+            self.data.update(alter)
+
+    @property
+    def const(self):
+        '''
+        This method returns a string representation of the status containing only the constant parameters.
+        '''
+        result=[]
+        if len(str(self.name))>0:result.append(str(self.name))
+        if len(self._const_)>0:result.append('_'.join([str(v) for v in self._const_.values()]))
+        if len(str(self.info))>0:result.append(str(self.info))
+        return '_'.join(result)
+
+    @property
+    def alter(self):
+        '''
+        This method returns a string representation of the status containing only the alterable parameters.
+        '''
+        result=[]
+        if len(str(self.name))>0:result.append(str(self.name))
+        if len(self._alter_)>0:result.append('_'.join([str(v) for v in self._alter_.values()]))
+        if len(str(self.info))>0:result.append(str(self.info))
+        return '_'.join(result)
+
+    def __le__(self,other):
+        '''
+        Overloaded operator(<=).
+        If self.data is a subset of other.data, return True. Otherwise False.
+        '''
+        try:
+            for key,value in self.data.iteritems():
+                if norm(value-other.data[key])>RZERO:
+                    return False
+            else:
+                return True
+        except KeyError:
+            return False
+
+    def __ge__(self,other):
+        '''
+        Overloaded operator(>=).
+        If other.data is a subset of self.data, return True. Otherwise False.
+        '''
+        return other.__le__(self)
 
 class Table(dict):
     '''
