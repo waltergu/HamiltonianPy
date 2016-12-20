@@ -150,20 +150,6 @@ class DMRG(Engine):
                 The connecting optstrs between the single-site block and the A block.
             3) connections["R"]: list of OptStr
                 The connecting optstrs between the single-site block and the B block.
-        logger: TimerLogger
-            The timers to record the time that every process consumes.
-        info: dict
-            It has five items up to now:
-            1) info['gse']: float64
-                The ground state energy per site of the chain.
-            2) info['overlap']: complex128
-                The overlap between the new state and the predicted state.
-            3) info['nbasis']: integer
-                The number of bond dimension at the current position.
-            4) info['err']: float64
-                The truncation error.
-            5) info['nnz']: integer
-                The number of non-zeros of the whole chain's Hamiltonian.
         cache: dict
             It has three items up to now:
             1) cache['qnc']: QuantumNumberCollection
@@ -212,9 +198,9 @@ class DMRG(Engine):
         self.set_blocks_and_connections()
         self.set_Hs_()
         self.cache={'qnc':None}
-        self.info={'gse':None,'overlap':None,'nbasis':None}
-        self.logger=TimerLogger('Preparation','Hamiltonian','Diagonalization','Truncation','Total')
-        self.logger.proceed('Total')
+        self.log.timers['DMRG']=Timers(['Preparation','Hamiltonian','Diagonalization','Truncation'],str_form='c')
+        self.log.info['DMRG']=Info(['gse','nbasis','nnz','overlap','err'])
+        self.log.timers['DMRG'].proceed()
 
     def update(self,**karg):
         '''
@@ -414,7 +400,7 @@ class DMRG(Engine):
         '''
         The two site update, which resets the central two mps and Hamiltonians of the chain.
         '''
-        self.logger.proceed('Preparation')
+        self.log.timers['DMRG'].proceed('Preparation')
         A,Asite,sys=self.A,self.Asite,self.sys
         usa,usasite=self.us(A),self.us(Asite)
         tablea,tableasite=usa.table,usasite.table
@@ -451,7 +437,7 @@ class DMRG(Engine):
             self.mps[env.pos]=Tensor(v,labels=self.mps[env.pos].labels)
             self._Hs_[sys.form][sys]=ha
             self._Hs_[env.form][env]=hb
-        self.logger.suspend('Preparation')
+        self.log.timers['DMRG'].suspend('Preparation')
 
     def two_site_truncate(self,v0=None,nmax=200,tol=5*10**-14):
         '''
@@ -465,16 +451,16 @@ class DMRG(Engine):
                 The tolerance of the singular values.
         '''
         sys,env,qnc=self.sys,self.env,self.cache['qnc']
-        self.logger.proceed('Hamiltonian')
+        self.log.timers['DMRG'].proceed('Hamiltonian')
         matrix=self.matrix
-        self.info['nnz']=matrix.nnz
-        self.logger.suspend('Hamiltonian')
-        self.logger.proceed('Diagonalization')
+        self.log.info['DMRG']['nnz']=matrix.nnz
+        self.log.timers['DMRG'].suspend('Hamiltonian')
+        self.log.timers['DMRG'].proceed('Diagonalization')
         gse,Psi=eigsh(matrix,which='SA',v0=v0,k=1)
-        self.info['gse']=gse/self.mps.nsite
-        self.info['overlap']=None if v0 is None else Psi[:,0].conjugate().dot(v0)
-        self.logger.suspend('Diagonalization')
-        self.logger.proceed('Truncation')
+        self.log.info['DMRG']['gse']=gse[0]/self.mps.nsite
+        self.log.info['DMRG']['overlap']=None if v0 is None else Psi[:,0].conjugate().dot(v0)
+        self.log.timers['DMRG'].suspend('Diagonalization')
+        self.log.timers['DMRG'].proceed('Truncation')
         if self.mps.mode=='QN':
             tsys,tenv=[],[]
             for qnsys,qnenv in qnc.pairs(self.target.zeros):
@@ -497,9 +483,9 @@ class DMRG(Engine):
         QuantumNumberCollection.clear_history(sys.qnc,env.qnc,self.cache['qnc'])
         sys.qnc=new
         env.qnc=new
-        self.logger.suspend('Truncation')
-        self.info['nbasis']=sys.nbasis
-        self.info['err']=err
+        self.log.timers['DMRG'].suspend('Truncation')
+        self.log.info['DMRG']['nbasis']=sys.nbasis
+        self.log.info['DMRG']['err']=err
 
     def level_up(self,n=1):
         '''
@@ -636,16 +622,14 @@ def DMRGTSG(engine,app):
         engine._Hs_["S"].extend([None,None])
         engine._Hs_["R"].extend([None,None])
         engine.target=target
-        print '%s(++)\n%s'%(engine.status,engine.graph)
+        engine.log<<'%s(++)\n%s\n'%(engine.status,engine.graph)
         engine.two_site_update()
         engine.two_site_truncate(nmax=app.nmax,tol=app.tol)
-        engine.logger.record()
-        print engine.logger
-        print 'nnz,nbasis,err: %s,%s,%s.'%(engine.info['nnz'],engine.info['nbasis'],engine.info['err'])
-        print 'gse: %s.'%(engine.info['gse'][0])
-        print
+        engine.log.timers['DMRG'].record(Timers.ALL)
+        engine.log<<'timers of the dmrg:\n'<<engine.log.timers['DMRG']<<'\n'
+        engine.log<<'info of the dmrg:\n'<<engine.log.info['DMRG']<<'\n\n'
     if app.save_data:
-        with open('%s/%s_imps_%s.dat'%(engine.din,engine.status,engine.mps.status),'wb') as fout:
+        with open('%s/%s_mps(%s)_%s.dat'%(engine.din,engine.status,engine.degfres.layers.index(engine.layer),engine.mps.status),'wb') as fout:
             pk.dump(engine.mps,fout,2)
 
 class TSS(App):
@@ -656,23 +640,36 @@ class TSS(App):
             The basespace of the DMRG's parametes for the sweeps.
         nmaxs: list of integer
             The maximum numbers of singular values to be kept for the sweeps.
+        paths: list of list of '<<' or '>>'
+            The paths along which the sweeps are performed.
         tol: np.float64
             The tolerance of the singular values.
     '''
 
-    def __init__(self,BS,nmaxs,tol=5*10**-14,**karg):
+    def __init__(self,nmaxs,BS=None,paths=None,tol=5*10**-14,**karg):
         '''
         Constructor.
         Parameters:
-            BS: list of dict
-                The parameters of the DMRG for each sweep.
             nmaxs: list of integer
                 The maximum numbers of singular values to be kept for each sweep.
-            tol: np.float64
+            BS: list of dict, optional
+                The parameters of the DMRG for each sweep.
+            paths: list of list of '<<' or '>>', optional
+                The paths along which the sweeps are performed.
+            tol: np.float64, optional
                 The tolerance of the singular values.
         '''
-        self.BS=BS
         self.nmaxs=nmaxs
+        if BS is None:
+            self.BS=[{}]*len(nmaxs)
+        else:
+            assert len(BS)==len(nmaxs)
+            self.BS=BS
+        if paths is None:
+            self.paths=[None]*len(nmaxs)
+        else:
+            assert len(paths)==len(nmaxs)
+            self.paths=paths
         self.tol=tol
 
 def DMRGTSS(engine,app):
@@ -684,7 +681,7 @@ def DMRGTSS(engine,app):
             engine.mps<<=1
         else:
             engine.mps>>=1
-        print '%s\n%s'%(info,engine.graph)
+        engine.log<<'%s\n%s'%(info,engine.graph)<<'\n'
         A,Asite,sys=engine.A,engine.Asite,engine.sys
         B,Bsite,env=engine.B,engine.Bsite,engine.env
         ml=np.asarray(engine.mps[sys.pos]).reshape((A.nbasis*Asite.nbasis,sys.nbasis))
@@ -697,20 +694,24 @@ def DMRGTSS(engine,app):
         if engine.mps.mode=='QN': v0=v0[engine.cache['subslice']]
         v0/=np.linalg.norm(v0)
         engine.two_site_truncate(v0=v0,nmax=nmax,tol=tol)
-        engine.logger.record()
-        print engine.logger
-        print 'nnz,nbasis,overlap,err: %s,%s,%s,%s.'%(engine.info['nnz'],engine.info['nbasis'],engine.info['overlap'],engine.info['err'])
-        print 'gse: %s.'%(engine.info['gse'][0])
-        print
-    for i,(parameters,nmax) in enumerate(zip(app.BS,app.nmaxs)):
+        engine.log.timers['DMRG'].record(Timers.ALL)
+        engine.log<<'timers of the dmrg:\n'<<engine.log.timers['DMRG']<<'\n'
+        engine.log<<'info of the dmrg:\n'<<engine.log.info['DMRG']<<'\n\n'
+    engine.log.open()
+    if engine.mps.cut==0:
+        engine.mps>>=1
+    elif engine.mps.cut==engine.mps.nsite:
+        engine.mps<<1
+    for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs,app.BS,app.paths)):
         app.status.update(alter=parameters)
         cmp=app.status<=engine.status
         if not cmp: engine.update(**parameters)
         suffix='st'if i==0 else ('nd' if i==1 else ('rd' if i==2 else 'th'))
-        while engine.mps.cut>1:
-            two_site_sweep(info='%s %s%s sweep(<<)'%(engine.status,i+1,suffix),direction='<<',nmax=nmax,tol=app.tol)
-        while engine.mps.cut<engine.mps.nsite-1:
-            two_site_sweep(info='%s %s%s sweep(>>)'%(engine.status,i+1,suffix),direction='>>',nmax=nmax,tol=app.tol)
+        if path is None:
+            path=['<<']*(engine.mps.cut-1)+['>>']*(engine.mps.nsite-2)+['<<']*(engine.mps.nsite-engine.mps.cut-1)
+        for direction in path:
+            two_site_sweep(info='%s %s%s sweep(%s)'%(engine.status,i+1,suffix,direction),direction=direction,nmax=nmax,tol=app.tol)
+    engine.log.close()
     if app.save_data:
-        with open('%s/%s_fmps_%s.dat'%(engine.din,engine.status,engine.mps.status),'wb') as fout:
+        with open('%s/%s_mps(%s)_%s.dat'%(engine.din,engine.status,engine.degfres.layers.index(engine.layer),engine.mps.status),'wb') as fout:
             pk.dump(engine.mps,fout,2)

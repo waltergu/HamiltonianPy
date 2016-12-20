@@ -166,6 +166,7 @@ class MPS(list):
         '''
         result=OrderedDict()
         result['nsite']=self.nsite
+        result['cut']=self.cut
         result['nmax']=np.array([m.shape[MPS.L] for m in self]).max()
         return Status(alter=result)
 

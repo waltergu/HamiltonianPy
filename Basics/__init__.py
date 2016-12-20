@@ -7,7 +7,7 @@ from Term import *
 from EngineApp import *
 from AppPack import *
 from Generator import *
-from Timer import *
+from Log import *
 from QuantumNumber import *
 from FermionicPackage import *
 from SpinPackage import *
