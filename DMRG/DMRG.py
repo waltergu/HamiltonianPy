@@ -668,6 +668,7 @@ def DMRGTSG(engine,app):
     if app.save_data:
         with open('%s/%s_mps(%s,%s)_%s.dat'%(engine.din,engine.status,tuple(engine.target),engine.layer,engine.mps.status),'wb') as fout:
             pk.dump(engine.mps,fout,2)
+            pk.dump(engine.log.info['DMRG']['gse'],fout,2)
 
 class TSS(App):
     '''
@@ -809,3 +810,4 @@ def DMRGTSS(engine,app):
     if app.save_data:
         with open('%s/%s_mps(%s,%s)_%s.dat'%(engine.din,engine.status,tuple(engine.target),engine.layer,engine.mps.status),'wb') as fout:
             pk.dump(engine.mps,fout,2)
+            pk.dump(engine.log.info['DMRG']['gse'],fout,2)
