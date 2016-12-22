@@ -12,8 +12,9 @@ from HamiltonianPy.DMRG.DMRG import *
 
 def test_dmrg():
     print 'test_dmrg'
-    test_dmrg_spin()
-    test_dmrg_spinless_fermion()
+    Engine.DEBUGED=True
+    #test_dmrg_spin()
+    #test_dmrg_spinless_fermion()
     test_dmrg_spinful_fermion()
 
 def test_dmrg_spin():
@@ -42,8 +43,7 @@ def test_dmrg_spin():
         dtype=      np.float64
         )
     # two site grow
-    dmrg.register(
-        TSG(
+    tsg=TSG(
             name=       'GTOWTH',
             block=      Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
             vector=     np.array([1.0,0.0]),
@@ -52,9 +52,8 @@ def test_dmrg_spin():
             nmax=       20,
             run=DMRGTSG
             )
-    )
     # two site sweep
-    dmrg.register(TSS(name='SWEEP',nmaxs=[50,100,200,200],run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=SpinQN(Sz=0.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependence=[tsg],run=DMRGTSS))
     dmrg.summary()
     print
 
@@ -84,8 +83,7 @@ def test_dmrg_spinless_fermion():
         dtype=      np.float64
         )
     # two site grow
-    dmrg.register(
-        TSG(
+    tsg=TSG(
             name=       'GTOWTH',
             block=      Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
             vector=     np.array([1.0,0.0]),
@@ -94,9 +92,8 @@ def test_dmrg_spinless_fermion():
             nmax=       20,
             run=        DMRGTSG
             )
-    )
     # two site sweep
-    dmrg.register(TSS(name='SWEEP',nmaxs=[50,100,200,200],run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=QuantumNumber([('N',N/2,'U1')]),layer=0,nsite=N,nmaxs=[50,100,200,200],dependence=[tsg],run=DMRGTSS))
     dmrg.summary()
     print
 
@@ -122,25 +119,22 @@ def test_dmrg_spinful_fermion():
         config=     IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1)),
         degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=degfres_map) if qn_on else
                     DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: 2),
+        layer=      0,
         mask=       ['nambu'],
         dtype=      np.float64
         )
     # two site grow
-    dmrg.register(
-        TSG(
+    tsg=TSG(
             name=       'GTOWTH',
             block=      Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
             vector=     np.array([1.0,0.0]),
             scopes=     range(N),
             targets=    [FermiQN(N=num*2,Sz=0.0) for num in xrange(1,N/2+1)] if qn_on else [None]*(N/2),
-            nmax=       20,
+            nmax=       30,
             run=        DMRGTSG
             )
-    )
     # two site sweep
-    dmrg.register(TSS(name='SWEEP-1',nmaxs=[30,30,30,30],run=DMRGTSS))
-    dmrg.level_up(n=1)
-    dmrg.mps.canonicalization(cut=dmrg.mps.nsite/2)
-    dmrg.register(TSS(name='SWEEP-2',nmaxs=[30,30,30,30],run=DMRGTSS))
+    tss=TSS(name='PRESWEEP',target=FermiQN(N=N,Sz=0.0),layer=0,nsite=N,protocal=1,nmaxs=[30,30,30,30],run=DMRGTSS)
+    dmrg.register(TSS(name='SWEEP',target=FermiQN(N=N,Sz=0.0),layer=1,nsite=2*N,nmaxs=[30,30,30,50],dependence=[tsg,tss],run=DMRGTSS))
     dmrg.summary()
     print

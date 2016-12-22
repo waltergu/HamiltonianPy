@@ -88,11 +88,13 @@ class OptStr(list):
                 The operator which is to be converted to the optstr form.
             degfres: DegFreTree
                 The degfretree of the system.
-            layer: tuple of string
+            layer: integer or tuple of string
                 The layer where the optstr is to be transformed from the operator.
         Returns: OptStr
             The corresponding OptStr.
         '''
+        if isinstance(layer,int) or isinstance(layer,long):
+            layer=degfres.layers[layer]
         if isinstance(operator,OperatorS):
             return optstr_from_operators(operator,degfres,layer)
         elif isinstance(operator,OperatorF):

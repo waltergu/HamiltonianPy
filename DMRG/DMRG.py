@@ -109,7 +109,7 @@ class DMRG(Engine):
             The configuration of the internal degrees of freedom on the lattice.
         degfres: DegFreTree
             The physical degrees of freedom tree.
-        layer: tuple of string
+        layer: integer
             The layer on which the DMRG works.
         mask: [] or ['nambu']
             [] for spin systems and ['nambu'] for fermionic systems.
@@ -160,7 +160,7 @@ class DMRG(Engine):
                 The permutation of the DMRG's target space to be in the order with respect to cache['qnc'].
     '''
 
-    def __init__(self,name,mps,lattice,terms,config,degfres,layer=None,mask=[],target=None,dtype=np.complex128,**karg):
+    def __init__(self,name,mps,lattice,terms,config,degfres,layer=0,mask=[],target=None,dtype=np.complex128,**karg):
         '''
         Constructor.
         Parameters:
@@ -176,10 +176,12 @@ class DMRG(Engine):
                 The configuration of the internal degrees of freedom on the lattice.
             degfres: DegFreTree
                 The physical degrees of freedom tree.
-            layer: tuple of string
+            layer: integer
                 The layer on which the DMRG works.
             mask: [] or ['nambu']
                 [] for spin systems and ['nambu'] for fermionic systems.
+            target: QuantumNumber
+                The target space of the DMRG.
             dtype: np.float64,np.complex128, optional
                 The data type.
         '''
@@ -188,7 +190,7 @@ class DMRG(Engine):
         self.terms=terms
         self.config=config
         self.degfres=degfres
-        self.layer=degfres.layers[0] if layer is None else degfres.layers[degfres.layers.index(layer)]
+        self.layer=layer
         self.mask=mask
         self.target=target
         self.dtype=dtype
@@ -494,11 +496,13 @@ class DMRG(Engine):
             n: integer, optional
                 The degree of level to go up.
         '''
-        self.mps=MPS.level_up(self.mps,self.degfres,n=n)
-        self.layer=self.degfres.layers[self.degfres.layers.index(self.layer)+n]
-        self.optstrs['h']=[OptStr.from_operator(opt,self.degfres,self.layer) for opt in self.operators['h'].itervalues()]
-        self.set_blocks_and_connections()
-        self.set_Hs_()
+        assert n>=0
+        if n>0:
+            self.mps=MPS.level_up(self.mps,self.degfres,n=n)
+            self.layer+=n
+            self.optstrs['h']=[OptStr.from_operator(opt,self.degfres,self.layer) for opt in self.operators['h'].itervalues()]
+            self.set_blocks_and_connections()
+            self.set_Hs_()
 
     def level_down(self,n=1):
         '''
@@ -552,8 +556,7 @@ class TSG(App):
         self.nmax=nmax
         self.tol=tol
 
-    @property
-    def lattices(self):
+    def iterlattices(self):
         '''
         Return a generator over the sequence of the SuperLattices of the DMRG with blocks added two-by-two into the center.
         '''
@@ -578,64 +581,113 @@ class TSG(App):
                 max_coordinate_number=  self.block.max_coordinate_number
                 )
 
+    def lattices(self):
+        '''
+        Return a list over the sequence of the SuperLattices of the DMRG with blocks added two-by-two into the center.
+        '''
+        return list(self.iterlattices())
+
 def DMRGTSG(engine,app):
     '''
     This method iterativey update the DMRG by increasing its lattice in the center by 2 blocks at each iteration.
     '''
     engine.rundependence(app.status.name)
-    for i,lattice in enumerate(app.lattices):
+    engine.log.open()
+    # recover the mps of the DMRG if they are calculated earlier.
+    engine.layer=0
+    lattices=app.lattices()
+    for num,target,lattice in reversed(zip(range(len(app.targets)),app.targets,lattices)):
+        pattern=('%s_mps(%s,%s)'%(engine.status,tuple(target),engine.layer)).replace('(','\(').replace(')','\)')
+        mps=MPS.recover(din=engine.din,pattern=pattern,nsite=(num+1)*2,nmax=app.nmax)
+        if mps:
+            engine.target=target
+            engine.mps=mps
+            engine.lattice=lattice
+            engine.config.reset(pids=engine.lattice)
+            QuantumNumberCollection.history.clear()
+            engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
+            engine.set_generators_operators_optstrs()
+            engine.set_blocks_and_connections()
+            engine.set_Hs_()
+            break
+    else:
+        num=-1
+    for lattice,target in zip(lattices[num+1:],app.targets[num+1:]):
+        # Reset the DMRG engine with the new lattice.
         engine.lattice=lattice
-        engine.layer=engine.degfres.layers[0]
         engine.config.reset(pids=engine.lattice)
         QuantumNumberCollection.history.clear()
         engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
         engine.set_generators_operators_optstrs()
-        indices=engine.degfres.indices()
-        AL=Label(identifier=indices[i],qnc=engine.degfres[indices[i]])
-        BL=Label(identifier=indices[i+1],qnc=engine.degfres[indices[i+1]])
-        assert engine.mps.cut==None or engine.mps.cut==engine.mps.nsite/2
-        table=engine.mps.table
-        assert AL not in table and BL not in table
-        target=app.targets[i]
-        if engine.mps.mode=='QN':
-            diff=QuantumNumberCollection([] if target==engine.target else [(target if engine.target is None else target-engine.target,1)])
-        for m in engine.mps[engine.mps.nsite/2:]:
-            L,R=m.labels[MPS.L],m.labels[MPS.R]
-            m.labels[MPS.L]=L.replace(identifier=L.identifier+2,qnc=L.qnc.kron(diff,'+') if engine.mps.mode=='QN' else L.qnc)
-            m.labels[MPS.R]=R.replace(identifier=0 if R.identifier==0 else R.identifier+2,qnc=R.qnc.kron(diff,'+') if engine.mps.mode=='QN' else R.qnc)
-        alabels,blabels=[None]*3,[None]*3
-        if engine.mps.cut is None:
-            alabels[MPS.L]=Label(identifier=0,qnc=1 if target is None else QuantumNumberCollection([(target.zeros,1)]))
-            blabels[MPS.R]=Label(identifier=0,qnc=1 if target is None else QuantumNumberCollection([(target,1)]))
-            engine.mps.cut=0
-        else:
-            alabels[MPS.L]=deepcopy(engine.mps[engine.mps.cut-1].labels[MPS.R])
-            blabels[MPS.R]=deepcopy(engine.mps[engine.mps.cut].labels[MPS.L])
-        alabels[MPS.S],blabels[MPS.S]=AL,BL
-        alabels[MPS.R]=Label(identifier=engine.mps.cut+1,qnc=None)
-        blabels[MPS.L]=Label(identifier=engine.mps.cut+1,qnc=None)
-        engine.mps.insert(engine.mps.cut,Tensor([[[0.0]]],labels=alabels))
-        engine.mps.insert(engine.mps.cut+1,Tensor([[[0.0]]],labels=blabels))
+        # Add two new tensors in the center and reset the labels of the mps.
+        LABELS=engine.degfres.labels(layer=engine.degfres.layers[engine.layer]).values()
+        if engine.mps.cut is None: engine.mps.cut=0
+        assert engine.mps.cut==engine.mps.nsite/2
+        engine.mps.insert(engine.mps.cut,Tensor([[[0.0]]],labels=LABELS[engine.mps.cut]))
+        engine.mps.insert(engine.mps.cut+1,Tensor([[[0.0]]],labels=LABELS[engine.mps.cut+1]))
         engine.mps.cut+=1
+        assert len(engine.mps)==len(LABELS)
+        diff=QuantumNumberCollection([] if target==engine.target else [(target if engine.target is None else target-engine.target,1)])
+        for n,(m,labels) in enumerate(zip(engine.mps,LABELS)):
+            L,S,R=labels
+            l,s,r=m.labels
+            assert S.qnc==s.qnc
+            if n<engine.mps.cut-1:
+                L=L.replace(qnc=l.qnc)
+                R=R.replace(qnc=r.qnc)
+            elif n==engine.mps.cut-1:
+                if n-1>=0:
+                    qnc=deepcopy(engine.mps[n-1].labels[MPS.R].qnc)
+                else:
+                    qnc=QuantumNumberCollection([(target.zeros,1)]) if engine.mps.mode=='QN' else 1
+                L=L.replace(qnc=qnc)
+            elif n==engine.mps.cut:
+                if n+1<=engine.mps.nsite-1:
+                    qnc=engine.mps[n+1].labels[MPS.L].qnc.kron(diff,'+') if engine.mps.mode=='QN' else engine.mps[n+1].labels[MPS.L].qnc
+                else:
+                    qnc=QuantumNumberCollection([(target,1)]) if engine.mps.mode=='QN' else 1
+                R=R.replace(qnc=qnc)
+            else:
+                L=L.replace(qnc=l.qnc.kron(diff,'+') if engine.mps.mode=='QN' else l.qnc)
+                R=R.replace(qnc=r.qnc.kron(diff,'+') if engine.mps.mode=='QN' else r.qnc)
+            m.relabel([L,S,R])
+        # Reset the optstr and their matrix representation of the dmrg engine.
         engine.set_blocks_and_connections()
         engine._Hs_["L"].extend([None,None])
         engine._Hs_["S"].extend([None,None])
         engine._Hs_["R"].extend([None,None])
+        # Two site grow of the dmrg procedure.
         engine.target=target
-        engine.log<<'%s(++)\n%s\n'%(engine.status,engine.graph)
+        engine.log<<'%s(layer=%s,nsite=%s,cut=%s)(++)\n%s\n'%(engine.status,engine.layer,engine.mps.nsite,engine.mps.cut,engine.graph)
         engine.two_site_update()
         engine.two_site_truncate(nmax=app.nmax,tol=app.tol)
         engine.log.timers['DMRG'].record(Timers.ALL)
         engine.log<<'timers of the dmrg:\n'<<engine.log.timers['DMRG']<<'\n'
         engine.log<<'info of the dmrg:\n'<<engine.log.info['DMRG']<<'\n\n'
+    engine.log.close()
     if app.save_data:
-        with open('%s/%s_mps(%s)_%s.dat'%(engine.din,engine.status,engine.degfres.layers.index(engine.layer),engine.mps.status),'wb') as fout:
+        with open('%s/%s_mps(%s,%s)_%s.dat'%(engine.din,engine.status,tuple(engine.target),engine.layer,engine.mps.status),'wb') as fout:
             pk.dump(engine.mps,fout,2)
 
 class TSS(App):
     '''
     Two site sweep of a DMRG.
     Attribues:
+        target: QuantumNumber
+            The target of the DMRG's mps.
+        layer: integer
+            The layer of the DMRG's mps.
+        nsite: integer
+            The length of the DMRG's mps.
+        protocal: 0,1,2
+            The protocal of the app to carry out the sweep.
+            1) 0,1: recover mode
+                Before the sweep, the mps will be recovered from exsiting data files first.
+                DIFFERENCE:
+                    When 1, the recovered mps will be sweeped at least once;
+                    When 0, the recovered mps may not be sweeped even once if it exactly matches the recover conditions.
+            2) 2: reset mode
+                The sweep will be carried out without recover of the mps from existing data files.
         BS: BaseSpace
             The basespace of the DMRG's parametes for the sweeps.
         nmaxs: list of integer
@@ -646,12 +698,20 @@ class TSS(App):
             The tolerance of the singular values.
     '''
 
-    def __init__(self,nmaxs,BS=None,paths=None,tol=5*10**-14,**karg):
+    def __init__(self,target,layer,nsite,nmaxs,protocal=0,BS=None,paths=None,tol=5*10**-14,**karg):
         '''
         Constructor.
         Parameters:
+            target: QuantumNumber
+                The target of the DMRG's mps.
+            layer: integer
+                The layer of the DMRG's mps.
+            nsite: integer
+                The length of the DMRG's mps.
             nmaxs: list of integer
                 The maximum numbers of singular values to be kept for each sweep.
+            protocal: 0, 1 or 2
+                The protocal of the app to carry out the sweep.
             BS: list of dict, optional
                 The parameters of the DMRG for each sweep.
             paths: list of list of '<<' or '>>', optional
@@ -659,7 +719,11 @@ class TSS(App):
             tol: np.float64, optional
                 The tolerance of the singular values.
         '''
+        self.target=target
+        self.layer=layer
+        self.nsite=nsite
         self.nmaxs=nmaxs
+        self.protocal=protocal
         if BS is None:
             self.BS=[{}]*len(nmaxs)
         else:
@@ -676,42 +740,72 @@ def DMRGTSS(engine,app):
     '''
     This method iterativey sweep the DMRG with 2 sites updated at each iteration.
     '''
-    def two_site_sweep(direction,info,nmax,tol):
-        if direction=='<<':
-            engine.mps<<=1
-        else:
-            engine.mps>>=1
-        engine.log<<'%s\n%s'%(info,engine.graph)<<'\n'
-        A,Asite,sys=engine.A,engine.Asite,engine.sys
-        B,Bsite,env=engine.B,engine.Bsite,engine.env
-        ml=np.asarray(engine.mps[sys.pos]).reshape((A.nbasis*Asite.nbasis,sys.nbasis))
-        mr=np.asarray(engine.mps[env.pos]).reshape((env.nbasis,Bsite.nbasis*B.nbasis))
-        engine.two_site_update()
-        if engine.mps.mode=='QN':
-            ml=sys.qnc.reorder(ml,axes=[0])
-            mr=env.qnc.reorder(mr,axes=[1])
-        v0=np.einsum('ik,k,kj->ij',ml,np.asarray(engine.mps.Lambda),mr).ravel()
-        if engine.mps.mode=='QN': v0=v0[engine.cache['subslice']]
-        v0/=np.linalg.norm(v0)
-        engine.two_site_truncate(v0=v0,nmax=nmax,tol=tol)
-        engine.log.timers['DMRG'].record(Timers.ALL)
-        engine.log<<'timers of the dmrg:\n'<<engine.log.timers['DMRG']<<'\n'
-        engine.log<<'info of the dmrg:\n'<<engine.log.info['DMRG']<<'\n\n'
     engine.log.open()
-    if engine.mps.cut==0:
-        engine.mps>>=1
-    elif engine.mps.cut==engine.mps.nsite:
-        engine.mps<<1
-    for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs,app.BS,app.paths)):
-        app.status.update(alter=parameters)
-        cmp=app.status<=engine.status
-        if not cmp: engine.update(**parameters)
+    if app.protocal in (0,1):
+        status=deepcopy(engine.status)
+        for num,nmax,parameters in reversed(zip(range(len(app.nmaxs)),app.nmaxs,app.BS)):
+            status.update(alter=parameters)
+            pattern=('%s_mps(%s,%s)'%(status,tuple(app.target),app.layer)).replace('(','\(').replace(')','\)')
+            mps=MPS.recover(din=engine.din,pattern=pattern,nsite=app.nsite,nmax=nmax)
+            if mps:
+                engine.status=status
+                engine.target=app.target
+                engine.layer=app.layer
+                engine.mps=mps
+                if len(app.dependence)>0 and isinstance(app.dependence[0],TSG):
+                    engine.lattice=app.dependence[0].lattices()[-1]
+                    engine.config.reset(pids=engine.lattice)
+                    QuantumNumberCollection.history.clear()
+                    engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
+                engine.set_generators_operators_optstrs()
+                engine.set_blocks_and_connections()
+                engine.set_Hs_()
+                if app.protocal==0:
+                    if mps.status['nmax']<nmax:num-=1
+                else:
+                    if mps.status['nmax']<=nmax:num-=1
+                break
+        else:
+            engine.rundependence(app.status.name)
+            num=-1
+    elif app.protocal in (2,):
+        engine.rundependence(app.status.name)
+        num=-1
+    if engine.layer<app.layer:
+        engine.level_up(n=app.layer-engine.layer)
+        engine.mps.canonicalization(cut=engine.mps.nsite/2)
+    for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs[num+1:],app.BS[num+1:],app.paths[num+1:])):
         suffix='st'if i==0 else ('nd' if i==1 else ('rd' if i==2 else 'th'))
+        app.status.update(alter=parameters)
+        if not (app.status<=engine.status): engine.update(**parameters)
         if path is None:
+            if engine.mps.cut==0:
+                engine.mps>>=1
+            elif engine.mps.cut==engine.mps.nsite:
+                engine.mps<<1
             path=['<<']*(engine.mps.cut-1)+['>>']*(engine.mps.nsite-2)+['<<']*(engine.mps.nsite-engine.mps.cut-1)
         for direction in path:
-            two_site_sweep(info='%s %s%s sweep(%s)'%(engine.status,i+1,suffix,direction),direction=direction,nmax=nmax,tol=app.tol)
+            if direction=='<<':
+                engine.mps<<=1
+            else:
+                engine.mps>>=1
+            engine.log<<'%s(layer=%s,nsite=%s,cut=%s) %s%s sweep(%s)\n%s'%(engine.status,engine.layer,engine.mps.nsite,engine.mps.cut,i+1,suffix,direction,engine.graph)<<'\n'
+            A,Asite,sys=engine.A,engine.Asite,engine.sys
+            B,Bsite,env=engine.B,engine.Bsite,engine.env
+            ml=np.asarray(engine.mps[sys.pos]).reshape((A.nbasis*Asite.nbasis,sys.nbasis))
+            mr=np.asarray(engine.mps[env.pos]).reshape((env.nbasis,Bsite.nbasis*B.nbasis))
+            engine.two_site_update()
+            if engine.mps.mode=='QN':
+                ml=sys.qnc.reorder(ml,axes=[0])
+                mr=env.qnc.reorder(mr,axes=[1])
+            v0=np.einsum('ik,k,kj->ij',ml,np.asarray(engine.mps.Lambda),mr).ravel()
+            if engine.mps.mode=='QN': v0=v0[engine.cache['subslice']]
+            v0/=np.linalg.norm(v0)
+            engine.two_site_truncate(v0=v0,nmax=nmax,tol=app.tol)
+            engine.log.timers['DMRG'].record(Timers.ALL)
+            engine.log<<'timers of the dmrg:\n%s\n'%(engine.log.timers['DMRG'])
+            engine.log<<'info of the dmrg:\n%s\n\n'%(engine.log.info['DMRG'])
     engine.log.close()
     if app.save_data:
-        with open('%s/%s_mps(%s)_%s.dat'%(engine.din,engine.status,engine.degfres.layers.index(engine.layer),engine.mps.status),'wb') as fout:
+        with open('%s/%s_mps(%s,%s)_%s.dat'%(engine.din,engine.status,tuple(engine.target),engine.layer,engine.mps.status),'wb') as fout:
             pk.dump(engine.mps,fout,2)

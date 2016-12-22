@@ -75,6 +75,12 @@ class Status(object):
             self._alter_.update(alter)
             self.data.update(alter)
 
+    def __getitem__(self,key):
+        '''
+        Overloaded operator([]).
+        '''
+        return self.data[key]
+
     @property
     def const(self):
         '''
@@ -705,12 +711,11 @@ class DegFreTree(Tree):
         layer=self.layers[0] if layer is None else layer
         if ('labels',layer,full_labels) not in self.cache:
             result=OrderedDict()
-            indices=sorted(self.indices(layer),key=lambda index: index.to_tuple(priority=self.priority))
-            for i,index in enumerate(indices):
+            for i,index in enumerate(self.indices(layer)):
                 S=Label(identifier=index,qnc=self[index])
                 if full_labels:
                     L=Label(identifier=i,qnc=None)
-                    R=Label(identifier=(i+1)%len(indices),qnc=None)
+                    R=Label(identifier=(i+1)%len(self.indices(layer)),qnc=None)
                     result[index]=(L,S,R)
                 else:
                     result[index]=S
