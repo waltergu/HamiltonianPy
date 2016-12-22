@@ -13,8 +13,8 @@ from HamiltonianPy.DMRG.DMRG import *
 def test_dmrg():
     print 'test_dmrg'
     Engine.DEBUGED=True
-    #test_dmrg_spin()
-    #test_dmrg_spinless_fermion()
+    test_dmrg_spin()
+    test_dmrg_spinless_fermion()
     test_dmrg_spinful_fermion()
 
 def test_dmrg_spin():
