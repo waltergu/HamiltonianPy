@@ -5,8 +5,6 @@ Matrix product state, including:
 
 __all__=['MPS','Vidal']
 
-import os
-import re
 import numpy as np
 import pickle as pk
 from HamiltonianPy.Basics import Label,Status,QuantumNumberCollection,bond_qnc_generation,mb_svd,expanded_svd
@@ -656,35 +654,6 @@ class MPS(list):
                     ms.insert(0,vs[k])
                     ls.insert(0,(Left.replace(qnc=qncs[k]),Site,Right.replace(qnc=qncs[k+1] if k+1<len(children) else R.qnc)))
             result=MPS(mode=result.mode,ms=ms,labels=ls,Lambda=u.dot(s),cut=0)
-        return result
-
-    @staticmethod
-    def recover(din,pattern,nsite,nmax):
-        '''
-        Recover an mps from existing data files.
-        Parameters:
-            din: string
-                The directory where the data files are searched.
-            pattern: string
-                The matching pattern of the data files.
-            nsite: integer
-                The length of the mps.
-            nmax: integer
-                The maximum number of singular values kept in the mps.
-        Returns: MPS
-            The recovered mps.
-        '''
-        candidates={}
-        names=[name for name in os.listdir(din) if re.match(pattern,name)]
-        for name in names:
-            split=name.split('_')
-            cnsite,cnmax=int(split[-2]),int(split[-1][0:-4])
-            if cnsite==nsite and cnmax<=nmax:candidates[name]=(cnsite,cnmax)
-        if len(candidates)>0:
-            with open('%s/%s'%(din,sorted(candidates.keys(),key=candidates.get)[-1]),'rb') as fin:
-                result=pk.load(fin)
-        else:
-            result=None
         return result
 
 class Vidal(object):

@@ -6,6 +6,8 @@ DMRG, including:
 
 __all__=['Block','DMRG','TSG','DMRGTSG','TSS','DMRGTSS']
 
+import os
+import re
 import numpy as np
 import pickle as pk
 import scipy.sparse as sp
@@ -201,7 +203,7 @@ class DMRG(Engine):
         self.set_Hs_()
         self.cache={'qnc':None}
         self.log.timers['DMRG']=Timers(['Preparation','Hamiltonian','Diagonalization','Truncation'],str_form='c')
-        self.log.info['DMRG']=Info(['gse','nbasis','nnz','overlap','err'])
+        self.log.info['DMRG']=Info(['energy','nbasis','nnz','overlap','err'])
         self.log.timers['DMRG'].proceed()
 
     def update(self,**karg):
@@ -458,8 +460,8 @@ class DMRG(Engine):
         self.log.info['DMRG']['nnz']=matrix.nnz
         self.log.timers['DMRG'].suspend('Hamiltonian')
         self.log.timers['DMRG'].proceed('Diagonalization')
-        gse,Psi=eigsh(matrix,which='SA',v0=v0,k=1)
-        self.log.info['DMRG']['gse']=gse[0]/self.mps.nsite
+        energy,Psi=eigsh(matrix,which='SA',v0=v0,k=1)
+        self.log.info['DMRG']['energy']=energy[0]/self.mps.nsite
         self.log.info['DMRG']['overlap']=None if v0 is None else Psi[:,0].conjugate().dot(v0)
         self.log.timers['DMRG'].suspend('Diagonalization')
         self.log.timers['DMRG'].proceed('Truncation')
@@ -512,6 +514,57 @@ class DMRG(Engine):
                 The degree of level to go down.
         '''
         raise NotImplementedError()
+
+    @staticmethod
+    def eigenpair(din,pattern,nsite,nmax):
+        '''
+        Recover the eigenpair of a DMRG from existing data files.
+        Parameters:
+            din: string
+                The directory where the data files are searched.
+            pattern: string
+                The matching pattern of the data files.
+            nsite: integer
+                The length of the mps.
+            nmax: integer
+                The maximum number of singular values kept in the mps.
+        Returns: float64,MPS
+            The recovered energy and mps.
+        '''
+        candidates={}
+        names=[name for name in os.listdir(din) if re.match(pattern,name)]
+        for name in names:
+            split=name.split('_')
+            cnsite,cnmax=int(split[-2]),int(split[-1][0:-4])
+            if cnsite==nsite and cnmax<=nmax:candidates[name]=(cnsite,cnmax)
+        if len(candidates)>0:
+            with open('%s/%s'%(din,sorted(candidates.keys(),key=candidates.get)[-1]),'rb') as fin:
+                energy=pk.load(fin)
+                mps=pk.load(fin)
+                result=(energy,mps)
+        else:
+            result=(None,None)
+        return result
+
+def pattern(status,target,layer):
+    '''
+    Return the pattern of data files for match.
+    Parameters:
+        status: Status
+            The status of the DMRG.
+        target: QuantumNumber
+            The target of the DMRG.
+        layer: integer
+            The layer of the DMRG.
+    Returns: string
+        The pattern.
+    '''
+    ss=['(',')','[',']']
+    rs=['\(','\)','\[','\]']
+    pattern='%s_mps(%s,%s)'%(status,tuple(target),layer)
+    for s,r in zip(ss,rs):
+        pattern=pattern.replace(s,r)
+    return pattern
 
 class TSG(App):
     '''
@@ -593,19 +646,22 @@ def DMRGTSG(engine,app):
     '''
     engine.rundependence(app.status.name)
     engine.log.open()
-    # recover the mps of the DMRG if they are calculated earlier.
+    # recover the eigenpair of the DMRG if they are calculated earlier.
     engine.layer=0
     lattices=app.lattices()
     for num,target,lattice in reversed(zip(range(len(app.targets)),app.targets,lattices)):
-        pattern=('%s_mps(%s,%s)'%(engine.status,tuple(target),engine.layer)).replace('(','\(').replace(')','\)')
-        mps=MPS.recover(din=engine.din,pattern=pattern,nsite=(num+1)*2,nmax=app.nmax)
+        energy,mps=DMRG.eigenpair(din=engine.din,pattern=pattern(engine.status,target,engine.layer),nsite=(num+1)*2,nmax=app.nmax)
         if mps:
             engine.target=target
             engine.mps=mps
+            engine.log.info['DMRG']['energy']=energy
             engine.lattice=lattice
             engine.config.reset(pids=engine.lattice)
             QuantumNumberCollection.history.clear()
             engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
+            LABELS=engine.degfres.labels(layer=engine.degfres.layers[engine.layer]).values()
+            for m,labels in zip(engine.mps,LABELS):
+                m.relabel(news=[labels[MPS.S]],olds=[m.labels[MPS.S]])
             engine.set_generators_operators_optstrs()
             engine.set_blocks_and_connections()
             engine.set_Hs_()
@@ -667,8 +723,8 @@ def DMRGTSG(engine,app):
     engine.log.close()
     if app.save_data:
         with open('%s/%s_mps(%s,%s)_%s.dat'%(engine.din,engine.status,tuple(engine.target),engine.layer,engine.mps.status),'wb') as fout:
+            pk.dump(engine.log.info['DMRG']['energy'],fout,2)
             pk.dump(engine.mps,fout,2)
-            pk.dump(engine.log.info['DMRG']['gse'],fout,2)
 
 class TSS(App):
     '''
@@ -683,12 +739,12 @@ class TSS(App):
         protocal: 0,1,2
             The protocal of the app to carry out the sweep.
             1) 0,1: recover mode
-                Before the sweep, the mps will be recovered from exsiting data files first.
+                Before the sweep, the energy and mps will be recovered from exsiting data files first.
                 DIFFERENCE:
                     When 1, the recovered mps will be sweeped at least once;
                     When 0, the recovered mps may not be sweeped even once if it exactly matches the recover conditions.
             2) 2: reset mode
-                The sweep will be carried out without recover of the mps from existing data files.
+                The sweep will be carried out without the recover of the energy and mps from existing data files.
         BS: BaseSpace
             The basespace of the DMRG's parametes for the sweeps.
         nmaxs: list of integer
@@ -746,13 +802,13 @@ def DMRGTSS(engine,app):
         status=deepcopy(engine.status)
         for num,nmax,parameters in reversed(zip(range(len(app.nmaxs)),app.nmaxs,app.BS)):
             status.update(alter=parameters)
-            pattern=('%s_mps(%s,%s)'%(status,tuple(app.target),app.layer)).replace('(','\(').replace(')','\)')
-            mps=MPS.recover(din=engine.din,pattern=pattern,nsite=app.nsite,nmax=nmax)
+            energy,mps=DMRG.eigenpair(din=engine.din,pattern=pattern(status,app.target,app.layer),nsite=app.nsite,nmax=nmax)
             if mps:
                 engine.status=status
                 engine.target=app.target
                 engine.layer=app.layer
                 engine.mps=mps
+                engine.log.info['DMRG']['energy']=energy
                 if len(app.dependence)>0 and isinstance(app.dependence[0],TSG):
                     engine.lattice=app.dependence[0].lattices()[-1]
                     engine.config.reset(pids=engine.lattice)
@@ -809,5 +865,5 @@ def DMRGTSS(engine,app):
     engine.log.close()
     if app.save_data:
         with open('%s/%s_mps(%s,%s)_%s.dat'%(engine.din,engine.status,tuple(engine.target),engine.layer,engine.mps.status),'wb') as fout:
+            pk.dump(engine.log.info['DMRG']['energy'],fout,2)
             pk.dump(engine.mps,fout,2)
-            pk.dump(engine.log.info['DMRG']['gse'],fout,2)
