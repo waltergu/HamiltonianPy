@@ -1,11 +1,11 @@
 '''
 Linear algebra, including
 1) constants: TOL
-2) functions: csrkron,csckron,kron,kronsum,parity,dagger,truncated_svd
+2) functions: block_diag,csrkron,csckron,kron,kronsum,parity,dagger,truncated_svd
 3) classes: Lanczos
 '''
 
-__all__=['TOL','csrkron','csckron','kron','kronsum','parity','dagger','truncated_svd','Lanczos']
+__all__=['TOL','block_diag','csrkron','csckron','kron','kronsum','parity','dagger','truncated_svd','Lanczos']
 
 import numpy as np
 import numpy.linalg as nl
@@ -15,6 +15,26 @@ from linalg_Fortran import *
 from copy import copy
 
 TOL=5*10**-12
+
+def block_diag(*ms):
+    '''
+    Create a block diagonal matrix from provided ones.
+    Parameters:
+        ms: list of 2d ndarray
+            The input matrices.
+    Returns: 2d ndarray
+        The constructed block diagonal matrix.
+    '''
+    if len(ms)==0: ms=[np.zeros((0,0))]
+    shapes=np.array([a.shape for a in ms])
+    dtype=np.find_common_type([m.dtype for m in ms],[])
+    result=np.zeros(np.sum(shapes,axis=0),dtype=dtype)
+    r,c=0,0
+    for i,(cr,cc) in enumerate(shapes):
+        result[r:r+cr,c:c+cc]=ms[i]
+        r+=cr
+        c+=cc
+    return result
 
 def csrkron(m1,m2,rows):
     '''

@@ -6,7 +6,7 @@ Linear algebra, including:
 import numpy as np
 import scipy.linalg as sl
 import scipy.sparse as sp
-from ...Math.linalg import truncated_svd,TOL
+from ...Math.linalg import truncated_svd,TOL,block_diag
 from QuantumNumber import *
 from itertools import ifilter
 
@@ -101,7 +101,7 @@ def vb_svd(Psi,qnc1,qnc2,mode='L',nmax=None,tol=None,return_truncation_err=False
             S.append(s[0:cut])
             V.append(v[0:cut,:])
             contents.append((qn,cut))
-        U,S,V=sl.block_diag(*U),np.concatenate(S),sl.block_diag(*V)
+        U,S,V=block_diag(*U),np.concatenate(S),block_diag(*V)
         QNC=QuantumNumberCollection(contents)
         if return_truncation_err:
             err=(temp[nmax:]**2).sum()
