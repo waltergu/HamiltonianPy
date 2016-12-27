@@ -14,14 +14,14 @@ def test_dmrg():
     print 'test_dmrg'
     Engine.DEBUGED=True
     test_dmrg_spin()
-    test_dmrg_spinless_fermion()
-    test_dmrg_spinful_fermion()
+    #test_dmrg_spinless_fermion()
+    #test_dmrg_spinful_fermion()
 
 def test_dmrg_spin():
     print 'test_dmrg_spin'
     # parameters
     qn_on=True
-    N,J,spin=20,1.0,0.5
+    N,J,spin=20,1.0,1.0
 
     # config related
     priority,layers=DEFAULT_SPIN_PRIORITY,DEFAULT_SPIN_LAYERS
@@ -48,12 +48,12 @@ def test_dmrg_spin():
             block=      Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
             vector=     np.array([1.0,0.0]),
             scopes=     range(N),
-            targets=    [SpinQN(Sz=0.0)]*(N/2) if qn_on else [None]*(N/2),
+            targets=    [SpinQN(Sz=1.0)]*(N/2) if qn_on else [None]*(N/2),
             nmax=       20,
             run=DMRGTSG
             )
     # two site sweep
-    dmrg.register(TSS(name='SWEEP',target=SpinQN(Sz=0.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependence=[tsg],run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=SpinQN(Sz=1.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependence=[tsg],run=DMRGTSS))
     dmrg.summary()
     print
 

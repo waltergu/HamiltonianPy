@@ -1,11 +1,11 @@
 '''
 Linear algebra, including
 1) constants: TOL
-2) functions: block_diag,csrkron,csckron,kron,kronsum,parity,dagger,truncated_svd
+2) functions: eigsh,block_diag,csrkron,csckron,kron,kronsum,parity,dagger,truncated_svd
 3) classes: Lanczos
 '''
 
-__all__=['TOL','block_diag','csrkron','csckron','kron','kronsum','parity','dagger','truncated_svd','Lanczos']
+__all__=['TOL','eigsh','block_diag','csrkron','csckron','kron','kronsum','parity','dagger','truncated_svd','Lanczos']
 
 import numpy as np
 import numpy.linalg as nl
@@ -15,6 +15,36 @@ from linalg_Fortran import *
 from copy import copy
 
 TOL=5*10**-12
+
+def eigsh(A,max_try=6,**karg):
+    '''
+    Find the eigenvalues and eigenvectors of the real symmetric square matrix or complex hermitian matrix A.
+    This is a wrapper for scipy.sparse.linalg.eigsh to handle the exceptions it raises.
+    Parameters:
+        A: An NxN matrix, array, sparse matrix, or LinearOperator
+            The matrix whose eigenvalues and eigenvectors is to be computed.
+        max_try: integer, optional
+            The maximum number of tries to do the computation when the computed eigenvalues/eigenvectors do not converge.
+        karg: dict
+            Please refer to https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.sparse.linalg.eigsh.html for details.
+    '''
+    if A.shape==(1,1):
+        assert 'M' not in karg
+        assert 'sigma' not in karg
+        es=np.array([A.todense()[0,0]])
+        vs=np.ones((1,1),dtype=A.dtype)
+    else:
+        num=1
+        while True:
+            try:
+                es,vs=sp.linalg.eigsh(A,**karg)
+                break
+            except sp.linalg.ArpackNoConvergence as err:
+                if num<max_try:
+                    num+=1
+                else:
+                    raise err
+    return es,vs
 
 def block_diag(*ms):
     '''
@@ -61,7 +91,7 @@ def csrkron(m1,m2,rows):
             raise ValueError("csrkron error: only matrices with dtype being float32, float64, complex64 or complex128 are supported.")
         result=sp.csr_matrix((data,indices,indptr),shape=shape)
     else:
-        result=sp.csr_matrix(np.zeros((len(rows),m1.shape[1]*m2.shape[1]),dtype=m1.dtype))
+        result=sp.csr_matrix((len(rows),m1.shape[1]*m2.shape[1]),dtype=m1.dtype)
     return result
 
 def csckron(m1,m2,cols):
@@ -89,7 +119,7 @@ def csckron(m1,m2,cols):
             raise ValueError("csckron error: only matrices with dtype being float32, float64, complex64 or complex128 are supported.")
         result=sp.csc_matrix((data,indices,indptr),shape=shape)
     else:
-        result=sp.csc_matrix(np.zeros((m1.shape[0]*m2.shape[0],len(cols)),dtype=m1.dtype))
+        result=sp.csc_matrix((m1.shape[0]*m2.shape[0],len(cols)),dtype=m1.dtype)
     return result
 
 def kron(m1,m2,rows=None,cols=None,format='csr'):

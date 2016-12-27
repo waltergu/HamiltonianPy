@@ -460,9 +460,10 @@ class DMRG(Engine):
         self.log.info['DMRG']['nnz']=matrix.nnz
         self.log.timers['DMRG'].suspend('Hamiltonian')
         self.log.timers['DMRG'].proceed('Diagonalization')
-        energy,Psi=eigsh(matrix,which='SA',v0=v0,k=1)
-        self.log.info['DMRG']['energy']=energy[0]/self.mps.nsite
-        self.log.info['DMRG']['overlap']=None if v0 is None else Psi[:,0].conjugate().dot(v0)
+        es,vs=eigsh(matrix,which='SA',v0=v0,k=1)
+        energy,Psi=es[0],vs[:,0]
+        self.log.info['DMRG']['energy']=energy/self.mps.nsite
+        self.log.info['DMRG']['overlap']=None if v0 is None else Psi.conjugate().dot(v0)
         self.log.timers['DMRG'].suspend('Diagonalization')
         self.log.timers['DMRG'].proceed('Truncation')
         if self.mps.mode=='QN':
@@ -546,7 +547,7 @@ class DMRG(Engine):
             result=(None,None)
         return result
 
-def pattern(status,target,layer):
+def pattern(status,target,layer,mode='re'):
     '''
     Return the pattern of data files for match.
     Parameters:
@@ -556,14 +557,17 @@ def pattern(status,target,layer):
             The target of the DMRG.
         layer: integer
             The layer of the DMRG.
+        mode: 're','py'
     Returns: string
         The pattern.
     '''
-    ss=['(',')','[',']']
-    rs=['\(','\)','\[','\]']
-    pattern='%s_mps(%s,%s)'%(status,tuple(target),layer)
-    for s,r in zip(ss,rs):
-        pattern=pattern.replace(s,r)
+    assert mode in ('re','py')
+    pattern='%s_mps(%s,%s)'%(status,tuple(target) if isinstance(target,QuantumNumber) else None,layer)
+    if mode=='re':
+        ss=['(',')','[',']']
+        rs=['\(','\)','\[','\]']
+        for s,r in zip(ss,rs):
+            pattern=pattern.replace(s,r)
     return pattern
 
 class TSG(App):
@@ -650,7 +654,7 @@ def DMRGTSG(engine,app):
     engine.layer=0
     lattices=app.lattices()
     for num,target,lattice in reversed(zip(range(len(app.targets)),app.targets,lattices)):
-        energy,mps=DMRG.eigenpair(din=engine.din,pattern=pattern(engine.status,target,engine.layer),nsite=(num+1)*2,nmax=app.nmax)
+        energy,mps=DMRG.eigenpair(din=engine.din,pattern=pattern(engine.status,target,engine.layer,mode='re'),nsite=(num+1)*2,nmax=app.nmax)
         if mps:
             engine.target=target
             engine.mps=mps
@@ -722,7 +726,7 @@ def DMRGTSG(engine,app):
         engine.log<<'info of the dmrg:\n'<<engine.log.info['DMRG']<<'\n\n'
     engine.log.close()
     if app.save_data:
-        with open('%s/%s_mps(%s,%s)_%s.dat'%(engine.din,engine.status,tuple(engine.target),engine.layer,engine.mps.status),'wb') as fout:
+        with open('%s/%s_%s.dat'%(engine.din,pattern(engine.status,engine.target,engine.layer,mode='py'),engine.mps.status),'wb') as fout:
             pk.dump(engine.log.info['DMRG']['energy'],fout,2)
             pk.dump(engine.mps,fout,2)
 
@@ -802,7 +806,7 @@ def DMRGTSS(engine,app):
         status=deepcopy(engine.status)
         for num,nmax,parameters in reversed(zip(range(len(app.nmaxs)),app.nmaxs,app.BS)):
             status.update(alter=parameters)
-            energy,mps=DMRG.eigenpair(din=engine.din,pattern=pattern(status,app.target,app.layer),nsite=app.nsite,nmax=nmax)
+            energy,mps=DMRG.eigenpair(din=engine.din,pattern=pattern(status,app.target,app.layer,mode='re'),nsite=app.nsite,nmax=nmax)
             if mps:
                 engine.status=status
                 engine.target=app.target
@@ -862,8 +866,8 @@ def DMRGTSS(engine,app):
             engine.log.timers['DMRG'].record(Timers.ALL)
             engine.log<<'timers of the dmrg:\n%s\n'%(engine.log.timers['DMRG'])
             engine.log<<'info of the dmrg:\n%s\n\n'%(engine.log.info['DMRG'])
+        if app.save_data:
+            with open('%s/%s_%s.dat'%(engine.din,pattern(engine.status,engine.target,engine.layer,mode='py'),engine.mps.status),'wb') as fout:
+                pk.dump(engine.log.info['DMRG']['energy'],fout,2)
+                pk.dump(engine.mps,fout,2)
     engine.log.close()
-    if app.save_data:
-        with open('%s/%s_mps(%s,%s)_%s.dat'%(engine.din,engine.status,tuple(engine.target),engine.layer,engine.mps.status),'wb') as fout:
-            pk.dump(engine.log.info['DMRG']['energy'],fout,2)
-            pk.dump(engine.mps,fout,2)
