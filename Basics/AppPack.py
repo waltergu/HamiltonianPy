@@ -1,56 +1,52 @@
 '''
 App pack, including:
-1) classes: EB, DOS, OP, FF, CP, FS, GP, GPM, CN, GFC, GF
+1) classes: EB, DOS, GF, FS, BC, GP, CP, FF
 '''
 
-__all__=['EB','DOS','OP','FF','CP','FS','GP','GPM','CN','GFC','GF']
+__all__=['EB','DOS','GF','FS','BC','GP','CP','FF']
 
-from EngineApp import *
+from EngineApp import App
 from numpy import *
+from FermionicPackage import F_Linear
+from ..Math import berry_curvature
 
 class EB(App):
     '''
     Energy bands.
+    Attributes:
+        path: BaseSpace
+            The path in basespace along which the energy spectrum is to be computed.
     '''
-    def __init__(self,path=None,emax=10.0,emin=-10.0,ne=400,eta=0.05,ns=6,ts=None,**karg):
+
+    def __init__(self,path=None,**karg):
         '''
         Constructor.
         Parameters:
             path: BaseSpace, optional
                 The path in basespace along which the energy spectrum is to be computed.
-            emax,emin: float, optional
-                They define the range of the energy within which the EB is to be computed.
-                Not supported by all engines.
-            ne: integer, optional
-                The number of sample points in the energy range defined by emin and emax.
-                Not necessary for all engines.
-            eta: float, optional
-                The damping factor.
-                Not necessary for all engines.
-            ns: integer, optional
-                The number of energy levels to be computed.
-                Not supported for all engines.
-            ts: BaseSpace, optional
-                Only used for FLQT.
         '''
         self.path=path
-        self.emax=emax
-        self.emin=emin
-        self.ne=ne
-        self.eta=eta
-        self.ns=ns
-        self.ts=ts
-        
+
 class DOS(App):
     '''
     Density of states.
+    Attributes:
+        BZ: BaseSpace
+            The Brillouin zone.
+        emin,emax: float
+            The lower/upper bound of the energy range.
+        ne: integer
+            The number of sample points in the energy range.
+        eta: float
+            The damping factor.
     '''
-    def __init__(self,BZ=None,ne=100,eta=0.05,emin=-10.0,emax=10.0,**karg):
+
+    def __init__(self,BZ=None,ne=100,eta=0.05,emin=None,emax=None,**karg):
         '''
         Constructor.
         Parameters:
             BZ: BaseSpace,optional
-                The first Brillouin zone.
+                The Brillouin zone.
             emin,emax: float, optional
                 They define the range of the energy within which the DOS is to be computed.
             ne: int, optional
@@ -64,204 +60,182 @@ class DOS(App):
         self.emin=emin
         self.emax=emax
 
-class OP(App):
+class GF(App):
     '''
-    Order parameter.
+    Green's functions.
+    Attribues:
+        operators: list of Operator
+            The operators of the GF.
+        omega: number
+            The frequency of the GF.
+        k: 1D ndarray
+            The momentum of the GF.
+        gf: 2d ndarray
+            The value of the GF.
     '''
-    def __init__(self,terms,BZ=None,p=1.0,**karg):
+
+    def __init__(self,operators=None,omega=None,k=None,**karg):
         '''
         Constructor.
         Parameters:
-            term: list of Term
-                The terms representing the order parameter.
-            BZ: BaseSpace, optional
-                The first Brillouin zone.
-            p: float, optional
-                A tunale parameter used in the calculation.
-                For details, please refer arXiv:0806.2690.
+            operators: list of Operator, optional
+                The operators of the GF.
+            omega: number, optional
+                The frequency of the GF.
+            k: 1D array-like, optional
+                The momentum of the GF.
+            shape: tuple, optional
+                The shape of the Green's function.
         '''
-        self.terms=terms
-        self.BZ=BZ
-        self.ms=0
-        self.ops=0
-        self.p=p
+        self.operators=[] if operators is None else operators
+        self.omega=omega
+        self.k=k
+        self.gf=None if operators is None else zeros((len(operators),len(operators)),dtype=complex128)
 
-    def matrix(self,bonds,table,nambu):
+    @property
+    def nopt(self):
         '''
+        The number of operators.
         '''
-        pass
+        return len(self.operators)
 
-class FF(App):
-    '''
-    Filling factor.
-    '''
-    def __init__(self,BZ=None,p=1.0,**karg):
+    @staticmethod
+    def fsp_operators(table,lattice):
         '''
-        Constructor.
-        Parameter:
-            BZ: BaseSpace, optional
-                The first Brillouin zone.
-            p: float, optional
-                A tunale parameter used in the calculation.
-                For details, please refer arXiv:0806.2690.
-        '''
-        self.BZ=BZ
-        self.p=p
-        self.filling=0
-
-class CP(App):
-    '''
-    Chemical potential.
-    '''
-    def __init__(self,BZ=None,p=1.0,error=10**-6,**karg):
-        '''
-        Constructor.
+        Generate the fermionic single particle operators corresponding to a table.
         Parameters:
-            BZ: BaseSpace, optional
-                The first Brillouin zone.
-            p: float, optional
-                A tunale parameter used in the calculation.
-                For details, please refer arXiv:0806.2690.
-            error: float, optional
-                The error of the result.
+            table: Table
+                The index-sequence table of the fermionic single particle operators.
+            lattice: Lattice
+                The lattice on which the fermionic single particle operators are defined.
+        Returns: list of OperatorF
+            The fermionic single particle operators corresponding to the table.
         '''
-        self.BZ=BZ
-        self.p=p
-        self.error=10**-6
-        self.mu=0
+        result=[]
+        for ndx in sorted(table,key=table.get):
+            result.append(F_Linear(1,indices=[ndx],rcoords=[lattice[ndx.pid].rcoord],icoords=[lattice[ndx.pid].icoord],seqs=[table[ndx]]))
+        return result
 
 class FS(App):
     '''
     Fermi surface.
+    Attribues:
+        BZ: BaseSpace
+            The Brillouin zone.
+        eta: float64
+            The damping factor.
     '''
+
     def __init__(self,BZ,eta=0.05,**karg):
         '''
         Constructor.
         Parameters:
             BZ: BaseSpace
-                The first Brillouin zone.
+                The Brillouin zone.
             eta: float, optional
                 The damping factor.
         '''
         self.BZ=BZ
         self.eta=eta
 
-class GP(App):
+class BC(App):
     '''
-    Grand potential.
+    Berry curvature.
+    Attribues:
+        BZ: BaseSpace
+            The Brillouin zone.
+        d: float64
+            The difference used to calculate the partial directive.
+        bc: 1d ndarray
+            The values of the Berry curvature.
+        cn: float64
+            The integration of the Berry curvature.
+            When BZ is the first Brillouin zone, this number is the first Chern number.
     '''
-    def __init__(self,BZ=None,**karg):
-        '''
-        Constructor.
-        Parameters:
-            BZ: BaseSpace, optional
-                The first Brillouin zone.
-        '''
-        self.BZ=BZ
-        self.gp=0
 
-class GPM(App):
-    '''
-    Grand potential minimization.
-    '''
-    def __init__(self,BS,fout=None,method=None,options=None,**karg):
-        '''
-        Constructor.
-        Parameters:
-            BS: BaseSpace or dict
-                When it is a BaseSpace, it is the basespace on which the grand potential is to be computed;
-                When it is a dict, it is the initial guess of the minimum point in the basespace.
-            fout: string, optional
-                The output file that contains the results.
-                It is used only when BS is a dict.
-            method, options:
-                They are used only when BS is a dict.
-                Please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
-        '''
-        self.BS=BS
-        self.fout=fout
-        self.method=method
-        self.options=options
-        self.bsm={}
-        self.gpm=0.0
-
-class CN(App):
-    '''
-    Chern number.
-    '''
     def __init__(self,BZ,d=10**-6,**karg):
         '''
         Constructor.
         Parameters:
             BZ: BaseSpace
-                The first Brillouin zone.
+                The Brillouin zone.
             d: float, optional
-                The difference used to calculate the derivatives.
+                The difference used to calculate the derivates.
         '''
         self.BZ=BZ
         self.d=d
-        self.bc=None
+        self.bc=zeros(BZ.rank['k'])
+        self.cn=None
 
-    @property
-    def cn(self):
+    def set(self,H,mu):
         '''
-        Returns the integration of the Berry curvature.
+        Using the Kubo formula to calculate the Berry curvature of the occupied bands for a Hamiltonian with the given chemical potential.
+        Parameters:
+            H: function
+                Input function which returns the Hamiltonian as a 2D ndarray.
+            mu: float64
+                The chemical potential.
         '''
-        return sum(self.bc)*self.BZ.volume['k']/self.BZ.rank['k']/2/pi
+        for i,ks in enumerate(self.BZ()):
+            self.bc[i]=berry_curvature(H,ks['k'][0],ks['k'][1],mu,d=self.d)
+        self.cn=sum(self.bc)*self.BZ.volume['k']/len(self.bc)/2/pi
 
-class GFC(App):
+class GP(App):
     '''
-    The coefficients of Green's functions.
+    Grand potential.
+    Attribues:
+        BZ: BaseSpace
+            The Brillouin zone.
+        gp: float64
+            The value of the grand potential.
     '''
-    def __init__(self,v0=None,nstep=200,method='python',vtype='rd',error=0,**karg):
+
+    def __init__(self,BZ=None,**karg):
         '''
         Constructor.
         Parameters:
-            v0: 1D ndarray,optional
-                The initial state to begin with the Lanczos iteration for the groundstate.
-            nstep: integer, optional
-                The max number of steps for the Lanczos iteration.
-            method: string,optional
-                It specifies the method the engine uses to compute the ground state.
-                'python' means scipy.sparse.linalg.eigsh, and 'user' means Hamiltonian.Core.BasicAlgorithm.LanczosPy.Lanczos.eig.
-            vtype: string,optional
-                It specifies the initial vector type used for the calculation of the ground state.
-                It only makes sense when method is 'user'.
-                'rd' means random and 'sy' means symmetric.
-            error: float, optional
-                The error used to terminate the iteration.
+            BZ: BaseSpace, optional
+                The Brillouin zone.
         '''
-        self.v0=v0
-        self.nstep=nstep
-        self.method=method
-        self.vtype=vtype
-        self.error=error
-        self.gse=0
-        self.coeff=array([])
-        self.hs=array([])
+        self.BZ=BZ
+        self.gp=0
 
-class GF(App):
+class CP(App):
     '''
-    Green's functions.
+    Chemical potential.
+    Attribues:
+        BZ: BaseSpace
+            The Brillouin zone.
+        mu: float64
+            The value of the chemical potential.
     '''
-    def __init__(self,shape,omega=0.0,k=None,**karg):
+
+    def __init__(self,BZ=None,**karg):
         '''
         Constructor.
         Parameters:
-            shape: tuple
-                The shape of the Green's function.
-            omega: float or complex, optional
-                The frequency.
-            k: 1D ndarray like, optional
-                The k points in the reciprocal space.
+            BZ: BaseSpace, optional
+                The Brillouin zone.
         '''
-        self.omega=omega
-        self.k=k
-        self.gf=zeros(shape,dtype=complex128)
+        self.BZ=BZ
+        self.mu=None
 
-    @property
-    def shape(self):
+class FF(App):
+    '''
+    Filling factor.
+    Attribues:
+        BZ: BaseSpace
+            The Brillouin zone.
+        filling: float64
+            The value of the filling factor.
+    '''
+
+    def __init__(self,BZ=None,**karg):
         '''
-        The shape of the single particle Green's function.
+        Constructor.
+        Parameter:
+            BZ: BaseSpace, optional
+                The first Brillouin zone.
         '''
-        return self.gf.shape
+        self.BZ=BZ
+        self.filling=0

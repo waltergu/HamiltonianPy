@@ -27,12 +27,14 @@ class Engine(object):
                     The name of the engine.
                 status.info: string
                     The name of the class of the engine.
+        preloads: list of App
+            The preloaded apps of the engine, which will become the dependences of all the other apps registered on it.
         apps: dict of App
-            The apps registered on this engine, including the dependence of the apps.
+            The apps registered on this engine (the dependences of the apps not included).
         log: Log
             The log of the engine.
     '''
-    DEBUGED=False
+    DEBUG=False
 
     def __new__(cls,*arg,**karg):
         '''
@@ -46,11 +48,12 @@ class Engine(object):
                 os.makedirs(getattr(result,key))
         result.status=Status(name=karg.get('name',''),info=cls.__name__)
         result.status.update(const=karg.get('parameters',None))
-        result.log=Log() if Engine.DEBUGED else karg.get('log',Log())
+        result.log=Log() if Engine.DEBUG else karg.get('log',Log())
         if 'engine' not in result.log.timers:
             result.log.timers['engine']=Timers()
         if 'engine' not in result.log.info:
             result.log.info['engine']=Info()
+        result.preloads=karg.get('preloads',[])
         result.apps={}
         return result
 
@@ -76,8 +79,8 @@ class Engine(object):
             NOTE: the CRITERION to judge whether app.run should be called when run==True and enforce_run==False:
                   whether either app.status.info or app.status<=self.status is False.
         '''
-        for obj in [app]+app.dependence:
-            self.apps[obj.status.name]=obj
+        self.apps[app.status.name]=app
+        app.dependences=self.preloads+app.dependences
         if run:
             self.log.open()
             name=app.status.name
@@ -86,39 +89,40 @@ class Engine(object):
             cmp=app.status<=self.status
             if enforce_run or (not app.status.info) or (not cmp):
                 if not cmp:self.update(**app.status._alter_)
-                app.run(self,app)
+                if app.prepare is not None:app.prepare(self,app)
+                if app.run is not None:app.run(self,app)
                 app.status.info=True
-                app.status.update(alter=self.status._alter_)
+                app.status.update(const=self.status._const_,alter=self.status._alter_)
             self.log.timers['engine'].stop(name)
-            self.log<<'App %s(name=%s): time consumed %ss.\n\n'%(app.__class__.__name__,name,self.log.timers['engine'].time(name))
+            self.log<<'App %s(%s): time consumed %ss.\n\n'%(name,app.__class__.__name__,self.log.timers['engine'].time(name))
             self.log.close()
 
-    def rundependence(self,name,enforce_run=False):
+    def rundependences(self,name,enforce_run=False):
         '''
-        This method runs the dependence of the app specified by name.
+        This method runs the dependences of the app specified by name.
         Parameters:
             name: any hashable object
-                The name to specify whose dependence to be run.
+                The name to specify whose dependences to be run.
             enforce_run: logical, optional
-                When it is True, the run attributes of all the dependence, which are functions themsevles, will be called.
+                When it is True, the run attributes of all the dependences, which are functions themsevles, will be called.
         '''
-        for app in self.apps[name].dependence:
-            cmp=app.status<=self.status
+        for app in self.apps[name].dependences:
+            cmp=self.status<=app.status
             if enforce_run or (not app.status.info) or (not cmp):
-                if not cmp: self.update(**app.status._alter_)
-                self.update(**app.status._alter_)
-                app.run(self,app)
+                if not cmp:app.status.update(const=self.status._const_,alter=self.status._alter_)
+                if app.prepare is not None:app.prepare(self,app)
+                if app.run is not None:app.run(self,app)
                 app.status.info=True
-                app.status.update(alter=self.status._alter_)
 
     def summary(self):
         '''
         Generate the app report.
         '''
         self.log.open()
-        self.log<<'Summary of %s'%(self.__class__.__name__)<<'\n'
+        self.log<<'Summary of %s(%s)'%(self.status.name,self.__class__.__name__)<<'\n'
         if len(self.log.timers['engine'])>0:self.log<<self.log.timers['engine']<<'\n'
         if len(self.log.info['engine'])>0:self.log<<self.log.info['engine']<<'\n'
+        self.log<<'\n'
         self.log.close()
 
 class App(object):
@@ -133,7 +137,7 @@ class App(object):
                 status.info: logical
                     When True, it means the function app.run has been called by the engine it registered on at least once.
                     Otherwise not.
-        dependence: list of App
+        dependences: list of App
             The apps on which this app depends.
         plot: logical
             A flag to tag whether the results are to be plotted.
@@ -145,8 +149,10 @@ class App(object):
             The number of processes used in parallel computing and 0 means the available maximum.
         save_data: logical
             A flag to tag whether the generated data of the result is to be saved on the hard drive.
+        prepare: function
+            The function called by the engine before it carries out the tasks.
         run: function
-            The function called by the engine to carry out the tasks, which should be implemented by the subclasses of Engine.
+            The function called by the engine to carry out the tasks.
     '''
 
     def __new__(cls,*arg,**karg):
@@ -156,7 +162,7 @@ class App(object):
         result=object.__new__(cls)
         result.status=Status(name=karg.get('name',id(result)),info=False)
         result.status.update(alter=karg.get('parameters',None))
-        attr_def={'dependence':[],'plot':True,'show':True,'parallel':False,'np':0,'save_data':True,'run':None}
+        attr_def={'dependences':[],'plot':True,'show':True,'parallel':False,'np':0,'save_data':True,'prepare':None,'run':None}
         for key,value in attr_def.items():
             setattr(result,key,karg.get(key,value))
         return result

@@ -648,7 +648,7 @@ def DMRGTSG(engine,app):
     '''
     This method iterativey update the DMRG by increasing its lattice in the center by 2 blocks at each iteration.
     '''
-    engine.rundependence(app.status.name)
+    #engine.rundependences(app.status.name)
     engine.log.open()
     # recover the eigenpair of the DMRG if they are calculated earlier.
     engine.layer=0
@@ -802,6 +802,7 @@ def DMRGTSS(engine,app):
     This method iterativey sweep the DMRG with 2 sites updated at each iteration.
     '''
     engine.log.open()
+    # recover the eigenpair of the DMRG if they are calculated earlier.
     if app.protocal in (0,1):
         status=deepcopy(engine.status)
         for num,nmax,parameters in reversed(zip(range(len(app.nmaxs)),app.nmaxs,app.BS)):
@@ -813,8 +814,8 @@ def DMRGTSS(engine,app):
                 engine.layer=app.layer
                 engine.mps=mps
                 engine.log.info['DMRG']['energy']=energy
-                if len(app.dependence)>0 and isinstance(app.dependence[0],TSG):
-                    engine.lattice=app.dependence[0].lattices()[-1]
+                if len(app.dependences)>0 and isinstance(app.dependences[0],TSG):
+                    engine.lattice=app.dependences[0].lattices()[-1]
                     engine.config.reset(pids=engine.lattice)
                     QuantumNumberCollection.history.clear()
                     engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
@@ -827,14 +828,16 @@ def DMRGTSS(engine,app):
                     if mps.status['nmax']<=nmax:num-=1
                 break
         else:
-            engine.rundependence(app.status.name)
+            engine.rundependences(app.status.name)
             num=-1
     elif app.protocal in (2,):
-        engine.rundependence(app.status.name)
+        engine.rundependences(app.status.name)
         num=-1
+    # Move to the correct layer
     if engine.layer<app.layer:
         engine.level_up(n=app.layer-engine.layer)
         engine.mps.canonicalization(cut=engine.mps.nsite/2)
+    # two site sweep
     for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs[num+1:],app.BS[num+1:],app.paths[num+1:])):
         suffix='st'if i==0 else ('nd' if i==1 else ('rd' if i==2 else 'th'))
         app.status.update(alter=parameters)

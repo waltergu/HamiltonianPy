@@ -4,6 +4,7 @@ EngineApp test.
 
 __all__=['test_engineapp']
 
+from HamiltonianPy.Basics.DegreeOfFreedom import Status
 from HamiltonianPy.Basics.EngineApp import *
 
 def test_engineapp():

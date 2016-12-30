@@ -1,21 +1,22 @@
 '''
 Floquet algorithm, including:
-1) classes: FLQT
-2) functions: FLQTEB
+1) classes: FLQT, QEB
+2) functions: FLQTQEB
 '''
 
-__all__=['FLQT','FLQTEB']
+__all__=['FLQT','QEB','FLQTQEB']
 
 from numpy import *
 from TBA import *
 from scipy.linalg import expm2,eig
 import matplotlib.pyplot as plt
+import HamiltonianPy as HP
 
 class FLQT(TBA):
     '''
     This class deals with floquet problems. All its attributes are inherited from TBA.
     Supported methods include:
-    1) FLQTEB: calculate the quasi-energy bands.
+    1) FLQTQEB: calculate the quasi-energy bands.
     '''
     def __init__(self,filling=0,mu=0,lattice=None,config=None,terms=None,mask=['nambu'],**karg):
         super(FLQT,self).__init__(
@@ -47,7 +48,28 @@ class FLQT(TBA):
                 result=dot(expm2(-1j*self.matrix(t=time,**karg)*(t[i+1]-time)),result)
         return result
 
-def FLQTEB(engine,app):
+class QEB(HP.EB):
+    '''
+    Floquet quasi-energy bands.
+    Attribues:
+        ts: BaseSpace
+            The time domain of the Floquet process.
+    '''
+
+    def __init__(self,ts,**karg):
+        '''
+        Constructor.
+        Parameters:
+            ts: BaseSpace
+                The time domain of the Floquet process.
+        '''
+        super(QEB,self).__init__(**karg)
+        self.ts=ts
+
+def FLQTQEB(engine,app):
+    '''
+    This method calculates the Floquet quasi-energy bands.
+    '''
     nmatrix=len(engine.generators['h'].table)
     if app.path!=None:
         result=zeros((app.path.rank,nmatrix+1))
@@ -64,11 +86,11 @@ def FLQTEB(engine,app):
         result[0,1:]=angle(eig(engine.evolution(t=app.ts.mesh['t']))[0])/app.ts.volume['t']
         result[1,1:]=result[0,1:]
     if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.full+'_EB.dat',result)
+        savetxt('%s/%s_QEB.dat'%(engine.dout,engine.status),result)
     if app.plot:
-        plt.title(engine.name.full+'_EB')
+        plt.title('%s_QEB'%(engine.status))
         plt.plot(result[:,0],result[:,1:])
         if app.show:
             plt.show()
         else:
-            plt.savefig(engine.dout+'/'+engine.name.full+'_EB.png')
+            plt.savefig('%s/%s_QEB.png'%(engine.dout,engine.status))

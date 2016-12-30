@@ -1,10 +1,10 @@
 '''
 Geometry, including
-1) functions: azimuthd, azimuth, polard, polar, volume, is_parallel, reciprocals, tiling, translation, rotation, bonds, bonds_between_clusters
+1) functions: azimuthd, azimuth, polard, polar, volume, is_parallel, belong_to_lattice, reciprocals, tiling, translation, rotation, bonds, bonds_between_clusters
 2) classes: PID, Point, Bond, Lattice, SuperLattice
 '''
 
-__all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'is_parallel', 'reciprocals', 'tiling', 'translation', 'rotation', 'bonds', 'bonds_between_clusters', 'SuperLattice', 'PID', 'Point', 'Bond', 'Lattice']
+__all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'is_parallel', 'belong_to_lattice', 'reciprocals', 'tiling', 'translation', 'rotation', 'bonds', 'bonds_between_clusters', 'SuperLattice', 'PID', 'Point', 'Bond', 'Lattice']
 
 from numpy import *
 from numpy.linalg import norm,inv
@@ -86,6 +86,47 @@ def is_parallel(O1,O2):
             return 0
     else:
         raise ValueError("Is_parallel error: the shape of the array-like vectors does not match.") 
+
+def belong_to_lattice(rcoord,vectors):
+    '''
+    Judge whether or not a coordinate belongs to a lattice.
+    Parameters:
+        rcoord: 1d ndarray
+            The coordinate.
+        vectors: list of 1d ndarray
+            The translation vectors of the lattice.
+    Returns: logical
+        True for yes False for no.
+    NOTE: only 1,2 and 3 dimensional coordinates are supported.
+    '''
+    nvectors=len(vectors)
+    ndim=len(vectors[0])
+    a=zeros((3,3))
+    for i in xrange(nvectors):
+        a[0:ndim,i]=vectors[i]
+    if nvectors==2:
+        if ndim==2:
+            buff=zeros(3)
+            buff[2]=cross(vectors[0],vectors[1])
+        else:
+            buff=cross(vectors[0],vectors[1])
+        a[:,2]=buff
+    if nvectors==1:
+        buff1=a[:,0]
+        for i in xrange(3):
+            buff2=zeros(3)
+            buff2[i]=pi
+            if not is_parallel(buff1,buff2): break
+        buff3=cross(buff1,buff2)
+        a[:,1]=buff2
+        a[:,2]=buff3
+    b=zeros(3)
+    b[0:len(rcoord)]=rcoord
+    x=inv(a).dot(b)
+    if max(abs(x-around(x)))<RZERO:
+        return True
+    else:
+        return False
 
 def reciprocals(vectors):
     '''

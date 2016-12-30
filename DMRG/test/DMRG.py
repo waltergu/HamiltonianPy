@@ -12,10 +12,10 @@ from HamiltonianPy.DMRG.DMRG import *
 
 def test_dmrg():
     print 'test_dmrg'
-    Engine.DEBUGED=True
+    Engine.DEBUG=True
     test_dmrg_spin()
-    #test_dmrg_spinless_fermion()
-    #test_dmrg_spinful_fermion()
+    test_dmrg_spinless_fermion()
+    test_dmrg_spinful_fermion()
 
 def test_dmrg_spin():
     print 'test_dmrg_spin'
@@ -53,7 +53,7 @@ def test_dmrg_spin():
             run=DMRGTSG
             )
     # two site sweep
-    dmrg.register(TSS(name='SWEEP',target=SpinQN(Sz=1.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependence=[tsg],run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=SpinQN(Sz=1.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],run=DMRGTSS))
     dmrg.summary()
     print
 
@@ -93,7 +93,7 @@ def test_dmrg_spinless_fermion():
             run=        DMRGTSG
             )
     # two site sweep
-    dmrg.register(TSS(name='SWEEP',target=QuantumNumber([('N',N/2,'U1')]),layer=0,nsite=N,nmaxs=[50,100,200,200],dependence=[tsg],run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=QuantumNumber([('N',N/2,'U1')]),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],run=DMRGTSS))
     dmrg.summary()
     print
 
@@ -135,6 +135,6 @@ def test_dmrg_spinful_fermion():
             )
     # two site sweep
     tss=TSS(name='PRESWEEP',target=FermiQN(N=N,Sz=0.0),layer=0,nsite=N,protocal=1,nmaxs=[30,30,30,30],run=DMRGTSS)
-    dmrg.register(TSS(name='SWEEP',target=FermiQN(N=N,Sz=0.0),layer=1,nsite=2*N,nmaxs=[30,30,30,50],dependence=[tsg,tss],run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=FermiQN(N=N,Sz=0.0),layer=1,nsite=2*N,nmaxs=[30,30,30,50],dependences=[tsg,tss],run=DMRGTSS))
     dmrg.summary()
     print

@@ -19,9 +19,7 @@ def haldane_hopping(bond):
 
 def test_scmf():
     print 'test_scmf'
-    U=3.13
-    t1=-1.0
-    t2=0.1
+    U,t1,t2=3.13,-1.0,0.1
     H2=HexagonDataBase(name='H2',scope='H2_SCMF')
     h2=SCMF(
         parameters= {'U':U},
@@ -44,8 +42,8 @@ def test_scmf():
                     ],
         mask=      ['nambu']
         )
-    h2.iterate(KSpace(reciprocals=h2.lattice.reciprocals,nk=100),error=10**-5,n=400)
-    h2.register(EB(hexagon_gkm(nk=100),save_data=False,plot=True,show=True,run=TBAEB))
-    h2.register(CN(KSpace(reciprocals=h2.lattice.reciprocals,nk=200),d=10**-6,save_data=False,plot=False,show=True,run=TBACN))
-    h2.runapps()
+    h2.iterate(KSpace(reciprocals=h2.lattice.reciprocals,nk=100),tol=10**-5,maxiter=400)
+    h2.register(EB(name='EB',path=hexagon_gkm(nk=100),save_data=False,plot=True,show=True,run=TBAEB))
+    h2.register(BC(name='BC',BZ=KSpace(reciprocals=h2.lattice.reciprocals,nk=200),d=10**-6,save_data=False,plot=False,show=True,run=TBABC))
+    h2.summary()
     print

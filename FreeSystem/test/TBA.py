@@ -13,16 +13,16 @@ def test_tba():
     print 'open boundary conditions'
     print '------------------------'
     op=tba_construct(bc='op')
-    op.register(EB(path=BaseSpace({'tag':'mu','mesh':linspace(-3,3,num=201)}),run=TBAEB,save_data=False,plot=True))
-    op.register(EB(paras={'mu':0.0},save_data=False,run=TBAEB))
-    op.register(DOS(paras={'mu':0.0},ne=400,eta=0.01,save_data=False,run=TBADOS))
-    op.runapps()
+    op.register(EB(name='EB-1',path=BaseSpace({'tag':'mu','mesh':linspace(-3,3,num=201)}),run=TBAEB,save_data=False,plot=True))
+    op.register(EB(name='EB-2',parameters={'mu':0.0},save_data=False,run=TBAEB))
+    op.register(DOS(name='DOS',parameters={'mu':0.0},ne=400,eta=0.01,save_data=False,run=TBADOS))
+    op.summary()
     print 'periodic boundary conditions'
     print '------------------------'
     pd=tba_construct(bc='pd')
-    pd.register(EB(paras={'mu':0.2},path=line_1d(nk=200),save_data=False,run=TBAEB))
-    pd.register(DOS(paras={'mu':0.0},BZ=line_1d(nk=10000),eta=0.01,ne=400,save_data=False,run=TBADOS))
-    pd.runapps()
+    pd.register(EB(name='EB',parameters={'mu':0.2},path=line_1d(nk=200),save_data=False,run=TBAEB))
+    pd.register(DOS(name='DOS',parameters={'mu':0.0},BZ=line_1d(nk=10000),eta=0.01,ne=400,save_data=False,run=TBADOS))
+    pd.summary()
     print
 
 def tba_construct(bc='op'):

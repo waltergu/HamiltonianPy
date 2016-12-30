@@ -1,12 +1,11 @@
 '''
 Tight Binding Approximation for fermionic systems, including:
 1) classes: TBA
-2) functions: TBAEB, TBADOS, TBACP, TBACN
+2) functions: TBAEB, TBADOS, TBACP, TBABC
 '''
 
-__all__=['TBA','TBAEB','TBADOS','TBACP','TBACN']
+__all__=['TBA','TBAEB','TBADOS','TBACP','TBABC']
 
-from ..Math.BerryCurvature import *
 from ..Basics import *
 from numpy import *
 from scipy.linalg import eigh
@@ -14,8 +13,8 @@ import matplotlib.pyplot as plt
 
 class TBA(Engine):
     '''
-    This class provides a general algorithm to calculate physical quantities of non-interacting fermionic systems based on the tight-binding approximation.
-    The BdG systems, i.e. phenomenological superconducting systems based on mean-field theory are also supported in a unified way.
+    Tight-binding approximation for fermionic systems.
+    Also support BdG systems (phenomenological superconducting systems at the mean-field level).
     Attributes:
         filling: float
             The filling factor of the system.
@@ -36,7 +35,7 @@ class TBA(Engine):
         1) TBAEB: calculate the energy bands.
         2) TBADOS: calculate the density of states.
         3) TBACP: calculate the chemical potential.
-        4) TBACN: calculate the Chern number and Berry curvature.
+        4) TBABC: calculate the Berry curvature and Chern number.
     '''
     
     def __init__(self,filling=0,mu=0,lattice=None,config=None,terms=None,mask=['nambu'],**karg):
@@ -64,14 +63,14 @@ class TBA(Engine):
         self.mask=mask
         self.generators={}
         self.generators['h']=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms)
-        self.name.update(const=self.generators['h'].parameters['const'],alter=self.generators['h'].parameters['alter'])
+        self.status.update(const=self.generators['h'].parameters['const'],alter=self.generators['h'].parameters['alter'])
 
     def update(self,**karg):
         '''
         This method update the engine.
         '''
         self.generators['h'].update(**karg)
-        self.name._alter.update(**karg)
+        self.status.update(alter=karg)
 
     def matrix(self,k=[],**karg):
         '''
@@ -99,10 +98,10 @@ class TBA(Engine):
 
     def matrices(self,basespace=None,mode='*'):
         '''
-        This method returns a generator which iterates over all the Hamiltonians living on the input basespace.
+        This method returns a generator iterating over the matrix representations of the Hamiltonian defined on the input basespace.
         Parameters:
             basespace: BaseSpace,optional
-                The base space on which the Hamiltonians lives.
+                The base space on which the Hamiltonian is defined.
             mode: string,optional
                 The mode which the generators takes to iterate over the base space.
         Returns:
@@ -134,11 +133,20 @@ class TBA(Engine):
         return result
 
     def set_mu(self,kspace=None):
+        '''
+        Set the chemical potential of the Hamiltonian.
+        Parameters:
+            kspace: BaseSpace, optional
+                The basespace of the on which the Hamiltonian is defined.
+        '''
         nelectron=int(round(self.filling*(1 if kspace is None else kspace.rank['k'])*len(self.generators['h'].table)))
         eigvals=sort((self.eigvals(kspace)))
         self.mu=(eigvals[nelectron]+eigvals[nelectron-2])/2
 
 def TBAEB(engine,app):
+    '''
+    This method calculates the energy bands of the Hamiltonian.
+    '''
     nmatrix=len(engine.generators['h'].table)
     if app.path!=None:
         key=app.path.mesh.keys()[0]
@@ -155,61 +163,70 @@ def TBAEB(engine,app):
         result[0,1:]=eigh(engine.matrix(),eigvals_only=True)
         result[1,1:]=result[0,1:]
     if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.full+'_EB.dat',result)
+        savetxt('%s/%s_EB.dat'%(engine.dout,engine.status),result)
     if app.plot:
-        plt.title(engine.name.full+'_EB')
+        plt.title('%s_EB'%(engine.status))
         plt.plot(result[:,0],result[:,1:])
         if app.show:
             plt.show()
         else:
-            plt.savefig(engine.dout+'/'+engine.name.full+'_EB.png')
+            plt.savefig('%s/%s_EB.png'%(engine.dout,engine.status))
         plt.close()
 
 def TBADOS(engine,app):
+    '''
+    This method calculates the density of states of the Hamiltonian.
+    '''
     result=zeros((app.ne,2))
     eigvals=engine.eigvals(app.BZ)
-    for i,v in enumerate(linspace(eigvals.min(),eigvals.max(),num=app.ne)):
+    emin=eigvals.min() if app.emin is None else app.emin
+    emax=eigvals.max() if app.emax is None else app.emax
+    for i,v in enumerate(linspace(emin,emax,num=app.ne)):
        result[i,0]=v
        result[i,1]=sum(app.eta/((v-eigvals)**2+app.eta**2))
     if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.full+'_DOS.dat',result)
+        savetxt('%s/%s_DOS.dat'%(engine.dout,engine.status),result)
     if app.plot:
-        plt.title(engine.name.full+'_DOS')
+        plt.title('%s_DOS'%(engine.status))
         plt.plot(result[:,0],result[:,1])
         if app.show:
             plt.show()
         else:
-            plt.savefig(engine.dout+'/'+engine.name.full+'_DOS.png')
+            plt.savefig('%s/%s_DOS.png'%(engine.dout,engine.status))
         plt.close()
 
 def TBACP(engine,app):
+    '''
+    This method calculates the chemical potential of the Hamiltonian.
+    '''
     nelectron=int(round(engine.filling*app.BZ.rank['k']*len(engine.generators['h'].table)))
     eigvals=sort((engine.eigvals(app.BZ)))
     app.mu=(eigvals[nelectron]+eigvals[nelectron-2])/2
     engine.mu=app.mu
-    print 'mu:',app.mu
+    engine.log<<'mu: %s'%(app.mu)<<'\n'
 
-def TBACN(engine,app):
+def TBABC(engine,app):
+    '''
+    This method calculates the total Berry curvature and Chern number of the filled bands of the Hamiltonian.
+    '''
     H=lambda kx,ky: engine.matrix(k=[kx,ky])
-    app.bc=zeros(app.BZ.rank['k'])
-    for i,paras in enumerate(app.BZ()):
-        app.bc[i]=berry_curvature(H,paras['k'][0],paras['k'][1],engine.mu,d=app.d)
-    print 'Chern number(mu):',app.cn,'(',engine.mu,')'
+    app.set(H,engine.mu)
+    engine.log<<'Chern number(mu): %s(%s)'%(app.cn,engine.mu)<<'\n'
     if app.save_data or app.plot:
         buff=zeros((app.BZ.rank['k'],3))
         buff[:,0:2]=app.BZ.mesh['k']
         buff[:,2]=app.bc
     if app.save_data:
-        savetxt(engine.dout+'/'+engine.name.full+'_BC.dat',buff)
+        savetxt('%s/%s_BC.dat'%(engine.dout,engine.status),buff)
     if app.plot:
         nk=int(round(sqrt(app.BZ.rank['k'])))
-        plt.title(engine.name.full+'_BC')
+        plt.title('%s_BC'%(engine.status))
         plt.axis('equal')
         plt.colorbar(plt.pcolormesh(buff[:,0].reshape((nk,nk)),buff[:,1].reshape((nk,nk)),buff[:,2].reshape((nk,nk))))
         if app.show:
             plt.show()
         else:
-            plt.savefig(engine.dout+'/'+engine.name.full+'_BC.png')
+            plt.savefig('%s/%s_BC.png'%(engine.dout,engine.status))
         plt.close()
 
 def TBAGF(engine,app):

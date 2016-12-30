@@ -19,7 +19,7 @@ class BasisF(object):
     2) particle-conserved systems and 
     3) spin-conserved systems.
     Attributes:
-        basis_type: string
+        mode: string
             A flag to tag the type of the three kinds of fore-mentioned systems:
                 'FG': particle-non-conserved systems
                 'FP': particle-conserved systems
@@ -63,19 +63,19 @@ class BasisF(object):
             If more than needed parameters to generate a certain kind a basis are assigned, this method obeys the following priority to create the instance: "FP" > "FS" > "FG".
         '''
         if len(tuple)==2:
-            self.basis_type="FP"
+            self.mode="FP"
             self.nstate=array(tuple[0])
             self.nparticle=array(tuple[1])
             self.basis_table=basis_table_ep(tuple[0],tuple[1],dtype=dtype)
             self.nbasis=len(self.basis_table)
         elif len(up)==2 and len(down)==2:
-            self.basis_type="FS"
+            self.mode="FS"
             self.nstate=array([up[0],down[0]])
             self.nparticle=array([up[1],down[1]])
             self.basis_table=basis_table_es(up,down,dtype=dtype)
             self.nbasis=len(self.basis_table)
         else:
-            self.basis_type="FG"
+            self.mode="FG"
             self.nstate=array(nstate)
             self.nparticle=array([])
             self.basis_table=array([])
@@ -86,7 +86,7 @@ class BasisF(object):
         Convert an instance to string.
         '''
         result=''
-        if self.basis_type=='FG':
+        if self.mode=='FG':
             for i in xrange(self.nbasis):
                 result+=str(i)+': '+'{0:b}'.format(i)+'\n'
         else:

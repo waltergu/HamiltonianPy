@@ -16,7 +16,7 @@ def test_log():
 def test_timers():
     print 'test_timers'
     np.random.seed()
-    timers=Timers('Preparation','Diagonalization','Truncation',str_form='c')
+    timers=Timers(['Preparation','Diagonalization','Truncation'],str_form='c')
     timers.proceed()
     for i in xrange(4):
         for key in timers.keys():
