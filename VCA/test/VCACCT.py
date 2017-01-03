@@ -1,7 +1,15 @@
-from Hamiltonian.Core.CoreAlgorithm.VCACCTPy import *
-from Hamiltonian.Core.BasicClass.LatticePy import *
-from Hamiltonian.Core.BasicClass.BaseSpacePy import *
+'''
+VCACCT test.
+'''
+
+__all__=['test_vcacct']
+
+import HamiltonianPy as HP
+import HamiltonianPy.ED as ED
+import HamiltonianPy.VCA as VCA
+
 def test_vcacct():
+    print 'test_vcacct'
     t1,U=-1.0,0.0
     p1=Point(scope='PA',site=0,rcoord=[0.0,0.0],icoord=[0.0,0.0],struct=Fermi(nspin=2,atom=1))
     p2=Point(scope='PA',site=1,rcoord=[0.0,-sqrt(3)/3],icoord=[0.0,0.0],struct=Fermi(nspin=2,atom=2))
@@ -39,3 +47,4 @@ def test_vcacct():
     a.addapps('DOS',DOS(BZ=hexagon_bz(nk=50),emin=-5,emax=5,ne=400,eta=0.05,save_data=False,run=VCADOS,plot=True,show=True))
     a.addapps('EB',EB(path=hexagon_gkm(nk=100),emax=6.0,emin=-6.0,eta=0.05,ne=400,save_data=False,plot=True,show=True,run=VCAEB))
     a.runapps()
+    print

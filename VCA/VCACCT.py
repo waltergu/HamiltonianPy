@@ -1,10 +1,23 @@
+'''
+VCA concatenate.
+'''
+
+__all__=['VCACCT']
+
 from VCA import *
 from scipy.linalg import block_diag
+import numpy as np
+import HamiltonianPy as HP
+import HamiltonianPy.ED as ED
+
 class VCACCT(VCA):
     '''
     '''
-    def __init__(self,ensemble='c',filling=0.5,mu=0,nspin=1,cell=None,lattice=None,subsystems=None,terms=None,weiss=None,nambu=False,**karg):
-        self.ensemble=ensemble
+
+    def __init__(self,preloads,subsystems=None,filling=0.5,mu=0,cell=None,lattice=None,config=None,terms=None,weiss=None,**karg):
+        '''
+        Constructor.
+        '''
         self.filling=filling
         self.mu=mu
         if self.ensemble.lower()=='c':
@@ -42,7 +55,7 @@ class VCACCT(VCA):
             if i==0: flag=self.subsystems[sub_lattice.name].nspin
             if flag!=self.subsystems[sub_lattice.name].nspin:
                 raise ValueError("VCACCT init error: all the subsystems must have the same nspin.")
-        self.nspin=flag
+
         self.generators={}
         self.generators['pt_h']=Generator(
                     bonds=      [bond for bond in lattice.bonds if not bond.is_intra_cell() or bond.spoint.scope!=bond.epoint.scope],

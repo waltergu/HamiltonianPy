@@ -168,11 +168,11 @@ class OptStr(list):
                             up.relabel(news=[S.prime,R.prime],olds=[S,R])
                         else:
                             up.relabel(news=[L.prime,S.prime,R.prime],olds=[L,S,R])
-                        result=contract(result,up,ms[count],u)
+                        result=contract(result,up,ms[count],u,sequence='sequential')
                         count+=1
                     else:
                         up.relabel(news=[L.prime,R.prime],olds=[L,R])
-                        result=contract(result,up,u)
+                        result=contract(result,up,u,sequence='sequential')
             elif form=='R':
                 end,count=table[ms[-1].labels[1]]+1,-1
                 for i,u in enumerate(reversed(us[0:end])):
@@ -183,11 +183,11 @@ class OptStr(list):
                             up.relabel(news=[L.prime,S.prime],olds=[L,S])
                         else:
                             up.relabel(news=[L.prime,S.prime,R.prime],olds=[L,S,R])
-                        result=contract(result,up,ms[count],u)
+                        result=contract(result,up,ms[count],u,sequence='sequential')
                         count-=1
                     else:
                         up.relabel(news=[L.prime,R.prime],olds=[L,R])
-                        result=contract(result,up,u)
+                        result=contract(result,up,u,sequence='sequential')
             else:
                 raise ValueError("OptStr matrix error: form(%s) not supported."%(form))
             if result.labels[1]._prime_:
@@ -243,13 +243,13 @@ class OptStr(list):
                 olds.remove(Rp)
             if Sp in self.labels:
                 u1.relabel(news=news,olds=olds)
-                result=contract(result,u1,ms[count],u2)
+                result=contract(result,u1,ms[count],u2,sequence='sequential')
                 count+=1
             else:
                 news.remove(Sp.prime)
                 olds.remove(Sp)
                 u1.relabel(news=news,olds=olds)
-                result=contract(result,u1,u2)
+                result=contract(result,u1,u2,sequence='sequential')
         if mps1 is mps2:
             mps1._set_ABL_(m,Lambda)
         else:

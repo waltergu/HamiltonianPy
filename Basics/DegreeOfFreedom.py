@@ -177,8 +177,9 @@ class Table(dict):
         This function returns a certain subset of an index-sequence table according to the select function.
         Parameters:
             select: callable
-                A certain subset of table is extracted according to the return value of this function on the index in the table.
-                When the return value is True, the index will be included and the sequence is naturally determined by its order in the mother table.
+                The select function whose argument is the index of the mother table.
+                When its returned value is True, the index will be included in the subset.
+                The sequence is naturally determined by its order in the mother table.
         Returns:
             The subset table.
         '''
@@ -378,8 +379,8 @@ class IDFConfig(dict):
                 The sequence priority of the allowed indices that can be defined on the lattice.
         '''
         self.clear()
-        if priority is not None: self.priority=priority
-        if map is not None: self.map=map
+        self.priority=getattr(self,'priority',None) if priority is None else priority
+        self.map=getattr(self,'map',None) if map is None else map
         for pid in pids:
             self[pid]=self.map(pid)
 
@@ -395,6 +396,21 @@ class IDFConfig(dict):
         assert isinstance(key,PID)
         assert isinstance(value,Internal)
         dict.__setitem__(self,key,value)
+
+    def subset(self,select):
+        '''
+        This function returns a certain subset of an IDFConfig according to the select function.
+        Parameters:
+            select: callable
+                The select function whose argument is the pid of the mother IDFConfig.
+                When its returned value is True, the pid will be included in the subset.
+         Returns:
+            The subset IDFConfig.
+        '''
+        result=IDFConfig(priority=self.priority,map=self.map)
+        for pid,interanl in self.iteritems():
+            if select(pid): result[pid]=interanl
+        return result
 
     def table(self,mask=[]):
         '''

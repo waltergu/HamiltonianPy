@@ -1,11 +1,11 @@
 '''
 Linear algebra, including
 1) constants: TOL
-2) functions: eigsh,block_diag,csrkron,csckron,kron,kronsum,parity,dagger,truncated_svd
+2) functions: eigsh,block_diag,kronnnz,csrkron,csckron,kron,kronsum,parity,dagger,truncated_svd
 3) classes: Lanczos
 '''
 
-__all__=['TOL','eigsh','block_diag','csrkron','csckron','kron','kronsum','parity','dagger','truncated_svd','Lanczos']
+__all__=['TOL','eigsh','block_diag','kronnnz','csrkron','csckron','kron','kronsum','parity','dagger','truncated_svd','Lanczos']
 
 import numpy as np
 import numpy.linalg as nl
@@ -66,6 +66,33 @@ def block_diag(*ms):
         c+=cc
     return result
 
+def kronnnz(m1,m2,subs=None):
+    '''
+    Return the number of the non-zeros of the sub-Kronecker product of m1 and m2 
+    Parameters:
+        m1,m2: csr_matrix or csc_matrix
+            The matrices to be Kronecker producted.
+        subs: list of integer
+            The rows/cols that defined the sub-Kronecker product.
+    Returns: integer
+        The number of the non-zeros of the sub-Kronecker product.
+    '''
+    if subs is None:
+        return m1.nnz*m2.nnz
+    else:
+        result=0
+        if isinstance(m1,sp.csr_matrix) and isinstance(m2,sp.csr_matrix):
+            for sub in subs:
+                r1,r2=divmod(sub,m2.shape[0])
+                result+=(m1.indptr[r1+1]-m1.indptr[r1])*(m2.indptr[r2+1]-m2.indptr[r2])
+        elif isinstance(m1,sp.csc_matrix) and isinstance(m2,sp.csc_matrix):
+            for sub in subs:
+                c1,c2=divmod(sub,m2.shape[1])
+                result+=(m1.indptr[c1+1]-m1.indptr[c1])*(m2.indptr[c2+1]-m2.indptr[c2])
+        else:
+            raise ValueError("kronnnz error: both m1 and m2 should be instances of csr_matrix or csc_matrix.")
+        return result
+
 def csrkron(m1,m2,rows):
     '''
     Kronecker product of two compressed sparse row matrices.
@@ -78,15 +105,17 @@ def csrkron(m1,m2,rows):
         The result.
     '''
     assert m1.dtype==m2.dtype
-    if m1.nnz>0 and m2.nnz>0:
+    nnz=kronnnz(m1,m2,rows)
+    #nnz=kronnnz(m1,m2,None)
+    if nnz>0:
         if m1.dtype==np.float32:
-            data,indices,indptr,shape=fkron_csr_r4(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,rows)
+            data,indices,indptr,shape=fkron_csr_r4(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,rows,nnz)
         elif m1.dtype==np.float64:
-            data,indices,indptr,shape=fkron_csr_r8(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,rows)
+            data,indices,indptr,shape=fkron_csr_r8(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,rows,nnz)
         elif m1.dtype==np.complex64:
-            data,indices,indptr,shape=fkron_csr_c4(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,rows)
+            data,indices,indptr,shape=fkron_csr_c4(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,rows,nnz)
         elif m1.dtype==np.complex128:
-            data,indices,indptr,shape=fkron_csr_c8(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,rows)
+            data,indices,indptr,shape=fkron_csr_c8(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,rows,nnz)
         else:
             raise ValueError("csrkron error: only matrices with dtype being float32, float64, complex64 or complex128 are supported.")
         result=sp.csr_matrix((data,indices,indptr),shape=shape)
@@ -106,15 +135,17 @@ def csckron(m1,m2,cols):
         The result.
     '''
     assert m1.dtype==m2.dtype
-    if m1.nnz>0 and m2.nnz>0:
+    nnz=kronnnz(m1,m2,cols)
+    #nnz=kronnnz(m1,m2,None)
+    if nnz>0:
         if m1.dtype==np.float32:
-            data,indices,indptr,shape=fkron_csc_r4(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,cols)
+            data,indices,indptr,shape=fkron_csc_r4(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,cols,nnz)
         elif m1.dtype==np.float64:
-            data,indices,indptr,shape=fkron_csc_r8(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,cols)
+            data,indices,indptr,shape=fkron_csc_r8(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,cols,nnz)
         elif m1.dtype==np.complex64:
-            data,indices,indptr,shape=fkron_csc_c4(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,cols)
+            data,indices,indptr,shape=fkron_csc_c4(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,cols,nnz)
         elif m1.dtype==np.complex128:
-            data,indices,indptr,shape=fkron_csc_c8(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,cols)
+            data,indices,indptr,shape=fkron_csc_c8(m1.data,m1.indices,m1.indptr,m1.shape,m2.data,m2.indices,m2.indptr,m2.shape,cols,nnz)
         else:
             raise ValueError("csckron error: only matrices with dtype being float32, float64, complex64 or complex128 are supported.")
         result=sp.csc_matrix((data,indices,indptr),shape=shape)
@@ -137,9 +168,9 @@ def kron(m1,m2,rows=None,cols=None,format='csr'):
     '''
     if rows is not None and cols is not None:
         if len(rows)>=len(cols):
-            result=sp.csr_matrix(csckron(sp.csc_matrix(m1),sp.csc_matrix(m2),cols))[rows,:].asformat(format)
+            result=csckron(sp.csc_matrix(m1),sp.csc_matrix(m2),cols)[rows,:].asformat(format)
         else:
-            result=sp.csc_matrix(csrkron(sp.csr_matrix(m1),sp.csr_matrix(m2),rows))[:,cols].asformat(format)
+            result=csrkron(sp.csr_matrix(m1),sp.csr_matrix(m2),rows)[:,cols].asformat(format)
     elif rows is not None:
         result=csrkron(sp.csr_matrix(m1),sp.csr_matrix(m2),rows).asformat(format)
     elif cols is not None:

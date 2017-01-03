@@ -241,17 +241,27 @@ class GF(HP.GF):
         self.vtype=vtype
         self.tol=tol
 
+    def table(self,config):
+        '''
+        Return a index-sequence table defined by config but modified by self.nspin.
+        Parameters:
+            config: IDFConfig
+                The interanl degrees of freedom table.
+        Returns: Table
+            When self.nspin==1, only the spin-down index will be included in the final table;
+            Otherwise all the indices will be included..
+        '''
+        result=config.table(mask=[])
+        if self.nspin==1: result=result.subset(select=lambda index: True if index.spin==0 else False)
+        return result
+
 def EDGFP(engine,app):
     '''
     This method prepares the GF.
     '''
     # set the single particle operators and initialize gf.
     if engine.basis.mode in ('FG','FP'): assert app.nspin==2
-    if len(app.operators)==0:
-        table=engine.config.table(mask=[])
-        if app.nspin==1: table=table.subset(select=lambda index: True if index.spin==0 else False)
-        app.operators=GF.fsp_operators(table,engine.lattice)
-        app.gf=np.zeros((app.nopt,app.nopt),dtype=np.complex128)
+    if app.operators is None:app.reinitialization(GF.fsp_operators(app.table(engine.config),engine.lattice))
     # if the auxiliary data has been calculated before, recover it.
     if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine.status)):
         with open('%s/%s_coeff.dat'%(engine.din,engine.status),'rb') as fin:

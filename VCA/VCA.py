@@ -88,10 +88,12 @@ class VCA(ED.ED):
         10) VCAOP: calculates the order parameter.
     '''
 
-    def __init__(self,basis=None,filling=0.5,mu=0,cell=None,lattice=None,config=None,terms=None,weiss=None,dtype=np.complex128,**karg):
+    def __init__(self,cgf,basis=None,filling=0.5,mu=0,cell=None,lattice=None,config=None,terms=None,weiss=None,dtype=np.complex128,**karg):
         '''
         Constructor.
         Parameters:
+            cgf: HP.ED.GF
+                The cluster Green's function.
             basis: BasisF, optional
                 The occupation number basis of the system.
             filling: float, optional
@@ -110,25 +112,15 @@ class VCA(ED.ED):
                 The Weiss terms of the system.
             dtype: np.float64, np.complex128
                 The data type of the matrix representation of the Hamiltonian.
-        In karg, the followings must be included:
-            preloads: 1-list
-                preloads[0]: HP.ED.GF
-                    The cluster Green's function.
         '''
         # initialize the cgf and gf
-        assert len(self.preloads)==1
-        assert isinstance(self.preloads[0],ED.GF)
-        self.preloads.append(HP.GF())
-        nspin,mask=self.preloads[0].nspin,self.preloads[0].mask
-        table=config.table(mask=[])
-        if nspin==1: table=table.subset(select=lambda index: True if index.spin==0 else False)
-        self.preloads[0].operators=HP.GF.fsp_operators(table,lattice)
-        self.preloads[0].gf=np.zeros((self.preloads[0].nopt,self.preloads[0].nopt),dtype=np.complex128)
-        table=config.table(mask=[]).subset(select=lambda index: True if index.pid in cell else False)
-        if nspin==1: table=table.subset(select=lambda index: True if index.spin==0 else False)
-        self.preloads[1].operators=HP.GF.fsp_operators(table,cell)
-        self.preloads[1].gf=np.zeros((self.preloads[1].nopt,self.preloads[1].nopt),dtype=np.complex128)
+        assert isinstance(cgf,ED.GF)
+        gf=HP.GF()
+        cgf.reinitialization(operators=HP.GF.fsp_operators(table=cgf.table(config),lattice=lattice))
+        gf.reinitialization(operators=HP.GF.fsp_operators(table=cgf.table(config.subset(cell.__contains__)),lattice=cell))
+        self.preloads.extend([cgf,gf])
         # initialize the ordinary attributes
+        nspin,mask=cgf.nspin,cgf.mask
         self.basis=basis
         if basis.mode=='FG':
             assert nspin==2

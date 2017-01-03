@@ -1,13 +1,13 @@
-subroutine fkron_csr_r4(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,rs,d,inds,indp,shp,nd1,n1,nd2,n2,nr)
+subroutine fkron_csr_r4(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,rs,nnz,d,inds,indp,shp,nd1,n1,nd2,n2,nr)
     implicit none
-    integer,intent(in) :: nd1,n1,nd2,n2,nr
+    integer,intent(in) :: nnz,nd1,n1,nd2,n2,nr
     real(4),intent(in) :: d1(nd1),d2(nd2)
     integer,intent(in) :: inds1(nd1),inds2(nd2)
     integer,intent(in) :: indp1(n1),indp2(n2)
     integer,intent(in) :: shp1(2),shp2(2)
     integer,intent(in) :: rs(nr)
-    real(4),intent(out) :: d(nd1*nd2)
-    integer,intent(out) :: inds(nd1*nd2)
+    real(4),intent(out) :: d(nnz)
+    integer,intent(out) :: inds(nnz)
     integer,intent(out) :: indp(nr+1)
     integer,intent(out) :: shp(2)
     integer :: r1,r2,i,j,count,total
@@ -28,16 +28,16 @@ subroutine fkron_csr_r4(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,rs,d,inds,indp,s
     shp(2)=shp1(2)*shp2(2)
 end subroutine fkron_csr_r4
 
-subroutine fkron_csr_r8(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,rs,d,inds,indp,shp,nd1,n1,nd2,n2,nr)
+subroutine fkron_csr_r8(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,rs,nnz,d,inds,indp,shp,nd1,n1,nd2,n2,nr)
     implicit none
-    integer,intent(in) :: nd1,n1,nd2,n2,nr
+    integer,intent(in) :: nnz,nd1,n1,nd2,n2,nr
     real(8),intent(in) :: d1(nd1),d2(nd2)
     integer,intent(in) :: inds1(nd1),inds2(nd2)
     integer,intent(in) :: indp1(n1),indp2(n2)
     integer,intent(in) :: shp1(2),shp2(2)
     integer,intent(in) :: rs(nr)
-    real(8),intent(out) :: d(nd1*nd2)
-    integer,intent(out) :: inds(nd1*nd2)
+    real(8),intent(out) :: d(nnz)
+    integer,intent(out) :: inds(nnz)
     integer,intent(out) :: indp(nr+1)
     integer,intent(out) :: shp(2)
     integer :: r1,r2,i,j,count,total
@@ -58,16 +58,16 @@ subroutine fkron_csr_r8(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,rs,d,inds,indp,s
     shp(2)=shp1(2)*shp2(2)
 end subroutine fkron_csr_r8
 
-subroutine fkron_csr_c4(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,rs,d,inds,indp,shp,nd1,n1,nd2,n2,nr)
+subroutine fkron_csr_c4(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,rs,nnz,d,inds,indp,shp,nd1,n1,nd2,n2,nr)
     implicit none
-    integer,intent(in) :: nd1,n1,nd2,n2,nr
+    integer,intent(in) :: nnz,nd1,n1,nd2,n2,nr
     complex(4),intent(in) :: d1(nd1),d2(nd2)
     integer,intent(in) :: inds1(nd1),inds2(nd2)
     integer,intent(in) :: indp1(n1),indp2(n2)
     integer,intent(in) :: shp1(2),shp2(2)
     integer,intent(in) :: rs(nr)
-    complex(4),intent(out) :: d(nd1*nd2)
-    integer,intent(out) :: inds(nd1*nd2)
+    complex(4),intent(out) :: d(nnz)
+    integer,intent(out) :: inds(nnz)
     integer,intent(out) :: indp(nr+1)
     integer,intent(out) :: shp(2)
     integer :: r1,r2,i,j,count,total
@@ -88,16 +88,16 @@ subroutine fkron_csr_c4(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,rs,d,inds,indp,s
     shp(2)=shp1(2)*shp2(2)
 end subroutine fkron_csr_c4
 
-subroutine fkron_csr_c8(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,rs,d,inds,indp,shp,nd1,n1,nd2,n2,nr)
+subroutine fkron_csr_c8(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,rs,nnz,d,inds,indp,shp,nd1,n1,nd2,n2,nr)
     implicit none
-    integer,intent(in) :: nd1,n1,nd2,n2,nr
+    integer,intent(in) :: nnz,nd1,n1,nd2,n2,nr
     complex(8),intent(in) :: d1(nd1),d2(nd2)
     integer,intent(in) :: inds1(nd1),inds2(nd2)
     integer,intent(in) :: indp1(n1),indp2(n2)
     integer,intent(in) :: shp1(2),shp2(2)
     integer,intent(in) :: rs(nr)
-    complex(8),intent(out) :: d(nd1*nd2)
-    integer,intent(out) :: inds(nd1*nd2)
+    complex(8),intent(out) :: d(nnz)
+    integer,intent(out) :: inds(nnz)
     integer,intent(out) :: indp(nr+1)
     integer,intent(out) :: shp(2)
     integer :: r1,r2,i,j,count,total
@@ -118,16 +118,16 @@ subroutine fkron_csr_c8(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,rs,d,inds,indp,s
     shp(2)=shp1(2)*shp2(2)
 end subroutine fkron_csr_c8
 
-subroutine fkron_csc_r4(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,cs,d,inds,indp,shp,nd1,n1,nd2,n2,nc)
+subroutine fkron_csc_r4(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,cs,nnz,d,inds,indp,shp,nd1,n1,nd2,n2,nc)
     implicit none
-    integer,intent(in) :: nd1,n1,nd2,n2,nc
+    integer,intent(in) :: nnz,nd1,n1,nd2,n2,nc
     real(4),intent(in) :: d1(nd1),d2(nd2)
     integer,intent(in) :: inds1(nd1),inds2(nd2)
     integer,intent(in) :: indp1(n1),indp2(n2)
     integer,intent(in) :: shp1(2),shp2(2)
     integer,intent(in) :: cs(nc)
-    real(4),intent(out) :: d(nd1*nd2)
-    integer,intent(out) :: inds(nd1*nd2)
+    real(4),intent(out) :: d(nnz)
+    integer,intent(out) :: inds(nnz)
     integer,intent(out) :: indp(nc+1)
     integer,intent(out) :: shp(2)
     integer :: c1,c2,i,j,count,total
@@ -148,16 +148,16 @@ subroutine fkron_csc_r4(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,cs,d,inds,indp,s
     shp(2)=nc
 end subroutine fkron_csc_r4
 
-subroutine fkron_csc_r8(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,cs,d,inds,indp,shp,nd1,n1,nd2,n2,nc)
+subroutine fkron_csc_r8(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,cs,nnz,d,inds,indp,shp,nd1,n1,nd2,n2,nc)
     implicit none
-    integer,intent(in) :: nd1,n1,nd2,n2,nc
+    integer,intent(in) :: nnz,nd1,n1,nd2,n2,nc
     real(8),intent(in) :: d1(nd1),d2(nd2)
     integer,intent(in) :: inds1(nd1),inds2(nd2)
     integer,intent(in) :: indp1(n1),indp2(n2)
     integer,intent(in) :: shp1(2),shp2(2)
     integer,intent(in) :: cs(nc)
-    real(8),intent(out) :: d(nd1*nd2)
-    integer,intent(out) :: inds(nd1*nd2)
+    real(8),intent(out) :: d(nnz)
+    integer,intent(out) :: inds(nnz)
     integer,intent(out) :: indp(nc+1)
     integer,intent(out) :: shp(2)
     integer :: c1,c2,i,j,count,total
@@ -178,16 +178,16 @@ subroutine fkron_csc_r8(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,cs,d,inds,indp,s
     shp(2)=nc
 end subroutine fkron_csc_r8
 
-subroutine fkron_csc_c4(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,cs,d,inds,indp,shp,nd1,n1,nd2,n2,nc)
+subroutine fkron_csc_c4(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,cs,nnz,d,inds,indp,shp,nd1,n1,nd2,n2,nc)
     implicit none
-    integer,intent(in) :: nd1,n1,nd2,n2,nc
+    integer,intent(in) :: nnz,nd1,n1,nd2,n2,nc
     complex(4),intent(in) :: d1(nd1),d2(nd2)
     integer,intent(in) :: inds1(nd1),inds2(nd2)
     integer,intent(in) :: indp1(n1),indp2(n2)
     integer,intent(in) :: shp1(2),shp2(2)
     integer,intent(in) :: cs(nc)
-    complex(4),intent(out) :: d(nd1*nd2)
-    integer,intent(out) :: inds(nd1*nd2)
+    complex(4),intent(out) :: d(nnz)
+    integer,intent(out) :: inds(nnz)
     integer,intent(out) :: indp(nc+1)
     integer,intent(out) :: shp(2)
     integer :: c1,c2,i,j,count,total
@@ -208,16 +208,16 @@ subroutine fkron_csc_c4(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,cs,d,inds,indp,s
     shp(2)=nc
 end subroutine fkron_csc_c4
 
-subroutine fkron_csc_c8(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,cs,d,inds,indp,shp,nd1,n1,nd2,n2,nc)
+subroutine fkron_csc_c8(d1,inds1,indp1,shp1,d2,inds2,indp2,shp2,cs,nnz,d,inds,indp,shp,nd1,n1,nd2,n2,nc)
     implicit none
-    integer,intent(in) :: nd1,n1,nd2,n2,nc
+    integer,intent(in) :: nnz,nd1,n1,nd2,n2,nc
     complex(8),intent(in) :: d1(nd1),d2(nd2)
     integer,intent(in) :: inds1(nd1),inds2(nd2)
     integer,intent(in) :: indp1(n1),indp2(n2)
     integer,intent(in) :: shp1(2),shp2(2)
     integer,intent(in) :: cs(nc)
-    complex(8),intent(out) :: d(nd1*nd2)
-    integer,intent(out) :: inds(nd1*nd2)
+    complex(8),intent(out) :: d(nnz)
+    integer,intent(out) :: inds(nnz)
     integer,intent(out) :: indp(nc+1)
     integer,intent(out) :: shp(2)
     integer :: c1,c2,i,j,count,total

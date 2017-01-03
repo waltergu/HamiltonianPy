@@ -25,7 +25,7 @@ def test_vca():
         config[point.pid]=Fermi(atom=0,norbital=1,nspin=2,nnambu=1)
     vca=VCA.VCA(
             name=       name,
-            preloads=   [ED.GF(nspin=2,mask=['nambu'],nstep=200,save_data=False,vtype='RD',prepare=ED.EDGFP,run=ED.EDGF)],
+            cgf=        ED.GF(nspin=2,mask=['nambu'],nstep=200,save_data=False,vtype='RD',prepare=ED.EDGFP,run=ED.EDGF),
             basis=      BasisF(up=(m*n,m*n/2),down=(m*n,m*n/2)),
             #basis=      BasisF((2*m*n,m*n)),
             filling=    0.5,

@@ -87,10 +87,19 @@ class GF(App):
             shape: tuple, optional
                 The shape of the Green's function.
         '''
-        self.operators=[] if operators is None else operators
+        self.operators=operators
         self.omega=omega
         self.k=k
-        self.gf=None if operators is None else zeros((len(operators),len(operators)),dtype=complex128)
+        self.gf=None if operators is None else zeros((self.nopt,self.nopt),dtype=complex128)
+
+    def reinitialization(self,operators):
+        '''
+        Reinitialize the GF.
+        Parameters:
+            operators: list of Operator.
+        '''
+        self.operators=operators
+        self.gf=zeros((self.nopt,self.nopt),dtype=complex128)
 
     @property
     def nopt(self):
