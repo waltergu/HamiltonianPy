@@ -201,7 +201,7 @@ class DMRG(Engine):
         self.status.update(alter=self.generators['h'].parameters['alter'])
         self.set_blocks_and_connections()
         self.set_Hs_()
-        self.cache={'qnc':None}
+        self.cache={'qnc':None,'subslice':None,'permutation':None}
         self.log.timers['DMRG']=Timers(['Preparation','Hamiltonian','Diagonalization','Truncation'],str_form='c')
         self.log.info['DMRG']=Info(['energy','nbasis','nnz','overlap','err'])
         self.log.timers['DMRG'].proceed()

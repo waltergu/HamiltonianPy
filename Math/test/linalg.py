@@ -11,7 +11,12 @@ from HamiltonianPy.Math.linalg import *
 
 def test_linalg():
     print 'test_linalg'
+    test_kron()
     test_lanczos()
+
+def test_kron():
+    print 'test_kron'
+    print
 
 def test_lanczos():
     print 'test_lanczos'
