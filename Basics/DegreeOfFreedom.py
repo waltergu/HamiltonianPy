@@ -110,7 +110,7 @@ class Status(object):
         '''
         try:
             for key,value in self.data.iteritems():
-                if norm(value-other.data[key])>RZERO:
+                if norm(np.array(value)-np.array(other.data[key]))>RZERO:
                     return False
             else:
                 return True
