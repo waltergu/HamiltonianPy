@@ -13,9 +13,9 @@ from HamiltonianPy.DMRG.DMRG import *
 def test_dmrg():
     print 'test_dmrg'
     Engine.DEBUG=True
-    test_dmrg_spin()
+    #test_dmrg_spin()
     #test_dmrg_spinless_fermion()
-    #test_dmrg_spinful_fermion()
+    test_dmrg_spinful_fermion()
 
 def test_dmrg_spin():
     print 'test_dmrg_spin'
@@ -101,7 +101,7 @@ def test_dmrg_spinful_fermion():
     print 'test_dmrg_spinful_fermion'
     # parameters
     qn_on=True
-    N,t,U=20,-1.0,0.0
+    N,t,U=20,-1.0,6.0
 
     # config related
     priority,layers=('scope','site','orbital','spin','nambu'),[('scope','site','orbital'),('spin',)]

@@ -10,6 +10,7 @@ __all__=['TOL','eigsh','block_diag','csrkron','csckron','kron','kronsum','parity
 import numpy as np
 import numpy.linalg as nl
 import scipy.sparse as sp
+import scipy.sparse.linalg as pl
 import scipy.linalg as sl
 from linalg_Fortran import *
 from copy import copy
@@ -37,9 +38,9 @@ def eigsh(A,max_try=6,**karg):
         num=1
         while True:
             try:
-                es,vs=sp.linalg.eigsh(A,**karg)
+                es,vs=pl.eigsh(A,**karg)
                 break
-            except sp.linalg.ArpackNoConvergence as err:
+            except pl.ArpackNoConvergence as err:
                 if num<max_try:
                     num+=1
                 else:

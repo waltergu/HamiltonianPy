@@ -11,9 +11,8 @@ import re
 import numpy as np
 import pickle as pk
 import scipy.sparse as sp
-from scipy.sparse.linalg import eigsh
 from ..Basics import *
-from ..Math import kron,kronsum,dagger,Tensor
+from ..Math import kron,kronsum,dagger,Tensor,eigsh
 from MPS import *
 from MPO import *
 from copy import copy,deepcopy
