@@ -14,8 +14,8 @@ def test_dmrg():
     print 'test_dmrg'
     Engine.DEBUG=True
     test_dmrg_spin()
-    #test_dmrg_spinless_fermion()
-    #test_dmrg_spinful_fermion()
+    test_dmrg_spinless_fermion()
+    test_dmrg_spinful_fermion()
 
 def test_dmrg_spin():
     print 'test_dmrg_spin'
