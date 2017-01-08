@@ -536,6 +536,16 @@ class Label(tuple):
             tuple.__setattr__(result,key,value)
         return result
 
+    @property
+    def n(self):
+        '''
+        The length of the dimension this label labels.
+        '''
+        if isinstance(self.qnc,QuantumNumberCollection):
+            return self.qnc.n
+        else:
+            return self.qnc
+
 class DegFreTree(Tree):
     '''
     The tree of the layered degrees of freedom.

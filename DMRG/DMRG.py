@@ -73,11 +73,7 @@ class Block(int):
         '''
         The number of basis on this block.
         '''
-        qnc=self.label.qnc
-        if isinstance(qnc,QuantumNumberCollection):
-            return qnc.n
-        else:
-            return qnc
+        return self.label.n
 
     @property
     def qnc(self):
@@ -393,10 +389,17 @@ class DMRG(Engine):
         ussys,usenv=self.us(sys),self.us(env)
         tablesys,tableenv=ussys.table,usenv.table
         rows,cols=(None,None) if self.mps.mode=='NB' else (self.cache['subslice'],self.cache['subslice'])
-        result=kronsum(self.H(env),self.H(sys),rows=rows,cols=cols,format='csr')
+        result=0
         for optstr in self.connections['LR'][self.mps.cut]:
             a,b=optstr.split(tablesys,tableenv,coeff='A')
-            result+=kron(a.matrix(ussys,'L'),b.matrix(usenv,'R'),rows=rows,cols=cols,format='csr')
+            if self.mps.mode=='QN':
+                ma=sys.qnc.reorder(a.matrix(ussys,'L'),axes=[0,1])
+                mb=env.qnc.reorder(b.matrix(usenv,'R'),axes=[0,1])
+            else:
+                ma=a.matrix(ussys,'L')
+                mb=b.matrix(usenv,'R')
+            result+=kron(ma,mb,rows=rows,cols=cols,format='csr')
+        result+=kronsum(self.H(env),self.H(sys),rows=rows,cols=cols,format='csr')
         return result
 
     def two_site_update(self):
@@ -407,7 +410,6 @@ class DMRG(Engine):
         A,Asite,sys=self.A,self.Asite,self.sys
         usa,usasite=self.us(A),self.us(Asite)
         tablea,tableasite=usa.table,usasite.table
-        u=np.identity(A.nbasis*Asite.nbasis).reshape((A.nbasis,Asite.nbasis,-1))
         ha=np.kron(self.H(A),np.identity(Asite.nbasis))+np.kron(np.identity(A.nbasis),self.H(Asite))
         for optstr in self.connections[sys.form][sys]:
             a,b=optstr.split(tablea,tableasite,coeff='B')
@@ -415,17 +417,16 @@ class DMRG(Engine):
         B,Bsite,env=self.B,self.Bsite,self.env
         usb,usbsite=self.us(B),self.us(Bsite)
         tableb,tablebsite=usb.table,usbsite.table
-        v=np.identity(Bsite.nbasis*B.nbasis).reshape((-1,Bsite.nbasis,B.nbasis))
         hb=np.kron(self.H(Bsite),np.identity(B.nbasis))+np.kron(np.identity(Bsite.nbasis),self.H(B))
         for optstr in self.connections[env.form][env]:
             a,b=optstr.split(tablebsite,tableb,coeff='A')
             hb+=np.kron(a.matrix(usbsite,'S'),b.matrix(usb,'R'))
+        self.mps[sys.pos]=Tensor(np.array([[[None]]]),labels=self.mps[sys.pos].labels)
+        self.mps[env.pos]=Tensor(np.array([[[None]]]),labels=self.mps[env.pos].labels)
         if self.mps.mode=='QN':
             sys.qnc=A.qnc.kron(Asite.qnc,'+',history=True)
             env.qnc=Bsite.qnc.kron(B.qnc,'-',history=True)
             self.cache['qnc']=sys.qnc.kron(env.qnc,'+',history=True)
-            self.mps[sys.pos]=Tensor(sys.qnc.reorder(u,axes=[2]),labels=self.mps[sys.pos].labels)
-            self.mps[env.pos]=Tensor(env.qnc.reorder(v,axes=[0]),labels=self.mps[env.pos].labels)
             self._Hs_[sys.form][sys]=sys.qnc.reorder(ha,axes=[0,1])
             self._Hs_[env.form][env]=env.qnc.reorder(hb,axes=[0,1])
             permutation=self.cache['qnc'].permutation(targets=[self.target.zeros])
@@ -436,8 +437,6 @@ class DMRG(Engine):
             sys.qnc=A.qnc*Asite.qnc
             env.qnc=Bsite.qnc*B.qnc
             self.cache['qnc']=sys.qnc*env.qnc
-            self.mps[sys.pos]=Tensor(u,labels=self.mps[sys.pos].labels)
-            self.mps[env.pos]=Tensor(v,labels=self.mps[env.pos].labels)
             self._Hs_[sys.form][sys]=ha
             self._Hs_[env.form][env]=hb
         self.log.timers['DMRG'].suspend('Preparation')
@@ -465,6 +464,8 @@ class DMRG(Engine):
         self.log.info['DMRG']['overlap']=None if v0 is None else Psi.conjugate().dot(v0)
         self.log.timers['DMRG'].suspend('Diagonalization')
         self.log.timers['DMRG'].proceed('Truncation')
+        u=np.identity(self.A.nbasis*self.Asite.nbasis).reshape((self.A.nbasis,self.Asite.nbasis,-1))
+        v=np.identity(self.Bsite.nbasis*self.B.nbasis).reshape((-1,self.Bsite.nbasis,self.B.nbasis))
         if self.mps.mode=='QN':
             tsys,tenv=[],[]
             for qnsys,qnenv in qnc.pairs(self.target.zeros):
@@ -473,14 +474,14 @@ class DMRG(Engine):
             U,S,V,new,err=vb_svd(Psi[self.cache['permutation']],sys.qnc.subset(tsys),env.qnc.subset(tenv),nmax=nmax,tol=tol,return_truncation_err=True)
             sysslice=sys.qnc.subslice(tsys)
             envslice=env.qnc.subslice(tenv)
-            self.mps[sys.pos]=Tensor(np.einsum('ijk,kl->ijl',np.asarray(self.mps[sys.pos])[:,:,sysslice],U),labels=self.mps[sys.pos].labels)
-            self.mps[env.pos]=Tensor(np.einsum('lk,kji->lji',V,np.asarray(self.mps[env.pos])[envslice,:,:]),labels=self.mps[env.pos].labels)
+            self.mps[sys.pos]=Tensor(np.einsum('ijk,kl->ijl',sys.qnc.reorder(u,axes=[2])[:,:,sysslice],U),labels=self.mps[sys.pos].labels)
+            self.mps[env.pos]=Tensor(np.einsum('lk,kji->lji',V,env.qnc.reorder(v,axes=[0])[envslice,:,:]),labels=self.mps[env.pos].labels)
             self._Hs_[sys.form][sys]=dagger(U).dot(self.H(sys)[:,sysslice][sysslice,:]).dot(U)
             self._Hs_[env.form][env]=V.dot(self.H(env)[:,envslice][envslice,:]).dot(dagger(V))
         else:
             U,S,V,new,err=vb_svd(Psi,sys.qnc,env.qnc,nmax=nmax,tol=tol,return_truncation_err=True)
-            self.mps[sys.pos]=Tensor(np.einsum('ijk,kl->ijl',np.asarray(self.mps[sys.pos]),U),labels=self.mps[sys.pos].labels)
-            self.mps[env.pos]=Tensor(np.einsum('lk,kji->lji',V,np.asarray(self.mps[env.pos])),labels=self.mps[env.pos].labels)
+            self.mps[sys.pos]=Tensor(np.einsum('ijk,kl->ijl',u,U),labels=self.mps[sys.pos].labels)
+            self.mps[env.pos]=Tensor(np.einsum('lk,kji->lji',V,v),labels=self.mps[env.pos].labels)
             self._Hs_[sys.form][sys]=dagger(U).dot(self.H(sys)).dot(U)
             self._Hs_[env.form][env]=V.dot(self.H(env)).dot(dagger(V))
         self.mps.Lambda=Tensor(S,labels=[self.mps[sys.pos].labels[MPS.R]])

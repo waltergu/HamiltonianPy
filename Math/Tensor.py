@@ -4,8 +4,7 @@ Tensor and tensor operations, including:
 2) functions: contract
 '''
 
-from numpy import ndarray,asarray,product
-from opt_einsum import contract as einsum
+from numpy import ndarray,asarray,product,einsum
 from collections import namedtuple,Counter,OrderedDict
 from copy import copy,deepcopy
 from HamiltonianPy.Math.linalg import truncated_svd

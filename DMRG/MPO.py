@@ -11,6 +11,7 @@ from collections import OrderedDict
 from HamiltonianPy.Basics import OperatorF,OperatorS,CREATION
 from HamiltonianPy.Math.Tensor import Tensor,contract
 from HamiltonianPy.Math.linalg import parity
+from opt_einsum import contract as einsum
 from MPS import *
 
 class OptStr(list):
@@ -148,50 +149,55 @@ class OptStr(list):
                 When 'L', us is left canonical;
                 When 'R', us is right canonical;
                 When 'S', us is omitted.
-        Returns: 2d Tensor
+        Returns: 2d ndarray
             The corresponding matrix representation of the optstr on the basis.
         '''
-        result=Tensor(self.value,labels=[])
         if form=='S' or us.nsite==0:
             assert len(self)==1
-            result=self[0]*result
+            result=np.asarray(self[0])*self.value
         else:
-            table=us.table
-            ms=sorted(self,key=lambda m:table[m.labels[1]])
             if form=='L':
-                start,count=table[ms[0].labels[1]],0
-                for i,u in enumerate(us[start:]):
-                    L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
-                    up=u.copy(copy_data=False).conjugate()
-                    if S in self.labels:
+                count=0
+                for i,u in enumerate(us[us.table[self[0].labels[1]]:]):
+                    if u.labels[MPS.S] in self.labels:
                         if i==0:
-                            up.relabel(news=[S.prime,R.prime],olds=[S,R])
+                            if u[0,0,0] is None:
+                                result=self.value*np.kron(np.identity(u.labels[MPS.L].n),np.asarray(self[count]))
+                            else:
+                                result=einsum(',abc,bd,ade->ce',self.value,u.conjugate(),self[count],u)
                         else:
-                            up.relabel(news=[L.prime,S.prime,R.prime],olds=[L,S,R])
-                        result=contract(result,up,ms[count],u,sequence='sequential')
+                            if u[0,0,0] is None:
+                                result=np.kron(result,np.asarray(self[count]))
+                            else:
+                                result=einsum('ab,acd,ce,bef->df',result,u.conjugate(),self[count],u)
                         count+=1
                     else:
-                        up.relabel(news=[L.prime,R.prime],olds=[L,R])
-                        result=contract(result,up,u,sequence='sequential')
-            elif form=='R':
-                end,count=table[ms[-1].labels[1]]+1,-1
-                for i,u in enumerate(reversed(us[0:end])):
-                    L,S,R=u.labels[MPS.L],u.labels[MPS.S],u.labels[MPS.R]
-                    up=u.copy(copy_data=False).conjugate()
-                    if S in self.labels:
-                        if i==0:
-                            up.relabel(news=[L.prime,S.prime],olds=[L,S])
+                        if u[0,0,0] is None:
+                            result=np.kron(result,np.identity(u.labels[MPS.S].n))
                         else:
-                            up.relabel(news=[L.prime,S.prime,R.prime],olds=[L,S,R])
-                        result=contract(result,up,ms[count],u,sequence='sequential')
+                            result=einsum('ab,acd,bce->de',result,u.conjugate(),u)
+            elif form=='R':
+                count=-1
+                for i,u in enumerate(reversed(us[0:us.table[self[-1].labels[1]]+1])):
+                    if u.labels[MPS.S] in self.labels:
+                        if i==0:
+                            if u[0,0,0] is None:
+                                result=self.value*np.kron(np.asarray(self[count]),np.identity(u.labels[MPS.R].n))
+                            else:
+                                result=einsum(',abc,bd,edc->ae',self.value,u.conjugate(),self[count],u)
+                        else:
+                            if u[0,0,0] is None:
+                                result=np.kron(np.asarray(self[count]),result)
+                            else:
+                                result=einsum('ab,dca,ce,feb->df',result,u.conjugate(),self[count],u)
                         count-=1
                     else:
-                        up.relabel(news=[L.prime,R.prime],olds=[L,R])
-                        result=contract(result,up,u,sequence='sequential')
+                        if u[0,0,0] is None:
+                            result=np.kron(np.identity(u.labels[MPS.S].n),result)
+                        else:
+                            result=einsum('ab,dca,ecb->de',result,u.conjugate(),u)
             else:
                 raise ValueError("OptStr matrix error: form(%s) not supported."%(form))
-            if result.labels[1]._prime_:
-                result=result.transpose(axes=[1,0])
         return result
 
     def overlap(self,mps1,mps2):
