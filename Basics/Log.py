@@ -1,6 +1,6 @@
 '''
 Log for code executing, including:
-1) classes: Timers,Info,Log
+1) classes: Timer,Timers,Info,Log
 '''
 
 from collections import OrderedDict
@@ -8,16 +8,105 @@ import numpy as np
 import time
 import sys
 
-__all__=['Timers','Info','Log']
+__all__=['Timer','Timers','Info','Log']
+
+class Timer(object):
+    '''
+    Timer.
+    Attribues:
+        _time_,_begin_,_end_,_last_: np.float64
+            The auxiliary variables of the timer.
+        records: list of float64
+            The accumulative times between records.
+    '''
+
+    def __init__(self):
+        '''
+        Constructor.
+        '''
+        self._time_=None
+        self._begin_=None
+        self._end_=None
+        self._last_=None
+        self.records=[]
+
+    def start(self):
+        '''
+        Start the timer.
+        '''
+        self._time_=0.0
+        self._last_=0.0
+        self._begin_=time.time()
+
+    def suspend(self):
+        '''
+        suspend the timer.
+        '''
+        assert self._time_ is not None
+        if self._end_ is None:
+            self._end_=time.time()
+            self._time_+=self._end_-self._begin_
+            self._begin_=None
+
+    def proceed(self):
+        '''
+        Continue the timer.
+        '''
+        if self._time_ is None:
+            self.start()
+        if self._begin_ is None:
+            self._begin_=time.time()
+            self._end_=None
+
+    def reset(self):
+        '''
+        Reset the timer.
+        '''
+        self._time_=None
+        self._begin_=None
+        self._end_=None
+        self._last_=None
+        self.records=[]
+
+    def record(self):
+        '''
+        Record the accumulative time of the timer since the last record.
+        '''
+        self.records.append(self.time-self._last_)
+        self._last_=self.time
+
+    @property
+    def time(self):
+        '''
+        Return the accumulative time of the timer.
+        '''
+        assert self._time_ is not None
+        if self._end_ is None:
+            return self._time_+time.time()-self._begin_
+        else:
+            return self._time_
+
+    def __enter__(self):
+        '''
+        Used to implement the 'with' statement.
+        '''
+        self.proceed()
+        return self
+
+    def __exit__(self,type,value,traceback):
+        '''
+        Used to implement the 'with' statement.
+        '''
+        self.suspend()
 
 class Timers(OrderedDict):
     '''
     Timers for code executing.
     For each of its (key,value) pairs,
         key: string
-            A name of the timers.
-        value: dict
-            The variables to help with the functions of the timer.
+            The name of the timer.
+        value: Timer
+            The corresponding timer.
     Attribues:
         str_form: 's','c'
             When 's', only the last record of each timer will be included in str;
@@ -25,20 +114,20 @@ class Timers(OrderedDict):
     '''
     ALL=0
 
-    def __init__(self,paras=[],str_form='s'):
+    def __init__(self,names=[],str_form='s'):
         '''
         Constructor.
         Parameters:
-            paras: list of string.
+            names: list of string.
                 The names of the timers.
         '''
         super(Timers,self).__init__()
-        if all(isinstance(para,list) for para in paras):
-            for para in paras:
-                key,value=para
+        if all(isinstance(pair,list) for pair in names):
+            for pair in names:
+                key,value=pair
                 self[key]=value
         else:
-            self.add('Total',*paras)
+            self.add('Total',*names)
         self.str_form=str_form
 
     def __str__(self):
@@ -50,7 +139,7 @@ class Timers(OrderedDict):
         result.append((sum(lens)+12+len(self))*'~')
         result.append('Time (s)'.center(12)+'|'+'|'.join([str(key).center(length) for key,length in zip(self,lens)]))
         result.append((sum(lens)+12+len(self))*'-')
-        result.append('Task'.center(12)+'|'+'|'.join([('%e'%(self[key]['records'][-1])).center(length) for key,length in zip(self,lens)]))
+        result.append('Task'.center(12)+'|'+'|'.join([('%e'%(self[key].records[-1])).center(length) for key,length in zip(self,lens)]))
         if self.str_form=='c':
             result.append('Cumulative'.center(12)+'|'+'|'.join([('%e'%(self.time(key))).center(length) for key,length in zip(self,lens)]))
         result.append(result[0])
@@ -64,7 +153,7 @@ class Timers(OrderedDict):
                 The names of the timers to be added.
         '''
         for key in keys:
-            self[key]={'time':None,'begin':None,'end':None,'last':None,'records':[]}
+            self[key]=Timer()
 
     def start(self,*keys):
         '''
@@ -76,9 +165,7 @@ class Timers(OrderedDict):
         if len(keys)==0:keys=['Total']
         if len(keys)==1 and keys[0]==Timers.ALL: keys=self.keys()
         for timer in map(self.get,keys):
-            timer['time']=0.0
-            timer['last']=0.0
-            timer['begin']=time.time()
+            timer.start()
 
     def suspend(self,*keys):
         '''
@@ -90,11 +177,7 @@ class Timers(OrderedDict):
         if len(keys)==0:keys=['Total']
         if len(keys)==1 and keys[0]==Timers.ALL: keys=self.keys()
         for timer in map(self.get,keys):
-            assert timer['time'] is not None
-            if timer['end'] is None:
-                timer['end']=time.time()
-                timer['time']+=timer['end']-timer['begin']
-                timer['begin']=None
+            timer.suspend()
 
     def proceed(self,*keys):
         '''
@@ -105,13 +188,8 @@ class Timers(OrderedDict):
         '''
         if len(keys)==0:keys=['Total']
         if len(keys)==1 and keys[0]==Timers.ALL: keys=self.keys()
-        for key in keys:
-            timer=self[key]
-            if timer['time'] is None: 
-                self.start(key)
-            if timer['begin'] is None:
-                timer['begin']=time.time()
-                timer['end']=None
+        for timer in map(self.get,keys):
+            timer.proceed()
 
     def stop(self,*keys):
         '''
@@ -132,8 +210,8 @@ class Timers(OrderedDict):
         '''
         if len(keys)==0:keys=['Total']
         if len(keys)==1 and keys[0]==Timers.ALL: keys=self.keys()
-        for key in keys:
-            self[key]={'time':None,'begin':None,'end':None,'last':None,'records':[]}
+        for timer in map(self.get,keys):
+            timer.reset()
 
     def record(self,*keys):
         '''
@@ -144,10 +222,8 @@ class Timers(OrderedDict):
         '''
         if len(keys)==0:keys=['Total']
         if len(keys)==1 and keys[0]==Timers.ALL: keys=self.keys()
-        for key in keys:
-            timer=self[key]
-            timer['records'].append(self.time(key)-timer['last'])
-            timer['last']=self.time(key)
+        for timer in map(self.get,keys):
+            timer.record()
 
     def time(self,key):
         '''
@@ -156,11 +232,7 @@ class Timers(OrderedDict):
             key: string
                 The timer whose cumulative time is queried.
         '''
-        assert self[key]['time'] is not None
-        if self[key]['end'] is None:
-            return self[key]['time']+time.time()-self[key]['begin']
-        else:
-            return self[key]['time']
+        return self[key].time
 
 class Info(OrderedDict):
     '''

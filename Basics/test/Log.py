@@ -21,9 +21,8 @@ def test_timers():
     for i in xrange(4):
         for key in timers.keys():
             if key!='Total':
-                timers.proceed(key)
-                sleep(np.random.random())
-                timers.suspend(key)
+                with timers.get(key):
+                    sleep(np.random.random())
         timers.record(Timers.ALL)
         print timers,'\n'
     print
