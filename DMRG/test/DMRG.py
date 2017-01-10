@@ -4,6 +4,7 @@ DMRG test.
 
 __all__=['test_dmrg']
 
+import mkl
 import numpy as np
 import HamiltonianPy as HP
 from HamiltonianPy.Basics import *
@@ -12,6 +13,7 @@ from HamiltonianPy.DMRG.DMRG import *
 
 def test_dmrg():
     print 'test_dmrg'
+    mkl.set_num_threads(1)
     Engine.DEBUG=True
     test_dmrg_spin()
     test_dmrg_spinless_fermion()

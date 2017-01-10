@@ -86,7 +86,7 @@ def vb_svd(Psi,qnc1,qnc2,mode='L',nmax=None,tol=None,return_truncation_err=False
         for qn1,qn2 in zip(qnc1,qnc2):
             s1,s2=qnc1[qn1],qnc2[qn2]
             n1,n2=s1.stop-s1.start,s2.stop-s2.start
-            u,s,v=sl.svd(Psi[count:count+n1*n2].reshape((n1,n2)),full_matrices=False)
+            u,s,v=sl.svd(Psi[count:count+n1*n2].reshape((n1,n2)),full_matrices=False,lapack_driver='gesvd')
             Us.append(u)
             Ss.append(s)
             Vs.append(v)
@@ -151,7 +151,7 @@ def mb_svd(M,qnc1=None,qnc2=None,nmax=None,tol=None,return_truncation_err=False)
     if isinstance(qnc1,QuantumNumberCollection) and isinstance(qnc2,QuantumNumberCollection):
         us,ss,vs,qns=[],[],[],[]
         for qn in ifilter(qnc1.has_key,qnc2):
-            u,s,v=sl.svd(M[qnc1[qn],qnc2[qn]],full_matrices=False)
+            u,s,v=sl.svd(M[qnc1[qn],qnc2[qn]],full_matrices=False,lapack_driver='gesvd')
             us.append(u)
             ss.append(s)
             vs.append(v)
