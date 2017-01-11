@@ -11,3 +11,4 @@ from Log import *
 from QuantumNumber import *
 from FermionicPackage import *
 from SpinPackage import *
+from MPI import *

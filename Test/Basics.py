@@ -5,6 +5,9 @@ Basics test.
 __all__=['test_basics']
 
 def test_basics(arg):
+    if arg in ('mpi','basics','all'):
+        from HamiltonianPy.Basics.test.MPI import test_mpi
+        test_mpi()
     if arg in ('log','basics','all'):
         from HamiltonianPy.Basics.test.Log import test_log
         test_log()
