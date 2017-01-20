@@ -1,11 +1,11 @@
 '''
 Fermionic degree of freedom package, including:
-1) constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY, DEFAULT_FERMI_LAYERS
+1) constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY
 2) classes: FID, Fermi, FermiPack
 3) functions: sigmax, sigmay, sigmaz
 '''
 
-__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','DEFAULT_FERMI_LAYERS','FID','Fermi','FermiPack','sigmax','sigmay','sigmaz']
+__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','FermiPack','sigmax','sigmay','sigmaz']
 
 from numpy import *
 from ..Geometry import PID
@@ -15,7 +15,6 @@ from collections import namedtuple
 
 ANNIHILATION,CREATION=0,1
 DEFAULT_FERMIONIC_PRIORITY=['scope','nambu','spin','site','orbital']
-DEFAULT_FERMI_LAYERS=[('scope',),('site',),('orbital','spin')]
 
 class FID(namedtuple('FID',['orbital','spin','nambu'])):
     '''

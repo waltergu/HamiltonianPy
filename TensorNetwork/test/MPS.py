@@ -5,9 +5,9 @@ MPS test.
 __all__=['test_mps']
 
 from numpy import *
-from HamiltonianPy.Basics import *
-from HamiltonianPy.Math import TOL,Tensor
-from HamiltonianPy.DMRG.MPS import *
+from HamiltonianPy import *
+from HamiltonianPy.Misc import TOL
+from HamiltonianPy.TensorNetwork import Label,Tensor,MPS
 from copy import copy,deepcopy
 
 def test_mps():

@@ -167,10 +167,9 @@ def TBAEB(engine,app):
     if app.plot:
         plt.title('%s_EB'%(engine.status))
         plt.plot(result[:,0],result[:,1:])
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig('%s/%s_EB.png'%(engine.dout,engine.status))
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_EB.png'%(engine.dout,engine.status))
         plt.close()
 
 def TBADOS(engine,app):
@@ -189,10 +188,9 @@ def TBADOS(engine,app):
     if app.plot:
         plt.title('%s_DOS'%(engine.status))
         plt.plot(result[:,0],result[:,1])
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig('%s/%s_DOS.png'%(engine.dout,engine.status))
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_DOS.png'%(engine.dout,engine.status))
         plt.close()
 
 def TBACP(engine,app):
@@ -223,10 +221,9 @@ def TBABC(engine,app):
         plt.title('%s_BC'%(engine.status))
         plt.axis('equal')
         plt.colorbar(plt.pcolormesh(buff[:,0].reshape((nk,nk)),buff[:,1].reshape((nk,nk)),buff[:,2].reshape((nk,nk))))
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig('%s/%s_BC.png'%(engine.dout,engine.status))
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_BC.png'%(engine.dout,engine.status))
         plt.close()
 
 def TBAGF(engine,app):

@@ -8,7 +8,6 @@ from EngineApp import *
 from AppPack import *
 from Generator import *
 from Log import *
-from QuantumNumber import *
 from FermionicPackage import *
 from SpinPackage import *
-from MPI import *
+from QuantumNumber import *

@@ -7,9 +7,10 @@ __all__=['MPS','Vidal']
 
 import numpy as np
 import pickle as pk
-from HamiltonianPy.Basics import Label,Status,QuantumNumberCollection,bond_qnc_generation,mb_svd,expanded_svd
-from HamiltonianPy.Math.Tensor import *
-from HamiltonianPy.Math.linalg import truncated_svd,TOL
+from HamiltonianPy import Status,QuantumNumberCollection
+from ..Misc import TOL,truncated_svd
+from linalg import bond_qnc_generation,mb_svd,expanded_svd
+from Tensor import *
 from copy import copy,deepcopy
 from collections import OrderedDict
 

@@ -11,10 +11,9 @@ import re
 import numpy as np
 import pickle as pk
 import scipy.sparse as sp
-from ..Basics import *
-from ..Math import kron,kronsum,dagger,Tensor,eigsh
-from MPS import *
-from MPO import *
+from HamiltonianPy import *
+from ..Misc import kron,kronsum,dagger,eigsh
+from ..TensorNetwork import Tensor,MPS,OptStr,vb_svd
 from copy import copy,deepcopy
 
 class Block(int):
@@ -721,7 +720,7 @@ def DMRGTSG(engine,app):
         engine._Hs_["R"].extend([None,None])
         # Two site grow of the dmrg procedure.
         engine.target=target
-        engine.log<<'%s(layer=%s,nsite=%s,cut=%s)(++)\n%s\n'%(engine.status,engine.layer,engine.mps.nsite,engine.mps.cut,engine.graph)
+        engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s)(++)\n%s\n'%(engine.status,engine.target,engine.layer,engine.mps.nsite,engine.mps.cut,engine.graph)
         engine.two_site_update()
         engine.two_site_truncate(nmax=app.nmax,tol=app.tol)
         engine.log.timers['DMRG'].record(Timers.ALL)
@@ -856,7 +855,7 @@ def DMRGTSS(engine,app):
                 engine.mps<<=1
             else:
                 engine.mps>>=1
-            engine.log<<'%s(layer=%s,nsite=%s,cut=%s) %s%s sweep(%s)\n%s'%(engine.status,engine.layer,engine.mps.nsite,engine.mps.cut,i+1,suffix,direction,engine.graph)<<'\n'
+            engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s) %s%s sweep(%s)\n%s'%(engine.status,engine.target,engine.layer,engine.mps.nsite,engine.mps.cut,i+1,suffix,direction,engine.graph)<<'\n'
             A,Asite,sys=engine.A,engine.Asite,engine.sys
             B,Bsite,env=engine.B,engine.Bsite,engine.env
             ml=np.asarray(engine.mps[sys.pos]).reshape((A.nbasis*Asite.nbasis,sys.nbasis))

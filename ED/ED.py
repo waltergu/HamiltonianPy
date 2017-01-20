@@ -6,7 +6,7 @@ Exat diagonalization, including:
 
 __all__=['ED','EL','EDEL','GF','EDGFP','EDGF','EDDOS']
 
-from ..Math import Lanczos
+from ..Misc import Lanczos
 from scipy.linalg import eigh,norm,solve_banded,solveh_banded
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
@@ -33,7 +33,7 @@ class ED(HP.Engine):
             The configuration of the internal degrees of freedom on the lattice.
         terms: list of Term
             The terms of the system.
-        dtype: np.float64, np.complex128
+        dtype: np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
         generators: dict of Generator
             It has only one entries:
@@ -67,7 +67,7 @@ class ED(HP.Engine):
                 The configuration of the internal degrees of freedom on the lattice.
             terms: list of Term, optional
                 The terms of the system.
-            dtype: np.float64, np.complex128
+            dtype: np.float32, np.float64, np.complex64, np.complex128
                 The data type of the matrix representation of the Hamiltonian.
         '''
         self.basis=basis
@@ -125,7 +125,7 @@ class ED(HP.Engine):
                 result.basis=HP.BasisF((self.basis.nstate,self.basis.nparticle+1))
             else:
                 result.basis=HP.BasisF((self.basis.nstate,self.basis.nparticle-1))
-            result.matrix=csr_matrix((result.basis.nbasis,result.basis.nbasis),dtype=np.complex128)
+            result.matrix=csr_matrix((result.basis.nbasis,result.basis.nbasis),dtype=self.dtype)
             result.set_matrix()
             return result
         else:
@@ -179,10 +179,9 @@ def EDEL(engine,app):
     if app.plot:
         plt.title('%s_%s'%(engine.status.const,app.status.name))
         plt.plot(result[:,0],result[:,1:])
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.const,app.status.name))
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.const,app.status.name))
         plt.close()
 
 class GF(HP.GF):
@@ -271,8 +270,8 @@ def EDGFP(engine,app):
         return
     # if the auxiliary data hasn't been calculated before, calculate it.
     app.gse=0.0
-    app.coeff=np.zeros((2,app.nopt,app.nopt,app.nstep),dtype=np.complex128)
-    app.hs=np.zeros((2,app.nopt,2,app.nstep),dtype=np.complex128)
+    app.coeff=np.zeros((2,app.nopt,app.nopt,app.nstep),dtype=app.dtype)
+    app.hs=np.zeros((2,app.nopt,2,app.nstep),dtype=app.dtype)
     # set the matrix of engine.
     t0=time.time()
     engine.set_matrix()
@@ -347,8 +346,8 @@ def EDGF(engine,app):
     '''
     if app.omega is not None:
         app.gf[...]=0.0
-        buff=np.zeros((3,app.nstep),dtype=np.complex128)
-        b=np.zeros(app.nstep,dtype=np.complex128)
+        buff=np.zeros((3,app.nstep),dtype=app.dtype)
+        b=np.zeros(app.nstep,dtype=app.dtype)
         for h in xrange(2):
             for i in xrange(app.nopt):
                 b[...]=0
@@ -370,7 +369,7 @@ def EDDOS(engine,app):
     engine.rundependences(app.status.name)
     erange=np.linspace(app.emin,app.emax,num=app.ne)
     gf=app.dependences[0]
-    gf_mesh=np.zeros((app.ne,)+gf.gf.shape,dtype=np.complex128)
+    gf_mesh=np.zeros((app.ne,)+gf.gf.shape,dtype=gf.dtype)
     for i,omega in enumerate(erange+engine.mu+1j*app.eta):
         gf.omega=omega
         gf_mesh[i,:,:]=gf.run(engine,gf)
@@ -382,8 +381,7 @@ def EDDOS(engine,app):
     if app.plot:
         plt.title('%s_%s'%(engine.status,app.status.name))
         plt.plot(result[:,0],result[:,1])
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
         plt.close()

@@ -1,10 +1,10 @@
 '''
 BaseSpace, including
 1) classes: BaseSpace
-2) functions: KSpace, line_1d, rectangle_gxm, rectangle_gym, rectangle_bz, square_gxm, square_gym, square_bz, hexagon_gkm, hexagon_bz, TSpace.
+2) functions: KSpace, line_bz, rectangle_gxm, rectangle_gym, rectangle_bz, square_gxm, square_gym, square_bz, hexagon_gkm, hexagon_bz, TSpace.
 '''
 
-__all__=['BaseSpace', 'KSpace', 'line_1d', 'rectangle_gxm', 'rectangle_gym', 'rectangle_bz', 'square_gxm', 'square_gym', 'square_bz', 'hexagon_gkm', 'hexagon_bz', 'TSpace']
+__all__=['BaseSpace', 'KSpace', 'line_bz', 'rectangle_gxm', 'rectangle_gym', 'rectangle_bz', 'square_gxm', 'square_gym', 'square_bz', 'hexagon_gkm', 'hexagon_bz', 'TSpace']
 
 from numpy import *
 from Constant import *
@@ -84,7 +84,7 @@ class BaseSpace(object):
         '''
         return {key:self.mesh[key].shape[0] for key in self.mesh.keys()}
 
-    def plot(self,show=True,name='BaseSpace'):
+    def plot(self,show=True,suspend=False,save=False,name='BaseSpace'):
         '''
         Plot the points contained in its mesh. 
         Only two dimensional base spaces are supported.
@@ -94,10 +94,9 @@ class BaseSpace(object):
             x=mesh[:,0]
             y=mesh[:,1]
             plt.scatter(x,y)
-            if show:
-                plt.show()
-            else:
-                plt.savefig(name+'_'+key+'.png')
+            if show and suspend: plt.show()
+            if show and not suspend: plt.pause(1)
+            if save: plt.savefig(name+'_'+key+'.png')
         plt.close()
 
 def KSpace(reciprocals=None,nk=100,mesh=None,volume=0.0):
@@ -145,7 +144,7 @@ def KSpace(reciprocals=None,nk=100,mesh=None,volume=0.0):
                             result.mesh['k'][(i*ubj+j)*ubk+k,l]=result.mesh['k'][(i*ubj+j)*ubk+k,l]+reciprocals[h][l]*buff
     return result
 
-def line_1d(reciprocals=None,nk=100):
+def line_bz(reciprocals=None,nk=100):
     '''
     The BZ of 1D K-space.
     '''

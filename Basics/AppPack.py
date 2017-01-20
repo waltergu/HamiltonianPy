@@ -5,10 +5,10 @@ App pack, including:
 
 __all__=['EB','DOS','GF','FS','BC','GP','CP','FF']
 
-from EngineApp import App
 from numpy import *
+from EngineApp import App
 from FermionicPackage import F_Linear
-from ..Math import berry_curvature
+from ..Misc import berry_curvature
 
 class EB(App):
     '''
@@ -70,11 +70,13 @@ class GF(App):
             The frequency of the GF.
         k: 1D ndarray
             The momentum of the GF.
+        dtype: complex64 or complex128
+            The data type of the Green's functions.
         gf: 2d ndarray
             The value of the GF.
     '''
 
-    def __init__(self,operators=None,omega=None,k=None,**karg):
+    def __init__(self,operators=None,omega=None,k=None,dtype=complex128,**karg):
         '''
         Constructor.
         Parameters:
@@ -86,11 +88,14 @@ class GF(App):
                 The momentum of the GF.
             shape: tuple, optional
                 The shape of the Green's function.
+            dtype: complex64 or complex128
+                The data type of the Green's functions.
         '''
         self.operators=operators
         self.omega=omega
         self.k=k
-        self.gf=None if operators is None else zeros((self.nopt,self.nopt),dtype=complex128)
+        self.dtype=dtype
+        self.gf=None if operators is None else zeros((self.nopt,self.nopt),dtype=dtype)
 
     def reinitialization(self,operators):
         '''
@@ -99,7 +104,7 @@ class GF(App):
             operators: list of Operator.
         '''
         self.operators=operators
-        self.gf=zeros((self.nopt,self.nopt),dtype=complex128)
+        self.gf=zeros((self.nopt,self.nopt),dtype=self.dtype)
 
     @property
     def nopt(self):

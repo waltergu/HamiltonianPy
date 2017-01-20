@@ -6,7 +6,7 @@ s2) functions: VCAEB, VCADOS, VCAFS, VCABC, VCATEB, VCAGP, VCAGPM, VCACP, VCAFF,
 
 __all__=['VCA','EB','VCAEB','VCADOS','VCAFS','VCABC','VCATEB','VCAGP','GPM','VCAGPM','CP','VCACP','FF','VCAFF','OP','VCAOP']
 
-from VCA_Fortran import gf_contract
+from gf_contract import *
 from numpy.linalg import det,inv
 from scipy.linalg import eigh
 from scipy import interpolate
@@ -19,6 +19,26 @@ import HamiltonianPy as HP
 import HamiltonianPy.ED as ED
 import matplotlib.pyplot as plt
 import os
+
+def _gf_contract_(k,mgf,seqs,coords):
+    '''
+    Python wrapper for gf_contract_4 and gf_contract_8.
+    Parameters:
+        k: 1d ndarray
+            The k point.
+        mgf: 2d ndarray
+            The cluster single-particle Green's functions in the mixed representation.
+        seqs, coords: 2d ndarray, 3d ndarray
+            Auxiliary arrays.
+    Returns: 2d ndarray
+        The VCA single-particle Green's functions.
+    '''
+    if mgf.dtype==np.complex64:
+        return gf_contract_4(k=k,mgf=mgf,seqs=seqs,coords=coords)
+    if mgf.dtype==np.complex128:
+        return gf_contract_8(k=k,mgf=mgf,seqs=seqs,coords=coords)
+    else:
+        raise ValueError("_gf_contract_ error: mgf must be of type np.complex64 or np.complex128.")
 
 class VCA(ED.ED):
     '''
@@ -46,7 +66,7 @@ class VCA(ED.ED):
             The weiss terms are not included in this list.
         weiss: list of Term
             The Weiss terms of the system.
-        dtype: np.float64, np.complex128
+        dtype: np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
         generators: dict of Generator
             It has four entries:
@@ -110,12 +130,12 @@ class VCA(ED.ED):
                 The terms of the system.
             weiss: lsit of Term, optional
                 The Weiss terms of the system.
-            dtype: np.float64, np.complex128
+            dtype: np.float32, np.float64, np.complex64, np.complex128
                 The data type of the matrix representation of the Hamiltonian.
         '''
         # initialize the cgf and gf
         assert isinstance(cgf,ED.GF)
-        gf=HP.GF()
+        gf=HP.GF(dtype=cgf.dtype)
         cgf.reinitialization(operators=HP.GF.fsp_operators(table=cgf.table(config),lattice=lattice))
         gf.reinitialization(operators=HP.GF.fsp_operators(table=cgf.table(config.subset(cell.__contains__)),lattice=cell))
         self.preloads.extend([cgf,gf])
@@ -212,7 +232,7 @@ class VCA(ED.ED):
         '''
         Return the cluster Green's function.
         Parameter:
-            omega: np.complex128, optional
+            omega: np.complex128/np.complex64, optional
                 The frequency of the cluster Green's function.
         Returns: 2d ndarray
             The cluster Green's function.
@@ -232,7 +252,7 @@ class VCA(ED.ED):
         Returns: 2d ndarray
             The matrix form of the inter-cluster perturbations.
         '''
-        result=np.zeros(self.preloads[0].gf.shape,dtype=np.complex128)
+        result=np.zeros(self.preloads[0].gf.shape,dtype=self.preloads[0].dtype)
         for opt in self.operators['pt_h'].values():
             result[opt.seqs]+=opt.value*(1 if len(k)==0 else np.exp(-1j*np.inner(k,opt.icoords[0])))
         for opt in self.operators['pt_w'].values():
@@ -252,7 +272,7 @@ class VCA(ED.ED):
         if 'pt_kmesh' in self.cache:
             return self.cache['pt_kmesh']
         else:
-            result=np.zeros((kmesh.shape[0],)+self.preloads[0].gf.shape,dtype=np.complex128)
+            result=np.zeros((kmesh.shape[0],)+self.preloads[0].gf.shape,dtype=self.preloads[0].dtype)
             for i,k in enumerate(kmesh):
                 result[i,:,:]=self.pt(k)
             self.cache['pt_kmesh']=result
@@ -262,7 +282,7 @@ class VCA(ED.ED):
         '''
         Returns the Green's function in the mixed representation.
         Parameters:
-            omega: np.complex128, optional
+            omega: np.complex128/np.complex64, optional
                 The frequency of the mixed Green's function.
             k: 1d ndarray like, optional
                 The momentum of the mixed Green's function.
@@ -270,13 +290,13 @@ class VCA(ED.ED):
             The mixed Green's function.
         '''
         cgf=self.cgf(omega)
-        return cgf.dot(inv(np.identity(cgf.shape[0],dtype=np.complex128)-self.pt(k).dot(cgf)))
+        return cgf.dot(inv(np.identity(cgf.shape[0],dtype=cgf.dtype)-self.pt(k).dot(cgf)))
 
     def mgf_kmesh(self,omega,kmesh):
         '''
         Returns the mesh of the Green's functions in the mixed representation with respect to momentums.
         Parameters:
-            omega: np.complex128
+            omega: np.complex128/np.complex64
                 The frequency of the mixed Green's functions.
             kmesh: (n+1)d ndarray like
                 The kmesh of the mixed Green's functions.
@@ -285,26 +305,26 @@ class VCA(ED.ED):
             The mesh of the mixed Green's functions.
         '''
         cgf=self.cgf(omega)
-        return np.einsum('jk,ikl->ijl',cgf,inv(np.identity(cgf.shape[0],dtype=np.complex128)-self.pt_kmesh(kmesh).dot(cgf)))
+        return np.einsum('jk,ikl->ijl',cgf,inv(np.identity(cgf.shape[0],dtype=cgf.dtype)-self.pt_kmesh(kmesh).dot(cgf)))
 
     def gf(self,omega=None,k=[]):
         '''
         Returns the VCA Green's function.
         Parameters:
-            omega: np.complex128, optional
+            omega: np.complex128/np.complex64, optional
                 The frequency of the VCA Green's function.
             k: 1d ndarray like, optional
                 The momentum of the VCA Green's function.
         Returns: 2d ndarray
             The VCA Green's function.
         '''
-        return gf_contract(k=k,mgf=self.mgf(omega,k),seqs=self.clmap['seqs'],coords=self.clmap['coords'])/(self.preloads[0].nopt/self.preloads[1].nopt)
+        return _gf_contract_(k=k,mgf=self.mgf(omega,k),seqs=self.clmap['seqs'],coords=self.clmap['coords'])/(self.preloads[0].nopt/self.preloads[1].nopt)
 
     def gf_kmesh(self,omega,kmesh):
         '''
         Returns the mesh of the VCA Green's functions with respect to momentums.
         Parameters:
-            omega: np.complex128
+            omega: np.complex128/np.complex64
                 The frequency of the VCA Green's functions.
             kmesh: (n+1)d ndarray like
                 The kmesh of the VCA Green's functions.
@@ -313,9 +333,9 @@ class VCA(ED.ED):
             The mesh of the VCA Green's functions.
         '''
         mgf_kmesh=self.mgf_kmesh(omega,kmesh)
-        result=np.zeros((kmesh.shape[0],)+self.preloads[1].gf.shape,dtype=np.complex128)
+        result=np.zeros((kmesh.shape[0],)+self.preloads[1].gf.shape,dtype=self.preloads[1].dtype)
         for n,k in enumerate(kmesh):
-            result[n,:,:]=gf_contract(k=k,mgf=mgf_kmesh[n,:,:],seqs=self.clmap['seqs'],coords=self.clmap['coords'])
+            result[n,:,:]=_gf_contract_(k=k,mgf=mgf_kmesh[n,:,:],seqs=self.clmap['seqs'],coords=self.clmap['coords'])
         return result/(self.preloads[0].nopt/self.preloads[1].nopt)
 
 class EB(HP.EB):
@@ -369,10 +389,9 @@ def VCAEB(engine,app):
         krange=np.array(xrange(app.path.rank['k']))
         plt.title('%s_%s'%(engine.status,app.status.name))
         plt.colorbar(plt.pcolormesh(np.tensordot(krange,np.ones(app.ne),axes=0),np.tensordot(np.ones(app.path.rank['k']),erange,axes=0),result))
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
         plt.close()
 
 def VCADOS(engine,app):
@@ -392,10 +411,9 @@ def VCADOS(engine,app):
     if app.plot:
         plt.title('%s_%s'%(engine.status,app.status.name))
         plt.plot(result[:,0],result[:,1])
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
         plt.close()
 
 def VCAFS(engine,app):
@@ -412,10 +430,9 @@ def VCAFS(engine,app):
         plt.axis('equal')
         N=int(round(np.sqrt(app.BZ.rank['k'])))
         plt.colorbar(plt.pcolormesh(app.BZ.mesh['k'][:,0].reshape((N,N)),app.BZ.mesh['k'][:,1].reshape(N,N),result.reshape(N,N)))
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
         plt.close()
 
 def VCABC(engine,app):
@@ -437,10 +454,9 @@ def VCABC(engine,app):
         plt.title('%s_%s'%(engine.status,app.status.name))
         plt.axis('equal')
         plt.colorbar(plt.pcolormesh(buff[:,0].reshape((nk,nk)),buff[:,1].reshape((nk,nk)),buff[:,2].reshape((nk,nk))))
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
         plt.close()
 
 def VCATEB(engine,app):
@@ -459,10 +475,9 @@ def VCATEB(engine,app):
     if app.plot:
         plt.title('%s_%s'%(engine.status,app.status.name))
         plt.plot(result[:,0],result[:,1:])
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
         plt.close()
 
 def VCAGP(engine,app):
@@ -550,10 +565,9 @@ def VCAGPM(engine,app):
                     Y=interpolate.splev(X,tck,der=0)
                     plt.plot(X,Y)
                 plt.plot(result[:,0],result[:,1],'r.')
-                if app.show:
-                    plt.show()
-                else:
-                    plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.const,app.status.name))
+                if app.show and app.suspend: plt.show()
+                if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+                if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.const,app.status.name))
                 plt.close()
     else:
         temp=minimize(gp,app.BS.values(),args=(app.BS.keys()),method=app.attrs['method'],options=app.attrs['options'])

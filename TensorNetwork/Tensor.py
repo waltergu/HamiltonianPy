@@ -1,15 +1,145 @@
 '''
 Tensor and tensor operations, including:
-1) classes: Tensor
+1) classes: Label,Tensor
 2) functions: contract
 '''
 
 from numpy import ndarray,asarray,product,einsum
 from collections import namedtuple,Counter,OrderedDict
 from copy import copy,deepcopy
-from HamiltonianPy.Math.linalg import truncated_svd
+from HamiltonianPy import QuantumNumberCollection
+from HamiltonianPy.Misc import truncated_svd
 
-__all__=['contract','Tensor']
+__all__=['Label','Tensor','contract']
+
+class Label(tuple):
+    '''
+    The label of a dimension of a tensor.
+    Attributes:
+        names: ('identifier','_prime_')
+            The names of the immutable part of the label.
+        qnc: integer or QuantumNumberCollection
+            When integer, it is the dimension of the label;
+            When QuantumNumberCollection, it is the quantum number collection of the label.
+    '''
+    repr_form=1
+
+    def __new__(cls,identifier,prime=False,qnc=None):
+        '''
+        Parameters:
+            identifier: any hashable object
+                The index of the label
+            prime: logical, optional
+                When True, the label is in the prime form;
+                otherwise not.
+            qnc: integer or QuantumNumberCollection, optional
+                When integer, it is the dimension of the label;
+                When QuantumNumberCollection, it is the quantum number collection of the label.
+        '''
+        self=tuple.__new__(cls,(identifier,prime))
+        self.names=('identifier','_prime_')
+        self.qnc=qnc
+        return self
+
+    def __getnewargs__(self):
+        '''
+        Return the arguments for Label.__new__, required by copy and pickle.
+        '''
+        return tuple(self)+(self.qnc,)
+
+    def __getstate__(self):
+        '''
+        Since Label.__new__ constructs everything, self.__dict__ can be omitted for copy and pickle.
+        '''
+        pass
+
+    def __getattr__(self,key):
+        '''
+        Overloaded operator(.).
+        '''
+        try:
+            return self[self.names.index(key)]
+        except ValueError:
+            raise AttributeError()
+
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        if self.repr_form==0:
+            if self[-1]:
+                return "Label%s%s"%((tuple.__repr__(self[0:-1])),"'")
+            else:
+                return "Label%s"%(tuple.__repr__(self[0:-1]))
+        elif self.repr_form==1:
+            if self[-1]:
+                return "Label%s%s,with qnc=%s"%((tuple.__repr__(self[0:-1])),"'",self.qnc)
+            else:
+                return "Label%s,with qnc=%s"%(tuple.__repr__(self[0:-1]),self.qnc)
+        else:
+            if self[-1]:
+                return "Label%s%s,with qnc(id=%s)=%s"%((tuple.__repr__(self[0:-1])),"'",id(self.qnc),self.qnc)
+            else:
+                return "Label%s,with qnc(id=%s)=%s"%(tuple.__repr__(self[0:-1]),id(self.qnc),self.qnc)
+
+    def replace(self,**karg):
+        '''
+        Return a new label with some of its attributes replaced.
+        Parameters:
+            karg: dict in the form (key,value), with
+                key: string
+                    The attributes of the label
+                value: any object
+                    The corresponding value.
+        Returns: Label
+            The new label.
+        '''
+        result=tuple.__new__(self.__class__,map(karg.pop,self.names,self))
+        for key,value in self.__dict__.iteritems():
+            setattr(result,key,karg.pop(key,value))
+        if karg:
+            raise ValueError("Label replace error: %s are not the attributes of the label."%karg.keys())
+        return result
+
+    @classmethod
+    def repr_qnc_on(cls,id=False):
+        '''
+        Turn on the qnc part in the repr, and optionally, the id of the qnc.
+        '''
+        if id:
+            cls.repr_form=2
+        else:
+            cls.repr_form=1
+
+    @classmethod
+    def repr_qnc_off(cls):
+        '''
+        Turn off the qnc part in the repr.
+        '''
+        cls.repr_form=0
+
+    @property
+    def prime(self):
+        '''
+        The prime of the label.
+        '''
+        temp=list(self)
+        temp[-1]=not temp[-1]
+        result=tuple.__new__(self.__class__,temp)
+        for key,value in self.__dict__.iteritems():
+            tuple.__setattr__(result,key,value)
+        return result
+
+    @property
+    def n(self):
+        '''
+        The length of the dimension this label labels.
+        '''
+        if isinstance(self.qnc,QuantumNumberCollection):
+            return self.qnc.n
+        else:
+            return self.qnc
+
 
 class Tensor(ndarray):
     '''

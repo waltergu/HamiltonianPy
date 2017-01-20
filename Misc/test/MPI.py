@@ -4,7 +4,7 @@ MPI test.
 
 __all__=['test_mpi']
 
-from HamiltonianPy.Basics.MPI import *
+from HamiltonianPy.Misc.MPI import *
 import numpy as np
 from mpi4py import MPI
 

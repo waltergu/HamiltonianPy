@@ -6,7 +6,6 @@ Quantum number, including:
 from collections import namedtuple,OrderedDict
 from copy import copy,deepcopy
 import numpy as np
-import scipy.sparse as sp
 
 __all__=['QuantumNumber','QuantumNumberHistory','QuantumNumberCollection']
 

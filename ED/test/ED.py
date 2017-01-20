@@ -5,7 +5,7 @@ ED test.
 __all__=['test_ed']
 
 from numpy import *
-from HamiltonianPy.Basics import *
+from HamiltonianPy import *
 from HamiltonianPy.ED.ED import *
 import itertools as it
 

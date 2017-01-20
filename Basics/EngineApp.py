@@ -143,17 +143,22 @@ class App(object):
             A flag to tag whether the results are to be plotted.
         show: logical
             A flag to tag whether the plotted graph is to be shown.
+        suspend: logical
+            A flag to tag whether the program is suspended when the graph is plotted.
         parallel: logical
             A flag to tag whether the calculating process is to be paralleled.
         np: integer
             The number of processes used in parallel computing and 0 means the available maximum.
         save_data: logical
             A flag to tag whether the generated data of the result is to be saved on the hard drive.
+        save_fig: logical
+            A flag to tag whether the plotted graph to be saved.
         prepare: function
             The function called by the engine before it carries out the tasks.
         run: function
             The function called by the engine to carry out the tasks.
     '''
+    SUSPEND_TIME=2
 
     def __new__(cls,*arg,**karg):
         '''
@@ -162,7 +167,7 @@ class App(object):
         result=object.__new__(cls)
         result.status=Status(name=karg.get('name',id(result)),info=False)
         result.status.update(alter=karg.get('parameters',None))
-        attr_def={'dependences':[],'plot':True,'show':True,'parallel':False,'np':0,'save_data':True,'prepare':None,'run':None}
+        attr_def={'dependences':[],'plot':True,'show':True,'suspend':False,'parallel':False,'np':0,'save_data':True,'save_fig':False,'prepare':None,'run':None}
         for key,value in attr_def.items():
             setattr(result,key,karg.get(key,value))
         return result

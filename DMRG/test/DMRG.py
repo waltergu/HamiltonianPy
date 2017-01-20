@@ -7,9 +7,9 @@ __all__=['test_dmrg']
 import mkl
 import numpy as np
 import HamiltonianPy as HP
-from HamiltonianPy.Basics import *
-from HamiltonianPy.DMRG.MPS import *
-from HamiltonianPy.DMRG.DMRG import *
+from HamiltonianPy import *
+from HamiltonianPy.TensorNetwork import *
+from HamiltonianPy.DMRG import *
 
 def test_dmrg():
     print 'test_dmrg'
@@ -103,7 +103,7 @@ def test_dmrg_spinful_fermion():
     print 'test_dmrg_spinful_fermion'
     # parameters
     qn_on=True
-    N,t,U=20,-1.0,6.0
+    N,t,U=20,-1.0,1.0
 
     # config related
     priority,layers=('scope','site','orbital','spin','nambu'),[('scope','site','orbital'),('spin',)]

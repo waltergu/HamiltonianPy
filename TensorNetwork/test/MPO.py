@@ -7,9 +7,10 @@ __all__=['test_mpo']
 from numpy import *
 from numpy.linalg import norm
 from HamiltonianPy import *
-from HamiltonianPy.Math.Tensor import *
-from HamiltonianPy.DMRG.MPO import *
-from HamiltonianPy.DMRG.MPS import *
+from HamiltonianPy.TensorNetwork.Tensor import *
+from HamiltonianPy.TensorNetwork.DegFreTree import *
+from HamiltonianPy.TensorNetwork.MPO import *
+from HamiltonianPy.TensorNetwork.MPS import *
 
 def test_mpo():
     print 'test_mpo'

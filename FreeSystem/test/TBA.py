@@ -20,8 +20,8 @@ def test_tba():
     print 'periodic boundary conditions'
     print '------------------------'
     pd=tba_construct(bc='pd')
-    pd.register(EB(name='EB',parameters={'mu':0.2},path=line_1d(nk=200),save_data=False,run=TBAEB))
-    pd.register(DOS(name='DOS',parameters={'mu':0.0},BZ=line_1d(nk=10000),eta=0.01,ne=400,save_data=False,run=TBADOS))
+    pd.register(EB(name='EB',parameters={'mu':0.2},path=line_bz(nk=200),save_data=False,run=TBAEB))
+    pd.register(DOS(name='DOS',parameters={'mu':0.0},BZ=line_bz(nk=10000),eta=0.01,ne=400,save_data=False,run=TBADOS))
     pd.summary()
     print
 

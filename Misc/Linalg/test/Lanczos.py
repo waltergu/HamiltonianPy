@@ -1,22 +1,13 @@
 '''
-linalg test.
+Lanczos test.
 '''
 
-__all__=['test_linalg']
+__all__=['test_lanczos']
 
 from numpy import *
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
-from HamiltonianPy.Math.linalg import *
-
-def test_linalg():
-    print 'test_linalg'
-    test_kron()
-    test_lanczos()
-
-def test_kron():
-    print 'test_kron'
-    print
+from HamiltonianPy.Misc.Linalg import Lanczos
 
 def test_lanczos():
     print 'test_lanczos'

@@ -8,9 +8,9 @@ __all__=['OptStr']
 import warnings
 import numpy as np
 from collections import OrderedDict
-from HamiltonianPy.Basics import OperatorF,OperatorS,CREATION
-from HamiltonianPy.Math.Tensor import Tensor,contract
-from HamiltonianPy.Math.linalg import parity
+from HamiltonianPy import OperatorF,OperatorS,CREATION
+from Tensor import Tensor,contract
+from ..Misc import parity
 from opt_einsum import contract as einsum
 from MPS import *
 

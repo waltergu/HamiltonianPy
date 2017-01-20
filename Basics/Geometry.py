@@ -671,7 +671,7 @@ class Lattice(dict):
             self.bonds=[]
             self.min_dists=[]
 
-    def plot(self,fig=None,ax=None,show=True,save=False,close=True,pid_on=False):
+    def plot(self,fig=None,ax=None,show=True,suspend=False,save=False,close=True,pid_on=False):
         '''
         Plot the lattice points and bonds. Only 2D or quasi 1D systems are supported.
         '''
@@ -702,7 +702,8 @@ class Lattice(dict):
                     ax.plot([bond.spoint.rcoord[0],bond.epoint.rcoord[0]],[bond.spoint.rcoord[1],bond.epoint.rcoord[1]],color=color)
                 else:
                     ax.plot([bond.spoint.rcoord[0],bond.epoint.rcoord[0]],[bond.spoint.rcoord[1],bond.epoint.rcoord[1]],color=color,ls='--')
-        if show: plt.show()
+        if show and suspend: plt.show()
+        if show and not suspend: plt.pause(1)
         if save: plt.savefig(self.name+'.png')
         if close:plt.close()
 

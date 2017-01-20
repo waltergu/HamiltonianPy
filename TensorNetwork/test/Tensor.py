@@ -5,7 +5,7 @@ Tensor test.
 __all__=['test_tensor']
 
 from numpy import *
-from HamiltonianPy.Math.Tensor import *
+from HamiltonianPy.TensorNetwork.Tensor import *
 
 def test_tensor():
     print 'test_tensor'

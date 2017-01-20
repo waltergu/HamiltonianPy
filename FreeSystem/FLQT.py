@@ -90,7 +90,7 @@ def FLQTQEB(engine,app):
     if app.plot:
         plt.title('%s_QEB'%(engine.status))
         plt.plot(result[:,0],result[:,1:])
-        if app.show:
-            plt.show()
-        else:
-            plt.savefig('%s/%s_QEB.png'%(engine.dout,engine.status))
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_QEB.png'%(engine.dout,engine.status))
+        plt.close()

@@ -6,8 +6,8 @@ Linear algebra, including:
 import numpy as np
 import scipy.linalg as sl
 import scipy.sparse as sp
-from ...Math.linalg import truncated_svd,TOL,block_diag
-from QuantumNumber import *
+from HamiltonianPy import QuantumNumberCollection
+from ..Misc import TOL,truncated_svd,block_diag
 from itertools import ifilter
 
 __all__=['bond_qnc_generation','vb_svd','mb_svd','expanded_svd']
