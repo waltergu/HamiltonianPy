@@ -196,7 +196,7 @@ class DMRG(Engine):
         self.set_blocks_and_connections()
         self.set_Hs_()
         self.cache={'qnc':None,'subslice':None,'permutation':None}
-        self.log.timers['DMRG']=Timers(['Preparation','Hamiltonian','ma,mb','kron','kronsum','sum','Diagonalization','Truncation'],str_form='c')
+        self.log.timers['DMRG']=Timers(['Preparation','QNKron','QN','Hamiltonian','ma,mb','kron','kronsum','sum','Diagonalization','Truncation'],str_form='c')
         self.log.info['DMRG']=Info(['energy','nbasis','nnz','overlap','err'])
         self.log.timers['DMRG'].proceed()
 
@@ -413,26 +413,28 @@ class DMRG(Engine):
         The two site update, which resets the central two mps and Hamiltonians of the chain.
         '''
         with self.log.timers['DMRG'].get('Preparation'):
-            A,Asite,sys=self.A,self.Asite,self.sys
-            usa,usasite=self.us(A),self.us(Asite)
-            tablea,tableasite=usa.table,usasite.table
-            ha=np.kron(self.H(A),np.identity(Asite.nbasis))+np.kron(np.identity(A.nbasis),self.H(Asite))
-            for optstr in self.connections[sys.form][sys]:
-                a,b=optstr.split(tablea,tableasite,coeff='B')
-                ha+=np.kron(a.matrix(usa,'L'),b.matrix(usasite,'S'))
-            B,Bsite,env=self.B,self.Bsite,self.env
-            usb,usbsite=self.us(B),self.us(Bsite)
-            tableb,tablebsite=usb.table,usbsite.table
-            hb=np.kron(self.H(Bsite),np.identity(B.nbasis))+np.kron(np.identity(Bsite.nbasis),self.H(B))
-            for optstr in self.connections[env.form][env]:
-                a,b=optstr.split(tablebsite,tableb,coeff='A')
-                hb+=np.kron(a.matrix(usbsite,'S'),b.matrix(usb,'R'))
+            with self.log.timers['DMRG'].get('QNKron'):
+                A,Asite,sys=self.A,self.Asite,self.sys
+                usa,usasite=self.us(A),self.us(Asite)
+                tablea,tableasite=usa.table,usasite.table
+                ha=np.kron(self.H(A),np.identity(Asite.nbasis))+np.kron(np.identity(A.nbasis),self.H(Asite))
+                for optstr in self.connections[sys.form][sys]:
+                    a,b=optstr.split(tablea,tableasite,coeff='B')
+                    ha+=np.kron(a.matrix(usa,'L'),b.matrix(usasite,'S'))
+                B,Bsite,env=self.B,self.Bsite,self.env
+                usb,usbsite=self.us(B),self.us(Bsite)
+                tableb,tablebsite=usb.table,usbsite.table
+                hb=np.kron(self.H(Bsite),np.identity(B.nbasis))+np.kron(np.identity(Bsite.nbasis),self.H(B))
+                for optstr in self.connections[env.form][env]:
+                    a,b=optstr.split(tablebsite,tableb,coeff='A')
+                    hb+=np.kron(a.matrix(usbsite,'S'),b.matrix(usb,'R'))
             self.mps[sys.pos]=Tensor(np.array([[[None]]]),labels=self.mps[sys.pos].labels)
             self.mps[env.pos]=Tensor(np.array([[[None]]]),labels=self.mps[env.pos].labels)
             if self.mps.mode=='QN':
-                sys.qnc=A.qnc.kron(Asite.qnc,'+',history=True)
-                env.qnc=Bsite.qnc.kron(B.qnc,'-',history=True)
-                self.cache['qnc']=sys.qnc.kron(env.qnc,'+',history=True)
+                with self.log.timers['DMRG'].get('QN'):
+                    sys.qnc=A.qnc.kron(Asite.qnc,'+',history=True)
+                    env.qnc=Bsite.qnc.kron(B.qnc,'-',history=True)
+                    self.cache['qnc']=sys.qnc.kron(env.qnc,'+',history=True)
                 self._Hs_[sys.form][sys]=sys.qnc.reorder(ha,axes=[0,1])
                 self._Hs_[env.form][env]=env.qnc.reorder(hb,axes=[0,1])
                 permutation=self.cache['qnc'].permutation(targets=[self.target.zeros])

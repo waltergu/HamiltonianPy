@@ -1,160 +1,116 @@
 '''
 Quantum number, including:
-1) classes: QuantumNumber, QuantumNumberHistory, QuantumNumberCollection
+1) classes: QuantumNumber, QuantumNumbers
 '''
 
-from collections import namedtuple,OrderedDict
+from collections import namedtuple
 from copy import copy,deepcopy
 import numpy as np
 
-__all__=['QuantumNumber','QuantumNumberHistory','QuantumNumberCollection']
+__all__=['QuantumNumber','QuantumNumbers']
 
-class QuantumNumber(tuple):
+class QuantumNumber(np.ndarray):
     '''
-    Quantum number.
-    It is a generalization of namedtuple.
+    Quantum number, which itself is a 1d ndarray with the elements being the values of the quantum number.
     Attributes:
-        names: list of string
+        names: tuple of string
             The names of the quantum number.
-        types: list of integer
-            The types of the quantum number.
+        periods: tuple of integer
+            The periods of the quantum number.
     '''
-    repr_forms=['FULL','SIMPLE','ORIGINAL']
-    repr_form='FULL'
+    names=()
+    periods=()
 
-    def __new__(cls,para):
+    def __new__(cls,values):
         '''
         Constructor.
         Parameters:
-            para: list of 3-tuple.
-                For each tuple, it should be in the form of (name,value,type):
-                    name: string
-                        The name of the quantum number.
-                    value: int
-                        The value of the quantum number.
-                    type: 'U1', 'Z2' or any integer
-                        The type of the quantum number.
+            values: iterable of numbers
+                The values of the quantum number.
         '''
-        names,values,types=[],[],[]
-        for name,value,type in para:
-            names.append(name)
-            values.append(value)
-            if type=='U1':
-                types.append('U1')
-            elif type=='Z2':
-                types.append(2)
-            else:
-                assert (isinstance(type,long) or isinstance(type,int)) and type>0
-                types.append(type)
-        self=super(QuantumNumber,cls).__new__(cls,values)
-        self.names=tuple(names)
-        self.types=tuple(types)
+        self=np.asarray(values).reshape(-1).view(cls)
+        assert len(self)==len(cls.names)
         return self
 
-    def __getnewargs__(self):
+    @classmethod
+    def __set_names_and_periods__(cls,names,periods):
         '''
-        Return the arguments for QuantumNumber.__new__, required by copy and pickle.
+        Set the names and periods of the quantum number.
+        Parameters:
+            names: list of str
+                The names of the quantum number.
+            periods: list of None/posotive integer
+                The periods of the quantum number.
         '''
-        return (zip(self.names,self,self.types),)
+        assert len(names)==len(periods)
+        for name,period in zip(names,periods):
+            assert isinstance(name,str)
+            assert (period is None) or (period in (long,int) and period>0)
+        cls.names=tuple(names)
+        cls.periods=tuple(periods)
 
-    def __getstate__(self):
+    def __len__(self):
         '''
-        Since QuantumNumber.__new__ constructs everything, self.__dict__ can be omitted for copy and pickle.
+        The length of the quantum number.
         '''
-        pass
+        return len(np.asarray(self))
 
     def __getattr__(self,key):
         '''
         Overloaded dot(.) operator.
         '''
         try:
-            return self[self.names.index(key)]
+            return self[self.__class__.names.index(key)]
         except ValueError:
-            raise AttributeError()
-
-    @classmethod
-    def set_repr_form(cls,para):
-        '''
-        Set the form __repr__ will use.
-        '''
-        if para in cls.repr_forms:
-            cls.repr_form=para
-        else:
-            raise ValueError('QuantumNumber set_repr_form error: %s is not one of the supported forms (%s).'%(para,', '.join(cls.repr_forms)))
+            raise AttributeError("%s has no attribute '%s'."%(self.__class__.__name__,key))
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        if self.repr_form==self.repr_forms[0]:
-            temp=[]
-            for name,value,type in zip(self.names,self,self.types):
-                temp.append(name)
-                temp.append(value)
-                temp.append('U1' if type=='U1' else 'Z%s'%(type))
-            return ''.join(['QN','(',','.join(['%s=%r(%s)']*len(self)),')'])%tuple(temp)
-        elif self.repr_form==self.repr_forms[1]:
-            return ''.join(['QN','(',','.join(['%s']*len(self)),')'])%self
-        else:
-            return tuple.__repr__(self)
+        temp=[]
+        for name,value,period in zip(self.__class__.names,self,self.__class__.periods):
+            temp.append(name)
+            temp.append(value)
+            temp.append('U1' if period is None else 'Z%s'%(period))
+        return ''.join(['QN','(',','.join(['%s=%r(%s)']*len(self)),')'])%tuple(temp)
+
+    __str__=__repr__
 
     def __neg__(self):
         '''
         Overloaded negative(-) operator.
         '''
-        values=[]
-        for n,v,t in zip(self.names,self,self.types):
-            if t=='U1':
-                values.append(-v)
-            else:
-                values.append((t-v)%t)
-        result=tuple.__new__(self.__class__,values)
-        result.names=self.names
-        result.types=self.types
-        return result
+        values=-np.asarray(self)
+        for i,t in enumerate(self.__class__.periods):
+            if t is not None: values[i]%=t
+        return self.__class__(values)
 
     def __add__(self,other):
         '''
         Overloaded addition(+) operator, which supports the addition of two quantum numbers.
         '''
-        if other==0:
-            return self
+        if isinstance(other,QuantumNumbers):
+            pass
         else:
-            values=[]
-            for n1,v1,t1,n2,v2,t2 in zip(self.names,self,self.types,other.names,other,other.types):
-                assert n1==n2
-                assert t1==t2
-                if t1=='U1':
-                    values.append(v1+v2)
-                else:
-                    values.append((v1+v2)%t1)
-            result=tuple.__new__(self.__class__,values)
-            result.names=self.names
-            result.types=self.types
-            return result
-
-    def __radd__(self,other):
-        '''
-        Overloaded addition(+) operator, which supports the addition of two quantum numbers.
-        '''
-        return self.__add__(other)
+            assert self.__class__ is other.__class__
+            values=np.asarray(self)+np.asarray(other)
+            for i,t in enumerate(self.__class__.periods):
+                if t is not None: values[i]%=t
+            return self.__class__(values)
 
     def __sub__(self,other):
         '''
-        Overloaded addition(-) operator, which supports the subtraction of two quantum numbers.
+        Overloaded subtraction(-) operator, which supports the subtraction of two quantum numbers.
         '''
-        values=[]
-        for n1,v1,t1,n2,v2,t2 in zip(self.names,self,self.types,other.names,other,other.types):
-            assert n1==n2
-            assert t1==t2
-            if t1=='U1':
-                values.append(v1-v2)
-            else:
-                values.append((v1-v2)%t1)
-        result=tuple.__new__(self.__class__,values)
-        result.names=self.names
-        result.types=self.types
-        return result
+        if isinstance(other,QuantumNumbers):
+            pass
+        else:
+            assert self.__class__ is other.__class__
+            values=np.asarray(self)-np.asarray(other)
+            for i,t in enumerate(self.__class__.periods):
+                if t is not None: values[i]%=t
+            return self.__class__(values)
 
     def __mul__(self):
         '''
@@ -172,20 +128,9 @@ class QuantumNumber(tuple):
         '''
         Return a new QuantumNumber object with specified fields replaced with new values.
         '''
-        result=tuple.__new__(QuantumNumber,map(karg.pop,self.names,self))
+        result=self.__class__(map(karg.pop,self.__class__.names,self))
         if karg:
-            raise ValueError('QuantumNumber replace error: it got unexpected field names: %r'%karg.keys())
-        result.names=self.names
-        result.types=self.types
-        return result
-
-    def direct_sum(self,other):
-        '''
-        Direct sum of two quantum numbers.
-        '''
-        result=tuple.__new__(self.__class__,tuple.__add__(self,other))
-        result.names=self.names+other.names
-        result.types=self.types+other.types
+            raise ValueError('%s replace error: it got unexpected field names: %r'%(self.__class__.__name__,karg.keys()))
         return result
 
     @property
@@ -193,107 +138,217 @@ class QuantumNumber(tuple):
         '''
         Return a new quantum number with all the values equal to zero.
         '''
-        return QuantumNumber([(name,0,type) for name,type in zip(self.names,self.types)])
+        return self.__class__([0 for i in xrange(len(self))])
 
-class QuantumNumberHistory(namedtuple('QuantumNumberHistory',['pairs','slices'])):
+class QuantumNumbers(object):
     '''
-    The historical information of a quantum number.
-    Attribues:
-        pairs: list of 2-tuples of QuantumNumber
-            All the pairs of the addends of the quantum number.
-        slices: list of slice
-            The unpermutated slices of the quantum number.
-    '''
-
-QuantumNumberHistory.__new__.__defaults__=(None,)*len(QuantumNumberHistory._fields)
-
-class QuantumNumberCollection(OrderedDict):
-    '''
-    Quantum number collection.
-    For its (key,value) pair:
-        key: QuantumNumber
-            The quantum number.
-        value: slice
-            The corresponding slice of the quantum number.
+    A collection of quantum numbers in a stroage format similiar to that of compressed-sparse-row vectors.
     Attributes:
-        n: integer
-            The total number of quantum numbers when duplicates are counted duplicately.
+        type: class
+            The class of the quantum numbers contained in the collection.
+        contents: 2d ndarray
+            The ndarray representation of the collection with the columns representing the set of its quantum numbers.
+        indptr: 1d ndarray of integers
+            The index pointer array of the set of the quantum numbers.
         history: dict with each of its (key,value) pairs
             key: integer
-                The id of the quantum number collection whose history is recorded.
-            value: OrderedDict, with each of its (key,value) pairs
-                key: QuantumNumber
-                    The quantum number contained in the quantum number collection whose history is recorded.
-                value: QuantumNumberHistory
-                    The historical information.
+                The id of the collection of quantum numbers whose history is recorded.
+            value: 1d ndarray of integer
+                The permutation to make the quantum numbers in order.
     '''
     history={}
+    INDPTR,COUNT,FULL=0,1,2
 
-    def __init__(self,para=[],history=False):
+    def __init__(self,qns,counts):
         '''
         Constructor.
         Parameters:
-            para: list of QuantumNumber or 2-tuple
-            1) QuantumNumber:
-                The quantum numbers of the quantum number collection.
-            2) 2-tuple:
-                tuple[0]: QuantumNumber
-                    The quantum number.
-                tuple[1]: integer or slice
-                    1) integer:
-                        The number of the duplicates of the quantum number
-                    2) slice:
-                        The corresponding slice of the quantum number.
-            history: logical, optional
-                When para is a list of QuantumNumber and history is True, the permutation information will be recorded.
+            qns: list of QuantumNumber
+                The quantum numbers contained in the collection.
+            counts: list of integer
+                The counts of the duplicates of the quantum numbers.
         '''
-        OrderedDict.__init__(self)
-        temp=np.array([isinstance(qn,QuantumNumber) for qn in para])
-        if all(temp):
-            contents=OrderedDict()
-            if history:
-                record=OrderedDict()
-                for i,qn in enumerate(para):
-                    if qn not in contents:
-                        contents[qn]=0
-                        record[qn]=QuantumNumberHistory(pairs=[],slices=[])
-                    contents[qn]+=1
-                    record[qn].slices.append(slice(i,i+1))
-                QuantumNumberCollection.history[id(self)]=record
-            else:
-                for qn in para:
-                    contents[qn]=contents.get(qn,0)+1
-            para=contents.items()
-        count=0
-        if all(temp) or all(~temp):
-            for (key,value) in para:
-                if isinstance(value,int) or isinstance(value,long):
-                    assert value>=0
-                    if value>0:
-                        self[key]=slice(count,count+value)
-                        count+=value
-                elif isinstance(value,slice):
-                    assert value.start<=value.stop and value.step is None
-                    if value.start<value.stop:
-                        self[key]=value
-                        count+=value.stop-value.start
-                else:
-                    raise ValueError('QuantumNumberCollection construction error: improper parameter(%s).'%(value.__class__.__name__))
+        assert len(qns)==len(counts)
+        self.type=next(iter(qns)).__class__
+        self.contents=np.array(qns).T
+        self.indptr=np.zeros(len(counts)+1,dtype=np.int64)
+        for i,count in enumerate(counts):
+            assert count>0
+            self.indptr[i+1]=self.indptr[i]+count
+
+    @staticmethod
+    def load(type,data,protocal=INDPTR,history=False):
+        '''
+        Constructor.
+        Parameters:
+            type: class
+                The class of the quantum numbers contained in the collection.
+            data: three cases
+            1) when protocal==QuantumNumbers.INDPTR: 2-tuple with
+                data[0]: 2d ndarray
+                    The contents of the collection.
+                data[1]: 1d ndarray of integers
+                    The indptr of the collection.
+            2) when protocal==QuantumNumbers.COUNT: 2-tuple with
+                data[0]: 2d ndarray
+                    The contents of the collection.
+                data[1]: 1d ndarray
+                    The counts of the duplicates of the quantum numbers.
+            3) when protocal==QuantumNumbers.FULL: ndarray
+                The full ndarray representation of the collection, with the duplicates explicitly expanded.
+            history: logical, optional
+                It only takes effects when protocal is 2. When True, the permutation to make the quantum numbers in order will be recorded.
+        '''
+        self=object.__new__(QuantumNumbers)
+        self.type=type
+        if protocal==QuantumNumbers.INDPTR:
+            contents,indptr=data
+            assert contents.ndim==2 and indptr.ndim==1
+            self.contents=contents
+            self.indptr=indptr
+        elif protocal==QuantumNumbers.COUNT:
+            contents,counts=data
+            assert contents.ndim==2 and counts.ndim==1
+            self.contents=contents
+            self.indptr=np.zeros(len(counts)+1,dtype=np.int64)
+            for i,count in enumerate(counts):
+                assert count>0
+                self.indptr[i+1]=self.indptr[i]+count
         else:
-            raise ValueError('QuantumNumberCollection construction error: improper parameter type.')
-        self.n=count
+            assert data.ndim==2
+            permutation=np.lexsort(data[::-1])
+            if history:
+                QuantumNumbers.history[id(self)]=permutation
+            mask=np.concatenate(([True],np.any(data[:,permutation[1:]]!=data[:,permutation[:-1]],axis=0)))
+            self.contents=data[:,permutation][:,mask]
+            self.indptr=np.concatenate((np.argwhere(mask).reshape((-1)),[data.shape[1]]))
+        return self
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return ''.join(['QNC(',','.join(['%s:(%s:%s)'%(qn,value.start,value.stop) for qn,value in self.items()]),')'])
+        return ''.join(['QNS(',','.join(['%s:(%s:%s)'%(qn,self.indptr[i],self.indptr[i+1]) for i,qn in enumerate(self)]),')'])
+
+    def __len__(self):
+        '''
+        The total number of quantum numbers when duplicates are counted duplicately.
+        '''
+        return self.indptr[-1]
+
+    @property
+    def num(self):
+        '''
+        The number of unduplicate quantum numbers of the collection.
+        '''
+        return self.contents.shape[1]
+
+    @staticmethod
+    def clear_history(*arg):
+        '''
+        Clear the historical information of the collections of quantum numbers.
+        '''
+        if len(arg)==0:
+            QuantumNumbers.history.clear()
+        else:
+            for qns in arg:
+                if isinstance(qns,QuantumNumbers):
+                    QuantumNumbers.history.pop(id(qns),None)
+
+    def __iter__(self):
+        '''
+        Return an iterator over the quantum number it contains.
+        '''
+        for values in self.contents.T:
+            yield self.type(values)
+
+    def index(self,qn):
+        '''
+        Find the index of the quantum number.
+        Parameters:
+            qn: QuantumNumber
+                The quantum number whose index is inquired.
+        Returns: integer
+            The corresponding index of the quantum number.
+        '''
+        L,R,pos=0,self.num,self.num/2
+        qn,current=tuple(qn),tuple(self.contents[:,pos])
+        while current!=qn:
+            if current>qn:
+                R=pos
+            else:
+                L=pos
+            pos,last=(L+R)/2,pos
+            if pos==last:
+                raise ValueError('QuantumNumbers index error: %s not in QuantumNumbers.'%(qn))
+            current=tuple(self.contents[:,pos])
+        else:
+            return pos
+
+    def __contains__(self,qn):
+        '''
+        Judge whether a quantum number is contained in the collection.
+        '''
+        try:
+            self.index(qn)
+            return True
+        except ValueError:
+            return False
 
     def __neg__(self):
         '''
         Overloaded negative(-) operator.
         '''
-        return QuantumNumberCollection([(-key,value) for key,value in self.iteritems()])
+        contents=-self.contents
+        for i,t in enumerate(self.type.periods):
+            if t is not None: contents[i,:]%=t
+        result=QuantumNumbers.load(self.type,(contents,self.indptr),protocal=QuantumNumbers.INDPTR)
+        return result
+
+    def __add__(self,other):
+        '''
+        Overloaded addition(+) operator.
+        '''
+        assert self.type is other.__class__ or not issubclass(other.__class__,QuantumNumber)
+        contents=self.contents+np.asarray(other)[:,np.newaxis]
+        for i,t in enumerate(self.type.periods):
+            if t is not None: contents[i,:]%=t
+        result=QuantumNumbers.load(self.type,(contents,self.indptr),protocal=QuantumNumbers.INDPTR)
+        return result
+
+    def __sub__(self,other):
+        '''
+        Overloaded subtraction(-) operator.
+        '''
+        assert self.type is other.__class__ or not issubclass(other.__class__,QuantumNumber)
+        contents=self.contents-np.asarray(other)[:,np.newaxis]
+        for i,t in enumerate(self.type.periods):
+            if t is not None: contents[i,:]%=t
+        result=QuantumNumbers.load(self.type,(contents,self.indptr),protocal=QuantumNumbers.INDPTR)
+        return result
+
+    def __rsub__(self,other):
+        '''
+        Overloaded subtraction(-) operator.
+        '''
+        assert self.type is other.__class__ or not issubclass(other.__class__,QuantumNumber)
+        contents=np.asarray(other)[:,np.newaxis]-self.contents
+        for i,t in enumerate(self.type.periods):
+            if t is not None: contents[i,:]%=t
+        result=QuantumNumbers.load(self.type,(contents,self.indptr),protocal=QuantumNumbers.INDPTR)
+        return result
+
+    def subset(self,targets=()):
+        '''
+        A subsets of the collection of the quantum numbers.
+        Parameters:
+            targets: list of QuantumNumber, optional
+                The quantum numbers of the subset.
+        Returns: QuantumNumbers
+            The subset.
+        '''
+        indices=np.array([self.index(target) for target in targets])
+        return QuantumNumbers.load(self.type,(self.contents[:,indices],self.indptr[indices+1]-self.indptr[indices]),protocal=QuantumNumbers.COUNT)
 
     def subslice(self,targets=()):
         '''
@@ -304,7 +359,11 @@ class QuantumNumberCollection(OrderedDict):
         Returns: list of integer
             The subslice.
         '''
-        return [i for target in targets for i in xrange(self[target].start,self[target].stop)]
+        result=[]
+        for target in targets:
+            index=self.index(target)
+            result.append(xrange(self.indptr[index],self.indptr[index+1]))
+        return np.concatenate(result)
 
     def expansion(self,targets=None):
         '''
@@ -315,8 +374,11 @@ class QuantumNumberCollection(OrderedDict):
         Returns: list of QuantumNumber
             The expanded quantum numbers.
         '''
-        targets=self.keys() if targets is None else targets
-        return [key for key in targets for i in xrange(self[key].start,self[key].stop)]
+        if targets is None:
+            return np.repeat(self.contents,self.indptr[1:]-self.indptr[:-1],axis=1)
+        else:
+            indices=np.array([self.index(target) for target in targets])
+            return np.repeat(self.contents[:,indices],self.indptr[indices+1]-self.indptr[indices])
 
     def permutation(self,targets=None):
         '''
@@ -327,18 +389,24 @@ class QuantumNumberCollection(OrderedDict):
         Returns: list of integer
             The permutation array.
         '''
-        if id(self) in self.history:
-            histories=self.history[id(self)].values() if targets is None else [self.history[id(self)][target] for target in targets]
-            result=[i for history in histories for slice in history.slices for i in xrange(slice.start,slice.stop)]
+        if id(self) in QuantumNumbers.history:
+            if targets is None:
+                result=QuantumNumbers.history[id(self)]
+            else:
+                result=QuantumNumbers.history[id(self)][self.subslice(targets)]
         else:
-            result=range(self.n) if targets is None else [i for i in xrange(self[target].start,self[target].stop) for target in targets]
+            if targets is None:
+                result=np.array(xrange(self.len))
+            else:
+                indices=[self.index(target) for target in targets]
+                result=np.concatenate([xrange(self.indptr[index],self.indptr[index+1]) for index in indices])
         return result
 
     def kron(self,other,action='+',history=False):
         '''
         Tensor dot of two quantum number collections.
         Parameters:
-            self,other: QuantumNumberCollection
+            self,other: QuantumNumbers
                 The quantum number collections to be tensor dotted.
             action: '+' or '-'
                 When '+', the elements from self and other are added;
@@ -354,64 +422,14 @@ class QuantumNumberCollection(OrderedDict):
             if action=='+':
                 return copy(other)
             else:
-                return QuantumNumberCollection([(-key,value) for key,value in other.items()])
+                return -other
         else:
-            contents=OrderedDict()
-            if history:
-                record=OrderedDict()
-                for qn1,v1 in self.items():
-                    for qn2,v2 in other.items():
-                        sum=qn1+qn2 if action=='+' else qn1-qn2
-                        if sum not in contents:
-                            contents[sum]=0
-                            record[sum]=QuantumNumberHistory(pairs=[],slices=[])
-                        contents[sum]+=(v2.stop-v2.start)*(v1.stop-v1.start)
-                        record[sum].pairs.append((qn1,qn2))
-                        for i in xrange(v1.start,v1.stop):
-                            record[sum].slices.append(slice(i*other.n+v2.start,i*other.n+v2.stop))
-                result=QuantumNumberCollection(contents.items())
-                QuantumNumberCollection.history[id(result)]=record
+            A,B=self.expansion(),other.expansion()
+            if action=='+':
+                data=np.repeat(A,len(other),axis=1)+np.tile(B,len(self))
             else:
-                for qn1,v1 in self.items():
-                    for qn2,v2 in other.items():
-                        sum=qn1+qn2 if action=='+' else qn1-qn2
-                        contents[sum]=contents.get(sum,0)+(v2.stop-v2.start)*(v1.stop-v1.start)
-                result=QuantumNumberCollection(contents.items())
-            return result
-
-    def subset(self,targets=()):
-        '''
-        A subsets of the quantum number collection.
-        Parameters:
-            targets: list of QuantumNumber, optional
-                The quantum numbers of the subset.
-        Returns: QuantumNumberCollection
-            The subset.
-        '''
-        return QuantumNumberCollection([(target,self[target].stop-self[target].start) for target in targets])
-
-    def pairs(self,qn):
-        '''
-        The historical pairs of the addends of a quantum number in the quantum number collection.
-        Parameters:
-            qn: QuantumNumber
-                The quantum number whose historical pairs of the addends are requested.
-        Returns: list of 2-tuple of QuantumNumber
-            The historical pairs of the addends of the quantum number.
-        '''
-        return self.history[id(self)][qn].pairs
-
-    @staticmethod
-    def clear_history(*arg):
-        '''
-        Clear the historical information of the quantum number collection.
-        '''
-        if len(arg)==0:
-            QuantumNumberCollection.history.clear()
-        else:
-            for qnc in arg:
-                if isinstance(qnc,QuantumNumberCollection):
-                    QuantumNumberCollection.history.pop(id(qnc),None)
+                data=np.repeat(A,len(other),axis=1)-np.tile(B,len(self))
+            return QuantumNumbers.load(self.type,data,protocal=QuantumNumbers.FULL,history=history)
 
     def reorder(self,array,axes=None,targets=None):
         '''

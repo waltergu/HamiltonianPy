@@ -140,28 +140,39 @@ class Label(tuple):
         else:
             return self.qnc
 
+    @property
+    def qn_on(self):
+        '''
+        True for qnc is an instance of QuantumNumberCollection otherwise False.
+        '''
+        return isinstance(self.qnc,QuantumNumberCollection)
 
 class Tensor(ndarray):
     '''
-    Tensor class with labeled axes. 
+    Tensor class with labeled axes.
     Attributes:
-        labels: list of hashable objects, e.g. string, tuple, etc.
+        labels: list of Label
             The labels of the axes.
     '''
 
-    def __new__(cls,array,labels):
+    def __new__(cls,data,labels):
         '''
         Initialize an instance through the explicit construction, i.e. constructor.
         Parameters:
-            array: ndarray like
+            data: ndarray like
                 The data of the Tensor.
-            labels: list of hashable objects
+            labels: list of Label
                 The labels of the Tensor.
         '''
-        temp=asarray(array)
-        if len(labels)!=temp.ndim:
-            raise ValueError("Tensor construction error: the number of labels(%s) and the dimension(%s) of tensors are not equal."%(len(labels),temp.ndim))
-        result=temp.view(cls)
+        data=asarray(data)
+        assert len(labels)==len(data.shape)
+        for label,dim in zip(labels,data.shape):
+            assert isinstance(label,Label)
+            #if label.n is None:
+            #    label.qnc=dim
+            #else:
+            #    assert label.n==dim
+        result=data.view(cls)
         result.labels=labels
         return result
 
@@ -178,8 +189,8 @@ class Tensor(ndarray):
         '''
         numpy.ndarray uses __reduce__ to pickle. Therefore this mehtod needs overriding for subclasses.
         '''
-        pickle=super(Tensor,self).__reduce__()
-        return (pickle[0],pickle[1],pickle[2]+(self.labels,))
+        temp=super(Tensor,self).__reduce__()
+        return (temp[0],temp[1],temp[2]+(self.labels,))
 
     def __setstate__(self,state):
         '''
@@ -187,6 +198,12 @@ class Tensor(ndarray):
         '''
         self.labels=state[-1]
         super(Tensor,self).__setstate__(state[0:-1])
+
+    def __deepcopy__(self,demo):
+        '''
+        Deepcopy of the Tensor.
+        '''
+        return Tensor(data=super(Tensor,self).__deepcopy__(demo),labels=deepcopy(self.labels))
 
     def __str__(self):
         '''
@@ -197,29 +214,14 @@ class Tensor(ndarray):
         else:
             return "%s(labels=%s, data=%s)"%(self.__class__.__name__,self.labels,ndarray.__str__(self))
 
-    def copy(self,copy_data=False):
-        '''
-        Make a copy of a tensor.
-        Parameters:
-            copy_data: logical, optional
-                When True, both the data and labels of the tensor will be copied;
-                When False, only the labels of the tensor will be copyied.
-        Returns: Tensor
-            The copy of the tensor.
-        '''
-        if copy_data:
-            return deepcopy(self)
-        else:
-            return Tensor(asarray(self),labels=copy(self.labels))
-
     def label(self,axis):
         '''
         Return the corresponding label of an axis.
         Parameters:
             axis: integer
                 The axis whose corresponding label is inquired.
-            Returns: any hashable object
-                The corresponding label.
+        Returns: any hashable object
+            The corresponding label.
         '''
         return self.labels[axis]
 
@@ -227,10 +229,10 @@ class Tensor(ndarray):
         '''
         Return the corresponding axis of a label.
         Parameters:
-            label: any hashable object
+            label: Label
                 The label whose corresponding axis is inquired.
-            Returns: integer
-                The corresponding axis.
+        Returns: integer
+            The corresponding axis.
         '''
         return self.labels.index(label)
 
@@ -238,18 +240,18 @@ class Tensor(ndarray):
         '''
         Change the labels of the tensor.
         Parameters:
-            news: list of hashable objects
+            news: list of Label
                 The new labels of the tensor's axes.
-            olds: list of hashable objects, optional
+            olds: list of Label, optional
                 The old labels of the tensor's axes.
         '''
         if olds is None:
-            if self.ndim!=len(news):
-                raise ValueError("Tensor relabel error: the number of lables and the dimension of tensors should be equal.")
+            assert len(news)==self.ndim
+            #assert all(new.n==dim for new,dim in zip(news,self.shape))
             self.labels=news
         else:
-            if len(news)!=len(olds):
-                raise ValueError("Tensor relabel error: the number of new labels(%s) and old labels(%s) are not equal."%(len(news),len(olds)))
+            assert len(news)==len(olds)
+            #assert all(new.n==old.n for new,old in zip(news,olds))
             for old,new in zip(olds,news):
                 self.labels[self.axis(old)]=new
 
@@ -257,25 +259,22 @@ class Tensor(ndarray):
         '''
         Change the order of the tensor's axes and return the new tensor.
         Parameters:
-            labels: list of hashable objects, optional
+            labels: list of Label, optional
                 The permutation of the original labels.
             axes: list of integers, optional
                 The permutation of the original axes.
-            NOTE: labels and axes should not be assigned at the same time. 
-                  But if this does happen, axes will be omitted.
         Returns: Tensor
             The new tensor with the reordered axes.
+        NOTE: labels and axes SHOULD NOT be assigned at the same time. BUT if this does happen, axes will be omitted.
         '''
         if labels is not None:
-            if len(labels)!=len(self.labels):
-                raise ValueError("Tensor transpose error: the number of labels doesn't match the tensor.")
+            assert len(labels)==len(self.labels)
             return Tensor(self.view(ndarray).transpose([self.axis(label) for label in labels]),labels=labels)
         elif axes is not None:
-            if len(axes)!=len(self.labels):
-                raise ValueError("Tensor transpose error: the number of axes doesn't match the tensor.")
+            assert len(axes)==len(self.labels)
             return Tensor(self.view(ndarray).transpose(axes),labels=[self.label(axis) for axis in axes])
         else:
-            raise ValueError("Tensor transpose error: labels and axes cannot be None simultaneously.")
+            return self.transpose(axes=range(self.ndim-1,-1,-1))
 
     def take(self,indices,label=None,axis=None):
         '''
@@ -283,28 +282,71 @@ class Tensor(ndarray):
         Parameters:
             indices: integer / list of integers
                 The indices of the values to extract.
-            label: any hashable object, optional
+            label: Label, optional
                 The label of the axis along which to take values.
             axis: integer, optional
                 The axis along which to take values.
-            NOTE: label and axis should not be assigned at the same time. 
-                  But if this does happen, axis will be omitted.
         Returns: Tensor
+            The extracted parts of the tensor.
+        NOTE: label and axis SHOULD NOT be assigned at the same time. BUT if this does happen, axis will be omitted.
         '''
         if label is not None:
-            if isinstance(indices,int) or isinstance(indices,long) or len(indices)==1:
-                labels=[i for i in self.labels if i!=label]
+            if isinstance(indices,int) or isinstance(indices,long):
+                labels=[deepcopy(lb) for lb in self.labels if lb!=label]
             else:
                 labels=deepcopy(self.labels)
             return Tensor(self.view(ndarray).take(indices,axis=self.axis(label)),labels=labels)
         elif axis is not None:
-            if isinstance(indices,int) or len(indices)==1:
-                labels=[label for i,label in enumerate(self.labels) if i!=axis]
+            if isinstance(indices,int) or isinstance(indices,long):
+                labels=[deepcopy(label) for i,label in enumerate(self.labels) if i!=axis]
             else:
                 labels=deepcopy(self.labels)
             return Tensor(self.view(ndarray).take(indices,axis=axis),labels=labels)
         else:
             raise ValueError("Tensor take error: label and axis cannot be None simultaneously.")
+
+    def merge(self,olds,new):
+        '''
+        Merge some labels of the tensor into a new one.
+        Parameters:
+            olds: list of Label
+                The old labels to be merged.
+            new: Label
+                The new label.
+        Returns: Tensor
+            The new tensor.
+        '''
+        axes,labels,shape,yet=[],[],(),True
+        for axis,label in enumerate(self.labels):
+            if label in olds:
+                if yet:
+                    axes.extend([self.axis(old) for old in olds])
+                    labels.append(new)
+                    shape+=(-1,)
+                    yet=False
+            else:
+                axes.append(axis)
+                labels.append(label)
+                shape+=(self.shape[axis])
+        result=self.transpose(axes=axes)
+        if olds[0].qn_on:
+            
+        else:
+            new.qnc=np.product([old.qnc for old in olds])
+            result=Tensor(asarray(result).reshape(shape),labels=labels)
+
+    def split(self,old,news):
+        '''
+        Split a label into small ones.
+        Parameters:
+            old: Label
+                The label to be split.
+            news: list of Label
+                The new labels.
+        Returns: Tensor
+            The new tensor.
+        '''
+        pass
 
     def svd(self,labels1,new,labels2,nmax=None,tol=None,return_truncation_err=False,**karg):
         '''
@@ -345,7 +387,7 @@ class Tensor(ndarray):
 def contract(*tensors,**karg):
     '''
     Contract a collection of tensors.
-    Parametes:
+    Parameters:
         tensors: list of Tensor
             The tensors to be contracted.
         karg['sequence']: list of tuple, 'sequential','reversed'
