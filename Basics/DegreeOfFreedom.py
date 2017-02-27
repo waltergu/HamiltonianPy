@@ -247,7 +247,7 @@ class Index(tuple):
         try:
             return self[self.names.index(key)]
         except ValueError:
-            raise AttributeError()
+            raise AttributeError("'Index' has no attribute %s."%(key))
 
     @property
     def pid(self):

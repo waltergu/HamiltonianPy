@@ -30,9 +30,11 @@ def test_tree():
     for s in A.expand(mode=Tree.WIDTH,return_form=Tree.PAIR):
         print s
 
+    print "A.ancestor('L2-0',generation=2): %s"%A.ancestor('L2-0',generation=2)
     print "A.parent('L1-0'): %s"%A.parent('L1-0')
     print "A.children('L1-1'): %s"%A.children('L1-1')
     print "A.siblings('L1-1'): %s"%A.siblings('L1-1')
+    print "A.descendants('L0-0',generation=2): %s"%A.descendants('L0-0',generation=2)
 
     A.remove_subtree('L1-0')
     for s in A.expand(mode=Tree.WIDTH,return_form=Tree.PAIR):

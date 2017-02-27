@@ -125,6 +125,23 @@ class Tree(dict):
         self._parent[node]=parent
         self._children[parent].append(node)
 
+    def ancestor(self,node,generation=1):
+        '''
+        Return the ancestor of a node.
+        Parameters:
+            node: hashable object
+                The node whose ancestor is inquired.
+            generation: positive integer, optional
+                The generation of the ancestor.
+        Retruns: hashable object
+            The ancestor.
+        '''
+        assert generation>0
+        result=node
+        for i in xrange(generation):
+            result=self.parent(result)
+        return result
+
     def parent(self,node):
         '''
         Return the parent of a node.
@@ -146,6 +163,23 @@ class Tree(dict):
             The list of the children.
         '''
         return self._children[node]
+
+    def descendants(self,node,generation=1):
+        '''
+        Return a list of a node's descendants.
+        Parameters:
+            node: hashable object
+                The node whose descendants are inquired.
+            generation: posotive integer
+                The generation of the descendants.
+        Returns: list of hashable object
+            The descendants.
+        '''
+        assert generation>0
+        result=[node]
+        for i in xrange(generation):
+            result=[node for mediate in result[:] for node in self.children(mediate)]
+        return result
 
     def siblings(self,node):
         '''

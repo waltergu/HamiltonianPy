@@ -4,11 +4,13 @@ Tensor and tensor operations, including:
 2) functions: contract
 '''
 
-from numpy import ndarray,asarray,product,einsum
-from collections import namedtuple,Counter,OrderedDict
+import numpy as np
+import itertools as it
+import scipy.linalg as sl
+import HamiltonianPy.Misc as hm
+from collections import Counter
 from copy import copy,deepcopy
-from HamiltonianPy import QuantumNumberCollection
-from HamiltonianPy.Misc import truncated_svd
+from HamiltonianPy import QuantumNumbers
 
 __all__=['Label','Tensor','contract']
 
@@ -18,34 +20,33 @@ class Label(tuple):
     Attributes:
         names: ('identifier','_prime_')
             The names of the immutable part of the label.
-        qnc: integer or QuantumNumberCollection
+        qns: integer or QuantumNumbers
             When integer, it is the dimension of the label;
-            When QuantumNumberCollection, it is the quantum number collection of the label.
+            When QuantumNumbers, it is the collection of the quantum numbers of the label.
     '''
-    repr_form=1
+    names=('identifier','_prime_')
 
-    def __new__(cls,identifier,prime=False,qnc=None):
+    def __new__(cls,identifier,prime=False,qns=None):
         '''
         Parameters:
-            identifier: any hashable object
+            identifier: Label
                 The index of the label
             prime: logical, optional
                 When True, the label is in the prime form;
                 otherwise not.
-            qnc: integer or QuantumNumberCollection, optional
+            qns: integer or QuantumNumbers, optional
                 When integer, it is the dimension of the label;
-                When QuantumNumberCollection, it is the quantum number collection of the label.
+                When QuantumNumbers, it is the collection of the quantum numbers of the label.
         '''
         self=tuple.__new__(cls,(identifier,prime))
-        self.names=('identifier','_prime_')
-        self.qnc=qnc
+        self.qns=qns
         return self
 
     def __getnewargs__(self):
         '''
         Return the arguments for Label.__new__, required by copy and pickle.
         '''
-        return tuple(self)+(self.qnc,)
+        return tuple(self)+(self.qns,)
 
     def __getstate__(self):
         '''
@@ -58,29 +59,27 @@ class Label(tuple):
         Overloaded operator(.).
         '''
         try:
-            return self[self.names.index(key)]
+            return self[type(self).names.index(key)]
         except ValueError:
-            raise AttributeError()
+            raise AttributeError("'Label' object has no attribute %s."%(key))
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        if self[-1]:
+            return "Label(%s)%s<%s>"%(self[0],"'",self.qns)
+        else:
+            return "Label(%s)<%s>"%(self[0],self.qns)
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        if self.repr_form==0:
-            if self[-1]:
-                return "Label%s%s"%((tuple.__repr__(self[0:-1])),"'")
-            else:
-                return "Label%s"%(tuple.__repr__(self[0:-1]))
-        elif self.repr_form==1:
-            if self[-1]:
-                return "Label%s%s,with qnc=%s"%((tuple.__repr__(self[0:-1])),"'",self.qnc)
-            else:
-                return "Label%s,with qnc=%s"%(tuple.__repr__(self[0:-1]),self.qnc)
+        if self[-1]:
+            return "Label(%s)%s<%s>"%(self[0],"'",repr(self.qns))
         else:
-            if self[-1]:
-                return "Label%s%s,with qnc(id=%s)=%s"%((tuple.__repr__(self[0:-1])),"'",id(self.qnc),self.qnc)
-            else:
-                return "Label%s,with qnc(id=%s)=%s"%(tuple.__repr__(self[0:-1]),id(self.qnc),self.qnc)
+            return "Label(%s)<%s>"%(self[0],repr(self.qns))
 
     def replace(self,**karg):
         '''
@@ -94,29 +93,12 @@ class Label(tuple):
         Returns: Label
             The new label.
         '''
-        result=tuple.__new__(self.__class__,map(karg.pop,self.names,self))
+        result=tuple.__new__(self.__class__,map(karg.pop,type(self).names,self))
         for key,value in self.__dict__.iteritems():
             setattr(result,key,karg.pop(key,value))
         if karg:
             raise ValueError("Label replace error: %s are not the attributes of the label."%karg.keys())
         return result
-
-    @classmethod
-    def repr_qnc_on(cls,id=False):
-        '''
-        Turn on the qnc part in the repr, and optionally, the id of the qnc.
-        '''
-        if id:
-            cls.repr_form=2
-        else:
-            cls.repr_form=1
-
-    @classmethod
-    def repr_qnc_off(cls):
-        '''
-        Turn off the qnc part in the repr.
-        '''
-        cls.repr_form=0
 
     @property
     def prime(self):
@@ -131,23 +113,23 @@ class Label(tuple):
         return result
 
     @property
-    def n(self):
+    def dim(self):
         '''
         The length of the dimension this label labels.
         '''
-        if isinstance(self.qnc,QuantumNumberCollection):
-            return self.qnc.n
+        if isinstance(self.qns,QuantumNumbers):
+            return len(self.qns)
         else:
-            return self.qnc
+            return self.qns
 
     @property
-    def qn_on(self):
+    def qnon(self):
         '''
-        True for qnc is an instance of QuantumNumberCollection otherwise False.
+        True for qns is an instance of QuantumNumbers otherwise False.
         '''
-        return isinstance(self.qnc,QuantumNumberCollection)
+        return isinstance(self.qns,QuantumNumbers)
 
-class Tensor(ndarray):
+class Tensor(np.ndarray):
     '''
     Tensor class with labeled axes.
     Attributes:
@@ -164,14 +146,18 @@ class Tensor(ndarray):
             labels: list of Label
                 The labels of the Tensor.
         '''
-        data=asarray(data)
+        qnon,data=None,np.asarray(data)
         assert len(labels)==len(data.shape)
         for label,dim in zip(labels,data.shape):
             assert isinstance(label,Label)
-            #if label.n is None:
-            #    label.qnc=dim
-            #else:
-            #    assert label.n==dim
+            if qnon is None:
+                qnon=label.qnon
+            else:
+                assert qnon==label.qnon
+            if label.dim is None:
+                label.qns=dim
+            else:
+                assert label.dim==dim
         result=data.view(cls)
         result.labels=labels
         return result
@@ -190,7 +176,7 @@ class Tensor(ndarray):
         numpy.ndarray uses __reduce__ to pickle. Therefore this mehtod needs overriding for subclasses.
         '''
         temp=super(Tensor,self).__reduce__()
-        return (temp[0],temp[1],temp[2]+(self.labels,))
+        return temp[0],temp[1],temp[2]+(self.labels,)
 
     def __setstate__(self,state):
         '''
@@ -210,9 +196,16 @@ class Tensor(ndarray):
         Convert an instance to string.
         '''
         if self.ndim>1:
-            return "%s(labels=%s,data=\n%s)"%(self.__class__.__name__,self.labels,ndarray.__str__(self))
+            return "%s(\nlabels=%s,\ndata=\n%s\n)"%(self.__class__.__name__,self.labels,np.asarray(self))
         else:
-            return "%s(labels=%s, data=%s)"%(self.__class__.__name__,self.labels,ndarray.__str__(self))
+            return "%s(\nlabels=%s,\ndata=%s\n)"%(self.__class__.__name__,self.labels,np.asarray(self))
+
+    @property
+    def qnon(self):
+        '''
+        True for the labels using good quantum numbers otherwise False.
+        '''
+        return next(iter(self.labels)).qnon
 
     def label(self,axis):
         '''
@@ -220,7 +213,7 @@ class Tensor(ndarray):
         Parameters:
             axis: integer
                 The axis whose corresponding label is inquired.
-        Returns: any hashable object
+        Returns: Label
             The corresponding label.
         '''
         return self.labels[axis]
@@ -247,142 +240,428 @@ class Tensor(ndarray):
         '''
         if olds is None:
             assert len(news)==self.ndim
-            #assert all(new.n==dim for new,dim in zip(news,self.shape))
+            assert all(new.dim==dim and new.qnon==self.qnon for new,dim in zip(news,self.shape))
             self.labels=news
         else:
             assert len(news)==len(olds)
-            #assert all(new.n==old.n for new,old in zip(news,olds))
+            assert all(new.dim==old.dim and new.qnon==self.qnon for new,old in zip(news,olds))
             for old,new in zip(olds,news):
                 self.labels[self.axis(old)]=new
 
-    def transpose(self,labels=None,axes=None):
+    def transpose(self,axes=None):
         '''
         Change the order of the tensor's axes and return the new tensor.
         Parameters:
-            labels: list of Label, optional
-                The permutation of the original labels.
-            axes: list of integers, optional
-                The permutation of the original axes.
+            axes: list of Label/integer, optional
+                The permutation of the original labels/axes.
         Returns: Tensor
             The new tensor with the reordered axes.
-        NOTE: labels and axes SHOULD NOT be assigned at the same time. BUT if this does happen, axes will be omitted.
         '''
-        if labels is not None:
-            assert len(labels)==len(self.labels)
-            return Tensor(self.view(ndarray).transpose([self.axis(label) for label in labels]),labels=labels)
-        elif axes is not None:
-            assert len(axes)==len(self.labels)
-            return Tensor(self.view(ndarray).transpose(axes),labels=[self.label(axis) for axis in axes])
-        else:
+        if axes is None:
             return self.transpose(axes=range(self.ndim-1,-1,-1))
+        else:
+            axes=[self.axis(axis) if isinstance(axis,Label) else axis for axis in axes]
+            labels=[self.labels[axis] for axis in axes]
+            return Tensor(np.asarray(self).transpose(axes),labels=labels)
 
-    def take(self,indices,label=None,axis=None):
+    def take(self,indices,axis):
         '''
         Take elements from a tensor along an axis.
         Parameters:
             indices: integer / list of integers
                 The indices of the values to extract.
-            label: Label, optional
-                The label of the axis along which to take values.
-            axis: integer, optional
-                The axis along which to take values.
+            axis: Label/integer
+                The label-of-the-axis/axis along which to take values.
         Returns: Tensor
             The extracted parts of the tensor.
-        NOTE: label and axis SHOULD NOT be assigned at the same time. BUT if this does happen, axis will be omitted.
         '''
-        if label is not None:
-            if isinstance(indices,int) or isinstance(indices,long):
-                labels=[deepcopy(lb) for lb in self.labels if lb!=label]
-            else:
-                labels=deepcopy(self.labels)
-            return Tensor(self.view(ndarray).take(indices,axis=self.axis(label)),labels=labels)
-        elif axis is not None:
-            if isinstance(indices,int) or isinstance(indices,long):
-                labels=[deepcopy(label) for i,label in enumerate(self.labels) if i!=axis]
-            else:
-                labels=deepcopy(self.labels)
-            return Tensor(self.view(ndarray).take(indices,axis=axis),labels=labels)
+        label=axis if isinstance(axis,Label) else self.labels[axis]
+        if type(indices) in (int,long):
+            labels=[deepcopy(lb) for lb in self.labels if lb!=label]
         else:
-            raise ValueError("Tensor take error: label and axis cannot be None simultaneously.")
+            labels=deepcopy(self.labels)
+        return Tensor(np.asarray(self).take(indices,axis=self.axis(label)),labels=labels)
 
-    def merge(self,olds,new):
+    def copy(self,copy_data=False):
         '''
-        Merge some labels of the tensor into a new one.
+        Make a copy of the tensor.
+        Parameters:
+            copy_data: logical, optional
+                True for copy the data of tensor, False for not.
+        Returns: Tensor
+            The copy of the tensor.
+        '''
+        if copy_data:
+            return Tensor(copy(np.asarray(self)),labels=copy(self.labels))
+        else:
+            return Tensor(self,labels=copy(self.labels))
+
+    def reorder(self,*args):
+        '''
+        Reorder an dimension of the tensor.
+        Usage:
+            tensor.reorder((axis,permutation,<qns>),(axis,permutation,<qns>),...)
+        For each group of axis, permutation and qns, reorder the dimension axis with permutation and optionally set a new qns.
+        Parameters:
+            axis: integer/Label
+                The axis of the dimension to be reordered.
+            permutation: 1d ndarray of integers
+                The permutation array.
+            qns: QuantumNumbers, optional
+                The new qantum number collection of the dimension if it uses good quantum numbers.
+        Returns: Tensor
+            The reordered tensor.
+        '''
+        result=self.copy(copy_data=False)
+        for arg in args:
+            assert len(arg) in (2,3)
+            axis,permutation=arg[0],arg[1]
+            if permutation is not None:
+                axis=self.axis(axis) if isinstance(axis,Label) else axis
+                if len(arg)==3:
+                    result.labels[axis]=result.labels[axis].replace(qns=arg[2])
+                else:
+                    result.labels[axis]=result.labels[axis].replace(qns=result.labels[axis].qns.reorder(permutation) if self.qnon else len(permutation))
+                result=hm.reorder(result,axes=[axis],permutation=permutation)
+        return result
+
+    @staticmethod
+    def directsum(tensors,labels,axes=[]):
+        '''
+        The directsum of a couple of tensors.
+        Parameters:
+            tensors: list of Tensor
+                The tensors to be directsummed.
+            labels: list of Label
+                The labels of the directsum.
+            axes: list of integer, optional
+                The axes along which the directsum is block diagonal.
+        '''
+        for i,tensor in enumerate(tensors):
+            if i==0:
+                assert tensor.ndim>len(axes)
+                ndim,qnon,shps=tensor.ndim,tensor.qnon,[tensor.shape[axis] for axis in axes]
+                alters,shape,dtypes=set(xrange(ndim))-set(axes),list(tensor.shape),[tensor.dtype]
+            else:
+                assert tensor.ndim==ndim and tensor.qnon==qnon and [tensor.shape[axis] for axis in axes]==shps
+                for alter in alters: shape[alter]+=tensor.shape[alter]
+                dtypes.append(tensor.dtype)
+        data=np.zeros(tuple(shape),dtype=np.find_common_type([],dtypes))
+        for i,tensor in enumerate(tensors):
+            if i==0:
+                slices=[slice(0,tensor.shape[axis]) if axis in alters else slice(None,None,None) for axis in xrange(ndim)]
+            else:
+                for alter in alters:
+                    slices[alter]=slice(slices[alter].start+tensor.shape[alter],slices[alter].stop+tensor.shape[alter])
+            data[tuple(slices)]=tensor[...]
+        if qnon:
+            for alter in alters:
+                labels[alter].qns=QuantumNumbers.union([tensor.labels[alter].qns for tensor in tensors])
+            for axis in axes:
+                labels[axis].qns=next(iter(tensor)).labels[axis].qns
+        return Tensor(data,labels=labels)
+
+    def merge(self,*args):
+        '''
+        Merge some continous and accending labels of the tensor into a new one.
+        Usage:
+            tensor.merge((olds,new,<permutation>),(olds,new,<permutation>),...)
+        For each group of olds, new and permutation, merge the olds into the new with an optional permutation.
         Parameters:
             olds: list of Label
                 The old labels to be merged.
             new: Label
                 The new label.
+            permutation: 1d ndarray of integers, optional
+                The permutation of the quantum number collection of the new label.
         Returns: Tensor
             The new tensor.
         '''
-        axes,labels,shape,yet=[],[],(),True
-        for axis,label in enumerate(self.labels):
-            if label in olds:
-                if yet:
-                    axes.extend([self.axis(old) for old in olds])
-                    labels.append(new)
-                    shape+=(-1,)
-                    yet=False
-            else:
+        masks,indptr=set(),range(self.ndim+1)
+        for arg in args:
+            assert len(arg) in (2,3)
+            axes=np.array([self.axis(old) for old in arg[0]])
+            if len(axes)!=axes.max()-axes.min()+1 or not (axes[1:]>axes[:-1]).all():
+                raise ValueError('Tensor merge error: the axes to be merged should be continous and accending, please call transpose first.')
+            masks.add(axes[0])
+            for axis in axes[1:]:
+                indptr.remove(axis)
+        count,shape,labels,axes,permutations=0,(),[],[],[]
+        for axis,(start,stop) in enumerate(zip(indptr[:-1],indptr[1:])):
+            if start in masks:
+                shape+=(np.product([self.shape[i] for i in xrange(start,stop)]),)
+                labels.append(args[count][1])
                 axes.append(axis)
-                labels.append(label)
-                shape+=(self.shape[axis])
-        result=self.transpose(axes=axes)
-        if olds[0].qn_on:
-            
-        else:
-            new.qnc=np.product([old.qnc for old in olds])
-            result=Tensor(asarray(result).reshape(shape),labels=labels)
+                permutations.append(args[count][2] if len(args[count])==3 else None)
+                count+=1
+            else:
+                assert start+1==stop
+                shape+=(self.shape[start],)
+                labels.append(self.labels[start])
+        data=np.asarray(self).reshape(shape)
+        for axis,permutation in zip(axes,permutations):
+            data=hm.reorder(data,axes=[axis],permutation=permutation)
+        return Tensor(data,labels=labels)
 
-    def split(self,old,news):
+    def split(self,*args):
         '''
         Split a label into small ones.
+        Usage:
+            tensor.split((old,news,<permutation>),(old,news,<permutation>),...)
+        For each group of old, news and permutation, split the old into the news with an optional permutation.
         Parameters:
             old: Label
                 The label to be split.
             news: list of Label
                 The new labels.
+            permutation: 1d ndarray of integers, optional
+                The permutation of the quantum number collection of the old label.
         Returns: Tensor
             The new tensor.
         '''
-        pass
+        table={self.axis(arg[0]):i for i,arg in enumerate(args)}
+        shape,labels,axes,permutations=(),[],[],[]
+        for axis,dim,label in zip(xrange(self.ndim),self.shape,self.labels):
+            if axis in table:
+                arg=args[table[axis]]
+                assert len(arg) in (2,3)
+                shape+=tuple(new.dim for new in arg[1])
+                labels.extend(arg[1])
+                axes.append(axis)
+                permutations.append(arg[2] if len(arg)==3 else None)
+            else:
+                shape+=(dim,)
+                labels.append(label)
+        data=np.asarray(self)
+        for axis,permutation in zip(axes,permutations):
+            data=hm.reorder(data,axes=[axis],permutation=permutation)
+        return Tensor(data.reshape(shape),labels=labels)
 
-    def svd(self,labels1,new,labels2,nmax=None,tol=None,return_truncation_err=False,**karg):
+    def qng(self,axes,qnses,signs=None,tol=None):
+        '''
+        Generate the quantum numbers of a tensor.
+        Parameters:
+            axes: list of Label/integer
+                The axes whose quantum numer collections are known.
+            qnses: list of QuantumNumbers
+                The quantum number collections of the known axes.
+            signs: string, optional
+                The signs of the quantum numbers to get the unkown one.
+            tol: float64, optional
+                The tolerance of the non-zeros.
+        '''
+        axes=[self.axis(axis) if isinstance(axis,Label) else axis for axis in axes]
+        signs='+'*len(axes) if signs is None else signs
+        assert len(axes)==len(qnses) and len(axes)==len(signs) and len(axes)==self.ndim-1
+        for axis,qns in zip(axes,qnses):
+            self.labels[axis].qns=qns
+        unkownaxis=next(iter(set(xrange(self.ndim))-set(axes)))
+        expansions=[qns.expansion() for qns in qnses]
+        contents=[None]*self.shape[unkownaxis]
+        for index in sorted(np.argwhere(np.abs(np.asarray(self))>hm.TOL if tol is None else tol),key=lambda index: index[unkownaxis]):
+            qn=sum([expansions[i][index[axis]] if sign=='+' else -expansions[i][index[axis]] for i,(axis,sign) in enumerate(zip(axes,signs))])
+            if contents[index[unkownaxis]] is None:
+                contents[index[unkownaxis]]=qn
+            else:
+                assert (contents[index[unkownaxis]]==qn).all()
+        self.labels[unkownaxis].qns=QuantumNumbers('G',(next(iter(qnses)).type,contents,np.arange(len(contents)+1)),protocal=QuantumNumbers.INDPTR)
+
+    @staticmethod
+    def random(shape,labels,signs=None,dtype=np.float64):
+        '''
+        Generate a random tensor with the shape and labels specified, especially, with the block structure satisfied if the labels use good quantum numbers.
+        Parameters:
+            shape: tuple of integer
+                The shape of the random tensor.
+            labels: list of Label
+                The labels of the random tensor.
+            signs: string, optional
+                The signs of the quantum number collections of the labels if they use good quantum number.
+            dtype: np.float32, np.float64, np.complex64, np.complex128, optional
+                The data type of the random tensor.
+        '''
+        np.random.seed()
+        assert dtype in (np.float32,np.float64,np.complex64,np.complex128)
+        result=Tensor(np.zeros(shape,dtype=dtype),labels=labels)
+        if result.qnon:
+            assert len(signs)==result.ndim
+            paxes,plabels,maxes,mlabels=[],[],[],[]
+            for i,(sign,label) in enumerate(zip(signs,labels)):
+                if sign=='+':
+                    paxes.append(i)
+                    plabels.append(label)
+                else:
+                    maxes.append(i)
+                    mlabels.append(label)
+            pqns,ppermutation=QuantumNumbers.kron([label.qns for label in plabels]).sort(history=True)
+            mqns,mpermutation=QuantumNumbers.kron([label.qns for label in mlabels]).sort(history=True)
+            plabel,mlabel=Label('__TENSOR_RANDOM_+__',qns=pqns),Label('__TENSOR_RANDOM_-__',qns=mqns)
+            result=result.transpose(axes=paxes+maxes).merge((plabels,plabel,ppermutation),(mlabels,mlabel,mpermutation))
+            pod,mod=pqns.to_ordereddict(),mqns.to_ordereddict()
+            for qn in it.ifilter(pod.has_key,mod):
+                bshape=(pod[qn].stop-pod[qn].start,mod[qn].stop-mod[qn].start)
+                if dtype in (np.float32,np.float64):
+                    result[pod[qn],mod[qn]]=np.random.random(bshape)
+                else:
+                    result[pod[qn],mod[qn]]=np.random.random(bshape)+1j*np.random.random(bshape)
+            result=result.split((plabel,plabels,np.argsort(ppermutation)),(mlabel,mlabels,np.argsort(mpermutation)))
+        else:
+            if dtype in (np.float32,np.float64):
+                result[...]=np.random.random(shape)
+            else:
+                result[...]=np.random.random(shape)+1j*np.random.random(shape)
+        return result
+
+    def svd(self,row,new,col,row_signs=None,col_signs=None,nmax=None,tol=None,return_truncation_err=False,**karg):
         '''
         Perform the svd.
         Parameters:
-            labels1,labels2: list of any hashable object
-                The axis labels of the two groups.
-            new: any hashable object
+            row/col: list of Label
+                The labels to be merged as the row/column label during the svd.
+                The positive direction is IN for row and OUT for col if they use good quantum numbers.
+            new: Label
                 The new axis label after the svd.
+            row_signs/col_signs: string, optional
+                The signs for the quantum number collections of the labels to be merged as the row/column if they use good quantum numbers.
             nmax,tol,return_truncation_err:
-                Please refer to HamiltonianPy.Math.linalg.truncated_svd for details.
+                Please refer to HamiltonianPy.Misc.Linalg.misc.truncated_svd for details.
         Returns:
             U,S,V: Tensor
                 The result tensor.
             err: float64, optional
                 The truncation error.
         '''
-        def axes_and_shape(labels):
-            axes=[self.axis(label) for label in labels]
-            shape=tuple(asarray(self.shape)[axes])
-            return axes,shape
-        axes1,shape1=axes_and_shape(labels1)
-        axes2,shape2=axes_and_shape(labels2)
-        if set(xrange(self.ndim))-set(axes1+axes2):
-            raise ValueError('Tensor svd error: all axis should be divided into two group to perform the svd.')
-        m=asarray(self).transpose(axes1+axes2).reshape((product(shape1),)+(product(shape2),))
-        temp=truncated_svd(m,full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=return_truncation_err,**karg)
-        u,s,v=temp[0],temp[1],temp[2]
-        U=Tensor(u.reshape(shape1+(-1,)),labels=labels1+[new])
-        S=Tensor(s,labels=[new])
-        V=Tensor(v.reshape((-1,)+shape2),labels=[new]+labels2)
-        if return_truncation_err:
-            err=temp[3]
-            return U,S,V,err
+        assert len(row)+len(col)==self.ndim
+        if self.qnon:
+            row_qns,row_permutation=QuantumNumbers.kron([lb.qns for lb in row],row_signs).sort(history=True)
+            col_qns,col_permutation=QuantumNumbers.kron([lb.qns for lb in col],col_signs).sort(history=True)
+            row_label=Label('__TENSOR_SVD_ROW__',qns=row_qns)
+            col_label=Label('__TENSOR_SVD_COL__',qns=col_qns)
+            m=np.asarray(self.merge((row,row_label,row_permutation),(col,col_label,col_permutation)))
+            row_od,col_od=row_qns.to_ordereddict(),col_qns.to_ordereddict()
+            us,ss,vs,qns=[],[],[],[]
+            for qn in it.ifilter(row_od.has_key,col_od):
+                u,s,v=sl.svd(m[row_od[qn],col_od[qn]],full_matrices=False,lapack_driver='gesvd')
+                us.append(u)
+                ss.append(s)
+                vs.append(v)
+                qns.append(qn)
+            temp=np.sort(np.concatenate([-s for s in ss]))
+            nmax=len(temp) if nmax is None else min(nmax,len(temp))
+            tol=temp[nmax-1] if tol is None else min(-tol,temp[nmax-1])
+            Us,Ss,Vs,contents=[],[],[],([],[])
+            for u,s,v,qn in zip(us,ss,vs,qns):
+                cut=np.searchsorted(-s,tol,side='right')
+                if cut>0:
+                    Us.append(u[:,0:cut])
+                    Ss.append(s[0:cut])
+                    Vs.append(v[0:cut,:])
+                    contents[0].append(qn)
+                    contents[1].append(cut)
+            S=np.concatenate(Ss)
+            new=new.replace(qns=QuantumNumbers('C',contents,protocal=QuantumNumbers.COUNTS))
+            od=new.qns.to_ordereddict()
+            U=np.zeros((len(row_qns),len(new.qns)),dtype=self.dtype)
+            V=np.zeros((len(new.qns),len(col_qns)),dtype=self.dtype)
+            for u,v,qn in zip(Us,Vs,od):
+                U[row_od[qn],od[qn]]=u
+                V[od[qn],col_od[qn]]=v
+            U=Tensor(U,labels=[row_label,new]).split((row_label,row,np.argsort(row_permutation)))
+            S=Tensor(S,labels=[new])
+            V=Tensor(V,labels=[new,col_label]).split((col_label,col,np.argsort(col_permutation)))
+            if return_truncation_err:
+                err=(temp[nmax:]**2).sum()
+                return U,S,V,err
+            else:
+                return U,S,V
         else:
-            return U,S,V
+            row_label=Label('__TENSOR_SVD_ROW__',qns=np.product([label.dim for label in row]))
+            col_label=Label('__TENSOR_SVD_COL__',qns=np.product([label.dim for label in col]))
+            m=np.asarray(self.merge((row,row_label),(col,col_label)))
+            temp=hm.truncated_svd(m,full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=return_truncation_err,**karg)
+            u,s,v=temp[0],temp[1],temp[2]
+            new=new.replace(qns=len(s))
+            U=Tensor(u,labels=[row_label,new]).split((row_label,row))
+            S=Tensor(s,labels=[new])
+            V=Tensor(v,labels=[new,col_label]).split((col_label,col))
+            if return_truncation_err:
+                err=temp[3]
+                return U,S,V,err
+            else:
+                return U,S,V
+
+    def expanded_svd(self,L,S,R,E,I,ls=None,rs=None,es=None,cut=0,nmax=None,tol=None):
+        '''
+        Expand a label of a tensor and perform a sequential svd.
+        Parameters:
+            L/R: list of Label
+                The labels to be merged as the left/right label during the expanded svd.
+                The positive direction is IN for L and OUT for R if they use good quantum numbers.
+            S: Label
+                The label to be expanded.
+                The positive direction is IN for S if it uses good quantum numbers.
+            E: list of Label
+                The expansion of the merge of S labels.
+                The positive direction is IN for E if they use good quantum numbers.
+            I: list of Label
+                The labels of the newly generated internal legs during the expanded svd.
+            ls/rs/es: string, optional
+                The signs of the quantum number collections of the L/R/E labels they use good quantum numbers.
+            cut: integer, optional
+                The labels in E whose sequences are less than cut will be tied with the u matrices of the svds from the left;
+                The labels in E whose sequences are equal to or greater than cut will be tied with the v matrices of the svds from the right.
+            namx: integer, optional
+                The maximum number of singular values to be kept.
+            tol: float64, optional
+                The tolerance of the singular values.
+        Returns: list of Tensor
+            The results of the expanded svd.
+        '''
+        assert len(L)+len(R)==self.ndim-1 and cut>=0 and cut<=len(E)
+        es='+'*len(E) if es is None else es
+        llabel=Label('__TENSOR_EXPANDED_SVD_L__',qns=QuantumNumbers.kron([lb.qns for lb in L],signs=ls) if self.qnon else None)
+        rlabel=Label('__TENSOR_EXPANDED_SVD_R__',qns=QuantumNumbers.kron([lb.qns for lb in R],signs=rs) if self.qnon else None)
+        data=self.merge((L,llabel),(R,rlabel)).split((S,E))
+        ms=[]
+        if cut==len(E):
+            assert len(E)==len(I)
+            for i in xrange(cut):
+                if i>0: data=contract(s,v,reserve=s.labels)
+                row_signs,col_signs='+'+es[i],''.join(('-' if sign=='+' else '+') for sign in es[i+1:])+'+'
+                u,s,v=data.svd(row=data.labels[:2],new=I[i],col=data.labels[2:],row_signs=row_signs,col_signs=col_signs,nmax=nmax,tol=tol)
+                ms.append(u)
+            ms[+0]=ms[+0].split((llabel,L))
+            v=v.split((rlabel,R))
+            return ms,s,v
+        elif cut==0:
+            assert len(E)==len(I)
+            for i in xrange(len(E)-1,-1,-1):
+                if i<len(E)-1: data=contract(u,s,reserve=s.labels)
+                row_signs,col_signs='+'+es[cut:i],('-' if es[i]=='+' else '+')+'+'
+                u,s,v=data.svd(row=data.labels[:-2],new=I[i],col=data.labels[-2:],row_signs=row_signs,col_signs=col_signs,nmax=nmax,tol=tol)
+                ms.insert(0,v)
+            u=u.split((llabel,L))
+            ms[-1]=ms[-1].split((rlabel,R))
+            return u,s,ms
+        else:
+            assert len(E)==len(I)+1
+            for i in xrange(cut):
+                if i>0: data=contract(s,v,reserve=s.labels)
+                row_signs,col_signs='+'+es[i],''.join(('-' if sign=='+' else '+') for sign in es[i+1:])+'+'
+                u,s,v=data.svd(row=data.labels[:2],new=I[i],col=data.labels[2:],row_signs=row_signs,col_signs=col_signs,nmax=nmax,tol=tol)
+                ms.append(u)
+            Lambda,data=s,v
+            for i in xrange(len(E)-1,cut-1,-1):
+                if i<len(E)-1: data=contract(u,s,reserve=s.labels)
+                if i>cut:
+                    row_signs,col_signs='+'+es[cut:i],('-' if es[i]=='+' else '+')+'+'
+                    u,s,v=data.svd(row=data.labels[:-2],new=I[i-1],col=data.labels[-2:],row_signs=row_signs,col_signs=col_signs,nmax=nmax,tol=tol)
+                else:
+                    v=data
+                ms.insert(cut,v)
+            ms[+0]=ms[+0].split((llabel,L))
+            ms[-1]=ms[-1].split((rlabel,R))
+            return ms,Lambda
 
 def contract(*tensors,**karg):
     '''
@@ -392,7 +671,7 @@ def contract(*tensors,**karg):
             The tensors to be contracted.
         karg['sequence']: list of tuple, 'sequential','reversed'
             The contraction sequence of the tensors.
-        karg['reserve']: list of hashable objects
+        karg['reserve']: list of Label
             The labels that are repeated but not summed over.
     Returns: Tensor
         The contracted tensor.
@@ -430,4 +709,4 @@ def _contract_(*tensors,**karg):
     subscripts=[''.join(chr(table[label]+97) for label in labels) for labels in lists]
     contracted_labels=[label for label in alls if (counts[label]==1 or reserve.pop(label,False))]
     contracted_subscript=''.join(chr(table[label]+97) for label in contracted_labels)
-    return Tensor(einsum('%s->%s'%(','.join(subscripts),contracted_subscript),*tensors),labels=contracted_labels)
+    return Tensor(np.einsum('%s->%s'%(','.join(subscripts),contracted_subscript),*tensors),labels=contracted_labels)

@@ -4,75 +4,70 @@ MPS test.
 
 __all__=['test_mps']
 
-from numpy import *
+import numpy as np
 from HamiltonianPy import *
-from HamiltonianPy.Misc import TOL
-from HamiltonianPy.TensorNetwork import Label,Tensor,MPS
+from numpy.linalg import norm
+from HamiltonianPy.TensorNetwork import Label,Tensor,MPS,DegFreTree
 from copy import copy,deepcopy
 
 def test_mps():
     print 'test_mps'
-    test_mps_basic()
-    test_mps_qnc()
+    test_mps_ordinary()
+    test_mps_algebra()
+    test_mps_relayer()
 
-def test_mps_basic():
-    'test_mps_basic'
-    N=3
-    ms,labels=[],[]
-    for i in xrange(N):
-        L=Label(identifier=i)
-        S=Label(identifier='S%s'%i)
-        R=Label(identifier=(i+1)%N)
-        labels.append((L,S,R))
-        if i==0:
-            ms.append(array([[[1,0],[0,1]]]))
-        elif i==N-1:
-            ms.append(array([[[0],[1]],[[1],[0]]]))
-        else:
-            ms.append(array([[[1,0],[0,1]],[[1,0],[0,1]]]))
-    a=MPS(ms=ms,labels=labels)
-    #print 'a:\n%s'%a
-    print 'a.state: %s'%a.state
-    print 'a.norm: %s'%a.norm
-    print '-------------------'
-
-    for i in xrange(a.nsite+1):
-        b=deepcopy(a)
-        b.canonicalization(cut=i)
-        #print 'b[%s]:\n%s'%(i,b)
-        print 'b[%s].state: %s'%(i,b.state)
-        print 'b[%s].norm: %s'%(i,b.norm)
-        print 'b[%s].is_canonical: %s'%(i,b.is_canonical())
-        b._reset_(merge='L',reset=i)
-        print 'b[%s].state: %s'%(i,b.state)
-        print 'b[%s].norm: %s'%(i,b.norm)
-        print '-------------------'
-
-    for i in xrange(a.nsite+1):
-        c=MPS.from_state(a.state,shapes=[2]*N,labels=labels,cut=i)
-        #print 'c[%s]:\n%s'%(i,c)
-        print 'c[%s].state: %s'%(i,c.state)
-        print 'c[%s].norm: %s'%(i,c.norm)
-        print 'c[%s].is_canonical: %s'%(i,c.is_canonical())
-        print '-------------------'
+def test_mps_ordinary():
+    'test_mps_ordinary'
+    N=4
+    np.random.seed()
+    state,target=np.zeros((2,)*N),SQN(0.0)
+    for index in QuantumNumbers.decomposition([SQNS(0.5)]*N,signs='+'*N,target=target):
+        state[index]=np.random.random()
+    state=state.reshape((-1,))
+    sites=[Label('S%s'%i,qns=SQNS(0.5)) for i in xrange(N)]
+    bonds=[Label('B%s'%i,qns=SQNS(0.0) if i==0 else (QuantumNumbers.mono(target) if i==N else None)) for i in xrange(N+1)]
+    for cut in xrange(N+1):
+        mps=MPS.from_state(state,sites,bonds,cut=cut)
+        print 'mps.cut,mps.is_canonical,diff: %s, %s, %s.'%(mps.cut,mps.is_canonical(),norm(state-mps.state))
+    for cut in xrange(N+1):
+        mps.canonicalization(cut)
+        print 'mps.cut, mps.is_canonical: %s, %s.'%(mps.cut,mps.is_canonical())
     print
 
-def test_mps_qnc():
-    print 'test_mps_qnc'
-    N=4
-    labels=[]
-    for i in xrange(N):
-        L=Label(identifier=i)
-        S=Label(identifier='S%s'%i)
-        R=Label(identifier=(i+1)%N)
-        labels.append((L,S,R))
-    shapes=(2,)*N
-    state=zeros(shapes)
-    state[0,1,0,1]=1.0/sqrt(2.0)
-    state[1,0,1,0]=1.0/sqrt(2.0)
-    mps=MPS.from_state(state.reshape(-1),labels=labels,shapes=shapes,cut=0,tol=TOL)
-    mps.qnc_generation(inbond=QuantumNumberCollection([(SpinQN(Sz=0),1)]),sites=[SpinQNC(0.5)]*N)
-    Label.repr_qnc_on()
-    print mps
-    Label.repr_qnc_off()
+def test_mps_algebra():
+    print 'test_mps_algebra'
+    N=8
+    np.random.seed()
+    target=SQN(0.0)
+    sites=[Label('S%s'%i,qns=SQNS(0.5)) for i in xrange(N)]
+    bonds=[Label('B%s'%i,qns=SQNS(0.0) if i==0 else (QuantumNumbers.mono(target) if i==N else None)) for i in xrange(N+1)]
+    cut=np.random.randint(0,N+1)
+    print 'cut: %s'%cut
+    mps1=MPS.random(sites,bonds,cut=cut)
+    mps2=MPS.random(sites,bonds,cut=cut)
+    print 'Addition diff: %s.'%(norm((mps1+mps2).state-(mps1.state+mps2.state)))
+    print 'Subtraction diff: %s.'%(norm((mps1-mps2).state-(mps1.state-mps2.state)))
+    print 'Left multiplication diff: %s.'%(norm((mps1*2.0).state-mps1.state*2.0))
+    print 'Right multiplication diff: %s.'%(norm((mps1*2.0).state-mps1.state*2.0))
+    print 'Division diff: %s.'%(norm((mps1/2.0).state-mps1.state/2.0))
+    print 'overlap diff: %s.'%(MPS.overlap(mps1,mps2)-np.dot(mps1.state,mps2.state))
+    print
+
+def test_mps_relayer():
+    print 'test_mps_relayer'
+    Nsite,Nscope,S=2,2,1.0
+    priority,layers=['scope','site','S'],[('scope',),('site','S')]
+    config=IDFConfig(priority=priority)
+    for scope in xrange(Nscope):
+        for site in xrange(Nsite):
+            config[PID(scope=scope,site=site)]=Spin(S=S)
+    leaves=config.table(mask=[]).keys()
+    tree=DegFreTree(mode='QN',layers=layers,priority=priority,leaves=leaves,map=lambda index: SQNS(S))
+    sites=tree.labels(layer=layers[-1],mode='S')
+    bonds=tree.labels(layer=layers[-1],mode='B')
+    bonds[+0]=bonds[+0].replace(qns=QuantumNumbers.mono(SQN(0.0)))
+    bonds[-1]=bonds[-1].replace(qns=QuantumNumbers.mono(SQN(0.0)))
+    mps0=MPS.random(sites,bonds,cut=0)
+    mps1=mps0.relayer(tree,layers[0]).relayer(tree,layers[-1])
+    print 'relayer diff: %s'%norm(mps1.state-mps0.state)
     print

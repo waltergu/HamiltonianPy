@@ -1,16 +1,38 @@
 '''
 Miscellaneous constants, classes or functions, including:
 1) constants: TOL
-2) functions: dagger,truncated_svd,eigsh,block_diag
+2) functions: reorder,dagger,truncated_svd,eigsh,block_diag
 '''
 
-__all__=['TOL','dagger','truncated_svd','eigsh','block_diag']
+__all__=['TOL','reorder','dagger','truncated_svd','eigsh','block_diag']
 
 import numpy as np
 import scipy.sparse.linalg as pl
 import scipy.linalg as sl
 
 TOL=5*10**-12
+
+def reorder(array,axes=None,permutation=None):
+    '''
+    Reorder the axes of an array from the ordinary numpy.kron order to the correct quantum number collection order.
+    Parameters:
+        array: ndarray-like
+            The original array in the ordinary numpy.kron order.
+        axes: list of integer, optional
+            The axes of the array to be reordered.
+        permutation: 1d ndarray of integers, optional
+            The permutation array applied to the required axes.
+    Returns: ndarray-like
+        The axes-reordered array.
+    '''
+    result=array
+    if permutation is not None:
+        axes=xrange(array.ndim) if axes is None else axes
+        for axis in axes:
+            temp=[slice(None,None,None)]*array.ndim
+            temp[axis]=permutation
+            result=result[tuple(temp)]
+    return result
 
 def dagger(m):
     '''

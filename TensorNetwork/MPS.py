@@ -6,10 +6,9 @@ Matrix product state, including:
 __all__=['MPS','Vidal']
 
 import numpy as np
-import pickle as pk
-from HamiltonianPy import Status,QuantumNumberCollection
-from ..Misc import TOL,truncated_svd
-from linalg import bond_qnc_generation,mb_svd,expanded_svd
+from numpy.linalg import norm
+from HamiltonianPy import Status,QuantumNumbers
+from ..Misc import TOL
 from Tensor import *
 from copy import copy,deepcopy
 from collections import OrderedDict
@@ -31,35 +30,32 @@ class MPS(list):
     '''
     L,S,R=0,1,2
 
-    def __init__(self,mode='NB',ms=[],labels=None,Lambda=None,cut=None):
+    def __init__(self,mode='NB',ms=[],Lambda=None,cut=None,sites=None,bonds=None):
         '''
         Constructor.
         Parameters:
-            mode: 'NB' or 'QN'
+            mode: 'NB' or 'QN', optional
                 'NB' for not using good quantum number;
                 'QN' for using good quantum number.
-            ms: list of 3d Tensor / 3d ndarray
+            ms: list of 3d Tensor/ndarray, optional
                 The matrices.
-            labels: list of 3 tuples
-                The labels of the axis of the matrices, thus its length should be equal to that of ms.
-                For each label in labels, 
-                    label[0],label[1],label[2]: any hashable object
-                        The left link / site / right link label of the matrix.
-            Lambda: 1d ndarray / 1d Tensor, optional
-                The Lambda matrix (singular values) on the connecting link.
+            Lambda: 1d ndarray/Tensor, optional
+                The Lambda matrix (singular values) on the connecting bond.
             cut: integer, optional
-                The index of the connecting link.
+                The position of the connecting bond.
+            sites: list of Label, optional
+                The labels for the physical legs.
+            bonds: list of Label, optional
+                The labels for the virtual legs.
         '''
-        assert mode in ('QN','NB')
+        assert mode in ('QN','NB') and (Lambda is None)==(cut is None) and (sites is None)==(bonds is None)
         self.mode=mode
-        if (Lambda is None)!=(cut is None):
-            raise ValueError('MPS construction error: cut and Lambda should be both or neither be None.')
-        elif Lambda is None and cut is None:
+        if Lambda is None and cut is None:
             self.Lambda=None
             self.cut=None
-        elif cut<0 or cut>len(ms):
-            raise ValueError('MPS construction error: the cut(%s) is out of range [0,%s].'%(cut,len(ms)))
-        if labels is None:
+        else:
+            assert cut>=0 and cut<=len(ms)
+        if sites is None:
             for i,m in enumerate(ms):
                 assert isinstance(m,Tensor) and m.ndim==3
                 self.append(m)
@@ -68,98 +64,126 @@ class MPS(list):
                 self.Lambda=Lambda
                 self.cut=cut
         else:
-            assert len(ms)==len(labels)
-            for m,label in zip(ms,labels):
-                assert m.ndim==3
-                self.append(Tensor(m,labels=list(label)))
+            assert len(ms)==len(sites) and len(ms)==len(bonds)-1
+            for i in xrange(len(ms)):
+                assert ms[i].ndim==3
+                self.append(Tensor(m,labels=[bonds[i],sites[i],bonds[i+1]]))
             if Lambda is not None and cut is not None:
-                if cut==0:
-                    self.Lambda=Tensor(Lambda,labels=[deepcopy(labels[cut][0])])
-                else:
-                    self.Lambda=Tensor(Lambda,labels=[deepcopy(labels[cut-1][2])])
+                self.Lambda=Tensor(Lambda,labels=deepcopy([bonds[cut]]))
                 self.cut=cut
 
     @staticmethod
-    def from_state(state,shapes,labels,cut=0,nmax=None,tol=None):
+    def from_state(state,sites,bonds,cut=0,nmax=None,tol=None):
         '''
         Convert the normal representation of a state to the matrix product representation.
         Parameters:
             state: 1d ndarray
                 The normal representation of a state.
-            shapes: list of integers
-                The physical dimension of every site.
-            labels: list of 3-tuple
-                Please see MPS.__init__ for details.
+            sites: list of Label
+                The labels for the physical legs.
+            bonds: list of Label
+                The labels for the virtual legs.
             cut: integer, optional
                 The index of the connecting link.
-            namx,tol: optional
-                For details, please refer to HamiltonianPy.Math.linalg.truncated_svd.
+            namx: integer, optional
+                The maximum number of singular values to be kept.
+            tol: float64, optional
+                The tolerance of the singular values.
         Returns: MPS
             The corresponding mixed-canonical mps.
         '''
-        if len(state.shape)!=1:
-            raise ValueError("MPS.from_state error: the original state must be a pure state.")
-        ms,nd=[None]*len(shapes),1
-        for i in xrange(cut):
-            u,s,v,err=truncated_svd(state.reshape((nd*shapes[i],-1)),full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=True)
-            if err>TOL: print 'MPS.from_state truncation err: %s.'%err
-            ms[i]=u.reshape((nd,shapes[i],-1))
-            if i==cut-1:
-                if cut==len(shapes):
-                    Lambda=v.transpose().dot(s)
-                else:
-                    Lambda,state=s,v
-            else:
-                state=np.einsum('i,ij->ij',s,v)
-            nd=len(s)
-        nd=1
-        for i in xrange(len(shapes)-1,cut-1,-1):
-            if i==cut:
-                if cut==0:
-                    u,s,v,err=truncated_svd(state.reshape((-1,shapes[i]*nd)),full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=True)
-                    if err>TOL:print 'MPS.from_state truncation err: %s.'%err
-                    ms[i]=v.reshape((-1,shapes[i],nd))
-                    Lambda=u.dot(s)
-                else:
-                    ms[i]=state.reshape((-1,shapes[i],nd))
-            else:
-                u,s,v,err=truncated_svd(state.reshape((-1,shapes[i]*nd)),full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=True)
-                if err>TOL:print 'MPS.from_state truncation err: %s.'%err
-                ms[i]=v.reshape((-1,shapes[i],nd))
-                state=np.einsum('ij,j->ij',u,s)
-            nd=len(s)
-        return MPS(ms=ms,labels=labels,Lambda=Lambda,cut=cut)
+        assert state.ndim==1 and len(sites)+1==len(bonds)
+        L,R=Label('__MPS_from_state_L__',qns=bonds[+0].qns),Label('__MPS_from_state_R__',qns=bonds[-1].qns)
+        S=Label('__MPS_from_state_S__',qns=QuantumNumbers.kron([label.qns for label in sites]) if L.qnon else np.product([label.dim for label in sites]))
+        m=Tensor(state.reshape((1,-1,1)),labels=[L,S,R])
+        if cut==0:
+            u,s,ms=m.expanded_svd(L=[L],S=S,R=[R],E=sites,I=bonds[:-1],nmax=nmax,tol=tol,cut=0)
+            Lambda=Tensor(np.asarray(contract(u,s)).reshape((-1,)),labels=[bonds[0]])
+            ms[-1].relabel(olds=[R],news=[bonds[-1]])
+        elif cut==len(sites):
+            ms,s,v=m.expanded_svd(L=[L],S=S,R=[R],E=sites,I=bonds[1:],nmax=nmax,tol=tol,cut=len(sites))
+            Lambda=Tensor(np.asarray(contract(s,v)).reshape((-1,)),labels=[bonds[-1]])
+            ms[0].relabel(olds=[L],news=[bonds[0]])
+        else:
+            ms,Lambda=m.expanded_svd(L=[L],S=S,R=[R],E=sites,I=bonds[1:-1],nmax=nmax,tol=tol,cut=cut)
+            ms[+0].relabel(olds=[L],news=[bonds[+0]])
+            ms[-1].relabel(olds=[R],news=[bonds[-1]])
+        return MPS(mode='QN' if L.qnon else 'NB',ms=ms,Lambda=Lambda,cut=cut)
 
-    def qnc_generation(self,inbond,sites):
+    @property
+    def state(self):
         '''
-        Generate the qnc of the MPS.
+        Convert to the normal representation.
+        Returns: two cases,
+            1) 1d ndarray
+                The MPS is a pure state.
+                Its norm is omitted.
+            2) 2d ndarray 
+                The MPS is a mixed state with the rows being the contained pure states.
+                The singular value for each pure state is omitted.
+        '''
+        table=self.table
+        if self.cut is None:
+            result=contract(*self,sequence='sequential')
+        elif self.cut==0:
+            result=contract(self.Lambda,*self,sequence='sequential')
+        elif self.cut==self.nsite:
+            result=contract(*list(self)+[self.Lambda],sequence='sequential')
+        else:
+            A=contract(*self.As,sequence='sequential')
+            B=contract(*self.Bs,sequence='sequential')
+            result=contract(A,self.Lambda,B)
+        L,R=self[0].labels[MPS.L],self[-1].labels[MPS.R]
+        if L==R:
+            return np.asarray(result).reshape((-1,))
+        else:
+            assert L.dim==1 or R.dim==1
+            if L.dim==1 and R.dim==1:
+                return np.asarray(result).reshape((-1,))
+            elif L.dim==1:
+                return np.asarray(result).reshape((-1,R.dim)).T
+            else:
+                return np.asarray(result).reshape((L.dim,-1))
+
+    @staticmethod
+    def random(sites,bonds,cut=0,nmax=None,tol=None,dtype=np.float64):
+        '''
+        Generate a random mixed-canonical mps.
         Parameters:
-            inbond: QuantumNumberCollection
-                The qnc of the leftmost bond.
-            sites: list of QuantumNumberCollection
-                The qnc of each site index.
+            sites: list of Label
+                The labels for the physical legs.
+            bonds: list of Label
+                The labels for the virtual legs.
+            cut: integer, optional
+                The index of the connecting link.
+            namx: integer, optional
+                The maximum number of singular values to be kept.
+            tol: float64, optional
+                The tolerance of the singular values.
+            dtype: np.float32, np.float64, np.complex64, np.complex128, optional
+                The data type of the random mps.
+        Returns: MPS
+            The random mixed-canonical mps.
         '''
-        assert self.mode=='NB'
-        assert len(sites)==self.nsite
-        old=inbond
-        if self.cut==0:
-            self.Lambda=old.reorder(self.Lambda)
-            self.Lambda.labels[0].qnc=old
-        for i,(site,m) in enumerate(zip(sites,self)):
-            m=old.reorder(m,axes=[MPS.L])
-            m=site.reorder(m,axes=[MPS.S])
-            m.labels[MPS.L].qnc=old
-            m.labels[MPS.S].qnc=site
-            new=bond_qnc_generation(m,bond=old,site=site,mode='R',history=True)
-            m=new.reorder(m,axes=[MPS.R])
-            m.labels[MPS.R].qnc=new
-            if i+1==self.cut:
-                self.Lambda=new.reorder(self.Lambda)
-                self.Lambda.labels[0].qnc=new
-            QuantumNumberCollection.clear_history(old)
-            old=new
-        QuantumNumberCollection.clear_history(new)
-        self.mode='QN'
+        assert bonds[0].dim==1 and bonds[-1].dim==1
+        np.random.seed()
+        mode,shape='QN' if next(iter(sites)).qnon else 'NB',tuple([site.dim for site in sites])
+        if mode=='QN':
+            state=np.zeros(shape,dtype=dtype)
+            for index in QuantumNumbers.decomposition([bonds[0].qns]+[site.qns for site in sites],target=next(iter(bonds[-1].qns))):
+                if dtype in (np.float32,np.float64):
+                    state[index[1:]]=np.random.random()
+                else:
+                    state[index[1:]]=np.random.random()+1j*np.random.random()
+            state=state.reshape((-1,))/norm(state)
+            return MPS.from_state(state,sites,bonds,cut=cut,nmax=nmax,tol=tol)
+        else:
+            if dtype in (np.float32,np.float64):
+                state=np.random.random(shape).reshape((-1,))
+            else:
+                state=np.random.random(shape).reshape((-1,))+1j*np.random.random(shape).reshape((-1,))
+            state/=norm(state)
+            return MPS.from_state(state,sites,bonds,cut=cut,nmax=nmax,tol=tol)
 
     @property
     def status(self):
@@ -215,91 +239,133 @@ class MPS(list):
         return len(self)
 
     @property
-    def state(self):
-        '''
-        Convert to the normal representation.
-        Returns: two cases,
-            1) 1d ndarray
-                The MPS is a pure state.
-                Its norm is omitted.
-            2) 2d ndarray 
-                The MPS is a mixed state with the columns being the contained pure states.
-                The singular value for each pure state is omitted.
-        '''
-        table=self.table
-        if self.cut in (0,self.nsite,None):
-            result=contract(*self,sequence='sequential')
-        else:
-            A,B=contract(*self.As,sequence='sequential'),contract(*self.Bs,sequence='sequential')
-            result=contract(A,self.Lambda,B)
-        legs=set(result.labels)-set(table)
-        if len(legs)==0:
-            return np.asarray(result).ravel()
-        elif len(legs)==2:
-            if self[0].shape[MPS.L]>1:
-                flag=True
-            if self[-1].shape[MPS.R]>1:
-                flag=False
-            buff,temp=1,1
-            for label,n in zip(result.labels,result.shape):
-                if label not in table and n>1:
-                    temp=n
-                else:
-                    buff*=n
-            if flag:
-                return np.asarray(result).reshape((temp,buff)).T
-            else:
-                return np.asarray(result).reshape((buff,temp))
-        else:
-            raise ValueError('MPS state error: %s link labels%s are left.'%(len(legs),tuple(legs)))
-
-    @property
     def norm(self):
         '''
         The norm of the matrix product state.
         '''
         temp=copy(self)
-        temp._reset_(reset=0)
+        temp.reset(cut=0)
         temp>>=temp.nsite
         return np.asarray(temp.Lambda)
 
-    def _reset_(self,merge='L',reset=None):
+    def relabel(self,news,olds=None):
         '''
-        Reset the mps.
-        This function does two things,
-        1) merge the Lamdbda matrix on the link to its left neighbouring matrix or right neighbouring matrix acoording to the parameter merge,
-        2) reset Lambda and cut acoording to the parameter reset.
+        Change the labels of the MPS.
         Parameters:
-            merge: 'L' or 'R', optional
+            news: list of 3-tuples of Label
+                The new labels of the MPS.
+            olds: list of 3-tuples of Label, optional
+                The old labels of the MPS.
+        '''
+        if olds is None:
+            assert len(news)==self.nsite
+            for m,new in zip(self,news):
+                m.relabel(new)
+        else:
+            table=self.table
+            assert len(news)==len(olds)
+            for new,old in zip(news,olds):
+                self[table[old[MPS.S]]].relabel(new)
+
+    def copy(self,copy_data=False):
+        '''
+        Make a copy of the mps.
+        Parameters:
+            copy_data: logical, optional
+                When True, both the labels and data of each tensor in this mps will be copied;
+                When False, only the labels of each tensor in this mps will be copied.
+        Returns: MPS
+            The copy of self.
+        '''
+        ms=[m.copy(copy_data=copy_data) for m in self]
+        Lambda=None if self.Lambda is None else self.Lambda.copy(copy_data=copy_data)
+        return MPS(ms=ms,Lambda=Lambda,cut=self.cut)
+
+    def is_canonical(self):
+        '''
+        Judge whether each site of the MPS is in the canonical form.
+        '''
+        result=[]
+        for i,M in enumerate(self):
+            temp=[np.asarray(M.take(indices=j,axis=self.S)) for j in xrange(M.shape[self.S])]
+            buff=None
+            for matrix in temp:
+                if buff is None:
+                    buff=matrix.T.conjugate().dot(matrix) if i<self.cut else matrix.dot(matrix.T.conjugate())
+                else:
+                    buff+=matrix.T.conjugate().dot(matrix) if i<self.cut else matrix.dot(matrix.T.conjugate())
+            result.append((abs(buff-np.identity(M.shape[MPS.R if i<self.cut else MPS.L]))<TOL).all())
+        return result
+
+    def compress(self,cut=0,nmax=None,tol=None):
+        '''
+        Compress an mps by svd.
+        Parameters:
+            cut: integer, integer
+                The position of the connecting bond after the compression.
+            namx: integer, optional
+                The maximum number of singular values to be kept.
+            tol: float64, optional
+                The tolerance of the singular values.
+        Returns: MPS
+            The mixed canonical MPS.
+        '''
+        if cut<=self.nsite/2:
+            self.reset(cut=self.nsite)
+            self<<=(self.nsite,nmax,tol)
+            self>>=(cut,nmax,tol)
+        else:
+            self.reset(cut=0)
+            self>>=(self.nsite,nmax,tol)
+            self<<=(self.nsite-cut,nmax,tol)
+        return self
+
+    canonicalization=compress
+
+    def reset(self,cut=None):
+        '''
+        Reset the position of the connecting bond of the mps.
+        Parameters:
+            cut: None or integer, optional
+                The position of the new connecting bond.
+        '''
+        self._merge_ABL_()
+        if cut is not None:
+            if cut>=0 and cut<=self.nsite:
+                self.cut=cut
+                self.Lambda=Tensor(1.0,labels=[])
+            else:
+                raise ValueError("MPS reset error: cut(%s) should be None or in the range [%s,%s]"%(cut,0,self.nsite))
+
+    def _merge_ABL_(self,merge='R'):
+        '''
+        Merge the Lambda matrix on the connecting bond to its left or right neighbouring matrix.
+        Parameters:
+            merge: 'L','R', optional
                 When 'L', self.Lambda will be merged into its left neighbouring matrix;
                 When 'R', self.Lambda will be merged into its right neighbouring matrix.
-            reset: None or an integer, optional
-                When None, self.cut and self.Lambda will be reset to None;
-                When an integer, self.cut will be reset to this value and self.Lambda will be reset to a scalar Tensor with the data equal to 1.0.
+        Retruns:
+            m: 3d Tensor
+                The original left/right neighbouring matrix.
+            Lambda: 1d Tensor
+                The original Lambda matrix.
         NOTE: When self.cut==0, the Lambda matrix will be merged with self[0] no matter what merge is, and
               When self.cut==self.nsite, the Lambda matrix will be merged with self[-1] no matter what merge is.
         '''
         if self.cut is not None:
+            assert merge.upper() in ('L','R')
+            merge='L' if self.cut==self.nsite else ('R' if self.cut==0 else merge.upper())
             if merge=='L':
-                if self.cut==0:
-                    self[0]=contract(self[0],self.Lambda,reserve=[self[0].labels[MPS.L]])
-                else:
-                    self[self.cut-1]=contract(self[self.cut-1],self.Lambda,reserve=[self[self.cut-1].labels[MPS.R]])
-            elif merge=='R':
-                if self.cut==self.nsite:
-                    self[-1]=contract(self[-1],self.Lambda,reserve=[self[-1].labels[MPS.R]])
-                else:
-                    self[self.cut]=contract(self.Lambda,self[self.cut],reserve=[self[self.cut].labels[MPS.L]])
+                m,Lambda=self[self.cut-1],self.Lambda
+                self[self.cut-1]=contract(self[self.cut-1],self.Lambda,reserve=[self[self.cut-1].labels[MPS.R]])
             else:
-                raise ValueError("MPS _reset_ error: merge must be 'L' or 'R' but now it is %s."%(merge))
-        if reset is None:
+                m,Lambda=self[self.cut],self.Lambda
+                self[self.cut]=contract(self.Lambda,self[self.cut],reserve=[self[self.cut].labels[MPS.L]])
             self.cut=None
             self.Lambda=None
-        elif reset>=0 and reset<=self.nsite:
-            self.cut=reset
-            self.Lambda=Tensor(1.0,labels=[])
         else:
-            raise ValueError("MPS _reset_ error: reset(%s) should be None or in the range [%s,%s]"%(reset,0,self.nsite))
+            m,Lambda=None,None
+        return m,Lambda
 
     def _set_ABL_(self,m,Lambda):
         '''
@@ -335,23 +401,18 @@ class MPS(list):
                 The truncation tolerance.
         '''
         if self.cut==0: raise ValueError('MPS _set_B_and_lmove_ error: the cut is already zero.')
-        L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
-        m=np.asarray(M).reshape((M.shape[MPS.L],-1))
-        if self.mode=='QN':
-            col=S.qnc.kron(R.qnc,action='-',history=True)
-            u,s,v,qnc,err=mb_svd(col.reorder(m,axes=[1]),L.qnc,-col,nmax=nmax,tol=tol,return_truncation_err=True)
-            v=v[:,np.argsort(col.permutation())]
-            QuantumNumberCollection.clear_history(col)
-        else:
-            u,s,v,qnc,err=mb_svd(m,nmax=nmax,tol=tol,return_truncation_err=True)
-        self[self.cut-1]=Tensor(v.reshape((-1,M.shape[MPS.S],M.shape[MPS.R])),labels=[L.replace(qnc=qnc),S,R])
+        L,S,R=M.labels[MPS.L],M.labels[MPS.S],M.labels[MPS.R]
+        Lp=L.prime
+        u,s,v,err=M.svd(row=[L],new=Lp,col=[S,R],row_signs='+',col_signs='-+',nmax=nmax,tol=tol,return_truncation_err=True)
+        v.relabel(olds=[Lp],news=[Lp.prime])
+        self[self.cut-1]=v
         if self.cut==1:
-            if len(s)>1: raise ValueError('MPS _set_B_and_lmove_ error(not supported operation): the MPS is a mixed state.')
-            self.Lambda=Tensor(np.einsum('ij,j->i',u,s),labels=[L])
+            self.Lambda=contract(u,s)
         else:
-            self.Lambda=Tensor(s,labels=[L.replace(qnc=qnc)])
-            self[self.cut-2]=Tensor(np.einsum('ijk,kl->ijl',np.asarray(self[self.cut-2]),u),labels=self[self.cut-2].labels)
-            self[self.cut-2].relabel(news=[L.replace(qnc=qnc)],olds=[L])
+            s.relabel(olds=[Lp],news=[Lp.prime])
+            self.Lambda=s
+            self[self.cut-2]=contract(self[self.cut-2],u)
+            self[self.cut-2].relabel(olds=[Lp],news=[Lp.prime])
         self.cut=self.cut-1
 
     def _set_A_and_rmove_(self,M,nmax=None,tol=None):
@@ -367,23 +428,18 @@ class MPS(list):
         '''
         if self.cut==self.nsite:
             raise ValueError('MPS _set_A_and_rmove_ error: the cut is already maximum.')
-        L,S,R=M.labels[self.L],M.labels[self.S],M.labels[self.R]
-        m=np.asarray(M).reshape((-1,M.shape[MPS.R]))
-        if self.mode=='QN':
-            row=L.qnc.kron(S.qnc,action='+',history=True)
-            u,s,v,qnc,err=mb_svd(row.reorder(m,axes=[0]),row,R.qnc,nmax=nmax,tol=tol,return_truncation_err=True)
-            u=u[np.argsort(row.permutation()),:]
-            QuantumNumberCollection.clear_history(row)
-        else:
-            u,s,v,qnc,err=mb_svd(m,nmax=nmax,tol=tol,return_truncation_err=True)
-        self[self.cut]=Tensor(u.reshape((M.shape[MPS.L],M.shape[MPS.S],-1)),labels=[L,S,R.replace(qnc=qnc)])
+        L,S,R=M.labels[MPS.L],M.labels[MPS.S],M.labels[MPS.R]
+        Rp=R.prime
+        u,s,v,err=M.svd(row=[L,S],new=Rp,col=[R],row_signs='++',col_signs='+',nmax=nmax,tol=tol,return_truncation_err=True)
+        u.relabel(olds=[Rp],news=[Rp.prime])
+        self[self.cut]=u
         if self.cut==self.nsite-1:
-            if len(s)>1: raise ValueError('MPS _set_A_and_rmove_ error(not supported operation): the MPS is a mixed state.')
-            self.Lambda=Tensor(np.einsum('i,ij->j',s,v),labels=[R])
+            self.Lambda=contract(s,v)
         else:
-            self.Lambda=Tensor(s,labels=[R.replace(qnc=qnc)])
-            self[self.cut+1]=Tensor(np.einsum('ij,jkl->ikl',v,np.asarray(self[self.cut+1])),labels=self[self.cut+1].labels)
-            self[self.cut+1].relabel(news=[R.replace(qnc=qnc)],olds=[R])
+            s.relabel(olds=[Rp],news=[Rp.prime])
+            self.Lambda=s
+            self[self.cut+1]=contract(v,self[self.cut+1])
+            self[self.cut+1].relabel(olds=[Rp],news=[Rp.prime])
         self.cut=self.cut+1
 
     def __ilshift__(self,other):
@@ -452,72 +508,85 @@ class MPS(list):
         '''
         return copy(self).__irshift__(other)
 
-    def canonicalization(self,cut):
+    def __add__(self,other):
         '''
-        Make the MPS in the mixed canonical form.
-        Parameters:
-            link: integer
-                The cut of the A,B part.
-        Returns: MPS
-            The mixed canonical MPS.
+        Overloaded addition(+) operator, which supports the addition of two mpses.
         '''
-        if self.cut<=self.nsite/2:
-            self._reset_(reset=self.nsite)
-            self<<=self.nsite
-            self>>=cut
+        assert self.mode==other.mode and self.nsite==other.nsite
+        if self is other:
+            u,Lambda=self._merge_ABL_()
         else:
-            self._reset_(reset=0)
-            self>>=self.nsite
-            self<<=(self.nsite-self.cut)
+            u1,Lambda1=self._merge_ABL_()
+            u2,Lambda2=other._merge_ABL_()
+        mode,ms=self.mode,[]
+        for i,(m1,m2) in enumerate(zip(self,other)):
+            assert m1.labels==m2.labels
+            labels=[lb.replace(qns=None) for lb in m1.labels]
+            axes=[MPS.L,MPS.S] if i==0 else ([MPS.S,MPS.R] if i==self.nsite-1 else [MPS.S])
+            ms.append(Tensor.directsum([m1,m2],labels=labels,axes=axes))
+        if self is other:
+            self._set_ABL_(u,Lambda)
+        else:
+            self._set_ABL_(u1,Lambda1)
+            other._set_ABL_(u2,Lambda2)
+        return MPS(mode=mode,ms=ms)
 
-    def is_canonical(self):
+    def __pos__(self):
         '''
-        Judge whether each site of the MPS is in the canonical form.
+        Overloaded positive(+) operator.
         '''
-        result=[]
-        for i,M in enumerate(self):
-            temp=[np.asarray(M.take(indices=j,axis=self.S)) for j in xrange(M.shape[self.S])]
-            buff=None
-            for matrix in temp:
-                if buff is None:
-                    buff=matrix.T.conjugate().dot(matrix) if i<self.cut else matrix.dot(matrix.T.conjugate())
-                else:
-                    buff+=matrix.T.conjugate().dot(matrix) if i<self.cut else matrix.dot(matrix.T.conjugate())
-            result.append((abs(buff-np.identity(M.shape[self.R if i<self.cut else self.L]))<TOL).all())
+        return copy(self)
+
+    def __sub__(self,other):
+        '''
+        Overloaded subtraction(-) operator, which supports the subtraction of two mpses.
+        '''
+        return self+other*(-1)
+
+    def __neg__(self):
+        '''
+        Overloaded negative(-) operator.
+        '''
+        return self*(-1)
+
+    def __imul__(self,other):
+        '''
+        Overloaded self-multiplication(*=) operator, which supports the self-multiplication by a scalar.
+        '''
+        if self.Lambda is None:
+            self[0]*=other
+        else:
+            self.Lambda*=other
+        return self
+
+    def __mul__(self,other):
+        '''
+        Overloaded multiplication(*) operator, which supports the multiplication of an mps with a scalar.
+        '''
+        result=copy(self)
+        if result.Lambda is None:
+            result[0]=result[0]*other
+        else:
+            result.Lambda=result.Lambda*other
         return result
 
-    def copy(self,copy_data=False):
+    def __rmul__(self,other):
         '''
-        Make a copy of the mps.
-        Parameters:
-            copy_data: logical, optional
-                When True, both the labels and data of each tensor in this mps will be copied;
-                When False, only the labels of each tensor in this mps will be copied.
-        Returns: MPS
-            The copy of self.
+        Overloaded multiplication(*) operator, which supports the multiplication of a scalar with an mps.
         '''
-        ms=[m.copy(copy_data=copy_data) for m in self]
-        Lambda=None if self.Lambda is None else self.Lambda.copy(copy_data=copy_data)
-        return MPS(ms=ms,Lambda=Lambda,cut=self.cut)
+        return self*other
 
-    def relabel(self,news,olds=None):
+    def __idiv__(self,other):
         '''
-        Change the labels of the MPS.
-        Parameters:
-            news: list of 3-tuples of Label
-                The new labels of the MPS.
-            olds: list of 3-tuples of Label, optional
-                The old labels of the MPS.
+        Overloaded self-division(/=) operator, which supports the self-division by a scalar.
         '''
-        if olds is None:
-            assert len(news)==self.nsite
-            for m,new in zip(self,news):
-                m.relabel(new)
-        else:
-            table=self.table
-            assert len(news)==len(olds)
-            for new,old in zip(news,olds):
-                self[table[old[MPS.S]]].relabel(new)
+        return self.__imul__(1.0/other)
+
+    def __div__(self,other):
+        '''
+        Overloaded division(/) operator, which supports the division of an mps by a scalar.
+        '''
+        return self.__mul__(1.0/other)
 
     @staticmethod
     def overlap(mps1,mps2):
@@ -529,18 +598,11 @@ class MPS(list):
         Returns: number
             The overlap.
         '''
-        def reset_and_protect(mps):
-            if mps.cut is None:
-                m,Lambda=None,None
-            elif mps.cut<mps.nsite:
-                m,Lambda=mps[mps.cut],mps.Lambda
-                mps._reset_(merge='R',reset=None)
-            else:
-                m,Lambda=mps[mps.cut-1],mps.Lambda
-                mps._reset_(merge='L',reset=None)
-            return m,Lambda
-        u1,Lambda1=reset_and_protect(mps1)
-        u2,Lambda2=reset_and_protect(mps2)
+        if mps1 is mps2:
+            u,Lambda=mps1._merge_ABL_()
+        else:
+            u1,Lambda1=mps1._merge_ABL_()
+            u2,Lambda2=mps2._merge_ABL_()
         result=[]
         for i,(m1,m2) in enumerate(zip(mps1,mps2)):
             assert m1.labels==m2.labels
@@ -556,106 +618,71 @@ class MPS(list):
             m1.relabel(news=news,olds=olds)
             result.append(m1)
             result.append(m2)
-        mps1._set_ABL_(u1,Lambda1)
-        mps2._set_ABL_(u2,Lambda2)
+        if mps1 is mps2:
+            mps1._set_ABL_(u,Lambda)
+        else:
+            mps1._set_ABL_(u1,Lambda1)
+            mps2._set_ABL_(u2,Lambda2)
         return np.asarray(contract(*result,sequence='sequential'))
 
-    # NOT DEBUGED COED
-    def level_down(self,degfres,n=1):
+    def relayer(self,degfres,layer,nmax=None,tol=None):
         '''
-        Construt a new mps with the physical indices which are n-level down in the degfres.
+        Construt a new mps with the physical indices confined on a specific layer of degfres.
         Parameters:
             degfres: DegFreTree
                 The tree of the physical degrees of freedom.
-            n: integer, optional
-                The degree of level to go down.
-        Returns: MPS
-            The new MPS.
-        '''
-        assert n>=0
-        assert self.mode==degfres.mode
-        result=self if n==0 else copy(self)
-        table=result.table
-        for count in xrange(n):
-            level=degfres.level(next(iter(table)).identifier)
-            if level==1:
-                raise ValueError("MPS level_down error: at the %s-th loop, level(%s) is already at the bottom."%(count,level))
-            result._reset_(reset=None)
-            olds=degfres.labels(layer=degfres.layers[level-1],full_labels=False)
-            news=degfres.labels(layer=degfres.layers[level-2],full_labels=True)
-            ms=[None]*len(news)
-            if result.mode=='NB':
-                for k,parent in enumerate(news.keys()):
-                    for i,child in enumerate(degfres.children(parent)):
-                        if i==0:
-                            ms[k]=np.asarray(result[table[olds[child]]])
-                        else:
-                            ms[k]=np.einsum('ijk,klm->ijlm',ms[k],np.asarray(result[table[olds[child]]]))
-                            shape=ms[k].shape
-                            ms[k]=ms[k].reshape((shape[0],-1,shape[-1]))
-                result=MPS(mode='NB',ms=ms,labels=news.values(),Lambda=None,cut=None)
-            else:
-                labels=[]
-                qncs=degfres.qnc_evolutions(layer=degfres.layers[level-2])
-                for k,L,S,R in enumerate(news.values()):
-                    for i,child,sqnc in enumerate(zip(degfres.children(S.identifier),qncs[S.identifier])):
-                        pos=table[olds[child]]
-                        if i==0:
-                            ms[k]=np.asarray(result[pos])
-                            lqnc=result[pos].labels[MPS.L].qnc
-                        else:
-                            ms[k]=np.einsum('ijk,klm->ijlm',ms[k],np.asarray(result[pos]))
-                            shape=ms[k].shape
-                            ms[k]=sqnc.reorder(ms[k].reshape((shape[0],-1,shape[-1])),axes=[1])
-                        if i==len(degfres.children(S.identifier)):
-                            rqnc=result[pos].labels[MPS.R].qnc
-                    labels.append((L.replace(qnc=lqnc),S.replace(qnc=sqnc),R.replace(qnc=rqnc)))
-                result=MPS(mode='QN',ms=ms,labels=labels,Lambda=None,cut=None)
-        return result
-
-    def level_up(self,degfres,n=1,nmax=None,tol=None):
-        '''
-        Construt a new mps with the physical indices which are n-level up in the degfres.
-        Parameters:
-            degfres: DegFreTree
-                The tree of the physical degrees of freedom.
-            n: integer, optional
-                The degree of level to go up.
+            layer: integer/tuple-of-string
+                The layer where the physical indices are confined.
             nmax: integer, optional
                 The maximum number of singular values to be kept.
-            tol: float64, optional
+            tol: np.float64, optional
                 The tolerance of the singular values.
         Returns: MPS
-            The new MPS.
+            The new mps.
         '''
-        assert n>=0
-        assert self.mode==degfres.mode
-        result=self if n==0 else copy(self)
-        table=result.table
-        for count in xrange(n):
-            level=degfres.level(next(iter(table)).identifier)
-            if level==len(degfres.layers):
-                raise ValueError("MPS level_up error: at the %s-th loop, level(%s) is already at the top."%(count,level))
-            labels=degfres.labels(layer=degfres.layers[level],full_labels=True)
-            assert result.Lambda is not None
-            result>>=(result.nsite-result.cut,nmax,tol)
-            ms,ls=[],[]
-            for i,m in enumerate(reversed(result)):
-                if i==0:
-                    L,S,R=m.labels[MPS.L],m.labels[MPS.S],m.labels[MPS.R]
-                    m=np.einsum('ijk,k->ijk',np.asarray(m),np.asarray(result.Lambda))
-                else:
-                    L,S,R=m.labels[MPS.L],m.labels[MPS.S],ls[0][MPS.L]
-                    m=np.einsum('ijk,kl,l->ijl',np.asarray(m),u,s)
-                children=degfres.children(S.identifier)
-                expansion=[degfres[child] for child in children]
-                u,s,vs,qncs=expanded_svd(m,expansion=expansion,L=L.qnc,S=S.qnc,R=R.qnc,mode='vs',nmax=nmax,tol=tol)
-                for k in reversed(xrange(len(children))):
-                    Left,Site,Right=labels[children[k]]
-                    ms.insert(0,vs[k])
-                    ls.insert(0,(Left.replace(qnc=qncs[k]),Site,Right.replace(qnc=qncs[k+1] if k+1<len(children) else R.qnc)))
-            result=MPS(mode=result.mode,ms=ms,labels=ls,Lambda=u.dot(s),cut=0)
-        return result
+        new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
+        assert new>=0 and new<len(degfres.layers)
+        old=degfres.level(next(iter(self)).labels[MPS.S].identifier)-1
+        if new==old:
+            return copy(self)
+        else:
+            t,Lambda=self._merge_ABL_()
+            olayer,nlayer=degfres.layers[old],degfres.layers[new]
+            ops,otps=degfres.permutations(olayer),degfres.antipermutations(olayer)
+            nps,ntps=degfres.permutations(nlayer),degfres.antipermutations(nlayer)
+            sites,bonds=degfres.labels(nlayer,'S'),degfres.labels(nlayer,'B')
+            Ms=[]
+            if new<old:
+                table=degfres.table(olayer)
+                oldsites=degfres.labels(olayer,'S')
+                oldbottoms,newbottoms=degfres.labels(olayer,'M'),degfres.labels(nlayer,'M')
+                for i,site in enumerate(sites):
+                    ms=[]
+                    for index in degfres.descendants(site.identifier,generation=old-new):
+                        pos=table[index]
+                        ms.append(self[pos].split((oldsites[pos],oldbottoms[pos],otps[pos])))
+                    M=contract(*ms,sequence='sequential')
+                    o1,o2=M.labels[0],M.labels[-1]
+                    n1,n2=bonds[i].replace(qns=o1.qns),bonds[i+1].replace(qns=o2.qns)
+                    M.relabel(olds=[o1,o2],news=[n1,n2])
+                    Ms.append(M.merge((newbottoms[i],site,nps[i])))
+                Lambda,cut=None,None
+            else:
+                table=degfres.table(nlayer)
+                for i,m in enumerate(self):
+                    if i>0: m=contract(s,v,m,reserve=s.labels)
+                    L,S,R=m.labels
+                    indices=degfres.descendants(S.identifier,generation=new-old)
+                    start,stop=table[indices[0]],table[indices[-1]]+1
+                    labels=[label.replace(qns=label.qns.reorder(antipermutation)) for label,antipermutation in zip(sites[start:stop],ntps[start:stop])]
+                    us,s,v=m.reorder((MPS.S,otps[i])).expanded_svd(L=[L],S=S,R=[R],E=labels,I=bonds[start+1:stop+1],cut=stop-start,nmax=nmax,tol=tol)
+                    for u,permutation,site in zip(us,nps[start:stop],sites[start:stop]):
+                        Ms.append(u.reorder((MPS.S,permutation,site.qns)))
+                Lambda,cut=contract(s,v),len(Ms)
+                Ms[0].relabel(olds=[Ms[0].labels[MPS.L]],news=[bonds[0].replace(qns=Ms[0].labels[MPS.L].qns)])
+                Lambda.relabel(olds=[Lambda.labels[0]],news=[bonds[-1].replace(qns=Lambda.labels[0].qns)])
+            self._set_ABL_(t,Lambda)
+            return MPS(mode=self.mode,ms=Ms,Lambda=Lambda,cut=cut)
 
 class Vidal(object):
     '''
@@ -668,7 +695,7 @@ class Vidal(object):
     '''
     L,S,R=0,1,2
 
-    def __init__(self,Gammas,Lambdas,labels=None):
+    def __init__(self,Gammas,Lambdas,sites=None,bonds=None):
         '''
         Constructor.
         Parameters:
@@ -676,28 +703,15 @@ class Vidal(object):
                 The Gamma matrices on the site.
             Lamdas: list of 1d ndarray/Tensor
                 The Lambda matrices (singular values) on the link.
-            labels: list of 3 tuples, optional
-                The labels of the axis of the Gamma matrices.
-                Its length should be equal to that of Gammas.
-                For each label in labels, 
-                    label[0],label[1],label[2]: any hashable object
-                        The left link / site / right link label of the matrix.
+            sites: list of Label, optional
+                The labels for the physical legs.
+            bonds: list of Label, optional
+                The labels for the virtual legs.
         '''
-        assert len(Gammas)==len(Lambdas)+1
+        assert len(Gammas)==len(Lambdas)+1 and (sites is None)==(bonds is None)
         self.Gammas=[]
         self.Lambdas=[]
-        if labels is None:
-            assert len(Gammas)==len(labels)
-            buff=[]
-            for i,(Gamma,label) in enumerate(zip(Gammas,labels)):
-                assert Gamma.ndim==3
-                if i<len(Gammas)-1:
-                    buff.append(R)
-                self.Gammas.append(Tensor(Gamma,labels=list(label)))
-            for Lambda,label in zip(Lambdas,buff):
-                assert Lambda.ndim==1
-                self.Lambdas.append(Tensor(Lambda,labels=[label]))
-        else:
+        if sites is None:
             for Gamma in Gammas:
                 assert isinstance(Gamma,Tensor)
                 assert Gamma.ndim==3
@@ -706,6 +720,14 @@ class Vidal(object):
                 assert isinstance(Lambda,Tensor)
                 assert Lambda.ndim==1
                 self.Lambdas.append(Lambda)
+        else:
+            assert len(Gammas)==len(sites) and len(Gammas)==len(bonds)-1
+            for Gamma,L,S,R in zip(Gammas,bonds[:-1],sites,bonds[1:]):
+                assert Gamma.ndim==3
+                self.Gammas.append(Tensor(Gamma,labels=[L,S,R]))
+            for Lambda,label in zip(Lambdas,bonds[1:-1]):
+                assert Lambda.ndim==1
+                self.Lambdas.append(Tensor(Lambda,labels=[label]))
 
     def __str__(self):
         '''
@@ -738,7 +760,7 @@ class Vidal(object):
                 result=Gamma
             else:
                 result=contract(result,self.Lambdas[i-1],Gamma)
-        return np.asarray(result).ravel()
+        return np.asarray(result).reshape((-1,))
 
     def to_mixed(self,cut):
         '''
@@ -749,22 +771,11 @@ class Vidal(object):
         Retruns: MPS
             The corresponding mixed MPS.
         '''
-        ms,labels,Lambda=[],[],None
-        shape=[1]*3
-        shape[self.S]=-1
+        ms,Lambda=[],None
         for i,Gamma in enumerate(self.Gammas):
-            L,S,R=Gamma.labels[self.L],Gamma.labels[self.S],Gamma.labels[self.R]
-            labels.append((L,S,R))
+            if i>0 and i==cut: Lambda=self.Lambdas[i-1]
             if i<cut:
-                if i==0:
-                    ms.append(np.asarray(Gamma))
-                else:
-                    ms.append(np.asarray(Gamma)*np.asarray(self.Lambdas[i-1]).reshape(shape))
+                ms.append(Gamma if i==0 else contract(self.Lambdas[i-1],Gamma,reserve=self.Lambdas[i-1].labels))
             else:
-                if i>0 and i==cut:
-                    Lambda=np.asarray(self.Lambdas[i-1])
-                if i<len(self.Lambdas):
-                    ms.append(np.asarray(Gamma)*np.asarray(self.Lambdas[i]).reshape(shape))
-                else:
-                    ms.append(np.asarray(Gamma))
-        return MPS(ms=ms,labels=labels,Lambda=Lambda,cut=cut)
+                ms.append(contract(Gamma,self.Lambdas[i],reserve=self.Lambdas[i].labels) if i<self.nsite-1 else Gamma)
+        return MPS(ms=ms,Lambda=Lambda,cut=cut)

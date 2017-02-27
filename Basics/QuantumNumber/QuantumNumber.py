@@ -3,7 +3,7 @@ Quantum number, including:
 1) classes: QuantumNumber, QuantumNumbers
 '''
 
-from collections import namedtuple
+from collections import OrderedDict
 from copy import copy,deepcopy
 from fpermutation import fpermutation
 import numpy as np
@@ -94,6 +94,13 @@ class QuantumNumber(np.ndarray):
 
     __str__=__repr__
 
+    @classmethod
+    def zeros(cls):
+        '''
+        Return a new quantum number with all the values equal to zero.
+        '''
+        return cls([0 for i in xrange(len(cls.names))])
+
     def __neg__(self):
         '''
         Overloaded negative(-) operator.
@@ -105,7 +112,7 @@ class QuantumNumber(np.ndarray):
         Overloaded addition(+) operator, which supports the addition of two quantum numbers.
         '''
         if isinstance(other,QuantumNumbers):
-            pass
+            return other+self
         else:
             assert self.__class__ is other.__class__
             return self.__class__(self.__class__.regularization(np.asarray(self)+np.asarray(other)))
@@ -115,7 +122,7 @@ class QuantumNumber(np.ndarray):
         Overloaded subtraction(-) operator, which supports the subtraction of two quantum numbers.
         '''
         if isinstance(other,QuantumNumbers):
-            pass
+            return -other+self
         else:
             assert self.__class__ is other.__class__
             return self.__class__(self.__class__.regularization(np.asarray(self)-np.asarray(other)))
@@ -141,21 +148,30 @@ class QuantumNumber(np.ndarray):
             raise ValueError('%s replace error: it got unexpected field names: %r'%(self.__class__.__name__,karg.keys()))
         return result
 
-    @property
-    def zeros(self):
+    @classmethod
+    def directsum(cls,self,other):
         '''
-        Return a new quantum number with all the values equal to zero.
+        The directsum of two quantum numbers.
+        Parameters:
+            cls: class
+                The class of the result.
+            self,other: QuantumNumber
+                The quantum numbers to be direct summed.
+        Returns: cls
+            The new quantum number.
         '''
-        return self.__class__([0 for i in xrange(len(self))])
+        assert cls.names==self.__class__.names+other.__class__.names
+        assert cls.periods==self.__class__.periods+other.__class__.periods
+        return cls(np.concatenate([np.asarray(self),np.asarray(other)]))
 
 class QuantumNumbers(object):
     '''
     A collection of quantum numbers in a stroage format similiar to that of compressed-sparse-row vectors.
     Attributes:
-        form: QuantumNumbers.G or QuantumNumbers.C
-            1) QuantumNumbers.G: general form
+        form: 'G' or 'C'
+            1) 'G': general form
                 No restriction for the contents of the collection
-            2) QuantumNumbers.C: canonical form
+            2) 'C': canonical form
                 The contents of the collection must be arranged in a accending order with no duplicates by the rows.
         type: class
             The class of the quantum numbers contained in the collection.
@@ -163,36 +179,29 @@ class QuantumNumbers(object):
             The ndarray representation of the collection with the rows representing the set of its quantum numbers.
         indptr: 1d ndarray of integers
             The index pointer array of the set of the quantum numbers.
-        history: dict with each of its (key,value) pairs
-            key: integer
-                The id of the collection of quantum numbers whose history is recorded.
-            value: 1d ndarray of integer
-                The permutation to make the quantum numbers in order.
     '''
-    G,C=0,1
     COUNTS,INDPTR=0,1
-    history={}
 
     def __init__(self,form,data,protocal=COUNTS):
         '''
         Constructor, supporting the following usages:
         1) QuantumNumbers(form,(qns,counts),QuantumNumbers.COUNTS), with
-            form: QuantumNumbers.G or QuantumNumbers.C
-                QuantumNumbers.G for general form and QuantumNumbers.C for canonical form.
+            form: 'G'/'g' or 'C'/'c'
+                'G'/'g' for general form and 'C'/'c' for canonical form.
             qns: list of QuantumNumber
                 The quantum numbers contained in the collection.
             counts: list of integer
                 The counts of the duplicates of the quantum numbers.
         2) QuantumNumbers(form,(qns,indptr),QuantumNumbers.INDPTR), with
-            form: QuantumNumbers.G or QuantumNumbers.C
-                QuantumNumbers.G for general form and QuantumNumbers.C for canonical form.
+            form: 'G'/'g' or 'C'/'c'
+                'G'/'g' for general form and 'C'/'c' for canonical form.
             qns: list of QuantumNumber
                 The quantum numbers contained in the collection.
             indptr: list of integer
                 The indptr of the collection.
         3) QuantumNumbers(form,(type,contents,counts),QuantumNumbers.COUNTS), with
-            form: QuantumNumbers.G or QuantumNumbers.C
-                QuantumNumbers.G for general form and QuantumNumbers.C for canonical form.
+            form: 'G'/'g' or 'C'/'c'
+                'G'/'g' for general form and 'C'/'c' for canonical form.
             type: class
                 The class of the quantum numbers contained in the collection.
             contents: 2d ndarray
@@ -200,8 +209,8 @@ class QuantumNumbers(object):
             counts: list of integer
                 The counts of the duplicates of the quantum numbers.
         4) QuantumNumbers(form,(type,contents,indptr),QuantumNumbers.INDPTR), with
-            form: QuantumNumbers.G or QuantumNumbers.C
-                QuantumNumbers.G for general form and QuantumNumbers.C for canonical form.
+            form: 'G'/'g' or 'C'/'c'
+                'G'/'g' for general form and 'C'/'c' for canonical form.
             type: class
                 The class of the quantum numbers contained in the collection.
             contents: 2d ndarray
@@ -209,33 +218,43 @@ class QuantumNumbers(object):
             indptr: list of integer
                 The indptr of the collection.
         '''
-        assert form in (QuantumNumbers.G,QuantumNumbers.C) and len(data) in (2,3) and protocal in (QuantumNumbers.COUNTS,QuantumNumbers.INDPTR)
-        self.form=form
+        assert form in ('G','g','C','c') and len(data) in (2,3) and protocal in (QuantumNumbers.COUNTS,QuantumNumbers.INDPTR)
+        self.form=form.upper()
         if protocal==QuantumNumbers.COUNTS:
             if len(data)==2:
                 self.type=next(iter(data[0])).__class__
-                self.contents=np.array(data[0])
+                self.contents=np.asarray(data[0])
                 counts=data[1]
             else:
                 self.type=data[0]
-                self.contents=data[1]
+                self.contents=np.asarray(data[1])
                 counts=data[2]
             assert np.all(counts>=0)
             self.indptr=np.concatenate(([0],np.cumsum(counts)))
-            #self.indptr=np.zeros(len(counts)+1,dtype=np.int64)
-            #for i,count in enumerate(counts):
-            #    assert count>0
-            #    self.indptr[i+1]=self.indptr[i]+count
         else:
             if len(data)==2:
                 self.type=next(iter(data[0])).__class__
-                self.contents=np.array(data[0])
-                self.indptr=data[1]
+                self.contents=np.asarray(data[0])
+                self.indptr=np.asarray(data[1])
             else:
                 self.type=data[0]
-                self.contents=data[1]
-                self.indptr=data[2]
+                self.contents=np.asarray(data[1])
+                self.indptr=np.asarray(data[2])
         assert self.contents.ndim==2 and self.indptr.ndim==1
+
+    @staticmethod
+    def mono(qn,count=1):
+        '''
+        Construct a collection composed of only one quantum number.
+        Parameters:
+            qn: QuantumNumber
+                The solitary quantum number the collection contains.
+            count: positive integer, optional
+                The count of the duplicates of the quantum number.
+        Returns: QuantumNumbers
+            The constructed collection.
+        '''
+        return QuantumNumbers('C',((qn,),[0,count]),protocal=QuantumNumbers.INDPTR)
 
     def sort(self,history=False):
         '''
@@ -243,30 +262,26 @@ class QuantumNumbers(object):
         Parameters:
             history: logical, optional
                 When True, the permutation to make the quantum numbers in order will be recorded.
+        Returns:
+            self: QuantumNumbers
+                The collection after the sort.
+            permutation: 1d ndarray of integer, optional
+                The permutation array to sort the collection.
         '''
-        #import time
-        #t1=time.time()
-        self.form=QuantumNumbers.C
-        contents,counts=self.contents,self.indptr[1:]-self.indptr[:-1]
+        self.form='C'
+        contents,indptr,counts=self.contents,self.indptr,self.indptr[1:]-self.indptr[:-1]
         permutation=np.lexsort(contents.T[::-1])
         mask=np.concatenate(([True],np.any(contents[permutation[1:]]!=contents[permutation[:-1]],axis=1)))
         self.contents=contents[permutation][mask]
-        #t2=time.time()
         counts=counts[permutation]
-        if history:
-            QuantumNumbers.history[id(self)]=fpermutation(self.indptr[:-1][permutation],counts,len(self))
-        #t3=time.time()
         indices=np.concatenate((np.argwhere(mask).reshape((-1)),[len(mask)]))
         self.indptr=np.zeros(self.contents.shape[0]+1,dtype=np.int64)
         for i in xrange(len(indices)-1):
             self.indptr[i+1]=self.indptr[i]+counts[indices[i]:indices[i+1]].sum()
-        #t4=time.time()
-        #def ptime(*arg):
-        #    n=len(arg)
-        #    result=['%s(%s)'%(arg[i+1]-arg[i],(arg[i+1]-arg[i])*100/(arg[-1]-arg[0])) for i in xrange(n-1)]
-        #    return ','.join(result)
-        #print ptime(t1,t2,t3,t4)
-        return self
+        if history:
+            return self,fpermutation(indptr[:-1][permutation],counts,len(self))
+        else:
+            return self
 
     def __repr__(self):
         '''
@@ -293,18 +308,6 @@ class QuantumNumbers(object):
         '''
         return self.contents.shape[0]
 
-    @staticmethod
-    def clear_history(*arg):
-        '''
-        Clear the historical information of the collections of quantum numbers.
-        '''
-        if len(arg)==0:
-            QuantumNumbers.history.clear()
-        else:
-            for qns in arg:
-                if isinstance(qns,QuantumNumbers):
-                    QuantumNumbers.history.pop(id(qns),None)
-
     def __iter__(self):
         '''
         Return an iterator over the quantum number it contains.
@@ -321,7 +324,7 @@ class QuantumNumbers(object):
         Returns: 1d ndarray of integers
             The corresponding indices of the quantum number.
         '''
-        if self.form:
+        if self.form=='C':
             L,R,pos=0,self.num,self.num/2
             qn,current=tuple(qn),tuple(self.contents[pos])
             while current!=qn:
@@ -382,7 +385,7 @@ class QuantumNumbers(object):
             The subset.
         '''
         indices=np.concatenate([self.indices(target) for target in targets])
-        return QuantumNumbers('g',(self.type,self.contents[indices],self.indptr[indices+1]-self.indptr[indices]),protocal=QuantumNumbers.COUNTS)
+        return QuantumNumbers('G',(self.type,self.contents[indices],self.indptr[indices+1]-self.indptr[indices]),protocal=QuantumNumbers.COUNTS)
 
     def subslice(self,targets=()):
         '''
@@ -390,7 +393,7 @@ class QuantumNumbers(object):
         Parameters:
             targets: list of QuantumNumber, optional
                 The quantum numbers whose slices wanted to be extracted.
-        Returns: list of integer
+        Returns: 1d ndarray of integer
             The subslice.
         '''
         indices=np.concatenate([self.indices(target) for target in targets])
@@ -402,8 +405,8 @@ class QuantumNumbers(object):
         Parameters:
             targets: list of QuantumNumber, optional
                 The quantum numbers to be expanded.
-        Returns: list of QuantumNumber
-            The expanded quantum numbers.
+        Returns: 2d ndarray
+            The ndarray representation of the expanded quantum numbers.
         '''
         if targets is None:
             return np.repeat(self.contents,self.indptr[1:]-self.indptr[:-1],axis=0)
@@ -411,75 +414,139 @@ class QuantumNumbers(object):
             indices=np.concatenate([self.indices(target) for target in targets])
             return np.repeat(self.contents[indices],self.indptr[indices+1]-self.indptr[indices],axis=0)
 
-    def permutation(self,targets=None):
+    @staticmethod
+    def union(args,signs=None):
         '''
-        The permutation information.
+        The union of several quantum number collections.
         Parameters:
-            targets: list of QuantumNumber, optional
-                The quantum numbers whose permutation wanted to be extracted.
-        Returns: list of integer
-            The permutation array.
+            args: list of QuantumNumbers
+                The collections of quantum numbers to be unioned.
+            signs: string with each element being '+' or '-'
+                The signs for the collections of the quantum numbers.
+        Retruns: QuantumNumbers
+            The union of the input collections.
         '''
-        if id(self) in QuantumNumbers.history:
-            if targets is None:
-                result=QuantumNumbers.history[id(self)]
+        signs=len(args)*'+' if signs is None else signs
+        assert len(signs)==len(args)
+        cumsums=np.concatenate(([0],np.cumsum([len(arg) for arg in args])))
+        contents=np.concatenate([arg.contents if sign=='+' else -arg.contents for arg,sign in zip(args,signs)])
+        indptr=np.concatenate([arg.indptr[:-1]+cumsum for arg,cumsum in zip(args,cumsums[:-1])]+[(cumsums[-1],)])
+        return QuantumNumbers('G',(next(iter(args)).type,contents,indptr),protocal=QuantumNumbers.INDPTR)
+
+    @staticmethod
+    def kron(args,signs=None):
+        '''
+        Tensor dot of several quantum number collections.
+        Parameters:
+            args: list of QuantumNumbers
+                The collections of quantum numbers to be tensor dotted.
+            signs: string with each element being '+' or '-'
+                The signs for the collections of the quantum numbers.
+        Returns: QuantumNumbers
+            The tensor dot of the input collections.
+        '''
+        signs=len(args)*'+' if signs is None else signs
+        assert len(signs)==len(args)
+        contents=np.zeros((1))
+        for i,(qns,sign) in enumerate(zip(args,signs)):
+            if i==len(args)-1:
+                type=qns.type
+                temp=qns.contents
+                counts=np.tile(qns.indptr[1:]-qns.indptr[:-1],len(contents))
             else:
-                result=QuantumNumbers.history[id(self)][self.subslice(targets)]
+                temp=qns.expansion() 
+            if sign=='+':
+                contents=(contents[:,np.newaxis,...]+temp[np.newaxis,:,...]).reshape((len(contents)*len(temp),-1))
+            else:
+                contents=(contents[:,np.newaxis,...]-temp[np.newaxis,:,...]).reshape((len(contents)*len(temp),-1))
+        return QuantumNumbers('G',(type,contents,counts),protocal=QuantumNumbers.COUNTS)
+
+    def to_ordereddict(self,protocal=INDPTR):
+        '''
+        Convert a canonical collection of quantum numbers to an OrderedDict.
+        Parameters:
+            protocal: QuantumNumbers.INDPTR, QuantumNumbers.COUNTS, optional
+                When QuantumNumbers.INDPTR, the values of the result are the slices of the quantum numbers in the collection.
+                When QuantumNumbers.COUNTS, the values of the result are the counts of the duplicates of the quantum numbers.
+        Returns: OrderedDict
+            The converted OrderedDict.
+        '''
+        assert protocal in (QuantumNumbers.INDPTR,QuantumNumbers.COUNTS) and self.form=='C'
+        result=OrderedDict()
+        if protocal==QuantumNumbers.INDPTR:
+            for i,qn in enumerate(self.contents):
+                result[tuple(qn)]=slice(self.indptr[i],self.indptr[i+1],None)
         else:
-            if targets is None:
-                result=np.array(xrange(len(self)))
-            else:
-                indices=np.concatenate([self.indices(target) for target in targets])
-                result=np.concatenate([xrange(self.indptr[index],self.indptr[index+1]) for index in indices])
+            for i,qn in enumerate(self.contents):
+                result[tuple(qn)]=self.indptr[i+1]-self.indptr[i]
         return result
 
-    def kron(self,other,action='+'):
+    @staticmethod
+    def from_ordereddict(type,ordereddict,protocal=INDPTR):
         '''
-        Tensor dot of two quantum number collections.
+        Convert an ordered dict to a quantum number collection.
         Parameters:
-            self,other: QuantumNumbers
-                The quantum number collections to be tensor dotted.
-            action: '+' or '-'
-                When '+', the elements from self and other are added;
-                Wehn '-', the elements from self and other are subtracted.
+            type: class
+                The class of the quantum numbers.
+            ordereddict: OrderedDict
+                The OrderedDict that contains the contents of the collection.
+            protocal: QuantumNumbers.INDPTR, QuantumNumbers.COUNTS, optional
+                When QuantumNumbers.INDPTR, the values of the ordereddict are the slices of the quantum numbers in the collection;
+                When QuantumNumbers.COUNTS, the values of the ordereddict are the counts of the duplicates of the quantum numbers.
+        Returns: QuantumNumbers
+            The converted collection.
         '''
-        assert action in ('+-')
-        if len(other)==0:
-            return copy(self)
-        elif len(self)==0:
-            if action=='+':
-                return copy(other)
-            else:
-                return -other
+        assert protocal in (QuantumNumbers.COUNTS,QuantumNumbers.INDPTR)
+        contents=np.asarray(ordereddict.keys())
+        if protocal==QuantumNumbers.COUNTS:
+            counts=ordereddict.values()
+            return QuantumNumbers('G',(type,contents,counts),protocal=QuantumNumbers.COUNTS)
         else:
-            import time
-            A,B=self.expansion(),other.contents
-            if action=='+':
-                contents=np.repeat(A,len(B),axis=0)+np.tile(B.T,len(A)).T
-            else:
-                contents=np.repeat(A,len(B),axis=0)-np.tile(B.T,len(A)).T
-            counts=np.repeat(other.indptr[1:]-other.indptr[:-1],len(A))
-            return QuantumNumbers(QuantumNumbers.G,(self.type,contents,counts),protocal=QuantumNumbers.COUNTS)
+            indptr=np.concatenate(([0],[slice.stop for slice in ordereddict.itervalues()]))
+            return QuantumNumbers('G',(type,contents,indptr),protocal=QuantumNumbers.INDPTR)
 
-    def reorder(self,array,axes=None,targets=None):
+    def reorder(self,permutation,protocal='EXPANSION'):
         '''
-        Recorder the axes of an array from the ordinary numpy.kron order to the correct quantum number collection order.
+        Reorder the quantum numbers of the collection and return the new one.
         Parameters:
-            array: ndarray-like
-                The original array in the ordinary numpy.kron order.
-            axes: list of integer, optional
-                The axes of the array to be reordered.
-            targets: list of QuantumNumber, optional
-                When its length is nonzero, some sub slices of the array tagged by the quantum numbers in it will be extracted.
-        Returns: ndarray-like
-            The axes-reordered array.
+            permutation: 1d ndarray
+                The permutation array.
+            protocal: 'EXPANSION', 'CONTENTS'
+                'EXPANSION' for the reorder of the expansion of the collection;
+                'CONTENTS' for the reorder of the contents of the collection.
+        Retruns: QuantumNumbers
+            The reordered collection.
         '''
-        result=array
-        permutation=self.permutation(targets)
-        axes=xrange(array.ndim) if axes is None else axes
-        for axis in axes:
-            assert self.n==result.shape[axis]
-            temp=[slice(None,None,None)]*array.ndim
-            temp[axis]=permutation
-            result=result[tuple(temp)]
+        if permutation is None:
+            return self
+        else:
+            assert protocal in ('EXPANSION','CONTENTS')
+            if protocal=='EXPANSION':
+                return QuantumNumbers('G',(self.type,self.expansion()[permutation],range(len(self)+1)),QuantumNumbers.INDPTR)
+            else:
+                return QuantumNumbers('G',(self.type,self.contents[permutation],(self.indptr[1:]-self.indptr[:-1])[permutation]),QuantumNumbers.COUNTS)
+
+    @staticmethod
+    def decomposition(qnses,target,signs=None):
+        '''
+        Find the complete decomposition of target with respect to qnses.
+        Parameters:
+            qnses: list of QuantumNumbers
+                The decomposition set of quantum number collections.
+            target: QuantumNumber
+                The target of the decomposition.
+            signs: string
+                The signs of qnses when they are tensordotted.
+        Returns: list of tuple
+            For each tuple, it satisfies the decomposition rule:
+                sum([qns.expansion[index] if sign=='+' else -qns.expansion[index] for qns,sign,index in zip(qnses,signs,tuple)])==target
+        '''
+        result=[]
+        qns=QuantumNumbers.kron(qnses,signs=signs)
+        for pos in QuantumNumbers.kron(qnses,signs=signs).subslice(targets=(target,)):
+            indices=[]
+            for qns in reversed(qnses):
+                indices.append(pos%len(qns))
+                pos/=len(qns)
+            result.append(tuple(reversed(indices)))
         return result

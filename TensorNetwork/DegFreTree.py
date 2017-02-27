@@ -7,7 +7,7 @@ The tree of physical degrees of freedom, including:
 __all__=['DEFAULT_FERMIONIC_LAYERS','DEFAULT_SPIN_LAYERS','DegFreTree']
 
 import numpy as np
-from HamiltonianPy import PID,Table
+from HamiltonianPy import PID,Table,QuantumNumbers
 from ..Misc import Tree
 from Tensor import Label
 from collections import OrderedDict
@@ -21,9 +21,9 @@ class DegFreTree(Tree):
     For each (node,data) pair of the tree,
         node: Index
             The selected index which can represent a couple of indices.
-        data: integer of QuantumNumberCollection
+        data: integer of QuantumNumbers
             When an integer, it is the number of degrees of freedom that the index represents;
-            When a QuantumNumberCollection, it is the quantum number collection that the index is associated with.
+            When a QuantumNumbers, it is the quantum number collection that the index is associated with.
     Attributes:
         mode: 'QN' or 'NB'
             The mode of the DegFreTree.
@@ -58,16 +58,8 @@ class DegFreTree(Tree):
         '''
         Reset the DegFreTree.
         Parameters:
-            mode: 'QN' or 'NB', optional
-                The mode of the DegFreTree.
-            layers: list of tuples of string, optional
-                The tag of each layer of indices.
-            priority: lsit of string, optional
-                The sequence priority of the allowed indices.
-            leaves: list of Index, optional
-                The leaves (bottom indices) of the DegFreTree.
-            map: function, optional
-                This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
+            mode,layers,priority,leaves,map: optional
+                Please see DegFreTree.__init__ for details.
         '''
         self.clear()
         Tree.__init__(self)
@@ -87,35 +79,36 @@ class DegFreTree(Tree):
                 indices=set([index.replace(**{key:None for key in temp}) for index in leaves])
                 self.cache[('indices',layer)]=sorted(indices,key=lambda index: index.to_tuple(priority=self.priority))
                 self.cache[('table',layer)]=Table(self.indices(layer=layer))
-                self.cache[('reversed_table',layer)]=self.table(layer=layer).reversed_table
                 for index in self.indices(layer=layer):
                     self.add_leaf(parent=index.replace(**{key:None for key in layer}),leaf=index,data=None)
-            if self.mode=='QN':
-                for i,layer in enumerate(reversed(self.layers)):
-                    key=('qnc_evolutions',layer)
-                    self.cache[key]={}
-                    if i==0:
-                        for index in self.indices(layer):
-                            self[index]=self.map(index)
-                            self.cache[key][index]=[self[index]]
-                    else:
-                        for index in self.indices(layer):
-                            buff=[]
-                            for j,child in enumerate(self.children(index)):
-                                if j==0:
-                                    buff.append(self[child])
-                                else:
-                                    buff.append(buff[j-1].kron(self[child],'+',history=True))
-                            self.cache[key][index]=buff
-                            self[index]=buff[-1]
-            else:
-                for i,layer in enumerate(reversed(self.layers)):
-                   for index in self.indices(layer):
-                        self[index]=self.map(index) if i==0 else np.product([self[child] for child in self.children(index)])
+            for i,layer in enumerate(reversed(self.layers)):
+                leaves,permutations,antipermutations=[],[],[]
+                if i==0:
+                    for index in self.indices(layer):
+                        self[index]=self.map(index)
+                        leaves.append([index])
+                        permutations.append(None)
+                        antipermutations.append(None)
+                else:
+                    lowertable=self.cache[('table',self.layers[-i])]
+                    lowerleaves=self.cache[('leaves',self.layers[-i])]
+                    for index in self.indices(layer):
+                        leaves.append([leaf for child in self.children(index) for leaf in lowerleaves[lowertable[child]]])
+                        if self.mode=='QN':
+                            qns,permutation=QuantumNumbers.kron([self[leaf] for leaf in leaves[-1]]).sort(history=True)
+                        else:
+                            qns,permutation=np.product([self[leaf] for leaf in leaves[-1]]),None
+                        self[index]=qns
+                        permutations.append(permutation)
+                        antipermutations.append(None if permutation is None else np.argsort(permutation))
+                self.cache[('leaves',layer)]=leaves
+                self.cache[('permutations',layer)]=permutations
+                self.cache[('antipermutations',layer)]=antipermutations
+
 
     def ndegfre(self,index):
         '''
-        The number of degrees of freedom reprented by index.
+        The number of degrees of freedom represented by index.
         Parameters:
             index: Index
                 The index of the degrees of freedom.
@@ -125,9 +118,9 @@ class DegFreTree(Tree):
         if self.mode=='NB':
             return self[index]
         else:
-            return self[index].n
+            return len(self[index])
 
-    def indices(self,layer=None):
+    def indices(self,layer):
         '''
         The indices in a layer.
         Parameters:
@@ -136,10 +129,9 @@ class DegFreTree(Tree):
         Returns: list of Index
             The indices in the requested layer.
         '''
-        layer=self.layers[0] if layer is None else layer
         return self.cache[('indices',layer)]
 
-    def table(self,layer=None):
+    def table(self,layer):
         '''
         Return a index-sequence table with the index restricted on a specific layer.
         Parameters:
@@ -148,71 +140,66 @@ class DegFreTree(Tree):
         Returns: Table
             The index-sequence table.
         '''
-        layer=self.layers[0] if layer is None else layer
         return self.cache[('table',layer)]
 
-    def reversed_table(self,layer=None):
+    def leaves(self,layer):
         '''
-        Return the reversed sequence-index table with the index restricted on a specific layer.
-        Parameters:
-            layer: tuple of string
-                The layer where the indices are restricted.
-        Returns: Table
-            The sequence-index table.
-        '''
-        layer=self.layers[0] if layer is None else layer
-        return self.cache[('reversed_table',layer)]
-
-    def qnc_evolutions(self,layer=None):
-        '''
-        Retrun a dict in the form {branch:qncs}
-            branch: index
-                A branch on a specific layer.
-            qncs: list of QuantumNumberCollection
-                The kron path of the quantum number collection corresponding to the branch.
+        Return a list in the form [leaves]
+            leaves: list of Index
+                The leaves of a branch on a specific layer.
         Parameters:
             layer: tuple of string
                 The layer where the branches are restricted.
         Returns: as above.
         '''
-        layer=self.layers[0] if layer is None else layer
-        return self.cache.get(('qnc_evolutions',layer),None)
+        return self.cache[('leaves',layer)]
 
-    def labels(self,layer=None,full_labels=True):
+    def permutations(self,layer):
         '''
-        Return a OrderedDict of labels on a specific layer.
+        Return a list in the form [permutation]
+            permutation: 1d ndarray
+                The permutation array of the quantum numbers of a branch on a specific layer.
         Parameters:
             layer: tuple of string
-                The layer where the labels are restricted.
-            full_labels: logical, optional
-                When True the full labels including the bond labels and physical labels will be returned;
-                When Flase, only the physical labels will be returned.
-        Returns: 
-            When full_labels is True: OrderedDict of 3-tuple (L,S,R)
-            When full_labels is False: OrderedDict of Label S
-            L,S,R are in the following form:
-                L=Label(identifier=i,qnc=None)
-                S=Label(identifier=index,qnc=self[index])
-                R=Label(identifier=(i+1)%len(indices),qnc=None)
-            with,
-                identifier: Index
-                    The physical degrees of freedom of the labels restricted on this layer.
-                i: integer
-                    The sequence of the labels restricted on this layer.
-                N: integer or QuantumNumberCollection
-                    When self.mode=='QN', it is a QuantumNumberCollection, the quantum number collection of the physical degrees of freedom;
-                    When self.mode=='NB', it is a integer, the number of the physical degrees of freedom.
+                The layer where the branches are restricted.
+        Returns: as above.
         '''
-        layer=self.layers[0] if layer is None else layer
-        if ('labels',layer,full_labels) not in self.cache:
-            result=OrderedDict()
-            for i,index in enumerate(self.indices(layer)):
-                S=Label(identifier=index,qnc=self[index])
-                if full_labels:
-                    L=Label(identifier=i,qnc=None)
-                    R=Label(identifier=(i+1)%len(self.indices(layer)),qnc=None)
-                    result[index]=(L,S,R)
-                else:
-                    result[index]=S
-            self.cache[('labels',layer,full_labels)]=result
-        return self.cache[('labels',layer,full_labels)]
+        return self.cache[('permutations',layer)]
+
+    def antipermutations(self,layer):
+        '''
+        Return a list in the form [antipermutation]
+            antipermutation: 1d ndarray
+                The antipermutation array of the quantum numbers of a branch on a specific layer.
+        Parameters:
+            layer: tuple of string
+                The layer where the branches are restricted.
+        Returns: as above.
+        '''
+        return self.cache[('antipermutations',layer)]
+
+    def labels(self,layer,mode):
+        '''
+        Return the inquired labels.
+        Parameters:
+            layer: tuple of string
+                The layer information of the inquired labels.
+            mode: 'B','S','O','M'
+                'B' for bond labels of an mps;
+                'S' for site labels of an mps or an mpo;
+                'O' for bond labels of an mpo.
+                'M' for bottom labels of the physical degrees of freedom of an mps or an mpo.
+        Returns: list of Label
+                The inquired labels.
+        '''
+        mode=mode.upper()
+        assert mode in ('B','S','O','M')
+        if ('labels',layer,mode) not in self.cache:
+            if mode in ('B','O'):
+                result=[Label(identifier='%s%s-%s'%(mode,self.layers.index(layer),i),qns=None) for i in xrange(len(self.indices(layer))+1)]
+            elif mode=='S':
+                result=[Label(identifier=index,qns=self[index]) for index in self.indices(layer)]
+            else:
+                result=[[Label(leaf,qns=self[leaf]) for leaf in leaves] for leaves in self.leaves(layer)]
+            self.cache[('labels',layer,mode)]=result
+        return self.cache[('labels',layer,mode)]
