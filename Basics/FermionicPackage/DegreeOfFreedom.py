@@ -188,7 +188,7 @@ class FermiPack(IndexPack):
             temp.append('spins='+str(self.spins))
         return ''.join(['FermiPack(',', '.join(temp),')'])
 
-    def _mul(self,other):
+    def _mul_(self,other):
         '''
         Private methods used for operator(*) overloading.
         '''
@@ -222,11 +222,11 @@ class FermiPack(IndexPack):
         Overloaded operator(*), which supports the multiplication of an FermiPack instance with an FermiPack/IndexPackList instance or a scalar.
         '''
         if isinstance(other,FermiPack) or type(other)==int or type(other)==long or type(other)==float or type(other)==complex:
-            result=self._mul(other)
+            result=self._mul_(other)
         elif isinstance(other,IndexPackList):
             result=IndexPackList()
             for buff in other:
-                result.append(self._mul(buff))
+                result.append(self._mul_(buff))
         else:
             raise ValueError("FermiPack '*' error: the 'other' parameter must be of class FermiPack or IndexPackList, or a number.")
         return result
@@ -255,14 +255,14 @@ def sigmay(mode):
     '''
     result=IndexPackList()
     if mode.lower()=='sp':
-        result.append(FermiPack(-1.0j,spin1=0,spin2=1))
-        result.append(FermiPack(1.0j,spin1=1,spin2=0))
+        result.append(FermiPack(1.0j,spin1=0,spin2=1))
+        result.append(FermiPack(-1.0j,spin1=1,spin2=0))
     elif mode.lower()=='ob':
-        result.append(FermiPack(-1.0j,orbital1=0,orbital2=1))
-        result.append(FermiPack(1.0j,orbital1=1,orbital2=0))
+        result.append(FermiPack(1.0j,orbital1=0,orbital2=1))
+        result.append(FermiPack(-1.0j,orbital1=1,orbital2=0))
     elif mode.lower()=='sl':
-        result.append(FermiPack(-1.0j,atom1=0,atom2=1))
-        result.append(FermiPack(1.0j,atom1=1,atom2=0))
+        result.append(FermiPack(1.0j,atom1=0,atom2=1))
+        result.append(FermiPack(-1.0j,atom1=1,atom2=0))
     else:
         raise ValueError("SigmaY error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
     return result
@@ -273,14 +273,14 @@ def sigmaz(mode):
     '''
     result=IndexPackList()
     if mode.lower()=='sp':
-        result.append(FermiPack(1.0,spin1=0,spin2=0))
-        result.append(FermiPack(-1.0,spin1=1,spin2=1))
+        result.append(FermiPack(-1.0,spin1=0,spin2=0))
+        result.append(FermiPack(1.0,spin1=1,spin2=1))
     elif mode.lower()=='ob':
-        result.append(FermiPack(1.0,orbital1=0,orbital2=0))
-        result.append(FermiPack(-1.0,orbital1=1,orbital2=1))
+        result.append(FermiPack(-1.0,orbital1=0,orbital2=0))
+        result.append(FermiPack(1.0,orbital1=1,orbital2=1))
     elif mode.lower()=='sl':
-        result.append(FermiPack(1.0,atom1=0,atom2=0))
-        result.append(FermiPack(-1.0,atom1=1,atom2=1))
+        result.append(FermiPack(-1.0,atom1=0,atom2=0))
+        result.append(FermiPack(1.0,atom1=1,atom2=1))
     else:
         raise ValueError("SigmaZ error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
     return result

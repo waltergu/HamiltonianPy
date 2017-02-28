@@ -104,19 +104,19 @@ class SpinMatrix(ndarray):
             result=zeros((int(id[0]*2)+1,int(id[0]*2)+1),dtype=dtype).view(cls)
             if id[1] in ('X','x','Y','y','Z','z','+','-'):
                 for i in xrange(int(id[0]*2)+1):
-                    m=id[0]-i
+                    row,m=int(id[0]*2)-i,id[0]-i
                     for j in xrange(int(id[0]*2)+1):
-                        n=id[0]-j
+                        col,n=int(id[0]*2)-j,id[0]-j
                         if id[1] in ('X','x'):
-                            result[i,j]=(delta(i+1,j)+delta(i,j+1))*sqrt(temp-m*n)/2
+                            result[row,col]=(delta(i+1,j)+delta(i,j+1))*sqrt(temp-m*n)/2
                         elif id[1] in ('Y','y'):
-                            result[i,j]=(delta(i+1,j)-delta(i,j+1))*sqrt(temp-m*n)/(2j)
+                            result[row,col]=(delta(i+1,j)-delta(i,j+1))*sqrt(temp-m*n)/(2j)
                         elif id[1] in ('Z','z'):
-                            result[i,j]=delta(i,j)*m
+                            result[row,col]=delta(i,j)*m
                         elif id[1] in ('+'):
-                            result[i,j]=delta(i+1,j)*sqrt(temp-m*n)
+                            result[row,col]=delta(i+1,j)*sqrt(temp-m*n)
                         elif id[1] in ('-'):
-                            result[i,j]=delta(i,j+1)*sqrt(temp-m*n)
+                            result[row,col]=delta(i,j+1)*sqrt(temp-m*n)
             elif matrix is not None:
                 if matrix.shape!=result.shape:
                     raise ValueError("SpinMatrix construction error: id[0](%s) and the matrix's shape(%s) do not match."%(id[0],matrix.shape))
@@ -154,6 +154,12 @@ class SpinMatrix(ndarray):
         Convert an instance to string.
         '''
         return "SpinMatrix(id=%s,\nmatrix=\n%s\n)"%(self.id,super(SpinMatrix,self).__str__())
+
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return "SpinMatrix(%s\n%s\n)"%(self.id,super(SpinMatrix,self).__str__())
 
 class SpinPack(IndexPack):
     '''

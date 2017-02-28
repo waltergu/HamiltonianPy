@@ -168,10 +168,12 @@ class QuantumNumbers(object):
     '''
     A collection of quantum numbers in a stroage format similiar to that of compressed-sparse-row vectors.
     Attributes:
-        form: 'G' or 'C'
+        form: 'G', 'U' or 'C'
             1) 'G': general form
                 No restriction for the contents of the collection
-            2) 'C': canonical form
+            2) 'U': unitary form
+                The contents of the collection have no duplicates with respect to the rows.
+            3) 'C': canonical form
                 The contents of the collection must be arranged in a accending order with no duplicates by the rows.
         type: class
             The class of the quantum numbers contained in the collection.
@@ -186,22 +188,22 @@ class QuantumNumbers(object):
         '''
         Constructor, supporting the following usages:
         1) QuantumNumbers(form,(qns,counts),QuantumNumbers.COUNTS), with
-            form: 'G'/'g' or 'C'/'c'
-                'G'/'g' for general form and 'C'/'c' for canonical form.
+            form: 'G'/'g', 'U'/'u' or 'C'/'c'
+                'G'/'g' for general form, 'U'/'u' for unitary form and 'C'/'c' for canonical form.
             qns: list of QuantumNumber
                 The quantum numbers contained in the collection.
             counts: list of integer
                 The counts of the duplicates of the quantum numbers.
         2) QuantumNumbers(form,(qns,indptr),QuantumNumbers.INDPTR), with
-            form: 'G'/'g' or 'C'/'c'
-                'G'/'g' for general form and 'C'/'c' for canonical form.
+            form: 'G'/'g', 'U'/'u' or 'C'/'c'
+                'G'/'g' for general form, 'U'/'u' for unitary form and 'C'/'c' for canonical form.
             qns: list of QuantumNumber
                 The quantum numbers contained in the collection.
             indptr: list of integer
                 The indptr of the collection.
         3) QuantumNumbers(form,(type,contents,counts),QuantumNumbers.COUNTS), with
-            form: 'G'/'g' or 'C'/'c'
-                'G'/'g' for general form and 'C'/'c' for canonical form.
+            form: 'G'/'g', 'U'/'u' or 'C'/'c'
+                'G'/'g' for general form, 'U'/'u' for unitary form and 'C'/'c' for canonical form.
             type: class
                 The class of the quantum numbers contained in the collection.
             contents: 2d ndarray
@@ -209,8 +211,8 @@ class QuantumNumbers(object):
             counts: list of integer
                 The counts of the duplicates of the quantum numbers.
         4) QuantumNumbers(form,(type,contents,indptr),QuantumNumbers.INDPTR), with
-            form: 'G'/'g' or 'C'/'c'
-                'G'/'g' for general form and 'C'/'c' for canonical form.
+            form: 'G'/'g', 'U'/'u' or 'C'/'c'
+                'G'/'g' for general form, 'U'/'u' for unitary form and 'C'/'c' for canonical form.
             type: class
                 The class of the quantum numbers contained in the collection.
             contents: 2d ndarray
@@ -218,7 +220,7 @@ class QuantumNumbers(object):
             indptr: list of integer
                 The indptr of the collection.
         '''
-        assert form in ('G','g','C','c') and len(data) in (2,3) and protocal in (QuantumNumbers.COUNTS,QuantumNumbers.INDPTR)
+        assert form in ('G','g','U','u','C','c') and len(data) in (2,3) and protocal in (QuantumNumbers.COUNTS,QuantumNumbers.INDPTR)
         self.form=form.upper()
         if protocal==QuantumNumbers.COUNTS:
             if len(data)==2:
@@ -355,9 +357,7 @@ class QuantumNumbers(object):
         '''
         Overloaded negative(-) operator.
         '''
-        contents=self.type.regularization(-self.contents)[::-1]
-        indptr=np.concatenate(([0],np.cumsum((self.indptr[:-1]-self.indptr[1:])[::-1])))
-        return QuantumNumbers(self.form,(self.type,contents,indptr),protocal=QuantumNumbers.INDPTR)
+        return QuantumNumbers('U' if self.form=='C' else self.form,(self.type,-self.contents,self.indptr),protocal=QuantumNumbers.INDPTR)
 
     def __add__(self,other):
         '''
@@ -365,7 +365,7 @@ class QuantumNumbers(object):
         '''
         assert self.type is other.__class__ or not issubclass(other.__class__,QuantumNumber)
         contents=self.type.regularization(self.contents+np.asarray(other)[np.newaxis,:])
-        return QuantumNumbers(self.form,(self.type,contents,self.indptr),protocal=QuantumNumbers.INDPTR)
+        return QuantumNumbers('U' if self.form=='C' else self.form,(self.type,contents,self.indptr),protocal=QuantumNumbers.INDPTR)
 
     def __sub__(self,other):
         '''
@@ -373,7 +373,7 @@ class QuantumNumbers(object):
         '''
         assert self.type is other.__class__ or not issubclass(other.__class__,QuantumNumber)
         contents=self.type.regularization(self.contents-np.asarray(other)[np.newaxis,:])
-        return QuantumNumbers(self.form,(self.type,contents,self.indptr),protocal=QuantumNumbers.INDPTR)
+        return QuantumNumbers('U' if self.form=='C' else self.form,(self.type,contents,self.indptr),protocal=QuantumNumbers.INDPTR)
 
     def subset(self,targets=()):
         '''
@@ -385,7 +385,7 @@ class QuantumNumbers(object):
             The subset.
         '''
         indices=np.concatenate([self.indices(target) for target in targets])
-        return QuantumNumbers('G',(self.type,self.contents[indices],self.indptr[indices+1]-self.indptr[indices]),protocal=QuantumNumbers.COUNTS)
+        return QuantumNumbers('U',(self.type,self.contents[indices],self.indptr[indices+1]-self.indptr[indices]),protocal=QuantumNumbers.COUNTS)
 
     def subslice(self,targets=()):
         '''
@@ -471,7 +471,7 @@ class QuantumNumbers(object):
         Returns: OrderedDict
             The converted OrderedDict.
         '''
-        assert protocal in (QuantumNumbers.INDPTR,QuantumNumbers.COUNTS) and self.form=='C'
+        assert protocal in (QuantumNumbers.INDPTR,QuantumNumbers.COUNTS) and self.form in ('U','C')
         result=OrderedDict()
         if protocal==QuantumNumbers.INDPTR:
             for i,qn in enumerate(self.contents):
@@ -500,10 +500,10 @@ class QuantumNumbers(object):
         contents=np.asarray(ordereddict.keys())
         if protocal==QuantumNumbers.COUNTS:
             counts=ordereddict.values()
-            return QuantumNumbers('G',(type,contents,counts),protocal=QuantumNumbers.COUNTS)
+            return QuantumNumbers('U',(type,contents,counts),protocal=QuantumNumbers.COUNTS)
         else:
             indptr=np.concatenate(([0],[slice.stop for slice in ordereddict.itervalues()]))
-            return QuantumNumbers('G',(type,contents,indptr),protocal=QuantumNumbers.INDPTR)
+            return QuantumNumbers('U',(type,contents,indptr),protocal=QuantumNumbers.INDPTR)
 
     def reorder(self,permutation,protocal='EXPANSION'):
         '''
