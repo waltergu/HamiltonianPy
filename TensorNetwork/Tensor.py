@@ -352,7 +352,7 @@ class Tensor(np.ndarray):
                 slices=[slice(0,tensor.shape[axis]) if axis in alters else slice(None,None,None) for axis in xrange(ndim)]
             else:
                 for alter in alters:
-                    slices[alter]=slice(slices[alter].start+tensor.shape[alter],slices[alter].stop+tensor.shape[alter])
+                    slices[alter]=slice(slices[alter].stop,slices[alter].stop+tensor.shape[alter])
             data[tuple(slices)]=tensor[...]
         if qnon:
             for alter in alters:
@@ -512,6 +512,76 @@ class Tensor(np.ndarray):
                 result[...]=np.random.random(shape)+1j*np.random.random(shape)
         return result
 
+    def partitioned_svd(self,L,new,R,nmax=None,tol=None,return_truncation_err=False,**karg):
+        '''
+        Partition a 1d-tensor according to L and R and then perform the Schmitt decomposition.
+        Parameters:
+            L/R: Label
+                The left/right part of the partition.
+            new: Label
+                The label for the singular values.
+            nmax,tol,return_truncation_err:
+                Please refer to HamiltonianPy.Misc.Linalg.misc.truncated_svd for details.
+        Returns:
+            U,S,V: Tensor
+                The Schmitt decomposition of the 1d tensor.
+            err: float64, optional
+                The truncation error.
+        '''
+        assert self.ndim==1
+        if self.qnon:
+            data,qns=np.asarray(self),self.labels[0].qns
+            assert qns.num==1 and sl.norm(qns.contents)<10**-6
+            lod=L.qns.to_ordereddict()
+            rod=R.qns.to_ordereddict()
+            us,ss,vs,count=[],[],[],0
+            for (qn1,s1),(qn2,s2) in zip(lod.itervalues(),rod.itervalues()):
+                n1,n2=s1.stop-s1.start,s2.stop-s2.start
+                u,s,v=sl.svd(data[count:count+n1*n2].reshape((n1,n2)),full_matrices=False,lapack_driver='gesvd')
+                us.append(u)
+                ss.append(s)
+                vs.append(v)
+                count+=n1*n2
+            temp=np.sort(np.concatenate([-s for s in ss]))
+            nmax=len(temp) if nmax is None else min(nmax,len(temp))
+            tol=temp[nmax-1] if tol is None else min(-tol,temp[nmax-1])
+            Us,Ss,Vs,qns,counts=[],[],[],[],[]
+            for u,s,v,qn in zip(us,ss,vs,lod):
+                cut=np.searchsorted(-s,tol,side='right')
+                if cut>0:
+                    Us.append(u[:,0:cut])
+                    Ss.append(s[0:cut])
+                    Vs.append(v[0:cut,:])
+                    qns.append(qn)
+                    counts.append(cut)
+            new=new.replace(QuantumNumbers('U',(qns,counts),QuantumNumbers.COUNTS))
+            nod=new.qns.to_ordereddict()
+            U=np.zeros((L.dim,new.dim),dtype=self.dtype)
+            S=np.concatenate(Ss)
+            V=np.zeros((new.dim,R.dim),dtype=self.dtype)
+            for u,v,qn in zip(Us,Vs,nod):
+                U[lod[qn],od[qn]]=u
+                V[od[qn],rod[qn]]=v
+            U=Tensor(U,labels=[L,new])
+            S=Tensor(S,labels=[new])
+            V=Tensor(V,labels=[new,R])
+            if return_truncation_err:
+                err=(temp[nmax:]**2).sum()
+                return U,S,V,err
+            else:
+                return U,S,V
+        else:
+            data=hm.truncated_svd(np.asarray(self).reshape((L.dim,R.dim)),full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=return_truncation_err)
+            S=S.replace(qns=len(temp[1]))
+            U=Tensor(temp[0],labels=[L,S])
+            S=Tensor(temp[1],labels=[S])
+            V=Tensor(temp[2],labels=[S,R])
+            if return_truncation_err:
+                err=temp[3]
+                return U,S,V,err
+            else:
+                return U,S,V
+
     def svd(self,row,new,col,row_signs=None,col_signs=None,nmax=None,tol=None,return_truncation_err=False,**karg):
         '''
         Perform the svd.
@@ -559,7 +629,7 @@ class Tensor(np.ndarray):
                     contents[0].append(qn)
                     contents[1].append(cut)
             S=np.concatenate(Ss)
-            new=new.replace(qns=QuantumNumbers('C',contents,protocal=QuantumNumbers.COUNTS))
+            new=new.replace(qns=QuantumNumbers('U',contents,protocal=QuantumNumbers.COUNTS))
             od=new.qns.to_ordereddict()
             U=np.zeros((len(row_qns),len(new.qns)),dtype=self.dtype)
             V=np.zeros((len(new.qns),len(col_qns)),dtype=self.dtype)
@@ -705,8 +775,8 @@ def _contract_(*tensors,**karg):
     lists=[tensor.labels for tensor in tensors]
     alls=[replace.get(label,label) for labels in lists for label in labels]
     counts=Counter(alls)
-    table={key:i for i,key in enumerate(counts)}
-    subscripts=[''.join(chr(table[label]+97) for label in labels) for labels in lists]
+    table={key:i+65 if i<26 else i+97 for i,key in enumerate(counts)}
+    subscripts=[''.join(chr(table[label]) for label in labels) for labels in lists]
     contracted_labels=[label for label in alls if (counts[label]==1 or reserve.pop(label,False))]
-    contracted_subscript=''.join(chr(table[label]+97) for label in contracted_labels)
+    contracted_subscript=''.join(chr(table[label]) for label in contracted_labels)
     return Tensor(np.einsum('%s->%s'%(','.join(subscripts),contracted_subscript),*tensors),labels=contracted_labels)

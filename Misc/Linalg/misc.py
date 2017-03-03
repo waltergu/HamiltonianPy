@@ -1,16 +1,35 @@
 '''
 Miscellaneous constants, classes or functions, including:
 1) constants: TOL
-2) functions: reorder,dagger,truncated_svd,eigsh,block_diag
+2) functions: overlap,reorder,dagger,truncated_svd,eigsh,block_diag
 '''
 
-__all__=['TOL','reorder','dagger','truncated_svd','eigsh','block_diag']
+__all__=['TOL','overlap','reorder','dagger','truncated_svd','eigsh','block_diag']
 
 import numpy as np
 import scipy.sparse.linalg as pl
 import scipy.linalg as sl
 
 TOL=5*10**-12
+
+def overlap(*args):
+    '''
+    Calculate the overlap between two vectors or among a matrix and two vectors.
+    Usage:
+    1) overlap(vector1,vector2), with
+        vector1,vector2: 1d ndarray
+            The vectors between which the overlap is to calculate.
+    2) overlap(vector1,matrix,vector2), with
+        vector1,vector2: 1d ndarray
+            The ket and bra in the overlap.
+        matrix: 2d ndarray-like
+            The matrix between the two vectors.
+    '''
+    assert len(args) in (2,3)
+    if len(args)==2:
+        return np.vdot(args[0],args[1])
+    else:
+        return np.vdot(args[0],args[1].dot(args[2]))
 
 def reorder(array,axes=None,permutation=None):
     '''

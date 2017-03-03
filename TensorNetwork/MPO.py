@@ -6,10 +6,13 @@ Matrix product operator, including:
 __all__=['OptStr','MPO']
 
 import numpy as np
+import HamiltonianPy.Misc as hm
+from numpy.linalg import norm
 from collections import OrderedDict
-from HamiltonianPy import OperatorF,OperatorS,CREATION
-from Tensor import Tensor,contract
-from ..Misc import parity
+from HamiltonianPy import QuantumNumbers,OperatorF,OperatorS,CREATION
+from Tensor import Tensor,Label,contract
+from MPS import MPS
+from copy import copy
 
 class OptStr(list):
     '''
@@ -65,8 +68,9 @@ class OptStr(list):
             for i,(index,matrix) in enumerate(zip(operator.indices,operator.spins)):
                 pos=table[index]
                 ms.append(Tensor(matrix*operator.value if i==0 else matrix,labels=[sites[pos].prime,sites[pos]]))
-            return OptStr(ms).relayer(degfres,layer)
+            return OptStr(sorted(ms,key=lambda m:table[m.labels[1].identifier])).relayer(degfres,layer)
         else:
+            # undebugged code
             length=len(operator.indices)
             assert length%2==0
             table=degfres.table(degfres.layers[-1])
@@ -93,8 +97,8 @@ class OptStr(list):
                     ms.append(Tensor(groups[leaf] if length%2==0 else groups[leaf].dot(zmatrix),labels=labels))
                 elif length%2!=0:
                     ms.append(Tensor(zmatrix,labels=labels))
-            ms[0]=ms[0]*operator.value*parity(permutation)
-            return OptStr(ms=ms).relayer(degfres,layer)
+            ms[0]*=operator.value*hm.parity(permutation)
+            return OptStr(ms=sorted(ms,key=lambda m: m.labels[1].identifier)).relayer(degfres,layer)
 
     def __imul__(self,other):
         '''
@@ -134,8 +138,8 @@ class OptStr(list):
         The overlap of an optstr between two mpses.
         Parameters:
             mps1,mps2: MPS
-                The two matrix product state between which the overlap of an optstr is calculated.
-                Note both mpses are kets, i.e. the complex conjugate of the inner product is taken in this function.
+                The two matrix product states between which the overlap of an optstr is calculated.
+                Both mpses should be kets because the complex conjugate of the first mps is always taken to calculate the overlap in this function.
         Returns: number
             The overlap.
         '''
@@ -167,7 +171,7 @@ class OptStr(list):
             if i==stop-start-1:
                 news.remove(R1.prime)
                 olds.remove(R1)
-            if Sp in poses:
+            if S1 in poses:
                 u1.relabel(news=news,olds=olds)
                 result=contract(result,u1,ms[count],u2,sequence='sequential')
                 count+=1
@@ -183,33 +187,76 @@ class OptStr(list):
             mps2._set_ABL_(m2,Lambda2)
         return np.asarray(result)
 
-#    def relayer(self,degfres,layer,nmax=None,tol=None):
-#        '''
-#        Construt a new optstr with the site labels living on a specific layer of degfres.
-#        Parameters:
-#            degfres: DegFreTree
-#                The tree of the site degrees of freedom.
-#            layer: integer/tuple-of-string
-#                The layer where the site labels live.
-#            nmax: integer, optional
-#                The maximum number of singular values to be kept.
-#            tol: np.float64, optional
-#                The tolerance of the singular values.
-#        Returns: OptStr
-#            The new optstr.
-#        '''
-#        pass
+    def to_mpo(self,degfres):
+        '''
+        Convert an optstr to the full-formated mpo.
+        Parameters:
+            degfres: DegFreTree
+                The tree of the site degrees of freedom.
+        Returns: MPO
+            The corresponding MPO.
+        '''
+        type=degfres[next(iter(next(iter(self)).labels)).identifier].type if degfres.mode=='QN' else None
+        layer=degfres.layers[degfres.level(next(iter(self)).labels[1].identifier)-1]
+        table,sites,bonds=degfres.table(layer),degfres.labels(layer,'S'),degfres.labels(layer,'O')
+        poses=set(table[m.labels[1].identifier] for m in self)
+        ms,count=[],0
+        for pos in xrange(len(sites)):
+            L,U,D,R=copy(bonds[pos]),sites[pos].prime,sites[pos],copy(bonds[pos+1])
+            ndegfre=degfres.ndegfre(U.identifier)
+            if degfres.mode=='QN':
+                U,D=U.replace(qns=None),D.replace(qns=None)
+                lqns,sqns=QuantumNumbers.mono(type.zeros()) if pos==0 else ms[-1].labels[MPO.R].qns,sites[pos].qns
+            if pos in poses:
+                ms.append(Tensor(np.asarray(self[count]).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
+                count+=1
+            else:
+                ms.append(Tensor(np.identity(len(sqns)).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
+            if degfres.mode=='QN':
+                ms[-1].qng(axes=[MPO.L,MPO.U,MPO.D],qnses=[lqns,sqns,sqns],signs='++-')
+        return MPO(ms)
 
-#    def to_mpo(self,degfres):
-#        '''
-#        Convert an optstr to the full-formated mpo.
-#        Parameters:
-#            degfres: DegFreTree
-#                The tree of the site degrees of freedom.
-#        Returns: MPO
-#            The corresponding MPO.
-#        '''
-#        pass
+    # undebugged code
+    def relayer(self,degfres,layer):
+        '''
+        Construt a new optstr with the site labels living on a specific layer of degfres.
+        Parameters:
+            degfres: DegFreTree
+                The tree of the site degrees of freedom.
+            layer: integer/tuple-of-string
+                The layer where the site labels live.
+        Returns: OptStr
+            The new optstr.
+        '''
+        new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
+        old=degfres.level(next(iter(next(iter(self)).labels)).identifier)-1
+        assert new>=0 and new<len(degfres.layers) and old>=new
+        if old==new:
+            return copy(self)
+        else:
+            poses={}
+            for pos,m in enumerate(self):
+                index=m.labels[1].identifier
+                ancestor=degfres.ancestor(old-new)
+                if ancestor in poses:
+                    poses[ancestor][index]=pos
+                else:
+                    poses[ancestor]={index:pos}
+            ms=[]
+            olayer,nlayer=degfres.layers[old],degfres.layers[new]
+            otable,ntable=degfres.table(olayer),degfres.table(nlayer)
+            opts,npts=degfres.antipermutations(olayer),degfres.permutations(nlayer)
+            sites=degfres.labels(nlayer,'S')
+            for ancestor in sorted(poses.keys(),key=ntable.get):
+                m=1.0
+                for index in degfres.descendants(ancestor,old-new):
+                    if index in poses[ancestor]:
+                        m=np.kron(m,hm.reorder(np.asarray(self[poses[ancestor][index]]),axes=[0,1],permutation=opts[otable[index]]))
+                    else:
+                        m=np.kron(m,np.identity(degfres.ndegfre(index)))
+                pos=ntable[ancestor]
+                ms.append(Tensor(hm.reorder(m,axes=[0,1],permutation=npts[pos]),labels=[sites[pos].prime,sites[pos]]))
+            return OptStr(ms)
 
 class MPO(list):
     '''
@@ -247,11 +294,81 @@ class MPO(list):
         '''
         return '\n'.join(str(m) for m in self)
 
-#    def __add__(self,other):
-#        '''
-#        Overloaded addition(+) operator, which supports the addition of two mpos.
-#        '''
-#        pass
+    @property
+    def nsite(self):
+        '''
+        The number of total sites.
+        '''
+        return len(self)
+
+    def _mul_mpo_(self,other):
+        '''
+        The multiplication of two mpos.
+        Parameters:
+            other: MPO
+                The other mpo.
+        Returns: MPO
+            The product.
+        '''
+        assert self.nsite==other.nsite
+        ms=[]
+        for i,(m1,m2) in enumerate(zip(self,other)):
+            assert m1.labels==m2.labels
+            m1,m2=m1.copy(copy_data=False),m2.copy(copy_data=False)
+            L1,U1,D1,R1=m1.labels
+            L2,U2,D2,R2=m2.labels
+            L=L1.replace(qns=QuantumNumbers.kron([L1.qns,L2.qns]) if L1.qnon else L1.qns*L2.qns)
+            R=R1.replace(qns=QuantumNumbers.kron([R1.qns,R2.qns]) if R1.qnon else R1.qns*R2.qns)
+            s=Label('__MPO_MUL__',qns=U1.qns)
+            l1,r1=Label('__MPO_MUL_L1__',qns=L1.qns),Label('__MPO_MUL_R1__',qns=R1.qns)
+            l2,r2=Label('__MPO_MUL_L2__',qns=L2.qns),Label('__MPO_MUL_R2__',qns=R2.qns)
+            m1.relabel(olds=[L1,D1,R1],news=[l1,s,r1])
+            m2.relabel(olds=[L2,U2,R2],news=[l2,s,r2])
+            ms.append(contract(m1,m2).transpose((l1,l2,U1,D2,r1,r2)).merge((([l1,l2],L)),([r1,r2],R)))
+        return MPO(ms)
+
+    def _mul_mps_(self,other):
+        '''
+        The multiplication of an mpo and an mps.
+        Parameters:
+            other: MPS
+                The mps.
+        Returns: MPS
+            The product.
+        '''
+        assert self.nsite==other.nsite
+        u,Lambda=other._merge_ABL_()
+        ms=[]
+        for i,(m1,m2) in enumerate(zip(self,other)):
+            L1,U1,D1,R1=m1.labels
+            L2,S,R2=m2.labels
+            assert S==D1
+            L=L2.replace(qns=QuantumNumbers.kron([L1.qns,L2.qns]) if L1.qnon else L1.qns*L2.qns)
+            R=R2.replace(qns=QuantumNumbers.kron([R1.qns,R2.qns]) if R1.qnon else R1.qns*R2.qns)
+            m=contract(m1,m2).transpose((L1,L2,U1,R1,R2)).merge(([L1,L2],L),([R1,R2],R))
+            m.relabel(olds=[U1],news=[S])
+            ms.append(m)
+        other._set_ABL_(u,Lambda)
+        return MPS(mode=other.mode,ms=ms)
+
+    def __iadd__(self,other):
+        '''
+        Overloaded self-addition(+=) operator.
+        '''
+        return self+other
+
+    def __add__(self,other):
+        '''
+        Overloaded addition(+) operator, which supports the addition of two mpos.
+        '''
+        assert self.nsite==other.nsite
+        ms=[]
+        for i,(m1,m2) in enumerate(zip(self,other)):
+            assert m1.labels==m2.labels
+            labels=[label.replace(qns=None) for label in m1.labels]
+            axes=[MPO.L,MPO.U,MPO.D] if i==0 else ([MPO.U,MPO.D,MPO.R] if i==self.nsite-1 else [MPO.U,MPO.D])
+            ms.append(Tensor.directsum([m1,m2],labels=labels,axes=axes))
+        return MPO(ms)
 
     def __pos__(self):
         '''
@@ -275,15 +392,23 @@ class MPO(list):
         '''
         Overloaded self-multiplication(*=) operator, which supports the self-multiplication by a scalar.
         '''
-        self[0]*=other
-        return self
+        if isinstance(other,MPO):
+            return self._mul_mpo_(other)
+        else:
+            self[0]*=other
+            return self
 
     def __mul__(self,other):
         '''
         Overloaded multiplication(*) operator, which supports the multiplication of an mpo with a scalar.
         '''
-        result=copy(self)
-        result[0]=result[0]*other
+        if isinstance(other,MPO):
+            result=self._mul_mpo_(other)
+        elif isinstance(other,MPS):
+            result=self._mul_mps_(other)
+        else:
+            result=copy(self)
+            result[0]=result[0]*other
         return result
 
     def __rmul__(self,other):
@@ -304,32 +429,146 @@ class MPO(list):
         '''
         return self.__mul__(1.0/other)
 
-#    def compress(self,nmax=None,tol=None):
-#        '''
-#        Compress the mpo.
-#        Parameters:
-#            nmax: integer, optional
-#                The maximum number of singular values to be kept.
-#            tol: float64, optional
-#                The tolerance of the singular values.
-#        Returns: MPO
-#            The compressed mpo.
-#        '''
-#        pass
+    def overlap(self,mps1,mps2):
+        '''
+        The overlap of an mpo between two mpses.
+        Parameters:
+            mps1, mps2: MPS
+                The two matrix product states between which the overlap of an mpo is calculated.
+                Both mpses should be kets because the complex conjugate of the first mps is always taken to calculate the overlap in this function.
+        Returns: number
+            The overlap.
+        '''
+        assert self.nsite==mps1.nsite and self.nsite==mps2.nsite
+        if mps1 is mps2:
+            u,Lambda=mps1._merge_ABL_()
+        else:
+            u1,Lambda1=mps1._merge_ABL_()
+            u2,Lambda2=mps2._merge_ABL_()
+        result=Tensor(1.0,labels=[])
+        for i,(mpo,m1,m2) in enumerate(zip(self,mps1,mps2)):
+            m1=m1.copy(copy_data=False).conjugate()
+            L1,S1,R1=m1.labels
+            L2,S2,R2=m2.labels
+            assert L1==L2 and S1==S2 and R1==R2
+            olds,news=[L1,S1,R1],[L1.prime,S1.prime,R1.prime]
+            if i==0:
+                olds.remove(L1)
+                news.remove(L1.prime)
+            if i==self.nsite-1:
+                olds.remove(R1)
+                news.remove(R1.prime)
+            m1.relabel(olds=olds,news=news)
+            result=contract(result,m1,m2,mpo,sequence='sequential')
+        if mps1 is mps2:
+            mps1._set_ABL_(u,Lambda)
+        else:
+            mps1._set_ABL_(u1,Lambda1)
+            mps2._set_ABL_(u2,Lambda2)
+        assert result.shape==(1,1)
+        return result[0,0]
 
-#    def relayer(self,degfres,layer,nmax=None,tol=None):
-#        '''
-#        Construt a new mpo with the site labels living on a specific layer of degfres.
-#        Parameters:
-#            degfres: DegFreTree
-#                The tree of the site degrees of freedom.
-#            layer: integer/tuple-of-string
-#                The layer where the site labels live.
-#            nmax: integer, optional
-#                The maximum number of singular values to be kept.
-#            tol: np.float64, optional
-#                The tolerance of the singular values.
-#        Returns: MPO
-#            The new mpo.
-#        '''
-#        pass
+    def compress(self,nsweep=1,nmax=None,tol=None):
+        '''
+        Compress the mpo.
+        Parameters:
+            nsweep: integer, optional
+                The number of sweeps to compress the mpo.
+            nmax: integer, optional
+                The maximum number of singular values to be kept.
+            tol: float64, optional
+                The tolerance of the singular values.
+        Returns: MPO
+            The compressed mpo.
+        '''
+        for sweep in xrange(nsweep):
+            factor=1.0
+            for i,m in enumerate(self):
+                if i<self.nsite-1:
+                    L,U,D,R=m.labels
+                    u,s,v=m.svd(row=[L,U,D],new=R.prime,col=[R],row_signs='++-',col_signs='+',nmax=nmax,tol=tol)
+                    coeff=norm(s)
+                    factor,s=factor*coeff,s/coeff
+                    self[i]=u
+                    self[i+1]=contract(s,v,self[i+1],reserve=s.labels)
+                    self[i].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
+                    self[i+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
+            self[-1]*=factor
+            factor=1.0
+            for i,m in enumerate(reversed(self)):
+                if i<self.nsite-1:
+                    L,U,D,R=m.labels
+                    u,s,v=m.svd(row=[L],new=L.prime,col=[U,D,R],row_signs='+',col_signs='-++',nmax=nmax,tol=tol)
+                    coeff=norm(s)
+                    factor,s=factor*coeff,s/coeff
+                    self[-1-i]=v
+                    self[-2-i]=contract(self[-2-i],u,s,reserve=s.labels)
+                    self[-1-i].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
+                    self[-2-i].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
+            self[0]*=factor
+
+    # undebugged code
+    def relayer(self,degfres,layer,nmax=None,tol=None):
+        '''
+        Construt a new mpo with the site labels living on a specific layer of degfres.
+        Parameters:
+            degfres: DegFreTree
+                The tree of the site degrees of freedom.
+            layer: integer/tuple-of-string
+                The layer where the site labels live.
+            nmax: integer, optional
+                The maximum number of singular values to be kept.
+            tol: np.float64, optional
+                The tolerance of the singular values.
+        Returns: MPO
+            The new mpo.
+        '''
+        new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
+        old=degfres.level(next(iter(self)).labels[MPO.U].identifier)-1
+        assert new>=0 and new<len(degfres.layers)
+        if new==old:
+            return copy(self)
+        else:
+            olayer,nlayer=degfres.layers[old],degfres.layers[new]
+            opts,otps=degfres.permutations(olayer),degfres.antipermutations(olayer)
+            npts,ntps=degfres.permutations(nlayer),degfres.antipermutations(nlayer)
+            sites,bonds=degfres.labels(nlayer,'S'),degfres.labels(nlayer,'O')
+            Ms=[]
+            if new<old:
+                table=degfres.table(olayer)
+                oldsites=degfres.labels(olayer,'S')
+                oldbottoms,newbottoms=degfres.labels(olayer,'M'),degfres.labels(nlayer,'M')
+                oldbottomsp,newbottomsp=[[ob.prime for ob in obs] for obs in oldbottoms],[[nb.prime for nb in nbs] for nbs in newbottoms]
+                for i,site in enumerate(sites):
+                    ms=[]
+                    for index in degfres.descendants(site.identifier,generation=old-new):
+                        pos=table[index]
+                        ms.append(self[pos].split((oldsites[pos].prime,oldbottomsp[pos],otps[pos]),(oldsites[pos],oldbottoms[pos],otps[pos])))
+                    M=contract(*ms,sequence='sequential')
+                    o1,o2=M.labels[0],M.labels[-1]
+                    n1,n2=bonds[i].replace(qns=o1.qns),bonds[i+1].replace(qns=o2.qns)
+                    M.relabel(olds=[o1,o2],news=[n1,n2])
+                    Ms.append(M.transpose([n1]+oldbottomsp+oldbottoms+[n2]).merge((newbottomsp[i],site.prime,npts[i]),(newbottoms[i],site,npts[i])))
+            else:
+                table=degfres.table(nlayer)
+                for i,m in enumerate(self):
+                    if i>0: m=contract(s,v,m,reserve=s.labels)
+                    L,U,D,R=m.labels
+                    indices=degfres.descendants(D.identifier,generation=new-old)
+                    start,stop=table[indices[0]],table[indices[-1]]+1
+                    csites,csitep,csitesp,labels,qnses=[],[],[],[],[]
+                    for i,(label,antipermutation) in enumerate(zip(sites[start:stop],ntps[start:stop])):
+                        csites.append(label.replace(qns=label.qns.reorder(antipermutation)) if label.qnon else label)
+                        csitep.append(csites[-1].prime)
+                        csitesp.extend([csitep[-1],csites[-1]])
+                        labels.append(Label('__MPO_RELAYER_i__'%i,qns=QuantumNumbers.kron([label.qns]*2,signs='+-') if label.qnon else label.dim*label.dim))
+                        qnses.append(labels[-1].qns)
+                    S=Label('__MPO_RELAYER__',qns=QuantumNumbers.kron(qnses) if label.qnon else np.product(qnses))
+                    m=m.reorder((MPO.U,otps[i]),(MPO.D,opts[i])).split((U,csitep),(D,csites)).transpose(csitesp).merge((csitesp,S))
+                    us,s,v=m.expanded_svd(L=[L],S=S,R=[R],E=labels,I=bonds[start+1:stop+1],cut=stop-start,nmax=nmax,tol=tol)
+                    for u,permutation,site,label in zip(us,nps[start:stop],sites[start:stop],labels):
+                        Ms.append(u.split((label,[site.prime,site]))).reorder((MPO.U,permutation,site.qns),(MPO.D,permutation,site.qns))
+                Ms[-1]=contract(Ms[-1],s,v)
+                Ms[+0].relabel(olds=[Ms[+0].labels[MPO.L]],news=[bonds[+0].replace(qns=Ms[+0].labels[MPO.L].qns)])
+                Ms[-1].relabel(olds=[Ms[-1].labels[MPO.R]],news=[bonds[-1].replace(qns=Ms[-1].labels[MPO.R].qns)])
+            return MPO(ms)

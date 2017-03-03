@@ -402,17 +402,16 @@ class MPS(list):
         '''
         if self.cut==0: raise ValueError('MPS _set_B_and_lmove_ error: the cut is already zero.')
         L,S,R=M.labels[MPS.L],M.labels[MPS.S],M.labels[MPS.R]
-        Lp=L.prime
-        u,s,v,err=M.svd(row=[L],new=Lp,col=[S,R],row_signs='+',col_signs='-+',nmax=nmax,tol=tol,return_truncation_err=True)
-        v.relabel(olds=[Lp],news=[Lp.prime])
+        u,s,v,err=M.svd(row=[L],new=L.prime,col=[S,R],row_signs='+',col_signs='-+',nmax=nmax,tol=tol,return_truncation_err=True)
+        v.relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
         self[self.cut-1]=v
         if self.cut==1:
             self.Lambda=contract(u,s)
         else:
-            s.relabel(olds=[Lp],news=[Lp.prime])
-            self.Lambda=s
             self[self.cut-2]=contract(self[self.cut-2],u)
-            self[self.cut-2].relabel(olds=[Lp],news=[Lp.prime])
+            self[self.cut-2].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
+            s.relabel(news=[L.replace(qns=s.labels[0].qns)])
+            self.Lambda=s
         self.cut=self.cut-1
 
     def _set_A_and_rmove_(self,M,nmax=None,tol=None):
@@ -429,17 +428,16 @@ class MPS(list):
         if self.cut==self.nsite:
             raise ValueError('MPS _set_A_and_rmove_ error: the cut is already maximum.')
         L,S,R=M.labels[MPS.L],M.labels[MPS.S],M.labels[MPS.R]
-        Rp=R.prime
-        u,s,v,err=M.svd(row=[L,S],new=Rp,col=[R],row_signs='++',col_signs='+',nmax=nmax,tol=tol,return_truncation_err=True)
-        u.relabel(olds=[Rp],news=[Rp.prime])
+        u,s,v,err=M.svd(row=[L,S],new=R.prime,col=[R],row_signs='++',col_signs='+',nmax=nmax,tol=tol,return_truncation_err=True)
+        u.relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
         self[self.cut]=u
         if self.cut==self.nsite-1:
             self.Lambda=contract(s,v)
         else:
-            s.relabel(olds=[Rp],news=[Rp.prime])
-            self.Lambda=s
             self[self.cut+1]=contract(v,self[self.cut+1])
-            self[self.cut+1].relabel(olds=[Rp],news=[Rp.prime])
+            self[self.cut+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
+            s.relabel(news=[R.replace(qns=s.labels[0].qns)])
+            self.Lambda=s
         self.cut=self.cut+1
 
     def __ilshift__(self,other):
@@ -521,7 +519,7 @@ class MPS(list):
         mode,ms=self.mode,[]
         for i,(m1,m2) in enumerate(zip(self,other)):
             assert m1.labels==m2.labels
-            labels=[lb.replace(qns=None) for lb in m1.labels]
+            labels=[label.replace(qns=None) for label in m1.labels]
             axes=[MPS.L,MPS.S] if i==0 else ([MPS.S,MPS.R] if i==self.nsite-1 else [MPS.S])
             ms.append(Tensor.directsum([m1,m2],labels=labels,axes=axes))
         if self is other:
