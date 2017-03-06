@@ -234,9 +234,9 @@ class Tensor(np.ndarray):
         Change the labels of the tensor.
         Parameters:
             news: list of Label
-                The new labels of the tensor's axes.
-            olds: list of Label, optional
-                The old labels of the tensor's axes.
+                The new labels of the tensor.
+            olds: list of Label/integer, optional
+                The old labels/axes of the tensor.
         '''
         if olds is None:
             assert len(news)==self.ndim
@@ -244,9 +244,10 @@ class Tensor(np.ndarray):
             self.labels=news
         else:
             assert len(news)==len(olds)
-            assert all(new.dim==old.dim and new.qnon==self.qnon for new,old in zip(news,olds))
+            olds=[self.axis(old) if isinstance(old,Label) else old for old in olds]
+            assert all(new.dim==self.labels[old].dim and new.qnon==self.qnon for new,old in zip(news,olds))
             for old,new in zip(olds,news):
-                self.labels[self.axis(old)]=new
+                self.labels[old]=new
 
     def transpose(self,axes=None):
         '''
@@ -368,8 +369,8 @@ class Tensor(np.ndarray):
             tensor.merge((olds,new,<permutation>),(olds,new,<permutation>),...)
         For each group of olds, new and permutation, merge the olds into the new with an optional permutation.
         Parameters:
-            olds: list of Label
-                The old labels to be merged.
+            olds: list of Label/integer
+                The old labels/axes to be merged.
             new: Label
                 The new label.
             permutation: 1d ndarray of integers, optional
@@ -380,7 +381,7 @@ class Tensor(np.ndarray):
         masks,indptr=set(),range(self.ndim+1)
         for arg in args:
             assert len(arg) in (2,3)
-            axes=np.array([self.axis(old) for old in arg[0]])
+            axes=np.array([self.axis(old) if isinstance(old,Label) else old for old in arg[0]])
             if len(axes)!=axes.max()-axes.min()+1 or not (axes[1:]>axes[:-1]).all():
                 raise ValueError('Tensor merge error: the axes to be merged should be continous and accending, please call transpose first.')
             masks.add(axes[0])
@@ -410,8 +411,8 @@ class Tensor(np.ndarray):
             tensor.split((old,news,<permutation>),(old,news,<permutation>),...)
         For each group of old, news and permutation, split the old into the news with an optional permutation.
         Parameters:
-            old: Label
-                The label to be split.
+            old: Label/integer
+                The label/axis to be splitted.
             news: list of Label
                 The new labels.
             permutation: 1d ndarray of integers, optional
@@ -419,7 +420,7 @@ class Tensor(np.ndarray):
         Returns: Tensor
             The new tensor.
         '''
-        table={self.axis(arg[0]):i for i,arg in enumerate(args)}
+        table={(self.axis(arg[0]) if isinstance(arg[0],Label) else arg[0]):i for i,arg in enumerate(args)}
         shape,labels,axes,permutations=(),[],[],[]
         for axis,dim,label in zip(xrange(self.ndim),self.shape,self.labels):
             if axis in table:
@@ -442,7 +443,7 @@ class Tensor(np.ndarray):
         Generate the quantum numbers of a tensor.
         Parameters:
             axes: list of Label/integer
-                The axes whose quantum numer collections are known.
+                The labels/axes whose quantum numer collections are known.
             qnses: list of QuantumNumbers
                 The quantum number collections of the known axes.
             signs: string, optional
@@ -512,6 +513,7 @@ class Tensor(np.ndarray):
                 result[...]=np.random.random(shape)+1j*np.random.random(shape)
         return result
 
+    # undebugged code
     def partitioned_svd(self,L,new,R,nmax=None,tol=None,return_truncation_err=False,**karg):
         '''
         Partition a 1d-tensor according to L and R and then perform the Schmitt decomposition.
@@ -586,8 +588,8 @@ class Tensor(np.ndarray):
         '''
         Perform the svd.
         Parameters:
-            row/col: list of Label
-                The labels to be merged as the row/column label during the svd.
+            row/col: list of Label/integer
+                The labels/axes to be merged as the row/column label during the svd.
                 The positive direction is IN for row and OUT for col if they use good quantum numbers.
             new: Label
                 The new axis label after the svd.
@@ -602,6 +604,8 @@ class Tensor(np.ndarray):
                 The truncation error.
         '''
         assert len(row)+len(col)==self.ndim
+        row=[r if isinstance(r,Label) else self.label(r) for r in row]
+        col=[c if isinstance(c,Label) else self.label(c) for c in col]
         if self.qnon:
             row_qns,row_permutation=QuantumNumbers.kron([lb.qns for lb in row],row_signs).sort(history=True)
             col_qns,col_permutation=QuantumNumbers.kron([lb.qns for lb in col],col_signs).sort(history=True)
@@ -664,11 +668,11 @@ class Tensor(np.ndarray):
         '''
         Expand a label of a tensor and perform a sequential svd.
         Parameters:
-            L/R: list of Label
-                The labels to be merged as the left/right label during the expanded svd.
+            L/R: list of Label/integer
+                The labels/axes to be merged as the left/right label during the expanded svd.
                 The positive direction is IN for L and OUT for R if they use good quantum numbers.
-            S: Label
-                The label to be expanded.
+            S: Label/integer
+                The label/axis to be expanded.
                 The positive direction is IN for S if it uses good quantum numbers.
             E: list of Label
                 The expansion of the merge of S labels.
@@ -688,6 +692,9 @@ class Tensor(np.ndarray):
             The results of the expanded svd.
         '''
         assert len(L)+len(R)==self.ndim-1 and cut>=0 and cut<=len(E)
+        L=[l if isinstance(l,Label) else self.label(l) for l in L]
+        S=S if isinstance(S,Label) else self.label(S)
+        R=[r if isinstance(r,Label) else self.label(r) for r in R]
         es='+'*len(E) if es is None else es
         llabel=Label('__TENSOR_EXPANDED_SVD_L__',qns=QuantumNumbers.kron([lb.qns for lb in L],signs=ls) if self.qnon else None)
         rlabel=Label('__TENSOR_EXPANDED_SVD_R__',qns=QuantumNumbers.kron([lb.qns for lb in R],signs=rs) if self.qnon else None)

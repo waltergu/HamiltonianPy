@@ -82,29 +82,15 @@ class DegFreTree(Tree):
                 for index in self.indices(layer=layer):
                     self.add_leaf(parent=index.replace(**{key:None for key in layer}),leaf=index,data=None)
             for i,layer in enumerate(reversed(self.layers)):
-                leaves,permutations,antipermutations=[],[],[]
                 if i==0:
                     for index in self.indices(layer):
                         self[index]=self.map(index)
-                        leaves.append([index])
-                        permutations.append(None)
-                        antipermutations.append(None)
                 else:
-                    lowertable=self.cache[('table',self.layers[-i])]
-                    lowerleaves=self.cache[('leaves',self.layers[-i])]
                     for index in self.indices(layer):
-                        leaves.append([leaf for child in self.children(index) for leaf in lowerleaves[lowertable[child]]])
                         if self.mode=='QN':
-                            qns,permutation=QuantumNumbers.kron([self[leaf] for leaf in leaves[-1]]).sort(history=True)
+                            self[index]=QuantumNumbers.kron([self[child] for child in self.children(index)])
                         else:
-                            qns,permutation=np.product([self[leaf] for leaf in leaves[-1]]),None
-                        self[index]=qns
-                        permutations.append(permutation)
-                        antipermutations.append(None if permutation is None else np.argsort(permutation))
-                self.cache[('leaves',layer)]=leaves
-                self.cache[('permutations',layer)]=permutations
-                self.cache[('antipermutations',layer)]=antipermutations
-
+                            self[index]=np.product([self[child] for child in self.children(index)])
 
     def ndegfre(self,index):
         '''
@@ -142,64 +128,25 @@ class DegFreTree(Tree):
         '''
         return self.cache[('table',layer)]
 
-    def leaves(self,layer):
-        '''
-        Return a list in the form [leaves]
-            leaves: list of Index
-                The leaves of a branch on a specific layer.
-        Parameters:
-            layer: tuple of string
-                The layer where the branches are restricted.
-        Returns: as above.
-        '''
-        return self.cache[('leaves',layer)]
-
-    def permutations(self,layer):
-        '''
-        Return a list in the form [permutation]
-            permutation: 1d ndarray
-                The permutation array of the quantum numbers of a branch on a specific layer.
-        Parameters:
-            layer: tuple of string
-                The layer where the branches are restricted.
-        Returns: as above.
-        '''
-        return self.cache[('permutations',layer)]
-
-    def antipermutations(self,layer):
-        '''
-        Return a list in the form [antipermutation]
-            antipermutation: 1d ndarray
-                The antipermutation array of the quantum numbers of a branch on a specific layer.
-        Parameters:
-            layer: tuple of string
-                The layer where the branches are restricted.
-        Returns: as above.
-        '''
-        return self.cache[('antipermutations',layer)]
-
     def labels(self,layer,mode):
         '''
         Return the inquired labels.
         Parameters:
             layer: tuple of string
                 The layer information of the inquired labels.
-            mode: 'B','S','O','M'
+            mode: 'B','S','O'
                 'B' for bond labels of an mps;
                 'S' for site labels of an mps or an mpo;
                 'O' for bond labels of an mpo.
-                'M' for bottom labels of the physical degrees of freedom of an mps or an mpo.
         Returns: list of Label
                 The inquired labels.
         '''
         mode=mode.upper()
-        assert mode in ('B','S','O','M')
+        assert mode in ('B','S','O')
         if ('labels',layer,mode) not in self.cache:
             if mode in ('B','O'):
                 result=[Label(identifier='%s%s-%s'%(mode,self.layers.index(layer),i),qns=None) for i in xrange(len(self.indices(layer))+1)]
-            elif mode=='S':
-                result=[Label(identifier=index,qns=self[index]) for index in self.indices(layer)]
             else:
-                result=[[Label(leaf,qns=self[leaf]) for leaf in leaves] for leaves in self.leaves(layer)]
+                result=[Label(identifier=index,qns=self[index]) for index in self.indices(layer)]
             self.cache[('labels',layer,mode)]=result
         return self.cache[('labels',layer,mode)]

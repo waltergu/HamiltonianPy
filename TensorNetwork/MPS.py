@@ -297,12 +297,12 @@ class MPS(list):
             result.append((abs(buff-np.identity(M.shape[MPS.R if i<self.cut else MPS.L]))<TOL).all())
         return result
 
-    def compress(self,cut=0,nmax=None,tol=None):
+    def canonicalization(self,cut=0,nmax=None,tol=None):
         '''
-        Compress an mps by svd.
+        Canonicalize an mps by svd.
         Parameters:
             cut: integer, integer
-                The position of the connecting bond after the compression.
+                The position of the connecting bond after the canonicalization.
             namx: integer, optional
                 The maximum number of singular values to be kept.
             tol: float64, optional
@@ -320,7 +320,21 @@ class MPS(list):
             self<<=(self.nsite-cut,nmax,tol)
         return self
 
-    canonicalization=compress
+    def compress(self,nsweep=1,cut=0,nmax=None,tol=None):
+        '''
+        Compress an mps by svd.
+        Parameters:
+            nsweep: integer, optional
+                The number of sweeps to compress the mps.
+            cut: integer, optional
+                The position of the connecting bond after the compression.
+            namx: integer, optional
+                The maximum number of singular values to be kept.
+            tol: float64, optional
+                The tolerance of the singular values.
+        '''
+        for sweep in xrange(nsweep):
+            self.canonicalization(cut=cut,nmax=nmax,tol=tol)
 
     def reset(self,cut=None):
         '''
@@ -644,26 +658,18 @@ class MPS(list):
         if new==old:
             return copy(self)
         else:
-            t,Lambda=self._merge_ABL_()
+            t,svs=self._merge_ABL_()
             olayer,nlayer=degfres.layers[old],degfres.layers[new]
-            ops,otps=degfres.permutations(olayer),degfres.antipermutations(olayer)
-            nps,ntps=degfres.permutations(nlayer),degfres.antipermutations(nlayer)
             sites,bonds=degfres.labels(nlayer,'S'),degfres.labels(nlayer,'B')
             Ms=[]
             if new<old:
                 table=degfres.table(olayer)
-                oldsites=degfres.labels(olayer,'S')
-                oldbottoms,newbottoms=degfres.labels(olayer,'M'),degfres.labels(nlayer,'M')
                 for i,site in enumerate(sites):
-                    ms=[]
-                    for index in degfres.descendants(site.identifier,generation=old-new):
-                        pos=table[index]
-                        ms.append(self[pos].split((oldsites[pos],oldbottoms[pos],otps[pos])))
-                    M=contract(*ms,sequence='sequential')
+                    M=contract(*[self[table[index]] for index in degfres.descendants(site.identifier,generation=old-new)],sequence='sequential')
                     o1,o2=M.labels[0],M.labels[-1]
                     n1,n2=bonds[i].replace(qns=o1.qns),bonds[i+1].replace(qns=o2.qns)
                     M.relabel(olds=[o1,o2],news=[n1,n2])
-                    Ms.append(M.merge((newbottoms[i],site,nps[i])))
+                    Ms.append(M.merge((M.labels[1:-1],site)))
                 Lambda,cut=None,None
             else:
                 table=degfres.table(nlayer)
@@ -672,14 +678,12 @@ class MPS(list):
                     L,S,R=m.labels
                     indices=degfres.descendants(S.identifier,generation=new-old)
                     start,stop=table[indices[0]],table[indices[-1]]+1
-                    labels=[label.replace(qns=label.qns.reorder(antipermutation)) for label,antipermutation in zip(sites[start:stop],ntps[start:stop])]
-                    us,s,v=m.reorder((MPS.S,otps[i])).expanded_svd(L=[L],S=S,R=[R],E=labels,I=bonds[start+1:stop+1],cut=stop-start,nmax=nmax,tol=tol)
-                    for u,permutation,site in zip(us,nps[start:stop],sites[start:stop]):
-                        Ms.append(u.reorder((MPS.S,permutation,site.qns)))
+                    us,s,v=m.expanded_svd(L=[L],S=S,R=[R],E=sites[start:stop],I=bonds[start+1:stop+1],cut=stop-start,nmax=nmax,tol=tol)
+                    Ms.extend(us)
                 Lambda,cut=contract(s,v),len(Ms)
-                Ms[0].relabel(olds=[Ms[0].labels[MPS.L]],news=[bonds[0].replace(qns=Ms[0].labels[MPS.L].qns)])
-                Lambda.relabel(olds=[Lambda.labels[0]],news=[bonds[-1].replace(qns=Lambda.labels[0].qns)])
-            self._set_ABL_(t,Lambda)
+                Ms[0].relabel(olds=[MPS.L],news=[bonds[0].replace(qns=Ms[0].labels[MPS.L].qns)])
+                Lambda.relabel([bonds[-1].replace(qns=Lambda.labels[0].qns)])
+            self._set_ABL_(t,svs)
             return MPS(mode=self.mode,ms=Ms,Lambda=Lambda,cut=cut)
 
 class Vidal(object):

@@ -70,7 +70,6 @@ class OptStr(list):
                 ms.append(Tensor(matrix*operator.value if i==0 else matrix,labels=[sites[pos].prime,sites[pos]]))
             return OptStr(sorted(ms,key=lambda m:table[m.labels[1].identifier])).relayer(degfres,layer)
         else:
-            # undebugged code
             length=len(operator.indices)
             assert length%2==0
             table=degfres.table(degfres.layers[-1])
@@ -79,7 +78,7 @@ class OptStr(list):
             for k in permutation:
                 leaf=table[operator.indices[k].replace(nambu=None)]
                 m=np.array([[0.0,0.0],[1.0,0.0]]) if operator.indices[k].nambu==CREATION else np.array([[0.0,1.0],[0.0,0.0]])
-                if pos in groups:
+                if leaf in groups:
                     counts[-1]+=1
                     groups[leaf]=groups[leaf].dot(m)
                 else:
@@ -89,7 +88,7 @@ class OptStr(list):
             keys=groups.keys()
             sites=degfres.labels(degfres.layers[-1],'S')
             zmatrix=np.array([[1.0,0.0],[0.0,-1.0]])
-            for leaf in xrange(table[keys[0]],table[keys[-1]]+1):
+            for leaf in xrange(keys[0],keys[-1]+1):
                 labels=[sites[leaf].prime,sites[leaf]]
                 if leaf in groups:
                     assert counts[0] in (1,2)
@@ -97,7 +96,7 @@ class OptStr(list):
                     ms.append(Tensor(groups[leaf] if length%2==0 else groups[leaf].dot(zmatrix),labels=labels))
                 elif length%2!=0:
                     ms.append(Tensor(zmatrix,labels=labels))
-            ms[0]*=operator.value*hm.parity(permutation)
+            ms[0]=ms[0]*operator.value*hm.parity(permutation)
             return OptStr(ms=sorted(ms,key=lambda m: m.labels[1].identifier)).relayer(degfres,layer)
 
     def __imul__(self,other):
@@ -216,7 +215,6 @@ class OptStr(list):
                 ms[-1].qng(axes=[MPO.L,MPO.U,MPO.D],qnses=[lqns,sqns,sqns],signs='++-')
         return MPO(ms)
 
-    # undebugged code
     def relayer(self,degfres,layer):
         '''
         Construt a new optstr with the site labels living on a specific layer of degfres.
@@ -237,7 +235,7 @@ class OptStr(list):
             poses={}
             for pos,m in enumerate(self):
                 index=m.labels[1].identifier
-                ancestor=degfres.ancestor(old-new)
+                ancestor=degfres.ancestor(index,generation=old-new)
                 if ancestor in poses:
                     poses[ancestor][index]=pos
                 else:
@@ -245,17 +243,16 @@ class OptStr(list):
             ms=[]
             olayer,nlayer=degfres.layers[old],degfres.layers[new]
             otable,ntable=degfres.table(olayer),degfres.table(nlayer)
-            opts,npts=degfres.antipermutations(olayer),degfres.permutations(nlayer)
             sites=degfres.labels(nlayer,'S')
             for ancestor in sorted(poses.keys(),key=ntable.get):
                 m=1.0
                 for index in degfres.descendants(ancestor,old-new):
                     if index in poses[ancestor]:
-                        m=np.kron(m,hm.reorder(np.asarray(self[poses[ancestor][index]]),axes=[0,1],permutation=opts[otable[index]]))
+                        m=np.kron(m,np.asarray(self[poses[ancestor][index]]))
                     else:
                         m=np.kron(m,np.identity(degfres.ndegfre(index)))
                 pos=ntable[ancestor]
-                ms.append(Tensor(hm.reorder(m,axes=[0,1],permutation=npts[pos]),labels=[sites[pos].prime,sites[pos]]))
+                ms.append(Tensor(m,labels=[sites[pos].prime,sites[pos]]))
             return OptStr(ms)
 
 class MPO(list):
@@ -507,7 +504,6 @@ class MPO(list):
                     self[-2-i].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
             self[0]*=factor
 
-    # undebugged code
     def relayer(self,degfres,layer,nmax=None,tol=None):
         '''
         Construt a new mpo with the site labels living on a specific layer of degfres.
@@ -530,25 +526,22 @@ class MPO(list):
             return copy(self)
         else:
             olayer,nlayer=degfres.layers[old],degfres.layers[new]
-            opts,otps=degfres.permutations(olayer),degfres.antipermutations(olayer)
-            npts,ntps=degfres.permutations(nlayer),degfres.antipermutations(nlayer)
             sites,bonds=degfres.labels(nlayer,'S'),degfres.labels(nlayer,'O')
             Ms=[]
             if new<old:
                 table=degfres.table(olayer)
-                oldsites=degfres.labels(olayer,'S')
-                oldbottoms,newbottoms=degfres.labels(olayer,'M'),degfres.labels(nlayer,'M')
-                oldbottomsp,newbottomsp=[[ob.prime for ob in obs] for obs in oldbottoms],[[nb.prime for nb in nbs] for nbs in newbottoms]
                 for i,site in enumerate(sites):
-                    ms=[]
+                    ms,ups,dws=[],[],[]
                     for index in degfres.descendants(site.identifier,generation=old-new):
-                        pos=table[index]
-                        ms.append(self[pos].split((oldsites[pos].prime,oldbottomsp[pos],otps[pos]),(oldsites[pos],oldbottoms[pos],otps[pos])))
+                        m=self[table[index]]
+                        ms.append(m)
+                        ups.append(m.labels[MPO.U])
+                        dws.append(m.labels[MPO.D])
                     M=contract(*ms,sequence='sequential')
                     o1,o2=M.labels[0],M.labels[-1]
                     n1,n2=bonds[i].replace(qns=o1.qns),bonds[i+1].replace(qns=o2.qns)
                     M.relabel(olds=[o1,o2],news=[n1,n2])
-                    Ms.append(M.transpose([n1]+oldbottomsp+oldbottoms+[n2]).merge((newbottomsp[i],site.prime,npts[i]),(newbottoms[i],site,npts[i])))
+                    Ms.append(M.transpose([n1]+ups+dws+[n2]).merge((ups,site.prime),(dws,site)))
             else:
                 table=degfres.table(nlayer)
                 for i,m in enumerate(self):
@@ -556,19 +549,21 @@ class MPO(list):
                     L,U,D,R=m.labels
                     indices=degfres.descendants(D.identifier,generation=new-old)
                     start,stop=table[indices[0]],table[indices[-1]]+1
-                    csites,csitep,csitesp,labels,qnses=[],[],[],[],[]
-                    for i,(label,antipermutation) in enumerate(zip(sites[start:stop],ntps[start:stop])):
-                        csites.append(label.replace(qns=label.qns.reorder(antipermutation)) if label.qnon else label)
-                        csitep.append(csites[-1].prime)
-                        csitesp.extend([csitep[-1],csites[-1]])
-                        labels.append(Label('__MPO_RELAYER_i__'%i,qns=QuantumNumbers.kron([label.qns]*2,signs='+-') if label.qnon else label.dim*label.dim))
-                        qnses.append(labels[-1].qns)
-                    S=Label('__MPO_RELAYER__',qns=QuantumNumbers.kron(qnses) if label.qnon else np.product(qnses))
-                    m=m.reorder((MPO.U,otps[i]),(MPO.D,opts[i])).split((U,csitep),(D,csites)).transpose(csitesp).merge((csitesp,S))
+                    ups,dws,orders,labels,qnses=[],[],[],[],[]
+                    for i,site in enumerate(sites[start:stop]):
+                        ups.append(site.prime)
+                        dws.append(site)
+                        orders.append(ups[-1])
+                        orders.append(dws[-1])
+                        qns=QuantumNumbers.kron([site.qns]*2,signs='+-') if site.qnon else site.dim**2
+                        labels.append(Label('__MPO_RELAYER_%s__'%i,qns=qns))
+                        qnses.append(qns)
+                    S=Label('__MPO_RELAYER__',qns=QuantumNumbers.kron(qnses) if U.qnon else np.product(qnses))
+                    m=m.split((U,ups),(D,dws)).transpose([L]+orders+[R]).merge((orders,S))
                     us,s,v=m.expanded_svd(L=[L],S=S,R=[R],E=labels,I=bonds[start+1:stop+1],cut=stop-start,nmax=nmax,tol=tol)
-                    for u,permutation,site,label in zip(us,nps[start:stop],sites[start:stop],labels):
-                        Ms.append(u.split((label,[site.prime,site]))).reorder((MPO.U,permutation,site.qns),(MPO.D,permutation,site.qns))
+                    for u,up,dw,label in zip(us,ups,dws,labels):
+                        Ms.append(u.split((label,[up,dw])))
                 Ms[-1]=contract(Ms[-1],s,v)
-                Ms[+0].relabel(olds=[Ms[+0].labels[MPO.L]],news=[bonds[+0].replace(qns=Ms[+0].labels[MPO.L].qns)])
-                Ms[-1].relabel(olds=[Ms[-1].labels[MPO.R]],news=[bonds[-1].replace(qns=Ms[-1].labels[MPO.R].qns)])
-            return MPO(ms)
+                Ms[+0].relabel(olds=[MPO.L],news=[bonds[+0].replace(qns=Ms[+0].labels[MPO.L].qns)])
+                Ms[-1].relabel(olds=[MPO.R],news=[bonds[-1].replace(qns=Ms[-1].labels[MPO.R].qns)])
+            return MPO(Ms)

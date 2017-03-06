@@ -4,6 +4,8 @@ The parity of a permutation.
 
 __all__=['parity']
 
+from copy import copy
+
 def parity(permutation):
     '''
     Determine the parity of a permutation.
@@ -14,6 +16,7 @@ def parity(permutation):
         -1 for odd permutation, and
         +1 for even permutation.
     '''
+    permutation=copy(permutation)
     result=1
     for i in xrange(len(permutation)-1):
         if permutation[i]!=i:

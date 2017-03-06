@@ -54,7 +54,7 @@ def PQNS(N):
     Returns: QuantumNumbers
         The corresponding collection of quantum numbers.
     '''
-    return QuantumNumbers('C',([PQN(n) for n in xrange(N)],range(N+1)),protocal=QuantumNumbers.INDPTR)
+    return QuantumNumbers('C',([PQN(n) for n in xrange(N+1)],range(N+2)),protocal=QuantumNumbers.INDPTR)
 
 class SPQN(QuantumNumber):
     '''

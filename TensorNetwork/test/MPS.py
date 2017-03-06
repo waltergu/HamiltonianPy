@@ -68,6 +68,8 @@ def test_mps_relayer():
     bonds[+0]=bonds[+0].replace(qns=QuantumNumbers.mono(SQN(0.0)))
     bonds[-1]=bonds[-1].replace(qns=QuantumNumbers.mono(SQN(0.0)))
     mps0=MPS.random(sites,bonds,cut=0)
-    mps1=mps0.relayer(tree,layers[0]).relayer(tree,layers[-1])
-    print 'relayer diff: %s'%norm(mps1.state-mps0.state)
+    mps1=mps0.relayer(tree,layers[0])
+    print 'relayer(1->0) diff: %s'%norm(mps1.state-mps0.state)
+    mps2=mps1.relayer(tree,layers[1])
+    print 'relayer(0->1) diff: %s'%norm(mps2.state-mps1.state)
     print
