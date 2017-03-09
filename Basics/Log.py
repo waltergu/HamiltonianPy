@@ -282,15 +282,11 @@ class Log(object):
             NOTE: when the log file is the stdout, this attribute is set to be None.
         mode: 'w','w+','a+'
             The mode of the log file.
-        timers: dict of Timers
-            The timers for the code executing.
-        info: dict of Info
-            The info of the code executing.
         fout: file
             The log file.
     '''
 
-    def __init__(self,name=None,mode='a+',timers=None,info=None):
+    def __init__(self,name=None,mode='a+'):
         '''
         Constructor.
         Parameters:
@@ -299,15 +295,9 @@ class Log(object):
                 NOTE: when the log file is the stdout, this attribute is set to be None.
             mode: 'w','w+','a+'
                 The mode of the log file.
-            timers: dict of Timers
-                The timers for the code executing.
-            info: dict of Info
-                The info of the code executing.
         '''
         self.name=name
         self.mode=mode
-        self.timers={} if timers is None else timers
-        self.info={} if info is None else info
         self.fout=None
 
     def reset(self,name=None,mode=None):

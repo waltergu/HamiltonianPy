@@ -227,7 +227,7 @@ class MPS(list):
         Convert an instance to string.
         '''
         result=['L: %s\nS: %s\nR: %s\ndata:\n%s'%(m.labels[0],m.labels[1],m.labels[2],np.asarray(m)) for m in self]
-        if self.cut is not None:
+        if self.Lambda is not None:
             result.insert(self.cut,'Lambda: %s\ndata:\n%s'%(self.Lambda.labels[0],np.asarray(self.Lambda)))
         return '\n'.join(result)
 
@@ -248,24 +248,36 @@ class MPS(list):
         temp>>=temp.nsite
         return np.asarray(temp.Lambda)
 
-    def relabel(self,news,olds=None):
+    @property
+    def sites(self):
         '''
-        Change the labels of the MPS.
+        The site labels of the mps.
+        '''
+        return [m.labels[MPS.S] for m in self]
+
+    @property
+    def bonds(self):
+        '''
+        The bond labels of the mps.
+        '''
+        result=[]
+        for i,m in enumerate(self):
+            if i==0: result.append(m.labels[MPS.L])
+            result.append(m.labels[MPS.R])
+        return result
+
+    def relabel(self,sites,bonds):
+        '''
+        Change the labels of the mps.
         Parameters:
-            news: list of 3-tuples of Label
-                The new labels of the MPS.
-            olds: list of 3-tuples of Label, optional
-                The old labels of the MPS.
+            sites: list of Label
+                The new site labels of the mps.
+            bonds: list of Label
+                The new bond labels of the mps.
         '''
-        if olds is None:
-            assert len(news)==self.nsite
-            for m,new in zip(self,news):
-                m.relabel(new)
-        else:
-            table=self.table
-            assert len(news)==len(olds)
-            for new,old in zip(news,olds):
-                self[table[old[MPS.S]]].relabel(new)
+        assert len(sites)==self.nsite and len(bonds)==self.nsite+1
+        for m,L,S,R in zip(self,bonds[:-1],sites,bonds[1:]):
+            m.relabel(news=[L,S,R])
 
     def copy(self,copy_data=False):
         '''

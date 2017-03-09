@@ -39,7 +39,7 @@ def test_dmrg_spin():
         terms=      [SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())],
         #terms=     [SpinTerm('J',J,neighbour=1,indexpacks=IndexPackList(SpinPack(0.5,('+','-')),SpinPack(0.5,('-','+'))))]
         config=     IDFConfig(priority=priority,map=lambda pid: Spin(S=spin)),
-        degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SpinQNC(S=spin)) if qn_on else
+        degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SQNS(S=spin)) if qn_on else
                     DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: int(spin*2+1)),
         mask=       [],
         dtype=      np.float64
@@ -50,12 +50,13 @@ def test_dmrg_spin():
             block=      Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
             vector=     np.array([1.0,0.0]),
             scopes=     range(N),
-            targets=    [SpinQN(Sz=1.0)]*(N/2) if qn_on else [None]*(N/2),
+            targets=    [SQN(0.0)]*(N/2) if qn_on else [None]*(N/2),
             nmax=       20,
+            save_data=  False,
             run=DMRGTSG
             )
     # two site sweep
-    dmrg.register(TSS(name='SWEEP',target=SpinQN(Sz=1.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=SQN(0.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,run=DMRGTSS))
     dmrg.summary()
     print
 

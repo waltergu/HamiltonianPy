@@ -136,6 +136,7 @@ class Tensor(np.ndarray):
         labels: list of Label
             The labels of the axes.
     '''
+    autocheck=False
 
     def __new__(cls,data,labels):
         '''
@@ -146,20 +147,18 @@ class Tensor(np.ndarray):
             labels: list of Label
                 The labels of the Tensor.
         '''
-        qnon,data=None,np.asarray(data)
-        assert len(labels)==len(data.shape)
-        for label,dim in zip(labels,data.shape):
-            assert isinstance(label,Label)
-            if qnon is None:
-                qnon=label.qnon
-            else:
-                assert qnon==label.qnon
-            if label.dim is None:
-                label.qns=dim
-            else:
-                assert label.dim==dim
-        result=data.view(cls)
-        result.labels=labels
+        if data is None:
+            result=np.array(None).view(cls)
+            result.labels=labels
+        else:
+            data=np.asarray(data)
+            assert len(labels)==data.ndim
+            for label,dim in zip(labels,data.shape):
+                assert isinstance(label,Label)
+                if label.qns is None:label.qns=dim
+            result=data.view(cls)
+            result.labels=labels
+        if Tensor.autocheck: assert result.dimcheck()
         return result
 
     def __array_finalize__(self,obj):
@@ -199,6 +198,14 @@ class Tensor(np.ndarray):
             return "%s(\nlabels=%s,\ndata=\n%s\n)"%(self.__class__.__name__,self.labels,np.asarray(self))
         else:
             return "%s(\nlabels=%s,\ndata=%s\n)"%(self.__class__.__name__,self.labels,np.asarray(self))
+
+    def dimcheck(self):
+        '''
+        Check whether or not the dimensions of the labels and the data match each other.
+        Returns: logical
+            True for match and False for not.
+        '''
+        return all([label.dim==dim for label,dim in zip(self.labels,self.shape)])
 
     @property
     def qnon(self):
@@ -240,14 +247,12 @@ class Tensor(np.ndarray):
         '''
         if olds is None:
             assert len(news)==self.ndim
-            assert all(new.dim==dim and new.qnon==self.qnon for new,dim in zip(news,self.shape))
             self.labels=news
         else:
             assert len(news)==len(olds)
-            olds=[self.axis(old) if isinstance(old,Label) else old for old in olds]
-            assert all(new.dim==self.labels[old].dim and new.qnon==self.qnon for new,old in zip(news,olds))
             for old,new in zip(olds,news):
-                self.labels[old]=new
+                self.labels[self.axis(old) if isinstance(old,Label) else old]=new
+        if Tensor.autocheck: assert self.dimcheck()
 
     def transpose(self,axes=None):
         '''
@@ -513,7 +518,21 @@ class Tensor(np.ndarray):
                 result[...]=np.random.random(shape)+1j*np.random.random(shape)
         return result
 
-    # undebugged code
+    def dotarray(self,axis,array):
+        '''
+        Multiply a certain axis of a tensor with an array.
+        Parameters:
+            axis: integer
+                The axis of the tensor to be multiplied.
+            array: 1d ndarray
+                The multiplication array.
+        Returns: Tensor
+            The new tensor.
+        '''
+        slices=[np.newaxis]*self.ndim
+        slices[axis]=slice(None)
+        return self*array[slices]
+
     def partitioned_svd(self,L,new,R,nmax=None,tol=None,return_truncation_err=False,**karg):
         '''
         Partition a 1d-tensor according to L and R and then perform the Schmitt decomposition.
@@ -536,34 +555,36 @@ class Tensor(np.ndarray):
             assert qns.num==1 and sl.norm(qns.contents)<10**-6
             lod=L.qns.to_ordereddict()
             rod=R.qns.to_ordereddict()
-            us,ss,vs,count=[],[],[],0
-            for (qn1,s1),(qn2,s2) in zip(lod.itervalues(),rod.itervalues()):
+            us,ss,vs,qns,count=[],[],[],[],0
+            for qn in it.ifilter(lod.has_key,rod):
+                s1,s2=lod[qn],rod[qn]
                 n1,n2=s1.stop-s1.start,s2.stop-s2.start
                 u,s,v=sl.svd(data[count:count+n1*n2].reshape((n1,n2)),full_matrices=False,lapack_driver='gesvd')
                 us.append(u)
                 ss.append(s)
                 vs.append(v)
+                qns.append(qn)
                 count+=n1*n2
             temp=np.sort(np.concatenate([-s for s in ss]))
             nmax=len(temp) if nmax is None else min(nmax,len(temp))
             tol=temp[nmax-1] if tol is None else min(-tol,temp[nmax-1])
-            Us,Ss,Vs,qns,counts=[],[],[],[],[]
-            for u,s,v,qn in zip(us,ss,vs,lod):
+            Us,Ss,Vs,QNS,counts=[],[],[],[],[]
+            for u,s,v,qn in zip(us,ss,vs,qns):
                 cut=np.searchsorted(-s,tol,side='right')
                 if cut>0:
                     Us.append(u[:,0:cut])
                     Ss.append(s[0:cut])
                     Vs.append(v[0:cut,:])
-                    qns.append(qn)
+                    QNS.append(qn)
                     counts.append(cut)
-            new=new.replace(QuantumNumbers('U',(qns,counts),QuantumNumbers.COUNTS))
+            new=new.replace(qns=QuantumNumbers('U',(L.qns.type,QNS,counts),QuantumNumbers.COUNTS))
             nod=new.qns.to_ordereddict()
             U=np.zeros((L.dim,new.dim),dtype=self.dtype)
             S=np.concatenate(Ss)
             V=np.zeros((new.dim,R.dim),dtype=self.dtype)
             for u,v,qn in zip(Us,Vs,nod):
-                U[lod[qn],od[qn]]=u
-                V[od[qn],rod[qn]]=v
+                U[lod[qn],nod[qn]]=u
+                V[nod[qn],rod[qn]]=v
             U=Tensor(U,labels=[L,new])
             S=Tensor(S,labels=[new])
             V=Tensor(V,labels=[new,R])
@@ -623,15 +644,15 @@ class Tensor(np.ndarray):
             temp=np.sort(np.concatenate([-s for s in ss]))
             nmax=len(temp) if nmax is None else min(nmax,len(temp))
             tol=temp[nmax-1] if tol is None else min(-tol,temp[nmax-1])
-            Us,Ss,Vs,contents=[],[],[],([],[])
+            Us,Ss,Vs,contents=[],[],[],(row_qns.type,[],[])
             for u,s,v,qn in zip(us,ss,vs,qns):
                 cut=np.searchsorted(-s,tol,side='right')
                 if cut>0:
                     Us.append(u[:,0:cut])
                     Ss.append(s[0:cut])
                     Vs.append(v[0:cut,:])
-                    contents[0].append(qn)
-                    contents[1].append(cut)
+                    contents[1].append(qn)
+                    contents[2].append(cut)
             S=np.concatenate(Ss)
             new=new.replace(qns=QuantumNumbers('U',contents,protocal=QuantumNumbers.COUNTS))
             od=new.qns.to_ordereddict()

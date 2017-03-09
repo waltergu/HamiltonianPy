@@ -61,7 +61,7 @@ class QuantumNumber(np.ndarray):
         Returns: 1d/2d ndarray
             The input array after the regularization.
         '''
-        assert len(array)==len(cls.periods)
+        assert array.shape[-1]==len(cls.periods)
         if array.ndim==1:
             for i,t in enumerate(cls.periods):
                 if t is not None: array[i]%=t

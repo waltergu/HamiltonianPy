@@ -298,6 +298,24 @@ class MPO(list):
         '''
         return len(self)
 
+    @property
+    def sites(self):
+        '''
+        The site labels of the mpo.
+        '''
+        return [m.labels[MPO.D] for m in self]
+
+    @property
+    def bonds(self):
+        '''
+        The bond labels of the mpo.
+        '''
+        result=[]
+        for i,m in enumerate(self):
+            if i==0: result.append(m.labels[MPO.L])
+            result.append(m.labels[MPO.R])
+        return result
+
     def _mul_mpo_(self,other):
         '''
         The multiplication of two mpos.
@@ -479,30 +497,22 @@ class MPO(list):
             The compressed mpo.
         '''
         for sweep in xrange(nsweep):
-            factor=1.0
             for i,m in enumerate(self):
                 if i<self.nsite-1:
                     L,U,D,R=m.labels
                     u,s,v=m.svd(row=[L,U,D],new=R.prime,col=[R],row_signs='++-',col_signs='+',nmax=nmax,tol=tol)
-                    coeff=norm(s)
-                    factor,s=factor*coeff,s/coeff
-                    self[i]=u
-                    self[i+1]=contract(s,v,self[i+1],reserve=s.labels)
+                    self[i]=contract(u,s,reserve=s.labels)
+                    self[i+1]=contract(v,self[i+1])
                     self[i].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
                     self[i+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
-            self[-1]*=factor
-            factor=1.0
             for i,m in enumerate(reversed(self)):
                 if i<self.nsite-1:
                     L,U,D,R=m.labels
                     u,s,v=m.svd(row=[L],new=L.prime,col=[U,D,R],row_signs='+',col_signs='-++',nmax=nmax,tol=tol)
-                    coeff=norm(s)
-                    factor,s=factor*coeff,s/coeff
-                    self[-1-i]=v
-                    self[-2-i]=contract(self[-2-i],u,s,reserve=s.labels)
+                    self[-1-i]=contract(s,v,reserve=s.labels)
+                    self[-2-i]=contract(self[-2-i],u)
                     self[-1-i].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
                     self[-2-i].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
-            self[0]*=factor
 
     def relayer(self,degfres,layer,nmax=None,tol=None):
         '''
@@ -567,3 +577,13 @@ class MPO(list):
                 Ms[+0].relabel(olds=[MPO.L],news=[bonds[+0].replace(qns=Ms[+0].labels[MPO.L].qns)])
                 Ms[-1].relabel(olds=[MPO.R],news=[bonds[-1].replace(qns=Ms[-1].labels[MPO.R].qns)])
             return MPO(Ms)
+
+    def eliminate_zeros(self,tol=hm.TOL):
+        '''
+        Eliminate the zeros with a tolerance.
+        Parameters:
+            tol: np.float64, optional
+                The tolerance of the zeros.
+        '''
+        for m in self:
+            m[np.abs(m)<tol]=0.0

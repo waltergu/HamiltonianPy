@@ -31,6 +31,8 @@ class Engine(object):
             The preloaded apps of the engine, which will become the dependences of all the other apps registered on it.
         apps: dict of App
             The apps registered on this engine (the dependences of the apps not included).
+        clock: Timers
+            The clock of the engine.
         log: Log
             The log of the engine.
     '''
@@ -48,11 +50,8 @@ class Engine(object):
                 os.makedirs(getattr(result,key))
         result.status=Status(name=karg.get('name',''),info=cls.__name__)
         result.status.update(const=karg.get('parameters',None))
+        result.clock=Timers()
         result.log=Log() if Engine.DEBUG else karg.get('log',Log())
-        if 'engine' not in result.log.timers:
-            result.log.timers['engine']=Timers()
-        if 'engine' not in result.log.info:
-            result.log.info['engine']=Info()
         result.preloads=karg.get('preloads',[])
         result.apps={}
         return result
@@ -84,8 +83,8 @@ class Engine(object):
         if run:
             self.log.open()
             name=app.status.name
-            self.log.timers['engine'].add(name)
-            self.log.timers['engine'].start(name)
+            self.clock.add(name)
+            self.clock.start(name)
             cmp=app.status<=self.status
             if enforce_run or (not app.status.info) or (not cmp):
                 if not cmp:self.update(**app.status._alter_)
@@ -93,8 +92,8 @@ class Engine(object):
                 if app.run is not None:app.run(self,app)
                 app.status.info=True
                 app.status.update(const=self.status._const_,alter=self.status._alter_)
-            self.log.timers['engine'].stop(name)
-            self.log<<'App %s(%s): time consumed %ss.\n\n'%(name,app.__class__.__name__,self.log.timers['engine'].time(name))
+            self.clock.stop(name)
+            self.log<<'App %s(%s): time consumed %ss.\n\n'%(name,app.__class__.__name__,self.clock.time(name))
             self.log.close()
 
     def rundependences(self,name,enforce_run=False):
@@ -120,8 +119,7 @@ class Engine(object):
         '''
         self.log.open()
         self.log<<'Summary of %s(%s)'%(self.status.name,self.__class__.__name__)<<'\n'
-        if len(self.log.timers['engine'])>0:self.log<<self.log.timers['engine']<<'\n'
-        if len(self.log.info['engine'])>0:self.log<<self.log.info['engine']<<'\n'
+        if len(self.clock)>0:self.log<<self.clock<<'\n'
         self.log<<'\n'
         self.log.close()
 
