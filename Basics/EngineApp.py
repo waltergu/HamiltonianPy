@@ -9,8 +9,10 @@ from collections import OrderedDict
 from numpy import array
 from DegreeOfFreedom import Status
 from Log import *
+from warnings import warn
 import os
 import time
+
 
 class Engine(object):
     '''
@@ -105,13 +107,16 @@ class Engine(object):
             enforce_run: logical, optional
                 When it is True, the run attributes of all the dependences, which are functions themsevles, will be called.
         '''
-        for app in self.apps[name].dependences:
-            cmp=self.status<=app.status
-            if enforce_run or (not app.status.info) or (not cmp):
-                if not cmp:app.status.update(const=self.status._const_,alter=self.status._alter_)
-                if app.prepare is not None:app.prepare(self,app)
-                if app.run is not None:app.run(self,app)
-                app.status.info=True
+        if name in self.apps:
+            for app in self.apps[name].dependences:
+                cmp=self.status<=app.status
+                if enforce_run or (not app.status.info) or (not cmp):
+                    if not cmp:app.status.update(const=self.status._const_,alter=self.status._alter_)
+                    if app.prepare is not None:app.prepare(self,app)
+                    if app.run is not None:app.run(self,app)
+                    app.status.info=True
+        else:
+            warn('%s rundependences warning: app(%s) not registered.'%(self.__class__.__name__,name))
 
     def summary(self):
         '''

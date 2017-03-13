@@ -98,11 +98,11 @@ class MPS(list):
         m=Tensor(state.reshape((1,-1,1)),labels=[L,S,R])
         if cut==0:
             u,s,ms=m.expanded_svd(L=[L],S=S,R=[R],E=sites,I=bonds[:-1],nmax=nmax,tol=tol,cut=0)
-            Lambda=Tensor(np.asarray(contract(u,s)).reshape((-1,)),labels=[bonds[0]])
+            Lambda=Tensor(np.asarray(contract([u,s],engine='tensordot')).reshape((-1,)),labels=[bonds[0]])
             ms[-1].relabel(olds=[R],news=[bonds[-1]])
         elif cut==len(sites):
             ms,s,v=m.expanded_svd(L=[L],S=S,R=[R],E=sites,I=bonds[1:],nmax=nmax,tol=tol,cut=len(sites))
-            Lambda=Tensor(np.asarray(contract(s,v)).reshape((-1,)),labels=[bonds[-1]])
+            Lambda=Tensor(np.asarray(contract([s,v],engine='tensordot')).reshape((-1,)),labels=[bonds[-1]])
             ms[0].relabel(olds=[L],news=[bonds[0]])
         else:
             ms,Lambda=m.expanded_svd(L=[L],S=S,R=[R],E=sites,I=bonds[1:-1],nmax=nmax,tol=tol,cut=cut)
@@ -124,15 +124,15 @@ class MPS(list):
         '''
         table=self.table
         if self.cut is None:
-            result=contract(*self,sequence='sequential')
+            result=contract(self,engine='tensordot')
         elif self.cut==0:
-            result=contract(self.Lambda,*self,sequence='sequential')
+            result=contract([self.Lambda]+list(self),engine='tensordot')
         elif self.cut==self.nsite:
-            result=contract(*list(self)+[self.Lambda],sequence='sequential')
+            result=contract(list(self)+[self.Lambda],engine='tensordot')
         else:
-            A=contract(*self.As,sequence='sequential')
-            B=contract(*self.Bs,sequence='sequential')
-            result=contract(A,self.Lambda,B)
+            A=contract(self.As,engine='tensordot')
+            B=contract(self.Bs,engine='tensordot')
+            result=contract([A,self.Lambda,B],engine='einsum')
         L,R=self[0].labels[MPS.L],self[-1].labels[MPS.R]
         if L==R:
             return np.asarray(result).reshape((-1,))
@@ -383,10 +383,10 @@ class MPS(list):
             merge='L' if self.cut==self.nsite else ('R' if self.cut==0 else merge.upper())
             if merge=='L':
                 m,Lambda=self[self.cut-1],self.Lambda
-                self[self.cut-1]=contract(self[self.cut-1],self.Lambda,reserve=[self[self.cut-1].labels[MPS.R]])
+                self[self.cut-1]=contract([self[self.cut-1],self.Lambda],engine='einsum',reserve=[self[self.cut-1].labels[MPS.R]])
             else:
                 m,Lambda=self[self.cut],self.Lambda
-                self[self.cut]=contract(self.Lambda,self[self.cut],reserve=[self[self.cut].labels[MPS.L]])
+                self[self.cut]=contract([self.Lambda,self[self.cut]],engine='einsum',reserve=[self[self.cut].labels[MPS.L]])
             self.cut=None
             self.Lambda=None
         else:
@@ -432,9 +432,9 @@ class MPS(list):
         v.relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
         self[self.cut-1]=v
         if self.cut==1:
-            self.Lambda=contract(u,s)
+            self.Lambda=contract([u,s],engine='tensordot')
         else:
-            self[self.cut-2]=contract(self[self.cut-2],u)
+            self[self.cut-2]=contract([self[self.cut-2],u],engine='tensordot')
             self[self.cut-2].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
             s.relabel(news=[L.replace(qns=s.labels[0].qns)])
             self.Lambda=s
@@ -458,9 +458,9 @@ class MPS(list):
         u.relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
         self[self.cut]=u
         if self.cut==self.nsite-1:
-            self.Lambda=contract(s,v)
+            self.Lambda=contract([s,v],engine='tensordot')
         else:
-            self[self.cut+1]=contract(v,self[self.cut+1])
+            self[self.cut+1]=contract([v,self[self.cut+1]],engine='tensordot')
             self[self.cut+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
             s.relabel(news=[R.replace(qns=s.labels[0].qns)])
             self.Lambda=s
@@ -487,7 +487,7 @@ class MPS(list):
         else:
             k=other
         for i in xrange(k):
-            self._set_B_and_lmove_(contract(self[self.cut-1],self.Lambda,reserve=[self[self.cut-1].labels[MPS.R]]),nmax,tol)
+            self._set_B_and_lmove_(contract([self[self.cut-1],self.Lambda],engine='einsum',reserve=[self[self.cut-1].labels[MPS.R]]),nmax,tol)
         return self
 
     def __lshift__(self,other):
@@ -520,7 +520,7 @@ class MPS(list):
         else:
             k=other
         for i in xrange(k):
-            self._set_A_and_rmove_(contract(self.Lambda,self[self.cut],reserve=[self[self.cut].labels[MPS.L]]),nmax,tol)
+            self._set_A_and_rmove_(contract([self.Lambda,self[self.cut]],engine='einsum',reserve=[self[self.cut].labels[MPS.L]]),nmax,tol)
         return self
 
     def __rshift__(self,other):
@@ -647,7 +647,7 @@ class MPS(list):
         else:
             mps1._set_ABL_(u1,Lambda1)
             mps2._set_ABL_(u2,Lambda2)
-        return np.asarray(contract(*result,sequence='sequential'))
+        return np.asarray(contract(result,engine='tensordot'))
 
     def relayer(self,degfres,layer,nmax=None,tol=None):
         '''
@@ -677,7 +677,7 @@ class MPS(list):
             if new<old:
                 table=degfres.table(olayer)
                 for i,site in enumerate(sites):
-                    M=contract(*[self[table[index]] for index in degfres.descendants(site.identifier,generation=old-new)],sequence='sequential')
+                    M=contract([self[table[index]] for index in degfres.descendants(site.identifier,generation=old-new)],engine='tensordot')
                     o1,o2=M.labels[0],M.labels[-1]
                     n1,n2=bonds[i].replace(qns=o1.qns),bonds[i+1].replace(qns=o2.qns)
                     M.relabel(olds=[o1,o2],news=[n1,n2])
@@ -686,13 +686,13 @@ class MPS(list):
             else:
                 table=degfres.table(nlayer)
                 for i,m in enumerate(self):
-                    if i>0: m=contract(s,v,m,reserve=s.labels)
+                    if i>0: m=contract([s,v,m],engine='einsum',reserve=s.labels)
                     L,S,R=m.labels
                     indices=degfres.descendants(S.identifier,generation=new-old)
                     start,stop=table[indices[0]],table[indices[-1]]+1
                     us,s,v=m.expanded_svd(L=[L],S=S,R=[R],E=sites[start:stop],I=bonds[start+1:stop+1],cut=stop-start,nmax=nmax,tol=tol)
                     Ms.extend(us)
-                Lambda,cut=contract(s,v),len(Ms)
+                Lambda,cut=contract([s,v],engine='tensordot'),len(Ms)
                 Ms[0].relabel(olds=[MPS.L],news=[bonds[0].replace(qns=Ms[0].labels[MPS.L].qns)])
                 Lambda.relabel([bonds[-1].replace(qns=Lambda.labels[0].qns)])
             self._set_ABL_(t,svs)
@@ -773,7 +773,7 @@ class Vidal(object):
             if result is None:
                 result=Gamma
             else:
-                result=contract(result,self.Lambdas[i-1],Gamma)
+                result=contract([result,self.Lambdas[i-1],Gamma],engine='einsum')
         return np.asarray(result).reshape((-1,))
 
     def to_mixed(self,cut):
@@ -789,7 +789,7 @@ class Vidal(object):
         for i,Gamma in enumerate(self.Gammas):
             if i>0 and i==cut: Lambda=self.Lambdas[i-1]
             if i<cut:
-                ms.append(Gamma if i==0 else contract(self.Lambdas[i-1],Gamma,reserve=self.Lambdas[i-1].labels))
+                ms.append(Gamma if i==0 else contract([self.Lambdas[i-1],Gamma],engine='einsum',reserve=self.Lambdas[i-1].labels))
             else:
-                ms.append(contract(Gamma,self.Lambdas[i],reserve=self.Lambdas[i].labels) if i<self.nsite-1 else Gamma)
+                ms.append(contract([Gamma,self.Lambdas[i]],engine='einsum',reserve=self.Lambdas[i].labels) if i<self.nsite-1 else Gamma)
         return MPS(ms=ms,Lambda=Lambda,cut=cut)

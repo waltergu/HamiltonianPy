@@ -32,7 +32,7 @@ def pattern(status,target,layer,mode='re'):
         The pattern.
     '''
     assert mode in ('re','py')
-    pattern='%s_mps(%s,%s)'%(status,tuple(target) if isinstance(target,QuantumNumber) else None,layer)
+    pattern='%s_(%s,%s)'%(status,tuple(target) if isinstance(target,QuantumNumber) else None,layer)
     if mode=='re':
         ss=['(',')','[',']']
         rs=['\(','\)','\[','\]']
@@ -121,7 +121,7 @@ class DMRG(Engine):
         self.status.update(alter=self.generator.parameters['alter'])
         self.set_operators_mpo()
         self.set_Hs_()
-        self.timers=Timers(['Preparation','Hamiltonian','kron','sum','Diagonalization','Truncation','HL','HR'],str_form='c')
+        self.timers=Timers(['Preparation','Hamiltonian','kron','sum','Diagonalization','Truncation'],str_form='c')
         self.info=Info(['energy','nbasis','subslice','nnz','nz','density','overlap','err'])
         self.cache={}
         self.timers.proceed()
@@ -153,7 +153,7 @@ class DMRG(Engine):
         '''
         self.operators=self.generator.operators
         if self.mask==['nambu']:
-            for operator in self.operators.itervalues():
+            for operator in self.operators.values()[:]:
                 self.operators+=operator.dagger
         for i,operator in enumerate(self.operators.itervalues()):
             if i==0:
@@ -180,13 +180,10 @@ class DMRG(Engine):
             L,S,R=u.labels
             up=u.copy(copy_data=False).conjugate()
             up.relabel(news=[L.prime,S.prime,R.prime])
-            with self.timers.get('HL'):
-                temp=contract(self._Hs_['L'][pos],up)
-                temp=contract(temp,m)
-                temp=contract(temp,u)
-                #temp=contract(self._Hs_['L'][pos],up,m,u,sequence='sequential')
+            temp=contract([self._Hs_['L'][pos],up,m,u],engine='tensordot')
             temp[np.abs(temp)<tol]=0.0
             self._Hs_['L'][pos+1]=temp
+            #print 'HL zeros:',len(np.argwhere(np.abs(sp.csr_matrix(np.asarray(temp).reshape((temp.shape[0],-1))).data)<hm.TOL))
 
     def set_HR_(self,pos,tol=hm.TOL):
         '''
@@ -204,41 +201,30 @@ class DMRG(Engine):
             L,S,R=v.labels
             vp=v.copy(copy_data=False).conjugate()
             vp.relabel(news=[L.prime,S.prime,R.prime])
-            with self.timers.get('HR'):
-                temp=contract(self._Hs_['R'][self.mps.nsite-pos-1],vp)
-                temp=contract(temp,m)
-                temp=contract(temp,v)
-                #temp=contract(self._Hs_['R'][self.mps.nsite-pos-1],vp,m,v,sequence='sequential')
+            temp=contract([self._Hs_['R'][self.mps.nsite-pos-1],vp,m,v],engine='tensordot')
             temp[np.abs(temp)<tol]=0.0
             self._Hs_['R'][self.mps.nsite-pos]=temp
+            #print 'HR zeros:',len(np.argwhere(np.abs(sp.csr_matrix(np.asarray(temp).reshape((temp.shape[0],-1))).data)<hm.TOL))
 
-    def set_Hs_(self,job='FULL',tol=hm.TOL):
+    def set_Hs_(self,L=None,R=None,tol=hm.TOL):
         '''
         Set the Hamiltonians of blocks.
         Parameters:
-            job: 'FULL','LABEL'
-                'FULL' for fully reset and 'LABEL' for label reset.
+            L: integer, optional
+                The maximum position of the left Hamiltonians to be set.
+            R: integer, optional
+                The maximum position of the right Hamiltonians to be set.
+            tol: np.float64, optional
+                The tolerance of the zeros.
         '''
-        assert job in ('FULL','LABEL')
-        if job=='FULL':
-            self._Hs_={'L':[None]*(self.mps.nsite+1),'R':[None]*(self.mps.nsite+1)}
-            if self.mps.cut is not None:
-                for pos in xrange(-1,self.mps.cut):
-                    self.set_HL_(pos,tol=tol)
-                for pos in xrange(self.mps.nsite,self.mps.cut-1,-1):
-                    self.set_HR_(pos,tol=tol)
-        else:
-            for i,(HL,HR) in enumerate(zip(self._Hs_['L'],self._Hs_['R'])):
-                if i==0:
-                    HL.relabel(news=[self.mps[+0].labels[MPS.L].prime,self.mpo[+0].labels[MPO.L],self.mps[+0].labels[MPS.L]])
-                    HR.relabel(news=[self.mps[-1].labels[MPS.R].prime,self.mpo[-1].labels[MPO.R],self.mps[-1].labels[MPS.R]])
-                else:
-                    if HL is not None:
-                        LR,LO=self.mps[i-1].labels[MPS.R],self.mpo[i-1].labels[MPO.R]
-                        HL.relabel(news=[LR.prime,LO,LR])
-                    if HR is not None:
-                        RL,RO=self.mps[self.mps.nsite-i].labels[MPS.L],self.mpo[self.mps.nsite-i].labels[MPO.L]
-                        HR.relabel(news=[RL.prime,RO,RL])
+        self._Hs_={'L':[None]*(self.mps.nsite+1),'R':[None]*(self.mps.nsite+1)}
+        if self.mps.cut is not None:
+            L=self.mps.cut-1 if L is None else L
+            R=self.mps.cut if R is None else R
+            for pos in xrange(-1,L+1):
+                self.set_HL_(pos,tol=tol)
+            for pos in xrange(self.mps.nsite,R-1,-1):
+                self.set_HR_(pos,tol=tol)
 
     def two_site_step(self,job='sweep',nmax=200,tol=hm.TOL):
         '''
@@ -251,8 +237,8 @@ class DMRG(Engine):
             tol: float64
                 The tolerance of the singular values.
         '''
-        print 'mpo dim: %s.'%([lb.dim for lb in self.mpo.bonds])
         assert job in ('sweep','grow')
+        #print [len(np.argwhere(np.abs(sp.csr_matrix(np.asarray(m).reshape((m.shape[0]*m.shape[1],m.shape[2]*m.shape[3]))).data)<tol)) for m in self.mpo]
         with self.timers.get('Preparation'):
             Ha,Hb=self._Hs_['L'][self.mps.cut-1],self._Hs_['R'][self.mps.nsite-self.mps.cut-1]
             Hasite,Hbsite=self.mpo[self.mps.cut-1],self.mpo[self.mps.cut]
@@ -272,14 +258,15 @@ class DMRG(Engine):
                 sysqns,syspt=np.product([La.qns,Sa.qns]),None
                 envqns,envpt=np.product([Sb.qns,Rb.qns]),None
                 sysantipt,envantipt=None,None
+                subslice=slice(None)
                 rows,cols=None,None
                 qns=sysqns*envqns
                 self.info['subslice']=qns
             Lpa,Spa,Spb,Rpb=La.prime,Sa.prime,Sb.prime,Rb.prime
             Lsys,Lenv,new=Label('__DMRG_TWO_SITE_STEP_SYS__',qns=sysqns),Label('__DMRG_TWO_SITE_STEP_ENV__',qns=envqns),Ra.replace(qns=None)
             Lpsys,Lpenv=Lsys.prime,Lenv.prime
-            Hsys=contract(Ha,Hasite).transpose([Oa,Lpa,Spa,La,Sa]).merge(([Lpa,Spa],Lpsys,syspt),([La,Sa],Lsys,syspt))
-            Henv=contract(Hbsite,Hb).transpose([Ob,Spb,Rpb,Sb,Rb]).merge(([Spb,Rpb],Lpenv,envpt),([Sb,Rb],Lenv,envpt))
+            Hsys=contract([Ha,Hasite],engine='tensordot').transpose([Oa,Lpa,Spa,La,Sa]).merge(([Lpa,Spa],Lpsys,syspt),([La,Sa],Lsys,syspt))
+            Henv=contract([Hbsite,Hb],engine='tensordot').transpose([Ob,Spb,Rpb,Sb,Rb]).merge(([Spb,Rpb],Lpenv,envpt),([Sb,Rb],Lenv,envpt))
         with self.timers.get('Hamiltonian'):
             matrix=0
             for hsys,henv in zip(Hsys,Henv):
@@ -292,7 +279,7 @@ class DMRG(Engine):
         with self.timers.get('Diagonalization'):
             if job=='sweep':
                 u,s,v=self.mps[self.mps.cut-1],self.mps.Lambda,self.mps[self.mps.cut]
-                v0=np.asarray(contract(u,s,v).merge(([La,Sa],Lsys,syspt),([Sb,Rb],Lenv,envpt))).reshape(-1)[slice(None) if subslice is None else subslice]
+                v0=np.asarray(contract([u,s,v],engine='einsum').merge(([La,Sa],Lsys,syspt),([Sb,Rb],Lenv,envpt))).reshape(-1)[subslice]
             else:
                 assert self.mps.cut==self.mps.nsite/2
                 v0=None
@@ -300,7 +287,7 @@ class DMRG(Engine):
                     u,nsvs,osvs,v=self.mps[self.mps.cut-2],np.asarray(self.mps.Lambda),self.cache['osvs'],self.mps[self.mps.cut+1]
                     ml=np.asarray(v.dotarray(axis=MPS.L,array=nsvs).merge(([MPS.L,MPS.S],Lsys,syspt)))
                     mr=np.asarray(u.dotarray(axis=MPS.R,array=nsvs).merge(([MPS.S,MPS.R],Lenv,envpt)))
-                    v0=np.einsum('ij,j,jk->ik',ml,1.0/osvs,mr).reshape(-1)[slice(None) if subslice is None else subslice]
+                    v0=np.einsum('ij,j,jk->ik',ml,1.0/osvs,mr).reshape(-1)[subslice]
             es,vs=hm.eigsh(matrix,which='SA',v0=v0,k=1)
             energy,Psi=es[0],vs[:,0]
             self.info['energy']=energy/self.mps.nsite
@@ -506,7 +493,7 @@ def DMRGTSG(engine,app):
         engine.mps.cut+=1
         engine._Hs_["L"].extend([None,None])
         engine._Hs_["R"].extend([None,None])
-        engine.set_Hs_(job='FULL',tol=app.tol)
+        engine.set_Hs_(L=engine.mps.cut-2,R=engine.mps.cut+1,tol=app.tol)
         engine.target=target
         engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s)(++)\n'%(engine.status,engine.target,engine.layer,engine.mps.nsite,engine.mps.cut)
         engine.log<<engine.graph<<'\n'

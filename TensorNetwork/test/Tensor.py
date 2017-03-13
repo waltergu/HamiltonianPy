@@ -25,7 +25,7 @@ def test_tensor_ordinary():
     print "b.transpose([Label('i'),Label('j'),Label('k')]): %s"%b.transpose([Label('i'),Label('j'),Label('k')])
     print "b.take(0,Label('i')): %s"%b.take(0,Label('i'))
     print "b.take([0,1],0): %s"%b.take([0,1],0)
-    print "contract(b,b): %s"%contract(b,b)
+    print "contract([b,b]): %s"%contract([b,b],engine='einsum')
     print
 
 def test_tensor_qng():
@@ -67,14 +67,14 @@ def test_tensor_svd():
     u,s,v=m.svd(row=m.labels[0:2],new=Label('new'),col=m.labels[2:])
     t2=time()
     print 'svd time: %ss.'%(t2-t1)
-    print 'svd diff: %s.'%(norm(m-contract(u,s,v)))
+    print 'svd diff: %s.'%(norm(m-contract([u,s,v],engine='einsum')))
 
     print 'L,-S+R'
     t1=time()
     u,s,v=m.svd(row=m.labels[0:1],new=Label('new'),col=m.labels[1:],row_signs='+',col_signs='-+')
     t2=time()
     print 'svd time: %ss.'%(t2-t1)
-    print 'svd diff: %s.'%(norm(m-contract(u,s,v)))
+    print 'svd diff: %s.'%(norm(m-contract([u,s,v],engine='einsum')))
 
 
     print 'Not using good quantum numbers'
@@ -88,14 +88,14 @@ def test_tensor_svd():
     u,s,v=m.svd(row=m.labels[0:2],new=Label('new'),col=m.labels[2:])
     t2=time()
     print 'svd time: %ss.'%(t2-t1)
-    print 'svd diff: %s.'%(norm(m-contract(u,s,v)))
+    print 'svd diff: %s.'%(norm(m-contract([u,s,v],engine='einsum')))
 
     print 'L,-S+R'
     t1=time()
     u,s,v=m.svd(row=m.labels[0:1],new=Label('new'),col=m.labels[1:])
     t2=time()
     print 'svd time: %ss.'%(t2-t1)
-    print 'svd diff: %s.'%(norm(m-contract(u,s,v)))
+    print 'svd diff: %s.'%(norm(m-contract([u,s,v],engine='einsum')))
     print
 
 def test_tensor_directsum():
@@ -140,7 +140,7 @@ def test_tensor_expanded_svd():
         I=[Label('B%i'%i) for i in xrange((N-1) if n in (0,N-1) else (N-2))]
         ms=m.expanded_svd(L=[L],S=S,R=[R],E=E,I=I,ls='+',rs='+',es=signs,cut=n)
         ms=[ms[0],ms[1]]+ms[2] if n==0 else (ms[0]+[ms[1],ms[2]] if n==N-1 else ms[0][:n]+[ms[1]]+ms[0][n:])
-        print 'cut(%s) diff: %s.'%(n,norm(m-contract(*ms).merge((E,S))))
+        print 'cut(%s) diff: %s.'%(n,norm(m-contract(ms,engine='einsum').merge((E,S))))
 
     print 'Not using good quantum numbers'
     L,S,R=Label('L'),Label('S'),Label('R')
@@ -150,5 +150,5 @@ def test_tensor_expanded_svd():
         I=[Label('B%i'%i) for i in xrange((N-1) if n in (0,N-1) else (N-2))]
         ms=m.expanded_svd(L=[L],S=S,R=[R],E=E,I=I,cut=n)
         ms=[ms[0],ms[1]]+ms[2] if n==0 else (ms[0]+[ms[1],ms[2]] if n==N-1 else ms[0][:n]+[ms[1]]+ms[0][n:])
-        print 'cut(%s) diff: %s.'%(n,norm(m-contract(*ms).merge((E,S))))
+        print 'cut(%s) diff: %s.'%(n,norm(m-contract(ms,engine='einsum').merge((E,S))))
     print

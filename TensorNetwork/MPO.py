@@ -172,13 +172,13 @@ class OptStr(list):
                 olds.remove(R1)
             if S1 in poses:
                 u1.relabel(news=news,olds=olds)
-                result=contract(result,u1,ms[count],u2,sequence='sequential')
+                result=contract([result,u1,ms[count],u2],engine='einsum',sequence='sequential')
                 count+=1
             else:
                 news.remove(S1.prime)
                 olds.remove(S1)
                 u1.relabel(news=news,olds=olds)
-                result=contract(result,u1,u2,sequence='sequential')
+                result=contract([result,u1,u2],engine='einsum',sequence='sequential')
         if mps1 is mps2:
             mps1._set_ABL_(m,Lambda)
         else:
@@ -339,7 +339,7 @@ class MPO(list):
             l2,r2=Label('__MPO_MUL_L2__',qns=L2.qns),Label('__MPO_MUL_R2__',qns=R2.qns)
             m1.relabel(olds=[L1,D1,R1],news=[l1,s,r1])
             m2.relabel(olds=[L2,U2,R2],news=[l2,s,r2])
-            ms.append(contract(m1,m2).transpose((l1,l2,U1,D2,r1,r2)).merge((([l1,l2],L)),([r1,r2],R)))
+            ms.append(contract([m1,m2],engine='tensordot').transpose((l1,l2,U1,D2,r1,r2)).merge((([l1,l2],L)),([r1,r2],R)))
         return MPO(ms)
 
     def _mul_mps_(self,other):
@@ -360,7 +360,7 @@ class MPO(list):
             assert S==D1
             L=L2.replace(qns=QuantumNumbers.kron([L1.qns,L2.qns]) if L1.qnon else L1.qns*L2.qns)
             R=R2.replace(qns=QuantumNumbers.kron([R1.qns,R2.qns]) if R1.qnon else R1.qns*R2.qns)
-            m=contract(m1,m2).transpose((L1,L2,U1,R1,R2)).merge(([L1,L2],L),([R1,R2],R))
+            m=contract([m1,m2],engine='tensordot').transpose((L1,L2,U1,R1,R2)).merge(([L1,L2],L),([R1,R2],R))
             m.relabel(olds=[U1],news=[S])
             ms.append(m)
         other._set_ABL_(u,Lambda)
@@ -474,7 +474,7 @@ class MPO(list):
                 olds.remove(R1)
                 news.remove(R1.prime)
             m1.relabel(olds=olds,news=news)
-            result=contract(result,m1,m2,mpo,sequence='sequential')
+            result=contract([result,m1,m2,mpo],engine='tensordot')
         if mps1 is mps2:
             mps1._set_ABL_(u,Lambda)
         else:
@@ -501,18 +501,19 @@ class MPO(list):
                 if i<self.nsite-1:
                     L,U,D,R=m.labels
                     u,s,v=m.svd(row=[L,U,D],new=R.prime,col=[R],row_signs='++-',col_signs='+',nmax=nmax,tol=tol)
-                    self[i]=contract(u,s,reserve=s.labels)
-                    self[i+1]=contract(v,self[i+1])
+                    self[i]=contract([u,s],engine='einsum',reserve=s.labels)
+                    self[i+1]=contract([v,self[i+1]],engine='tensordot')
                     self[i].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
                     self[i+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
             for i,m in enumerate(reversed(self)):
                 if i<self.nsite-1:
                     L,U,D,R=m.labels
                     u,s,v=m.svd(row=[L],new=L.prime,col=[U,D,R],row_signs='+',col_signs='-++',nmax=nmax,tol=tol)
-                    self[-1-i]=contract(s,v,reserve=s.labels)
-                    self[-2-i]=contract(self[-2-i],u)
+                    self[-1-i]=contract([s,v],engine='einsum',reserve=s.labels)
+                    self[-2-i]=contract([self[-2-i],u],engine='tensordot')
                     self[-1-i].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
                     self[-2-i].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
+            self.eliminate_zeros(tol=tol)
 
     def relayer(self,degfres,layer,nmax=None,tol=None):
         '''
@@ -547,7 +548,7 @@ class MPO(list):
                         ms.append(m)
                         ups.append(m.labels[MPO.U])
                         dws.append(m.labels[MPO.D])
-                    M=contract(*ms,sequence='sequential')
+                    M=contract(ms,engine='tensordot')
                     o1,o2=M.labels[0],M.labels[-1]
                     n1,n2=bonds[i].replace(qns=o1.qns),bonds[i+1].replace(qns=o2.qns)
                     M.relabel(olds=[o1,o2],news=[n1,n2])
@@ -555,7 +556,7 @@ class MPO(list):
             else:
                 table=degfres.table(nlayer)
                 for i,m in enumerate(self):
-                    if i>0: m=contract(s,v,m,reserve=s.labels)
+                    if i>0: m=contract([s,v,m],engine='einsum',reserve=s.labels)
                     L,U,D,R=m.labels
                     indices=degfres.descendants(D.identifier,generation=new-old)
                     start,stop=table[indices[0]],table[indices[-1]]+1
@@ -573,7 +574,7 @@ class MPO(list):
                     us,s,v=m.expanded_svd(L=[L],S=S,R=[R],E=labels,I=bonds[start+1:stop+1],cut=stop-start,nmax=nmax,tol=tol)
                     for u,up,dw,label in zip(us,ups,dws,labels):
                         Ms.append(u.split((label,[up,dw])))
-                Ms[-1]=contract(Ms[-1],s,v)
+                Ms[-1]=contract([Ms[-1],s,v],engine='einsum')
                 Ms[+0].relabel(olds=[MPO.L],news=[bonds[+0].replace(qns=Ms[+0].labels[MPO.L].qns)])
                 Ms[-1].relabel(olds=[MPO.R],news=[bonds[-1].replace(qns=Ms[-1].labels[MPO.R].qns)])
             return MPO(Ms)

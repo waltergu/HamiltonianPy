@@ -724,7 +724,7 @@ class Tensor(np.ndarray):
         if cut==len(E):
             assert len(E)==len(I)
             for i in xrange(cut):
-                if i>0: data=contract(s,v,reserve=s.labels)
+                if i>0: data=contract([s,v],engine='einsum',reserve=s.labels)
                 row_signs,col_signs='+'+es[i],''.join(('-' if sign=='+' else '+') for sign in es[i+1:])+'+'
                 u,s,v=data.svd(row=data.labels[:2],new=I[i],col=data.labels[2:],row_signs=row_signs,col_signs=col_signs,nmax=nmax,tol=tol)
                 ms.append(u)
@@ -734,7 +734,7 @@ class Tensor(np.ndarray):
         elif cut==0:
             assert len(E)==len(I)
             for i in xrange(len(E)-1,-1,-1):
-                if i<len(E)-1: data=contract(u,s,reserve=s.labels)
+                if i<len(E)-1: data=contract([u,s],engine='einsum',reserve=s.labels)
                 row_signs,col_signs='+'+es[cut:i],('-' if es[i]=='+' else '+')+'+'
                 u,s,v=data.svd(row=data.labels[:-2],new=I[i],col=data.labels[-2:],row_signs=row_signs,col_signs=col_signs,nmax=nmax,tol=tol)
                 ms.insert(0,v)
@@ -744,13 +744,13 @@ class Tensor(np.ndarray):
         else:
             assert len(E)==len(I)+1
             for i in xrange(cut):
-                if i>0: data=contract(s,v,reserve=s.labels)
+                if i>0: data=contract((s,v),engine='einsum',reserve=s.labels)
                 row_signs,col_signs='+'+es[i],''.join(('-' if sign=='+' else '+') for sign in es[i+1:])+'+'
                 u,s,v=data.svd(row=data.labels[:2],new=I[i],col=data.labels[2:],row_signs=row_signs,col_signs=col_signs,nmax=nmax,tol=tol)
                 ms.append(u)
             Lambda,data=s,v
             for i in xrange(len(E)-1,cut-1,-1):
-                if i<len(E)-1: data=contract(u,s,reserve=s.labels)
+                if i<len(E)-1: data=contract((u,s),engine='einsum',reserve=s.labels)
                 if i>cut:
                     row_signs,col_signs='+'+es[cut:i],('-' if es[i]=='+' else '+')+'+'
                     u,s,v=data.svd(row=data.labels[:-2],new=I[i-1],col=data.labels[-2:],row_signs=row_signs,col_signs=col_signs,nmax=nmax,tol=tol)
@@ -761,50 +761,69 @@ class Tensor(np.ndarray):
             ms[-1]=ms[-1].split((rlabel,R))
             return ms,Lambda
 
-def contract(*tensors,**karg):
+def contract(tensors,engine='einsum',sequence=None,reserve=None):
     '''
     Contract a collection of tensors.
     Parameters:
         tensors: list of Tensor
             The tensors to be contracted.
-        karg['sequence']: list of tuple, 'sequential','reversed'
-            The contraction sequence of the tensors.
-        karg['reserve']: list of Label
+        engine: 'tensordot','einsum', optional
+            The engine to implement the contract of tensors, 'tensordot' for np.tensordot and 'einsum' for np.einsum.
+        sequence: list of tuple-of-integer, optional
+            The contraction path of the tensors.
+            Omitted if engine=='tensordot'.
+        reserve: list of Label, optional
             The labels that are repeated but not summed over.
+            Omitted if engine=='tensordot'.
     Returns: Tensor
         The contracted tensor.
     '''
-    if len(tensors)==0:
-        raise ValueError("Tensor contract error: there are no tensors to contract.")
-    sequence=karg.pop('sequence',[])
-    if len(sequence)==0:
-        return _contract_(*tensors,**karg)
+    assert len(tensors)>0
+    if engine=='tensordot':
+        return tensordotcontract(tensors)
+    elif engine=='einsum':
+        return einsumcontract(tensors,sequence=sequence,reserve=reserve)
     else:
-        if sequence=='sequential':
-            sequence=[(i,) for i in xrange(len(tensors))]
-        elif sequence=='reversed':
-            sequence=[(i,) for i in xrange(len(tensors)-1,-1,-1)]
-        for i,seq in enumerate(sequence):
-            temp=[tensors[i] for i in seq]
-            if i==0:
-                result=_contract_(*temp,**karg)
-            else:
-                result=_contract_(result,*temp,**karg)
-        return result
+        raise ValueError('contract error: engine(%s) not supported.'%engine)
 
-def _contract_(*tensors,**karg):
+def tensordotcontract(tensors):
     '''
-    Contract a small collection of tensors.
+    Use np.tensordot to implement the contraction of tensors.
+    See contract for details.
     '''
-    replace,reserve={},{}
-    for key in karg.get('reserve',[]):
-        replace[key]=key
-        reserve[key]=True
-    lists=[tensor.labels for tensor in tensors]
-    alls=[replace.get(label,label) for labels in lists for label in labels]
-    counts=Counter(alls)
-    table={key:i+65 if i<26 else i+97 for i,key in enumerate(counts)}
-    subscripts=[''.join(chr(table[label]) for label in labels) for labels in lists]
-    contracted_labels=[label for label in alls if (counts[label]==1 or reserve.pop(label,False))]
-    contracted_subscript=''.join(chr(table[label]) for label in contracted_labels)
-    return Tensor(np.einsum('%s->%s'%(','.join(subscripts),contracted_subscript),*tensors),labels=contracted_labels)
+    def _contract_(a,b):
+        common=set(a.labels)&set(b.labels)
+        aaxes=[a.axis(label) for label in common]
+        baxes=[b.axis(label) for label in common]
+        labels=[label for label in it.chain(a.labels,b.labels) if label not in common]
+        axes=(aaxes,baxes) if len(common)>0 else 0
+        return Tensor(np.tensordot(a,b,axes=axes),labels=labels)
+    result=tensors[0]
+    for i in xrange(1,len(tensors)):
+        result=_contract_(result,tensors[i])
+    return result
+
+def einsumcontract(tensors,sequence=None,reserve=None):
+    '''
+    Use np.einsum to implement the contraction of tensors.
+    See contract for details.
+    '''
+    def _contract_(tensors,reserve=None):
+        reserve=[] if reserve is None else reserve
+        replace={key:key for key in reserve}
+        keep={key:True for key in reserve}
+        lists=[tensor.labels for tensor in tensors]
+        alls=[replace.get(label,label) for labels in lists for label in labels]
+        counts=Counter(alls)
+        table={key:i+65 if i<26 else i+97 for i,key in enumerate(counts)}
+        subscripts=[''.join(chr(table[label]) for label in labels) for labels in lists]
+        contracted_labels=[label for label in alls if (counts[label]==1 or keep.pop(label,False))]
+        contracted_subscript=''.join(chr(table[label]) for label in contracted_labels)
+        return Tensor(np.einsum('%s->%s'%(','.join(subscripts),contracted_subscript),*tensors),labels=contracted_labels)
+    if sequence is None:
+        return _contract_(tensors,reserve=reserve)
+    else:
+        result=tensors[0]
+        for i in xrange(1,len(tensors)):
+            result=_contract_((result,tensors[i]),reserve=reserve)
+        return result
