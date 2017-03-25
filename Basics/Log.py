@@ -140,7 +140,10 @@ class Timers(Tree):
                 When 's', only the last record of each timer will be included in the representation;
                 When 'c', the cumulative time will also be included in the representation.
         '''
-        if keys==Timers.ALL: keys=list(self.expand(mode=Tree.DEPTH,return_form=Tree.NODE))
+        if keys==Timers.ALL:
+            keys=list(self.expand(mode=Tree.DEPTH,return_form=Tree.NODE))
+        elif keys is None:
+            keys=[self.root]+self.children(self.root)
         lens=[max(12,len(str(key))+2) for key in keys]
         result=[]
         result.append((sum(lens)+12+len(keys))*'~')

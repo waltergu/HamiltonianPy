@@ -125,6 +125,9 @@ class DMRG(Engine):
         self.timers=Timers('Preparation','Hamiltonian','Diagonalization','Truncation')
         self.timers.add(parent='Hamiltonian',name='kron')
         self.timers.add(parent='Hamiltonian',name='sum')
+        #self.timers.add(parent='kron',name='fkron')
+        #self.timers.add(parent='kron',name='slice')
+        #self.timers.add(parent='kron',name='csr')
         self.info=Info(['energy','nbasis','subslice','nnz','nz','density','overlap','err'])
         self.cache={}
 
@@ -250,7 +253,7 @@ class DMRG(Engine):
                 envqns,envpt=QuantumNumbers.kron([Sb.qns,Rb.qns],signs='-+').sort(history=True)
                 sysantipt,envantipt=np.argsort(syspt),np.argsort(envpt)
                 subslice=QuantumNumbers.kron([sysqns,envqns],signs='+-').subslice(targets=(self.target.zeros(),))
-                rows,cols=subslice,subslice
+                rcs=subslice
                 qns=QuantumNumbers.mono(self.target.zeros(),count=len(subslice))
                 self.info['subslice']=len(subslice)
             else:
@@ -258,7 +261,7 @@ class DMRG(Engine):
                 envqns,envpt=np.product([Sb.qns,Rb.qns]),None
                 sysantipt,envantipt=None,None
                 subslice=slice(None)
-                rows,cols=None,None
+                rcs=None
                 qns=sysqns*envqns
                 self.info['subslice']=qns
             Lpa,Spa,Spb,Rpb=La.prime,Sa.prime,Sb.prime,Rb.prime
@@ -270,7 +273,7 @@ class DMRG(Engine):
             matrix=0
             for hsys,henv in zip(Hsys,Henv):
                 with self.timers.get('kron'):
-                    temp=hm.kron(hsys,henv,rows=rows,cols=cols,format='csr')
+                    temp=hm.kron(hsys,henv,rcs)
                 with self.timers.get('sum'):
                     matrix+=temp
             self.info['nnz']=matrix.nnz
@@ -498,7 +501,7 @@ def DMRGTSG(engine,app):
         engine.log<<engine.graph<<'\n'
         engine.two_site_step(job='grow',nmax=app.nmax,tol=app.tol)
         engine.timers.record()
-        engine.log<<'timers of the dmrg:\n'<<engine.timers<<'\n'
+        engine.log<<'timers of the dmrg:\n'<<engine.timers.tostr(None)<<'\n'
         engine.log<<'info of the dmrg:\n'<<engine.info<<'\n\n'
         if app.plot: engine.timers.graph(parents=Timers.ALL)
     if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
@@ -601,8 +604,8 @@ def DMRGTSS(engine,app):
             engine.log<<engine.graph<<'\n'
             engine.two_site_step(job='sweep',nmax=nmax,tol=app.tol)
             engine.timers.record()
-            engine.log<<'timers of the dmrg:\n%s\n'%(engine.timers)
-            engine.log<<'info of the dmrg:\n%s\n\n'%(engine.info)
+            engine.log<<'timers of the dmrg:\n%s\n'%engine.timers.tostr(None)
+            engine.log<<'info of the dmrg:\n%s\n\n'%engine.info
             if app.plot: engine.timers.graph(parents=Timers.ALL)
         if app.save_data: engine.coredump()
     if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
