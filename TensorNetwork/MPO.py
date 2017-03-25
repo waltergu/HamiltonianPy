@@ -483,37 +483,62 @@ class MPO(list):
         assert result.shape==(1,1)
         return result[0,0]
 
-    def compress(self,nsweep=1,nmax=None,tol=None):
+    def compress(self,nsweep=1,options={}):
         '''
         Compress the mpo.
         Parameters:
             nsweep: integer, optional
                 The number of sweeps to compress the mpo.
-            nmax: integer, optional
-                The maximum number of singular values to be kept.
-            tol: float64, optional
-                The tolerance of the singular values.
+            options: dict, optional
+                The options used to compress the mpo.
         Returns: MPO
             The compressed mpo.
         '''
-        for sweep in xrange(nsweep):
-            for i,m in enumerate(self):
-                if i<self.nsite-1:
-                    L,U,D,R=m.labels
-                    u,s,v=m.svd(row=[L,U,D],new=R.prime,col=[R],row_signs='++-',col_signs='+',nmax=nmax,tol=tol)
-                    self[i]=contract([u,s],engine='einsum',reserve=s.labels)
-                    self[i+1]=contract([v,self[i+1]],engine='tensordot')
-                    self[i].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
-                    self[i+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
-            for i,m in enumerate(reversed(self)):
-                if i<self.nsite-1:
-                    L,U,D,R=m.labels
-                    u,s,v=m.svd(row=[L],new=L.prime,col=[U,D,R],row_signs='+',col_signs='-++',nmax=nmax,tol=tol)
-                    self[-1-i]=contract([s,v],engine='einsum',reserve=s.labels)
-                    self[-2-i]=contract([self[-2-i],u],engine='tensordot')
-                    self[-1-i].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
-                    self[-2-i].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
-            self.eliminate_zeros(tol=tol)
+        method=options.get('method','svd')
+        assert method in ('svd','dpl','dln')
+        if method=='svd':
+            tol=options.get('tol',hm.TOL)
+            for sweep in xrange(nsweep):
+                for i,m in enumerate(self):
+                    if i<self.nsite-1:
+                        L,U,D,R=m.labels
+                        u,s,v=m.svd(row=[L,U,D],new=R.prime,col=[R],row_signs='++-',col_signs='+',tol=tol)
+                        self[i]=contract([u,s],engine='einsum',reserve=s.labels)
+                        self[i+1]=contract([v,self[i+1]],engine='tensordot')
+                        self[i].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
+                        self[i+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
+                for i,m in enumerate(reversed(self)):
+                    if i<self.nsite-1:
+                        L,U,D,R=m.labels
+                        u,s,v=m.svd(row=[L],new=L.prime,col=[U,D,R],row_signs='+',col_signs='-++',tol=tol)
+                        self[-1-i]=contract([s,v],engine='einsum',reserve=s.labels)
+                        self[-2-i]=contract([self[-2-i],u],engine='tensordot')
+                        self[-1-i].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
+                        self[-2-i].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
+                for m in self:
+                    m[np.abs(m)<tol]=0.0
+        elif method=='dpl':
+            zero=options.get('zero',10**-8)
+            tol=options.get('tol',10**-6)
+            for sweep in xrange(nsweep):
+                for i,m in enumerate(reversed(self)):
+                    if i<self.nsite-1:
+                        L,U,D,R=m.labels
+                        T,M=m.deparallelization(row=[L],new=L.prime,col=[U,D,R],mode='R',zero=zero,tol=tol)
+                        self[-1-i]=M
+                        self[-2-i]=contract([self[-2-i],T],engine='tensordot')
+                        self[-1-i].relabel(olds=[L.prime],news=[L.replace(qns=T.labels[1].qns)])
+                        self[-2-i].relabel(olds=[L.prime],news=[L.replace(qns=T.labels[1].qns)])
+                for i,m in enumerate(self):
+                    if i<self.nsite-1:
+                        L,U,D,R=m.labels
+                        M,T=m.deparallelization(row=[L,U,D],new=R.prime,col=[R],mode='C',zero=zero,tol=tol)
+                        self[i]=M
+                        self[i+1]=contract([T,self[i+1]],engine='tensordot')
+                        self[i].relabel(olds=[R.prime],news=[R.replace(qns=T.labels[0].qns)])
+                        self[i+1].relabel(olds=[R.prime],news=[R.replace(qns=T.labels[0].qns)])
+        else:
+            pass
 
     def relayer(self,degfres,layer,nmax=None,tol=None):
         '''
@@ -578,13 +603,3 @@ class MPO(list):
                 Ms[+0].relabel(olds=[MPO.L],news=[bonds[+0].replace(qns=Ms[+0].labels[MPO.L].qns)])
                 Ms[-1].relabel(olds=[MPO.R],news=[bonds[-1].replace(qns=Ms[-1].labels[MPO.R].qns)])
             return MPO(Ms)
-
-    def eliminate_zeros(self,tol=hm.TOL):
-        '''
-        Eliminate the zeros with a tolerance.
-        Parameters:
-            tol: np.float64, optional
-                The tolerance of the zeros.
-        '''
-        for m in self:
-            m[np.abs(m)<tol]=0.0

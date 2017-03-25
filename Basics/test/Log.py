@@ -16,15 +16,15 @@ def test_log():
 def test_timers():
     print 'test_timers'
     np.random.seed()
-    timers=Timers(['Preparation','Diagonalization','Truncation'],str_form='c')
-    timers.proceed()
+    keys=['Preparation','Diagonalization','Truncation']
+    timers=Timers(*keys)
     for i in xrange(4):
-        for key in timers.keys():
-            if key!='Total':
-                with timers.get(key):
-                    sleep(np.random.random())
-        timers.record(Timers.ALL)
+        for key in keys:
+            with timers.get(key):
+                sleep(np.random.random())
+        timers.record()
         print timers,'\n'
+        timers.graph()
     print
 
 def test_info():

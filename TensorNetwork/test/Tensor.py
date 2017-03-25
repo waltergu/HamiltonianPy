@@ -16,6 +16,7 @@ def test_tensor():
     test_tensor_svd()
     test_tensor_directsum()
     test_tensor_expanded_svd()
+    test_tensor_deparallelization()
 
 def test_tensor_ordinary():
     print 'test_tensor_ordinary'
@@ -151,4 +152,26 @@ def test_tensor_expanded_svd():
         ms=m.expanded_svd(L=[L],S=S,R=[R],E=E,I=I,cut=n)
         ms=[ms[0],ms[1]]+ms[2] if n==0 else (ms[0]+[ms[1],ms[2]] if n==N-1 else ms[0][:n]+[ms[1]]+ms[0][n:])
         print 'cut(%s) diff: %s.'%(n,norm(m-contract(ms,engine='einsum').merge((E,S))))
+    print
+
+def test_tensor_deparallelization():
+    print 'test_tensor_deparallelization'
+    m=zeros((4,6))
+    a1=random.random(6)
+    a2=random.random(6)
+    m[1,:]=a1
+    m[2,:]=a2
+    m[3,:]=a1
+    row=Label('i')
+    col=Label('j')
+    m=Tensor(m,labels=[row,col])
+    T,M=m.deparallelization(row=[row],new=Label('new'),col=[col],mode='R')
+    print 'R deparallelization'
+    print 'T.shape,M.shape: %s,%s.'%(T.shape,M.shape)
+    print 'diff: %s.'%norm(m-contract([T,M]))
+    m=Tensor(m.T,labels=[row,col])
+    M,T=m.deparallelization(row=[row],new=Label('new'),col=[col],mode='C')
+    print 'C deparallelization'
+    print 'M.shape,T.shape: %s,%s.'%(M.shape,T.shape)
+    print 'diff: %s.'%norm(m-contract([M,T]))
     print

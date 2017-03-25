@@ -4,7 +4,9 @@ Log for code executing, including:
 '''
 
 from collections import OrderedDict
+from ..Misc import Tree
 import numpy as np
+import matplotlib.pyplot as plt
 import time
 import sys
 
@@ -99,7 +101,7 @@ class Timer(object):
         '''
         self.suspend()
 
-class Timers(OrderedDict):
+class Timers(Tree):
     '''
     Timers for code executing.
     For each of its (key,value) pairs,
@@ -107,123 +109,129 @@ class Timers(OrderedDict):
             The name of the timer.
         value: Timer
             The corresponding timer.
-    Attribues:
-        str_form: 's','c'
-            When 's', only the last record of each timer will be included in str;
-            When 'c', the cumulative time will also be included in str.
     '''
     ALL=0
 
-    def __init__(self,names=[],str_form='s'):
+    def __init__(self,*keys):
         '''
         Constructor.
         Parameters:
-            names: list of string.
+            keys: list of string
                 The names of the timers.
         '''
-        super(Timers,self).__init__()
-        if all(isinstance(pair,list) for pair in names):
-            for pair in names:
-                key,value=pair
-                self[key]=value
-        else:
-            self.add('Total',*names)
-        self.str_form=str_form
+        super(Timers,self).__init__(root='Total',data=Timer())
+        for key in keys:
+            self.add_leaf('Total',key,Timer())
+        self['Total'].proceed()
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
-        lens=[max(14,len(str(key))+2) for key in self]
+        return self.tostr()
+
+    def tostr(self,keys=ALL,form='c'):
+        '''
+        Get the string representation of the timers.
+        Parameters:
+            keys: list of string, optional
+                The names of the timers to be included in the representation.
+            form: 's' or 'c', optional
+                When 's', only the last record of each timer will be included in the representation;
+                When 'c', the cumulative time will also be included in the representation.
+        '''
+        if keys==Timers.ALL: keys=list(self.expand(mode=Tree.DEPTH,return_form=Tree.NODE))
+        lens=[max(12,len(str(key))+2) for key in keys]
         result=[]
-        result.append((sum(lens)+12+len(self))*'~')
-        result.append('Time (s)'.center(12)+'|'+'|'.join([str(key).center(length) for key,length in zip(self,lens)]))
-        result.append((sum(lens)+12+len(self))*'-')
-        result.append('Task'.center(12)+'|'+'|'.join([('%e'%(self[key].records[-1])).center(length) for key,length in zip(self,lens)]))
-        if self.str_form=='c':
-            result.append('Cumulative'.center(12)+'|'+'|'.join([('%e'%(self.time(key))).center(length) for key,length in zip(self,lens)]))
+        result.append((sum(lens)+12+len(keys))*'~')
+        result.append('Time (s)'.center(12)+'|'+'|'.join([str(key).center(length) for key,length in zip(keys,lens)]))
+        result.append((sum(lens)+12+len(keys))*'-')
+        result.append('Task'.center(12)+'|'+'|'.join([('%.4e'%(self[key].records[-1])).center(length) for key,length in zip(keys,lens)]))
+        if form=='c':
+            result.append('Cumulative'.center(12)+'|'+'|'.join([('%.4e'%(self.time(key))).center(length) for key,length in zip(keys,lens)]))
         result.append(result[0])
         return '\n'.join(result)
 
-    def add(self,*keys):
+    def graph(self,parents=None,form='c'):
         '''
-        Add timers.
+        Get the pie chart representation of the timers.
         Parameters:
-            keys: list of string
-                The names of the timers to be added.
+            parents: list of string, optional
+                The names of the parent timers to be converted to a pie chart.
+            form: 's' or 'c', optional
+                When 's', only the last record of each timer will be included in the representation;
+                When 'c', the cumulative time will also be included in the representation.
         '''
-        for key in keys:
-            self[key]=Timer()
+        def update(piechart,fractions):
+            fractions=np.asarray(fractions)
+            theta1=0.0
+            for fraction,patch,text,autotext in zip(fractions,piechart[0],piechart[1],piechart[2]):
+                theta2=theta1+fraction
+                patch.set_theta1(theta1*360)
+                patch.set_theta2(theta2*360)
+                thetam=2*np.pi*0.5*(theta1+theta2)
+                xt=1.1*np.cos(thetam)
+                yt=1.1*np.sin(thetam)
+                text.set_position((xt,yt))
+                text.set_horizontalalignment('left' if xt>0 else 'right')
+                xt=0.6*np.cos(thetam)
+                yt=0.6*np.sin(thetam)
+                autotext.set_position((xt,yt))
+                autotext.set_text('%1.1f%%'%(fraction*100))
+                theta1=theta2
+        if parents is None:
+            parents=[self.root]
+        elif parents==Timers.ALL:
+            parents=[parent for parent in self.expand(mode=Tree.WIDTH,return_form=Tree.NODE) if not self.is_leaf(parent)]
+        if hasattr(self,'piecharts'):
+            for parent in parents:
+                fractions=[self[child].records[-1]/self[parent].records[-1] for child in self.children(parent)]
+                update(self.piecharts[(parent,'s')],fractions+[1.0-sum(fractions)])
+                if form=='c':
+                    fractions=[self.time(child)/self.time(parent) for child in self.children(parent)]
+                    update(self.piecharts[(parent,'c')],fractions+[1.0-sum(fractions)])
+        else:
+            self.piecharts={}
+            graph=plt.subplots(nrows=len(parents),ncols=2 if form=='c' else 1)
+            axes=graph[1].reshape((len(parents),2 if form=='c' else 1)) if isinstance(graph[1],np.ndarray) else np.array([[graph[1]]])
+            for i,parent in enumerate(parents):
+                axes[i,0].axis('equal')
+                axes[i,0].set_title(parent)
+                labels=self.children(parent)
+                fractions=[self[child].records[-1]/self[parent].records[-1] for child in labels]
+                self.piecharts[(parent,'s')]=axes[i,0].pie(fractions+[1.0-sum(fractions)],labels=labels+['others'],autopct='%1.1f%%')
+                if form=='c':
+                    axes[i,1].axis('equal')
+                    axes[i,1].set_title('%s (%s)'%(parent,'Acc.'))
+                    fractions=[self.time(child)/self.time(parent) for child in labels]
+                    self.piecharts[(parent,'c')]=axes[i,1].pie(fractions+[1.0-sum(fractions)],labels=labels+['others'],autopct='%1.1f%%')
+        plt.pause(10**-6)
 
-    def start(self,*keys):
+    def add(self,parent=None,name=None):
         '''
-        Start the timers.
+        Add a timer.
         Parameters:
-            keys: list of string
-                The timers to be started.
+            parent: string
+                The parent timer of the added timer.
+            name: string
+                The name of the added timer.
         '''
-        if len(keys)==0:keys=['Total']
-        if len(keys)==1 and keys[0]==Timers.ALL: keys=self.keys()
-        for timer in map(self.get,keys):
-            timer.start()
+        parent=self.root if parent is None else parent
+        self.add_leaf(parent,name,Timer())
 
-    def suspend(self,*keys):
+    def record(self):
         '''
-        Suspend the timers.
-        Parameters:
-            keys: list of string
-                The timers to be suspended.
+        Record all the timers.
         '''
-        if len(keys)==0:keys=['Total']
-        if len(keys)==1 and keys[0]==Timers.ALL: keys=self.keys()
-        for timer in map(self.get,keys):
-            timer.suspend()
-
-    def proceed(self,*keys):
-        '''
-        Continue the timers.
-        Parameters:
-            keys: list of string
-                The timers to be continued.
-        '''
-        if len(keys)==0:keys=['Total']
-        if len(keys)==1 and keys[0]==Timers.ALL: keys=self.keys()
-        for timer in map(self.get,keys):
-            timer.proceed()
-
-    def stop(self,*keys):
-        '''
-        Stop the timers.
-        Parameters:
-            keys: list of string
-                The timers to be stopped.
-        '''
-        self.record(*keys)
-        self.suspend(*keys)
-
-    def reset(self,*keys):
-        '''
-        Reset the timers.
-        Parameters:
-            keys: list of string
-                The timers to be reset.
-        '''
-        if len(keys)==0:keys=['Total']
-        if len(keys)==1 and keys[0]==Timers.ALL: keys=self.keys()
-        for timer in map(self.get,keys):
-            timer.reset()
-
-    def record(self,*keys):
-        '''
-        Record the timers.
-        Parameters:
-            keys: list of string
-                The timers to be recorded.
-        '''
-        if len(keys)==0:keys=['Total']
-        if len(keys)==1 and keys[0]==Timers.ALL: keys=self.keys()
-        for timer in map(self.get,keys):
+        for timer in self.itervalues():
             timer.record()
+
+    def reset(self):
+        '''
+        Reset all the timers.
+        '''
+        for timer in self.itervalues():
+            timer.reset()
 
     def time(self,key):
         '''

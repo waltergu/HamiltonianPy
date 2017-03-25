@@ -1,12 +1,13 @@
 '''
 Miscellaneous constants, classes or functions, including:
 1) constants: TOL
-2) functions: overlap,reorder,dagger,truncated_svd,eigsh,block_diag
+2) functions: overlap,reorder,dagger,truncated_svd,eigsh,block_diag,solve,deparallelization
 '''
 
-__all__=['TOL','overlap','reorder','dagger','truncated_svd','eigsh','block_diag']
+__all__=['TOL','overlap','reorder','dagger','truncated_svd','eigsh','block_diag','solve','deparallelization']
 
 import numpy as np
+import scipy.sparse as sp
 import scipy.sparse.linalg as pl
 import scipy.linalg as sl
 
@@ -144,3 +145,116 @@ def block_diag(*ms):
         r+=cr
         c+=cc
     return result
+
+def solve(A,b,rtol=10**-8):
+    '''
+    Solve the matrix equation A*x=b by QR decomposition.
+    Parameters:
+        A: 2d ndarray
+            The coefficient matrix.
+        b: 1d ndarray
+            The ordinate values.
+        rtol: np.float64
+            The relative tolerance of the solution.
+    Returns: 1d ndarray
+        The solution.
+    Raises: sl.LinAlgError
+        When no solution exists.
+    '''
+    assert A.ndim==2
+    nrow,ncol=A.shape
+    if nrow>=ncol:
+        result=np.zeros(ncol,dtype=np.find_common_type([],[A.dtype,b.dtype]))
+        q,r=sl.qr(A,mode='economic',check_finite=False)
+        temp=q.T.dot(b)
+        for i,ri in enumerate(r[::-1]):
+            result[-1-i]=(temp[-1-i]-ri[ncol-i:].dot(result[ncol-i:]))/ri[-1-i]
+    else:
+        temp=np.zeros(nrow,dtype=np.find_common_type([],[A.dtype,b.dtype]))
+        q,r=sl.qr(dagger(A),mode='economic',check_finite=False)
+        for i,ri in enumerate(dagger(r)):
+            temp[i]=(b[i]-ri[:i].dot(temp[:i]))/ri[i]
+        result=q.dot(temp)
+    if not np.allclose(A.dot(result),b,rtol=rtol):
+        raise sl.LinAlgError('solve error: no solution.')
+    return result
+
+def deparallelization(m,mode='R',zero=10**-8,tol=10**-6,return_indices=False):
+    '''
+    Deparallelize the rows or columns of a matrix.
+    Parameters:
+        m: 2d ndarray
+            The matrix to be deparallelized.
+        mode: 'R' or 'C', optional
+            'R' for deparallelization of rows and 'C' for decomposition of columns.
+        zero: np.float64, optional
+            The absolute value to identity zero vectors.
+        tol: np.float64, optional
+            The relative tolerance for rows or columns that can be considered as paralleled.
+        return_truncation_err: logical, optional
+            When True, the indices of the kept rows or columns will be returned.
+            Otherwise not.
+    Returns:
+        M: 2d ndarray
+            The deparallelized rows or columns.
+        T: 2d ndarray
+            The coefficient matrix that satisfies T*M==m('R') or M*T==m('C').
+        indices: 1d ndarray of integers, optional
+            The indices of the kept rows or columns.
+    '''
+    assert mode in ('R','C') and m.ndim==2
+    M,data,rows,cols,indices=[],[],[],[],[]
+    if mode=='R':
+        for i,row in enumerate(m):
+            inds=np.argwhere(np.abs(row)>zero)
+            if len(inds)==0:
+                data.append(0)
+                rows.append(i)
+                cols.append(0)
+            else:
+                for j,krow in enumerate(M):
+                    factor=krow[inds[0]]/row[inds[0]]
+                    if np.allclose(row*factor,krow,rtol=tol):
+                        data.append(factor)
+                        rows.append(i)
+                        cols.append(j)
+                        break
+                else:
+                    data.append(1.0)
+                    rows.append(i)
+                    cols.append(len(M))
+                    M.append(row)
+                    indices.append(i)
+        M=np.asarray(M)
+        T=sp.coo_matrix((data,(rows,cols)),shape=(m.shape[0],M.shape[0])).toarray()
+        if return_indices:
+            return T,M,indices
+        else:
+            return T,M
+    else:
+        for i,col in enumerate(m.T):
+            inds=np.argwhere(np.abs(col)>zero)
+            if len(inds)==0:
+                data.append(0)
+                rows.append(0)
+                cols.append(i)
+            else:
+                for j,kcol in enumerate(M):
+                    factor=kcol[inds[0]]/col[inds[0]]
+                    if np.allclose(col*factor,kcol,rtol=tol):
+                        data.append(factor)
+                        rows.append(j)
+                        cols.append(i)
+                        break
+                else:
+                    data.append(1.0)
+                    rows.append(len(M))
+                    cols.append(i)
+                    M.append(col)
+                    indices.append(i)
+        M=np.asarray(M).T
+        T=sp.coo_matrix((data,(rows,cols)),shape=(M.shape[1],m.shape[1])).toarray()
+        if return_indices:
+            return M,T,indices
+        else:
+            return M,T

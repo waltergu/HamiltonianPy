@@ -44,9 +44,10 @@ def test_dmrg_spin():
             targets=    [SQN(1.0)]*(N/2) if qn_on else [None]*(N/2),
             nmax=       20,
             save_data=  False,
+            plot=       False,
             run=DMRGTSG
             )
-    dmrg.register(TSS(name='SWEEP',target=SQN(1.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=SQN(1.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=False,save_fig=True,run=DMRGTSS))
     dmrg.summary()
     print
 
@@ -75,9 +76,10 @@ def test_dmrg_spinless_fermion():
             targets=    [PQN(num) for num in xrange(1,N/2+1)] if qn_on else [None]*(N/2),
             nmax=       20,
             save_data=  False,
+            plot=       True,
             run=        DMRGTSG
             )
-    dmrg.register(TSS(name='SWEEP',target=PQN(N/2),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=PQN(N/2),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=True,run=DMRGTSS))
     dmrg.summary()
     print
 
@@ -107,10 +109,11 @@ def test_dmrg_spinful_fermion():
             targets=    [SPQN((num*2,0.0)) for num in xrange(1,N/2+1)] if qn_on else [None]*(N/2),
             nmax=       30,
             save_data=  False,
+            plot=       True,
             run=        DMRGTSG
             )
-    #tss=TSS(name='PRESWEEP',target=SPQN((N,0.0)),layer=0,nsite=N,protocal=1,nmaxs=[30,30,30,30],save_data=False,run=DMRGTSS)
-    #dmrg.register(TSS(name='SWEEP',target=SPQN((N,0.0)),layer=1,nsite=2*N,nmaxs=[30,30,30,50],dependences=[tsg,tss],save_data=False,run=DMRGTSS))
-    dmrg.register(TSS(name='SWEEP',target=SPQN((N,0.0)),layer=0,nsite=N,nmaxs=[30,30,30,50],dependences=[tsg],save_data=False,run=DMRGTSS))
+    #tss=TSS(name='PRESWEEP',target=SPQN((N,0.0)),layer=0,nsite=N,protocal=1,nmaxs=[30,30,30,30],save_data=False,plot=True,run=DMRGTSS)
+    #dmrg.register(TSS(name='SWEEP',target=SPQN((N,0.0)),layer=1,nsite=2*N,nmaxs=[30,30,30,50],dependences=[tsg,tss],save_data=False,plot=True,run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=SPQN((N,0.0)),layer=0,nsite=N,nmaxs=[30,30,30,50],dependences=[tsg],save_data=False,plot=True,run=DMRGTSS))
     dmrg.summary()
     print

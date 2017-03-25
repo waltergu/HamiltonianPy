@@ -155,7 +155,7 @@ class Tensor(np.ndarray):
             assert len(labels)==data.ndim
             for label,dim in zip(labels,data.shape):
                 assert isinstance(label,Label)
-                if label.qns is None:label.qns=dim
+                if not isinstance(label.qns,QuantumNumbers):label.qns=dim
             result=data.view(cls)
             result.labels=labels
         if Tensor.autocheck: assert result.dimcheck()
@@ -609,8 +609,8 @@ class Tensor(np.ndarray):
         '''
         Perform the svd.
         Parameters:
-            row/col: list of Label/integer
-                The labels/axes to be merged as the row/column label during the svd.
+            row/col: list of Label or integer
+                The labels or axes to be merged as the row/column dimension during the svd.
                 The positive direction is IN for row and OUT for col if they use good quantum numbers.
             new: Label
                 The new axis label after the svd.
@@ -689,8 +689,8 @@ class Tensor(np.ndarray):
         '''
         Expand a label of a tensor and perform a sequential svd.
         Parameters:
-            L/R: list of Label/integer
-                The labels/axes to be merged as the left/right label during the expanded svd.
+            L/R: list of Label or integer
+                The labels or axes to be merged as the left/right dimension during the expanded svd.
                 The positive direction is IN for L and OUT for R if they use good quantum numbers.
             S: Label/integer
                 The label/axis to be expanded.
@@ -760,6 +760,41 @@ class Tensor(np.ndarray):
             ms[+0]=ms[+0].split((llabel,L))
             ms[-1]=ms[-1].split((rlabel,R))
             return ms,Lambda
+
+    def deparallelization(self,row,new,col,mode='R',zero=10**-8,tol=10**-6):
+        '''
+        Deparallelize a tensor.
+        Parameters:
+            row/col: list of Label or integer
+                The labels or axes to be merged as the row/column dimension during the deparallelization.
+            new: Label
+                The label for the new axis after the deparallelization.
+            mode: 'R', 'C', optional
+                'R' for the deparallelization of the row dimension;
+                'C' for the deparallelization of the col dimension.
+            zero: np.float64, optional
+                The absolute value to identity zero vectors.
+            tol: np.float64, optional
+                The relative tolerance for rows or columns that can be considered as paralleled.
+        '''
+        assert len(row)+len(col)==self.ndim
+        row=[r if isinstance(r,Label) else self.label(r) for r in row]
+        col=[c if isinstance(c,Label) else self.label(c) for c in col]
+        qnsgenerator=QuantumNumbers.kron if self.qnon else np.product
+        rlabel=Label('__TENSOR_DEPARALLELIZATION_ROW__',qns=qnsgenerator([lb.qns for lb in row]))
+        clabel=Label('__TENSOR_DEPARALLELIZATION_COL__',qns=qnsgenerator([lb.qns for lb in col]))
+        data=np.asarray(self.merge((row,rlabel),(col,clabel)))
+        m1,m2,indices=hm.deparallelization(data,mode=mode,zero=zero,tol=tol,return_indices=True)
+        if mode=='R':
+            new=new.replace(qns=rlabel.qns.reorder(permutation=indices,protocal='EXPANSION') if self.qnon else len(indices))
+            T=Tensor(m1,labels=[rlabel,new]).split((rlabel,row))
+            M=Tensor(m2,labels=[new,clabel]).split((clabel,col))
+            return T,M
+        else:
+            new=new.replace(qns=clabel.qns.reorder(permutation=indices,protocal='EXPANSION') if self.qnon else len(indices))
+            M=Tensor(m1,labels=[rlabel,new]).split((rlabel,row))
+            T=Tensor(m2,labels=[new,clabel]).split((clabel,col))
+            return M,T
 
 def contract(tensors,engine='einsum',sequence=None,reserve=None):
     '''

@@ -85,16 +85,15 @@ class Engine(object):
         if run:
             self.log.open()
             name=app.status.name
-            self.clock.add(name)
-            self.clock.start(name)
-            cmp=app.status<=self.status
-            if enforce_run or (not app.status.info) or (not cmp):
-                if not cmp:self.update(**app.status._alter_)
-                if app.prepare is not None:app.prepare(self,app)
-                if app.run is not None:app.run(self,app)
-                app.status.info=True
-                app.status.update(const=self.status._const_,alter=self.status._alter_)
-            self.clock.stop(name)
+            self.clock.add(name=name)
+            with self.clock.get(name):
+                cmp=app.status<=self.status
+                if enforce_run or (not app.status.info) or (not cmp):
+                    if not cmp:self.update(**app.status._alter_)
+                    if app.prepare is not None:app.prepare(self,app)
+                    if app.run is not None:app.run(self,app)
+                    app.status.info=True
+                    app.status.update(const=self.status._const_,alter=self.status._alter_)
             self.log<<'App %s(%s): time consumed %ss.\n\n'%(name,app.__class__.__name__,self.clock.time(name))
             self.log.close()
 
@@ -124,7 +123,8 @@ class Engine(object):
         '''
         self.log.open()
         self.log<<'Summary of %s(%s)'%(self.status.name,self.__class__.__name__)<<'\n'
-        if len(self.clock)>0:self.log<<self.clock<<'\n'
+        self.clock.record()
+        self.log<<self.clock.tostr(form='s')<<'\n'
         self.log<<'\n'
         self.log.close()
 

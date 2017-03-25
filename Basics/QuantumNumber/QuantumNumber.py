@@ -522,7 +522,7 @@ class QuantumNumbers(object):
         else:
             assert protocal in ('EXPANSION','CONTENTS')
             if protocal=='EXPANSION':
-                return QuantumNumbers('G',(self.type,self.expansion()[permutation],range(len(self)+1)),QuantumNumbers.INDPTR)
+                return QuantumNumbers('G',(self.type,self.expansion()[permutation],range(len(permutation)+1)),QuantumNumbers.INDPTR)
             else:
                 return QuantumNumbers('G',(self.type,self.contents[permutation],(self.indptr[1:]-self.indptr[:-1])[permutation]),QuantumNumbers.COUNTS)
 

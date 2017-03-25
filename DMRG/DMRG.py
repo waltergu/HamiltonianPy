@@ -12,6 +12,7 @@ import numpy as np
 import pickle as pk
 import scipy.sparse as sp
 import HamiltonianPy.Misc as hm
+import matplotlib.pyplot as plt
 from numpy.linalg import norm
 from HamiltonianPy import *
 from HamiltonianPy.TensorNetwork import *
@@ -121,10 +122,11 @@ class DMRG(Engine):
         self.status.update(alter=self.generator.parameters['alter'])
         self.set_operators_mpo()
         self.set_Hs_()
-        self.timers=Timers(['Preparation','Hamiltonian','kron','sum','Diagonalization','Truncation'],str_form='c')
+        self.timers=Timers('Preparation','Hamiltonian','Diagonalization','Truncation')
+        self.timers.add(parent='Hamiltonian',name='kron')
+        self.timers.add(parent='Hamiltonian',name='sum')
         self.info=Info(['energy','nbasis','subslice','nnz','nz','density','overlap','err'])
         self.cache={}
-        self.timers.proceed()
 
     @property
     def graph(self):
@@ -161,8 +163,7 @@ class DMRG(Engine):
             else:
                 self.mpo+=OptStr.from_operator(operator,self.degfres,self.layer).to_mpo(self.degfres)
         if len(self.operators)>0:
-            self.mpo.compress(nsweep=4,nmax=None,tol=hm.TOL)
-            self.mpo.eliminate_zeros(tol=hm.TOL)
+            self.mpo.compress(nsweep=1,options=dict(method='dpl',tol=hm.TOL))
 
     def set_HL_(self,pos,tol=hm.TOL):
         '''
@@ -183,7 +184,6 @@ class DMRG(Engine):
             temp=contract([self._Hs_['L'][pos],up,m,u],engine='tensordot')
             temp[np.abs(temp)<tol]=0.0
             self._Hs_['L'][pos+1]=temp
-            #print 'HL zeros:',len(np.argwhere(np.abs(sp.csr_matrix(np.asarray(temp).reshape((temp.shape[0],-1))).data)<hm.TOL))
 
     def set_HR_(self,pos,tol=hm.TOL):
         '''
@@ -204,7 +204,6 @@ class DMRG(Engine):
             temp=contract([self._Hs_['R'][self.mps.nsite-pos-1],vp,m,v],engine='tensordot')
             temp[np.abs(temp)<tol]=0.0
             self._Hs_['R'][self.mps.nsite-pos]=temp
-            #print 'HR zeros:',len(np.argwhere(np.abs(sp.csr_matrix(np.asarray(temp).reshape((temp.shape[0],-1))).data)<hm.TOL))
 
     def set_Hs_(self,L=None,R=None,tol=hm.TOL):
         '''
@@ -238,7 +237,7 @@ class DMRG(Engine):
                 The tolerance of the singular values.
         '''
         assert job in ('sweep','grow')
-        #print [len(np.argwhere(np.abs(sp.csr_matrix(np.asarray(m).reshape((m.shape[0]*m.shape[1],m.shape[2]*m.shape[3]))).data)<tol)) for m in self.mpo]
+        print [bond.dim for bond in self.mpo.bonds]
         with self.timers.get('Preparation'):
             Ha,Hb=self._Hs_['L'][self.mps.cut-1],self._Hs_['R'][self.mps.nsite-self.mps.cut-1]
             Hasite,Hbsite=self.mpo[self.mps.cut-1],self.mpo[self.mps.cut]
@@ -275,7 +274,7 @@ class DMRG(Engine):
                 with self.timers.get('sum'):
                     matrix+=temp
             self.info['nnz']=matrix.nnz
-            self.info['nz']=len(np.argwhere(np.abs(matrix.data)<tol))
+            self.info['nz']='%.2e'%(len(np.argwhere(np.abs(matrix.data)<tol))*1.0/matrix.nnz)
         with self.timers.get('Diagonalization'):
             if job=='sweep':
                 u,s,v=self.mps[self.mps.cut-1],self.mps.Lambda,self.mps[self.mps.cut]
@@ -291,7 +290,7 @@ class DMRG(Engine):
             es,vs=hm.eigsh(matrix,which='SA',v0=v0,k=1)
             energy,Psi=es[0],vs[:,0]
             self.info['energy']=energy/self.mps.nsite
-            self.info['overlap']=None if v0 is None else Psi.conjugate().dot(v0)/norm(v0)/norm(Psi)
+            self.info['overlap']=None if v0 is None else '%1.8f'%np.abs(Psi.conjugate().dot(v0)/norm(v0)/norm(Psi))
         with self.timers.get('Truncation'):
             u,s,v,err=Tensor(Psi,labels=[Label('__DMRG_TWO_SITE_STEP__',qns=qns)]).partitioned_svd(Lsys,new,Lenv,nmax=nmax,tol=tol,return_truncation_err=True)
             self.mps[self.mps.cut-1]=u.split((Lsys,[La,Sa],sysantipt))
@@ -301,8 +300,8 @@ class DMRG(Engine):
             self.set_HL_(self.mps.cut-1,tol=tol)
             self.set_HR_(self.mps.cut,tol=tol)
             self.info['nbasis']=len(s)
-            self.info['density']=1.0*self.info['nnz']/self.info['subslice']**2
-            self.info['err']=err
+            self.info['density']='%.2e'%(1.0*self.info['nnz']/self.info['subslice']**2)
+            self.info['err']='%.2e'%err
 
     def relayer(self,layer,nsweep=1,cut=0,nmax=None,tol=None):
         '''
@@ -498,9 +497,11 @@ def DMRGTSG(engine,app):
         engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s)(++)\n'%(engine.status,engine.target,engine.layer,engine.mps.nsite,engine.mps.cut)
         engine.log<<engine.graph<<'\n'
         engine.two_site_step(job='grow',nmax=app.nmax,tol=app.tol)
-        engine.timers.record(Timers.ALL)
+        engine.timers.record()
         engine.log<<'timers of the dmrg:\n'<<engine.timers<<'\n'
         engine.log<<'info of the dmrg:\n'<<engine.info<<'\n\n'
+        if app.plot: engine.timers.graph(parents=Timers.ALL)
+    if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
     engine.log.close()
     if app.save_data: engine.coredump()
 
@@ -599,8 +600,10 @@ def DMRGTSS(engine,app):
             engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s) %s%s(%s)\n'%(engine.status,engine.target,engine.layer,app.nsite,engine.mps.cut,i+1,suffix,move)
             engine.log<<engine.graph<<'\n'
             engine.two_site_step(job='sweep',nmax=nmax,tol=app.tol)
-            engine.timers.record(Timers.ALL)
+            engine.timers.record()
             engine.log<<'timers of the dmrg:\n%s\n'%(engine.timers)
             engine.log<<'info of the dmrg:\n%s\n\n'%(engine.info)
+            if app.plot: engine.timers.graph(parents=Timers.ALL)
         if app.save_data: engine.coredump()
+    if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
     engine.log.close()
