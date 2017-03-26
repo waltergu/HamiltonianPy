@@ -125,9 +125,8 @@ class DMRG(Engine):
         self.timers=Timers('Preparation','Hamiltonian','Diagonalization','Truncation')
         self.timers.add(parent='Hamiltonian',name='kron')
         self.timers.add(parent='Hamiltonian',name='sum')
-        #self.timers.add(parent='kron',name='fkron')
-        #self.timers.add(parent='kron',name='slice')
-        #self.timers.add(parent='kron',name='csr')
+        self.timers.add(parent='kron',name='csr')
+        self.timers.add(parent='kron',name='fkron')
         self.info=Info(['energy','nbasis','subslice','nnz','nz','density','overlap','err'])
         self.cache={}
 
@@ -269,15 +268,21 @@ class DMRG(Engine):
             Lpsys,Lpenv=Lsys.prime,Lenv.prime
             Hsys=contract([Ha,Hasite],engine='tensordot').transpose([Oa,Lpa,Spa,La,Sa]).merge(([Lpa,Spa],Lpsys,syspt),([La,Sa],Lsys,syspt))
             Henv=contract([Hbsite,Hb],engine='tensordot').transpose([Ob,Spb,Rpb,Sb,Rb]).merge(([Spb,Rpb],Lpenv,envpt),([Sb,Rb],Lenv,envpt))
+            if rcs is None:
+                rcs1,rcs2,slices=None,None,None
+            else:
+                rcs1,rcs2=np.divide(rcs,Henv.shape[1]),np.mod(rcs,Henv.shape[1])
+                slices=np.zeros(Hsys.shape[1]*Henv.shape[1],dtype=np.int64)
+                slices[rcs]=xrange(len(rcs))
         with self.timers.get('Hamiltonian'):
             matrix=0
             for hsys,henv in zip(Hsys,Henv):
                 with self.timers.get('kron'):
-                    temp=hm.kron(hsys,henv,rcs)
+                    temp=hm.kron(hsys,henv,rcs=rcs,rcs1=rcs1,rcs2=rcs2,slices=slices,timers=self.timers)
                 with self.timers.get('sum'):
                     matrix+=temp
             self.info['nnz']=matrix.nnz
-            self.info['nz']='%.2e'%(len(np.argwhere(np.abs(matrix.data)<tol))*1.0/matrix.nnz)
+            self.info['nz']='%1.1f%%'%(len(np.argwhere(np.abs(matrix.data)<tol))*100.0/matrix.nnz)
         with self.timers.get('Diagonalization'):
             if job=='sweep':
                 u,s,v=self.mps[self.mps.cut-1],self.mps.Lambda,self.mps[self.mps.cut]
