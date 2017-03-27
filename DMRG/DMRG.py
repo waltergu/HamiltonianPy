@@ -164,8 +164,8 @@ class DMRG(Engine):
                 self.mpo=OptStr.from_operator(operator,self.degfres,self.layer).to_mpo(self.degfres)
             else:
                 self.mpo+=OptStr.from_operator(operator,self.degfres,self.layer).to_mpo(self.degfres)
-        if len(self.operators)>0:
-            self.mpo.compress(nsweep=1,options=dict(method='dpl',tol=hm.TOL))
+            if i%20==0 or i==len(self.operators)-1:
+                self.mpo.compress(nsweep=1,options=dict(method='dpl',tol=hm.TOL))
 
     def set_HL_(self,pos,tol=hm.TOL):
         '''
@@ -327,9 +327,9 @@ class DMRG(Engine):
                 The tolerance of the singular values.
         '''
         self.layer=layer if type(layer) in (int,long) else self.degfres.layers.index(layer)
-        self.mpo=self.mpo.relayer(self.degfres,layer,nmax=nmax,tol=tol)
+        self.set_operators_mpo()
+        self.mpo.compress(nsweep=nsweep,options=dict(method='dpl',tol=hm.TOL))
         self.mps=self.mps.relayer(self.degfres,layer,nmax=nmax,tol=tol)
-        self.mpo.compress(nsweep=nsweep,nmax=nmax,tol=tol)
         self.mps.compress(nsweep=nsweep,cut=cut,nmax=nmax,tol=tol)
         self.set_Hs_(tol=tol)
 
