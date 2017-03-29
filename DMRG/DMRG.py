@@ -239,7 +239,6 @@ class DMRG(Engine):
                 The tolerance of the singular values.
         '''
         assert job in ('sweep','grow')
-        print [bond.dim for bond in self.mpo.bonds]
         with self.timers.get('Preparation'):
             Ha,Hb=self._Hs_['L'][self.mps.cut-1],self._Hs_['R'][self.mps.nsite-self.mps.cut-1]
             Hasite,Hbsite=self.mpo[self.mps.cut-1],self.mpo[self.mps.cut]
@@ -504,6 +503,7 @@ def DMRGTSG(engine,app):
         engine.target=target
         engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s)(++)\n'%(engine.status,engine.target,engine.layer,engine.mps.nsite,engine.mps.cut)
         engine.log<<engine.graph<<'\n'
+        engine.log<<'-'.join(str(bond.dim) for bond in engine.mpo.bonds)<<'\n'
         engine.two_site_step(job='grow',nmax=app.nmax,tol=app.tol)
         engine.timers.record()
         engine.log<<'timers of the dmrg:\n'<<engine.timers.tostr(None)<<'\n'
@@ -607,6 +607,7 @@ def DMRGTSS(engine,app):
                 engine.mps>>=1
             engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s) %s%s(%s)\n'%(engine.status,engine.target,engine.layer,app.nsite,engine.mps.cut,i+1,suffix,move)
             engine.log<<engine.graph<<'\n'
+            engine.log<<'-'.join(str(bond.dim) for bond in engine.mpo.bonds)<<'\n'
             engine.two_site_step(job='sweep',nmax=nmax,tol=app.tol)
             engine.timers.record()
             engine.log<<'timers of the dmrg:\n%s\n'%engine.timers.tostr(None)

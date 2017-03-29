@@ -112,8 +112,8 @@ def test_dmrg_spinful_fermion():
             plot=       True,
             run=        DMRGTSG
             )
-    tss=TSS(name='PRESWEEP',target=SPQN((N,0.0)),layer=0,nsite=N,protocal=1,nmaxs=[30,50,100],save_data=False,plot=True,run=DMRGTSS)
-    dmrg.register(TSS(name='SWEEP',target=SPQN((N,0.0)),layer=1,nsite=2*N,nmaxs=[100,150,200,200],dependences=[tsg,tss],save_data=False,plot=True,save_fig=True,run=DMRGTSS))
-    #dmrg.register(TSS(name='SWEEP',target=SPQN((N,0.0)),layer=0,nsite=N,nmaxs=[30,50,100,100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS))
+    #tss=TSS(name='PRESWEEP',target=SPQN((N,0.0)),layer=0,nsite=N,protocal=1,nmaxs=[30,50,100],save_data=False,plot=True,run=DMRGTSS)
+    #dmrg.register(TSS(name='SWEEP',target=SPQN((N,0.0)),layer=1,nsite=2*N,nmaxs=[100,150,200,200],dependences=[tsg,tss],save_data=False,plot=True,save_fig=True,run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=SPQN((N,0.0)),layer=0,nsite=N,nmaxs=[30,50,100,100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS))
     dmrg.summary()
     print
