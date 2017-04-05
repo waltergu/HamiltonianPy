@@ -49,6 +49,8 @@ class SCMF(TBA):
                 The name of the term representing an order parameter of the system.
             value: OP
                 The corresponding order parameter of the system.
+        timers: Timers
+            The timer to record the consumed time of the iteration.
     '''
 
     def __init__(self,filling=0,mu=0,temperature=0,lattice=None,config=None,terms=None,orders=None,mask=['nambu'],**karg):
@@ -94,7 +96,7 @@ class SCMF(TBA):
                 m[opt.seqs]+=opt.value
             m+=conjugate(m.T)
             self.ops[order.id]=OP(v,m)
-        self.log.timers['Iteration']=Timers(['Iteration'],str_form='s')
+        self.timers=Timers('Iteration')
 
     def update_ops(self,kspace=None):
         '''
@@ -133,9 +135,8 @@ class SCMF(TBA):
                 op.value=value
             self.update_ops(kspace)
             return array([self.ops[key].value for key in self.ops.keys()])-values
-        self.log.timers['Iteration'].start('Iteration')
-        x0=array([self.ops[key].value for key in self.ops.keys()])
-        ops=broyden2(gx,x0,verbose=True,reduction_method='svd',maxiter=maxiter,x_tol=tol)
-        self.log.timers['Iteration'].stop('Iteration')
+        with self.timers.get('Iteration'):
+            x0=array([self.ops[key].value for key in self.ops.keys()])
+            ops=broyden2(gx,x0,verbose=True,reduction_method='svd',maxiter=maxiter,x_tol=tol)
         self.log<<'Order parameters: %s\n'%(ops,)
-        self.log<<'Iterate: time consumed %ss.\n\n'%(self.log.timers['Iteration'].time('Iteration'))
+        self.log<<'Iterate: time consumed %ss.\n\n'%(self.timers.time('Iteration'))

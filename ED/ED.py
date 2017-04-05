@@ -92,6 +92,8 @@ class ED(HP.Engine):
         '''
         Update the alterable operators.
         '''
+        self.mu=karg.pop('mu',self.mu)
+        self.filling=karg.pop('filling',self.filling)
         self.generators['h'].update(**karg)
         self.operators['h']=self.generators['h'].operators
         self.status.update(alter=self.generators['h'].parameters['alter'])

@@ -34,7 +34,7 @@ def test_quadratic():
     print 'c: %s'%c
     print c.mesh(bond,config)
 
-    l=Lattice(name="WG",points=[p1,p2])
+    l=Lattice.compose(name="WG",points=[p1,p2])
     table=config.table(mask=[])
     a=Hopping('t1',1.0,neighbour=1,indexpacks=sigmaz("SP"))
     b=Onsite('mu',1.0,neighbour=0,indexpacks=sigmaz("SP"))
@@ -52,7 +52,7 @@ def test_hubbard():
     p1=Point(PID(site=0,scope="WG"),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
     config[p1.pid]=Fermi(norbital=2,nspin=2,nnambu=1)
-    l=Lattice(name="WG",points=[p1])
+    l=Lattice.compose(name="WG",points=[p1])
     table=config.table(mask=[])
     a=+Hubbard('UUJJ',[20.0,12.0,5.0,5.0])
     print 'a: %s'%a

@@ -12,14 +12,13 @@ import time
 def test_f_opt_rep():
     print 'test_f_opt_rep'
     m=2;n=2;nloop=500
-    p=Point(pid=PID(site=0,scope="WG"),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1=array([1.0,0.0]);a2=array([0.0,1.0])
-    points=tiling(cluster=[p],vectors=[a1,a2],indices=itertools.product(xrange(m),xrange(n)))
-    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
-    for point in points:
-        config[point.pid]=Fermi(atom=0,norbital=1,nspin=2,nnambu=2)
-    l=Lattice(name="WG",points=points)
+    rcoords=tiling([array([0.0,0.0])],vectors=[a1,a2],translations=itertools.product(xrange(m),xrange(n)))
+    l=Lattice(name="WG",rcoords=rcoords)
     l.plot(pid_on=True)
+    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
+    for pid in l.pids:
+        config[pid]=Fermi(atom=0,norbital=1,nspin=2,nnambu=2)
     table=config.table(mask=[])
     a=+Hopping('t',1.0,neighbour=1,indexpacks=sigmaz("SP"))
     b=+Onsite('mu',1.0,neighbour=0,indexpacks=sigmaz("SP"))

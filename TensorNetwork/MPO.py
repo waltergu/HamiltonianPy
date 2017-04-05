@@ -483,18 +483,19 @@ class MPO(list):
         assert result.shape==(1,1)
         return result[0,0]
 
-    def compress(self,nsweep=1,options={}):
+    def compress(self,nsweep=1,method='dpl',options={}):
         '''
         Compress the mpo.
         Parameters:
             nsweep: integer, optional
                 The number of sweeps to compress the mpo.
+            method: 'svd', 'dpl' or 'dln'
+                The method used to compress the mpo.
             options: dict, optional
                 The options used to compress the mpo.
         Returns: MPO
             The compressed mpo.
         '''
-        method=options.get('method','svd')
         assert method in ('svd','dpl','dln')
         if method=='svd':
             tol=options.get('tol',hm.TOL)

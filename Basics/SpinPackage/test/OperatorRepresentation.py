@@ -13,14 +13,13 @@ from HamiltonianPy.Basics.SpinPackage import *
 def test_s_opt_rep():
     print 'test_s_opt_rep'
     J,N=1.0,2
-    p1=Point(pid=PID(scope='WG',site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     a1=array([1.0,0.0])
-    points=tiling(cluster=[p1],vectors=[a1],indices=xrange(N))
-    l=Lattice(name='WG',points=points,vectors=[a1*N],nneighbour=1)
+    rcoords=tiling([array([0.0,0.0])],vectors=[a1],translations=xrange(N))
+    l=Lattice(name='WG',rcoords=rcoords,vectors=[a1*N],nneighbour=1)
 
     config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY)
-    for point in points:
-        config[point.pid]=Spin(S=0.5)
+    for pid in l.pids:
+        config[pid]=Spin(S=0.5)
     opts=OperatorCollection()
     table=config.table()
 

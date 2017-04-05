@@ -24,7 +24,7 @@ def test_mpo_spin():
     for scope in xrange(Nscope):
         for site in xrange(Nsite):
             points.append(Point(PID(scope=scope,site=site),rcoord=a1*site+a2*scope,icoord=[0.0,0.0]))
-    lattice=SuperLattice.compose(name='WG',points=points,nneighbour=1)
+    lattice=Lattice.compose(name='WG',points=points,nneighbour=1)
     lattice.plot(pid_on=True)
 
     # set the terms
@@ -33,7 +33,7 @@ def test_mpo_spin():
     # set the degfres
     S,priority,layers=1.0,['scope','site','S'],[('scope',),('site','S')]
     config=IDFConfig(priority=priority)
-    for pid in lattice:
+    for pid in lattice.pids:
         config[pid]=Spin(S=S)
     table=config.table(mask=[])
     degfres=DegFreTree(mode='QN',layers=layers,priority=priority,leaves=table.keys(),map=lambda index:SQNS(S))
@@ -74,7 +74,7 @@ def test_mpo_fermi():
     for scope in xrange(Nscope):
         for site in xrange(Nsite):
             points.append(Point(PID(scope=scope,site=site),rcoord=a1*site+a2*scope,icoord=[0.0,0.0]))
-    lattice=SuperLattice.compose(name='WG',points=points,nneighbour=1)
+    lattice=Lattice.compose(name='WG',points=points,nneighbour=1)
     lattice.plot(pid_on=True)
 
     # set the terms
@@ -83,7 +83,7 @@ def test_mpo_fermi():
     # set the degfres
     priority,layers=['scope','site','orbital','spin','nambu'],[('scope',),('site','orbital','spin')]
     config=IDFConfig(priority=priority)
-    for pid in lattice:
+    for pid in lattice.pids:
         config[pid]=Fermi(nspin=1)
     table=config.table(mask=['nambu'])
     degfres=DegFreTree(mode='QN',layers=layers,priority=priority,leaves=table.keys(),map=lambda index:PQNS(1))
@@ -159,7 +159,7 @@ def test_mpo_algebra(mpos,mps1,mps2,mopts,overlaps):
     print 'Before compression'
     print 'shapes: %s'%(','.join(str(m.shape) for m in M))
     print 'bonds.qnses: %s,%s'%(','.join(repr(m.labels[0].qns) for m in M),repr(M[-1].labels[-1].qns))
-    M.compress(nsweep=4,tol=10**-6)
+    M.compress(nsweep=4,method='dpl')
     print 'After compression'
     print 'shapes: %s'%(','.join(str(m.shape) for m in M))
     print 'bonds.qnses: %s,%s'%(','.join(repr(m.labels[0].qns) for m in M),repr(M[-1].labels[-1].qns))

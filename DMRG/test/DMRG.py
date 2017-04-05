@@ -38,7 +38,7 @@ def test_dmrg_spin():
         )
     tsg=TSG(
             name=       'GTOWTH',
-            block=      Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
+            block=      Lattice.compose(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
             vector=     np.array([1.0,0.0]),
             scopes=     range(N),
             targets=    [SQN(1.0)]*(N/2) if qn_on else [None]*(N/2),
@@ -70,7 +70,7 @@ def test_dmrg_spinless_fermion():
         )
     tsg=TSG(
             name=       'GTOWTH',
-            block=      Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
+            block=      Lattice.compose(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
             vector=     np.array([1.0,0.0]),
             scopes=     range(N),
             targets=    [PQN(num) for num in xrange(1,N/2+1)] if qn_on else [None]*(N/2),
@@ -103,7 +103,7 @@ def test_dmrg_spinful_fermion():
         )
     tsg=TSG(
             name=       'GTOWTH',
-            block=      Lattice(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
+            block=      Lattice.compose(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
             vector=     np.array([1.0,0.0]),
             scopes=     range(N),
             targets=    [SPQN((num*2,0.0)) for num in xrange(1,N/2+1)] if qn_on else [None]*(N/2),

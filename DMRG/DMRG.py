@@ -165,7 +165,7 @@ class DMRG(Engine):
             else:
                 self.mpo+=OptStr.from_operator(operator,self.degfres,self.layer).to_mpo(self.degfres)
             if i%20==0 or i==len(self.operators)-1:
-                self.mpo.compress(nsweep=1,options=dict(method='dpl',tol=hm.TOL))
+                self.mpo.compress(nsweep=1,method='dpl',options=dict(tol=hm.TOL))
 
     def set_HL_(self,pos,tol=hm.TOL):
         '''
@@ -432,14 +432,14 @@ class TSG(App):
             A=scopes.pop(0)
             B=scopes.pop(-1)
             if i==0:
-                aps=[Point(p.pid._replace(scope=A),rcoord=p.rcoord-self.vector/2,icoord=p.icoord) for p in self.block.values()]
-                bps=[Point(p.pid._replace(scope=B),rcoord=p.rcoord+self.vector/2,icoord=p.icoord) for p in self.block.values()]
+                aps=[Point(p.pid._replace(scope=A),rcoord=p.rcoord-self.vector/2,icoord=p.icoord) for p in self.block.points]
+                bps=[Point(p.pid._replace(scope=B),rcoord=p.rcoord+self.vector/2,icoord=p.icoord) for p in self.block.points]
             else:
                 aps=[Point(p.pid,rcoord=p.rcoord-self.vector,icoord=p.icoord) for p in aps]
                 bps=[Point(p.pid,rcoord=p.rcoord+self.vector,icoord=p.icoord) for p in bps]
-                aps.extend([Point(p.pid._replace(scope=A),rcoord=p.rcoord-self.vector/2,icoord=p.icoord) for p in self.block.values()])
-                bps.extend([Point(p.pid._replace(scope=B),rcoord=p.rcoord+self.vector/2,icoord=p.icoord) for p in self.block.values()])
-            yield SuperLattice.compose(
+                aps.extend([Point(p.pid._replace(scope=A),rcoord=p.rcoord-self.vector/2,icoord=p.icoord) for p in self.block.points])
+                bps.extend([Point(p.pid._replace(scope=B),rcoord=p.rcoord+self.vector/2,icoord=p.icoord) for p in self.block.points])
+            yield Lattice.compose(
                 name=                   self.block.name,
                 points=                 aps+bps,
                 vectors=                self.block.vectors,
@@ -464,7 +464,7 @@ def DMRGTSG(engine,app):
         if core:
             for key,value in core.iteritems():
                 setattr(engine,key,value)
-            engine.config.reset(pids=engine.lattice)
+            engine.config.reset(pids=engine.lattice.pids)
             engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
             engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
             num=len(app.targets)-i-1
@@ -473,7 +473,7 @@ def DMRGTSG(engine,app):
             num=-1
     for lattice,target in zip(app.lattices()[num+1:],app.targets[num+1:]):
         engine.lattice=lattice
-        engine.config.reset(pids=engine.lattice)
+        engine.config.reset(pids=engine.lattice.pids)
         engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
         engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
         engine.set_operators_mpo()
@@ -581,7 +581,7 @@ def DMRGTSS(engine,app):
             for key,value in core.iteritems():
                 setattr(engine,key,value)
             engine.status=status
-            engine.config.reset(pids=engine.lattice)
+            engine.config.reset(pids=engine.lattice.pids)
             engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
             num=len(app.nmaxs)-1-i
             if app.protocal==1 or engine.mps.status['nmax']<nmax: num-=1

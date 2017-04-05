@@ -26,18 +26,15 @@ def test_tba():
     print
 
 def tba_construct(bc='op'):
-    p1=Point(pid=PID(scope='WG',site=0),rcoord=[0.0],icoord=[0.0])
-    p2=Point(pid=PID(scope='WG',site=1),rcoord=[0.5],icoord=[0.0])
+    p1,p2=array([0.0]),array([0.5])
     a1=array([1.0])
     if bc in ('op',):
-        points=tiling(cluster=[p1,p2],vectors=[a1],indices=xrange(20))
-        lattice=Lattice(name='WG',points=points)
+        lattice=Lattice(name='WG',rcoords=tiling(cluster=[p1,p2],vectors=[a1],translations=xrange(20)))
     else:
-        points=[p1,p2]
-        lattice=Lattice(name='WG',points=points,vectors=[a1])
+        lattice=Lattice(name='WG',rcoords=[p1,p2],vectors=[a1])
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
-    for point in points:
-        config[point.pid]=Fermi(norbital=1,nspin=1,nnambu=2)
+    for pid in lattice.pids:
+        config[pid]=Fermi(norbital=1,nspin=1,nnambu=2)
     result=TBA(
         name=       'WG',
         lattice=    lattice,

@@ -20,16 +20,16 @@ def haldane_hopping(bond):
 def test_scmf():
     print 'test_scmf'
     U,t1,t2=3.13,-1.0,0.1
-    H2=HexagonDataBase(name='H2',scope='H2_SCMF')
+    H2=HexagonDataBase(name='H2')
+    lattice=Lattice(name='H2_SCMF',rcoords=H2.rcoords,vectors=H2.vectors,nneighbour=2)
+    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
+    for pid in lattice.pids:
+        config[pid]=Fermi(atom=pid.site%2,norbital=1,nspin=2,nnambu=1)
     h2=SCMF(
         parameters= {'U':U},
         name=       'H2_SCMF',
-        lattice=    Lattice(name='H2_SCMF',points=H2.points,vectors=H2.vectors,nneighbour=2),
-        config=     IDFConfig(
-                        pids=[p.pid for p in H2.points],
-                        map=lambda pid: Fermi(atom=pid.site%2,norbital=1,nspin=2,nnambu=1),
-                        priority=DEFAULT_FERMIONIC_PRIORITY
-                        ),
+        lattice=    lattice,
+        config=     config,
         mu=         0,
         filling=    0.5,
         terms=      [

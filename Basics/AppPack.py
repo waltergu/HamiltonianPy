@@ -127,7 +127,7 @@ class GF(App):
         '''
         result=[]
         for ndx in sorted(table,key=table.get):
-            result.append(F_Linear(1,indices=[ndx],rcoords=[lattice[ndx.pid].rcoord],icoords=[lattice[ndx.pid].icoord],seqs=[table[ndx]]))
+            result.append(F_Linear(1,indices=[ndx],rcoords=[lattice.rcoord(ndx.pid)],icoords=[lattice.icoord(ndx.pid)],seqs=[table[ndx]]))
         return result
 
 class FS(App):

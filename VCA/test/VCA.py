@@ -15,14 +15,14 @@ def test_vca():
     t,U=-1.0,8.0
     m=2;n=2
     name='%s%s%s'%('WG',m,n)
-    p=Point(pid=PID(scope=name,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])
-    a1=np.array([1.0,0.0])
-    a2=np.array([0.0,1.0])
-    points=tiling(cluster=[p],vectors=[a1,a2],indices=it.product(xrange(m),xrange(n)))
+    a1,a2=np.array([1.0,0.0]),np.array([0.0,1.0])
+    rcoords=tiling([np.array([0.0,0.0])],vectors=[a1,a2],translations=it.product(xrange(m),xrange(n)))
+    lattice=Lattice(name=name,rcoords=rcoords,vectors=[a1*m,a2*n])
+    cell=Lattice(name=name,rcoords=[np.array([0.0,0.0])],vectors=[a1,a2])
     afm=lambda bond: 1 if bond.spoint.pid.site in (0,3) else -1
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
-    for point in points:
-        config[point.pid]=Fermi(atom=0,norbital=1,nspin=2,nnambu=1)
+    for pid in lattice.pids:
+        config[pid]=Fermi(atom=0,norbital=1,nspin=2,nnambu=1)
     vca=VCA.VCA(
             name=       name,
             cgf=        ED.GF(nspin=2,mask=['nambu'],nstep=200,save_data=False,vtype='RD',prepare=ED.EDGFP,run=ED.EDGF),
@@ -30,8 +30,8 @@ def test_vca():
             #basis=      BasisF((2*m*n,m*n)),
             filling=    0.5,
             mu=         U/2,
-            cell=       Lattice(name=name,points=[p],vectors=[a1,a2]),
-            lattice=    Lattice(name=name,points=points,vectors=[a1*m,a2*n]),
+            cell=       cell,
+            lattice=    lattice,
             config=     config,
             terms=      [Hopping('t',t,neighbour=1),Hubbard('U',U)],
             weiss=      [Onsite('afm',0.0,indexpacks=sigmaz('sp'),amplitude=afm,modulate=lambda **karg:karg.get('afm',None))]

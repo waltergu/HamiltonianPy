@@ -137,7 +137,7 @@ class VCA(ED.ED):
         assert isinstance(cgf,ED.GF)
         gf=HP.GF(dtype=cgf.dtype)
         cgf.reinitialization(operators=HP.GF.fsp_operators(table=cgf.table(config),lattice=lattice))
-        gf.reinitialization(operators=HP.GF.fsp_operators(table=cgf.table(config.subset(cell.__contains__)),lattice=cell))
+        gf.reinitialization(operators=HP.GF.fsp_operators(table=cgf.table(config.subset(set(cell.pids).__contains__)),lattice=cell))
         self.preloads.extend([cgf,gf])
         # initialize the ordinary attributes
         nspin,mask=cgf.nspin,cgf.mask
@@ -161,7 +161,7 @@ class VCA(ED.ED):
         # initialize the generators
         self.generators={}
         self.generators['h']=HP.Generator(
-            bonds=      [bond for bond in lattice.bonds if bond.is_intra_cell()],
+            bonds=      [bond for bond in lattice.bonds if bond.isintracell()],
             config=     config,
             table=      config.table(mask=['nambu']),
             terms=      terms
@@ -173,7 +173,7 @@ class VCA(ED.ED):
             terms=      weiss
             )
         self.generators['pt_h']=HP.Generator(
-            bonds=      [bond for bond in lattice.bonds if not bond.is_intra_cell()],
+            bonds=      [bond for bond in lattice.bonds if not bond.isintracell()],
             config=     config,
             table=      config.table(mask=mask) if nspin==2 else config.table(mask=mask).subset(select=lambda index: True if index.spin==0 else False),
             terms=      [term for term in terms if isinstance(term,HP.Quadratic)],
@@ -206,7 +206,7 @@ class VCA(ED.ED):
         buff=[[] for i in xrange(gf.nopt)]
         for copt in cgf.operators:
             for i,opt in enumerate(gf.operators):
-                if copt.indices[0].iid==opt.indices[0].iid and HP.belong_to_lattice(copt.rcoords[0]-opt.rcoords[0],self.cell.vectors):
+                if copt.indices[0].iid==opt.indices[0].iid and HP.issubordinate(copt.rcoords[0]-opt.rcoords[0],self.cell.vectors):
                     buff[i].append(copt)
                     break
         self.clmap['seqs']=np.zeros((gf.nopt,cgf.nopt/gf.nopt),dtype=np.int64)
@@ -220,6 +220,8 @@ class VCA(ED.ED):
         '''
         Update the alterable operators, such as the weiss terms.
         '''
+        self.mu=karg.pop('mu',self.mu)
+        self.filling=karg.pop('filling',self.filling)
         for generator in self.generators.itervalues():
             generator.update(**karg)
         self.operators['h']=self.generators['h'].operators+self.generators['h_w'].operators
