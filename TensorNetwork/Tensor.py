@@ -745,18 +745,22 @@ class Tensor(np.ndarray):
             assert len(E)==len(I)+1
             for i in xrange(cut):
                 if i>0: data=contract((s,v),engine='einsum',reserve=s.labels)
+                new=I[i] if i<cut-1 else Label('__TENSOR_EXPANDED_SVD_LINNER__')
                 row_signs,col_signs='+'+es[i],''.join(('-' if sign=='+' else '+') for sign in es[i+1:])+'+'
-                u,s,v=data.svd(row=data.labels[:2],new=I[i],col=data.labels[2:],row_signs=row_signs,col_signs=col_signs,nmax=nmax,tol=tol)
+                u,s,v=data.svd(row=data.labels[:2],new=new,col=data.labels[2:],row_signs=row_signs,col_signs=col_signs,nmax=nmax,tol=tol)
                 ms.append(u)
-            Lambda,data=s,v
+            ls,data=s,v
             for i in xrange(len(E)-1,cut-1,-1):
                 if i<len(E)-1: data=contract((u,s),engine='einsum',reserve=s.labels)
-                if i>cut:
-                    row_signs,col_signs='+'+es[cut:i],('-' if es[i]=='+' else '+')+'+'
-                    u,s,v=data.svd(row=data.labels[:-2],new=I[i-1],col=data.labels[-2:],row_signs=row_signs,col_signs=col_signs,nmax=nmax,tol=tol)
-                else:
-                    v=data
+                new=I[i-1] if i>cut else Label('__TENSOR_EXPANDED_SVD_RINNER__')
+                row_signs,col_signs='+'+es[cut:i],('-' if es[i]=='+' else '+')+'+'
+                u,s,v=data.svd(row=data.labels[:-2],new=new,col=data.labels[-2:],row_signs=row_signs,col_signs=col_signs,nmax=nmax,tol=tol)
                 ms.insert(cut,v)
+            data,rs=u,s
+            u,s,v=contract([ls,data,rs],engine='einsum',reserve=ls.labels+rs.labels).svd(row=[0],new=I[cut-1],col=[1])
+            ms[cut-1]=contract([ms[cut-1],u],engine='tensordot')
+            ms[cut]=contract([v,ms[cut]],engine='tensordot')
+            Lambda=s
             ms[+0]=ms[+0].split((llabel,L))
             ms[-1]=ms[-1].split((rlabel,R))
             return ms,Lambda

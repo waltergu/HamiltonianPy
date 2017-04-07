@@ -27,7 +27,7 @@ def test_dmrg_spin():
         log=        Log('spin-%s.log'%(spin),mode='a+'),
         name=       'spin-%s'%(spin),
         mps=        MPS(mode='QN') if qn_on else MPS(mode='NB'),
-        lattice=    Lattice(),
+        lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
         terms=      [SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())],
         #terms=     [SpinTerm('J',J,neighbour=1,indexpacks=IndexPackList(SpinPack(0.5,('+','-')),SpinPack(0.5,('-','+'))))]
         config=     IDFConfig(priority=priority,map=lambda pid: Spin(S=spin)),
@@ -38,8 +38,6 @@ def test_dmrg_spin():
         )
     tsg=TSG(
             name=       'GTOWTH',
-            block=      Lattice.compose(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
-            vector=     np.array([1.0,0.0]),
             scopes=     range(N),
             targets=    [SQN(1.0)]*(N/2) if qn_on else [None]*(N/2),
             nmax=       20,
@@ -60,7 +58,7 @@ def test_dmrg_spinless_fermion():
         log=        Log('fermin-spin-o.log',mode='a+'),
         name=       'fermion-spin-o',
         mps=        MPS(mode='QN') if qn_on else MPS(mode='NB'),
-        lattice=    Lattice(),
+        lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
         terms=      [Hopping('t',t,neighbour=1)],
         config=     IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=1,nnambu=1)),
         degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=degfres_map) if qn_on else
@@ -70,8 +68,6 @@ def test_dmrg_spinless_fermion():
         )
     tsg=TSG(
             name=       'GTOWTH',
-            block=      Lattice.compose(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
-            vector=     np.array([1.0,0.0]),
             scopes=     range(N),
             targets=    [PQN(num) for num in xrange(1,N/2+1)] if qn_on else [None]*(N/2),
             nmax=       20,
@@ -79,7 +75,7 @@ def test_dmrg_spinless_fermion():
             plot=       True,
             run=        DMRGTSG
             )
-    dmrg.register(TSS(name='SWEEP',target=PQN(N/2),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=True,run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=PQN(N/2),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS))
     dmrg.summary()
     print
 
@@ -92,7 +88,7 @@ def test_dmrg_spinful_fermion():
         log=        Log('fermin-spin-0.5.log',mode='a+'),
         name=       'fermion-spin-0.5',
         mps=        MPS(mode='QN') if qn_on else MPS(mode='NB'),
-        lattice=    Lattice(),
+        lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
         terms=      [Hopping('t',t,neighbour=1),Hubbard('U',U)],
         config=     IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1)),
         degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=degfres_map) if qn_on else
@@ -103,8 +99,6 @@ def test_dmrg_spinful_fermion():
         )
     tsg=TSG(
             name=       'GTOWTH',
-            block=      Lattice.compose(name='WG',points=[Point(PID(scope=0,site=0),rcoord=[0.0,0.0],icoord=[0.0,0.0])],nneighbour=2),
-            vector=     np.array([1.0,0.0]),
             scopes=     range(N),
             targets=    [SPQN((num*2,0.0)) for num in xrange(1,N/2+1)] if qn_on else [None]*(N/2),
             nmax=       30,

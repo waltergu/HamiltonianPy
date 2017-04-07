@@ -1,10 +1,10 @@
 '''
 DMRG, including:
-1) classes: DMRG,TSG,TSS
+1) classes: Cylinder,DMRG,TSG,TSS
 2) function: pattern,DMRGTSG,DMRGTSS
 '''
 
-__all__=['pattern','DMRG','TSG','DMRGTSG','TSS','DMRGTSS']
+__all__=['pattern','Cylinder','DMRG','TSG','DMRGTSG','TSS','DMRGTSS']
 
 import os
 import re
@@ -41,14 +41,67 @@ def pattern(status,target,layer,mode='re'):
             pattern=pattern.replace(s,r)
     return pattern
 
+class Cylinder(Lattice):
+    '''
+    The cylinder geometry of a lattice.
+    Attribues:
+        block: list of 1d ndarray
+            The building block of the cylinder.
+        translation: 1d ndarray
+            The translation vector of the building block to construct the cylinder.
+    '''
+
+    def __init__(self,block,translation,**karg):
+        '''
+        Constructor.
+        Parameters:
+            block: list of 1d ndarray
+                The building block of the cylinder.
+            translation: 1d ndarray
+                The translation vector of the building block to construct the cylinder.
+        '''
+        super(Cylinder,self).__init__(**karg)
+        self.block=block
+        self.translation=translation
+
+    def insert(self,A,B):
+        '''
+        Insert two blocks into the center of the cylinder.
+        Parameters:
+            A,B: any hashable object
+                The scopes of the insert block points.
+        '''
+        if len(self)==0:
+            aps=[Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
+            bps=[Point(PID(scope=B,site=i),rcoord=rcoord+self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
+        else:
+            aps,bps=self.points[:len(self)/2],self.points[len(self)/2:]
+            for ap,bp in zip(aps,bps):
+                ap.rcoord-=self.translation
+                bp.rcoord+=self.translation
+            aps.extend(Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block))
+            bps.extend(Point(PID(scope=B,site=i),rcoord=rcoord+self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block))
+        self.points=aps+bps
+        links,mindists=intralinks(
+                mode=                   'nb',
+                cluster=                np.asarray([p.rcoord for p in self.points]),
+                indices=                None,
+                vectors=                self.vectors,
+                nneighbour=             self.nneighbour,
+                max_coordinate_number=  self.max_coordinate_number,
+                return_mindists=        True
+                )
+        self.links=links
+        self.mindists=mindists
+
 class DMRG(Engine):
     '''
    Density matrix renormalization group method.
     Attribues:
         mps: MPS
             The matrix product state of the DMRG.
-        lattice: SuperLattice
-            The final lattice of the DMRG.
+        lattice: Cylinder/Lattice
+            The lattice of the DMRG.
         terms: list of Term
             The terms of the DMRG.
         config: IDFConfig
@@ -83,12 +136,10 @@ class DMRG(Engine):
                 The old singular values of the DMRG.
     '''
 
-    def __init__(self,name,mps,lattice,terms,config,degfres,layer=0,mask=[],target=None,dtype=np.complex128,**karg):
+    def __init__(self,mps,lattice,terms,config,degfres,layer=0,mask=[],target=None,dtype=np.complex128,**karg):
         '''
         Constructor.
         Parameters:
-            name: sting
-                The prefix of the name of the DMRG.
             mps: MPS
                 The matrix product state of the DMRG.
             lattice: Lattice
@@ -227,18 +278,17 @@ class DMRG(Engine):
             for pos in xrange(self.mps.nsite,R-1,-1):
                 self.set_HR_(pos,tol=tol)
 
-    def two_site_step(self,job='sweep',nmax=200,tol=hm.TOL):
+    def two_site_step(self,nmax=200,tol=hm.TOL,sp=True):
         '''
         The two site dmrg step.
         Parameters:
-            job: 'sweep','grow'
-                'sweep' for two site sweep and 'grow' for two site grow.
-            nmax: integer
+            nmax: integer, optional
                 The maximum singular values to be kept.
-            tol: float64
+            tol: float64, optional
                 The tolerance of the singular values.
+            sp: logical, optional
+                True for state prediction False for not.
         '''
-        assert job in ('sweep','grow')
         with self.timers.get('Preparation'):
             Ha,Hb=self._Hs_['L'][self.mps.cut-1],self._Hs_['R'][self.mps.nsite-self.mps.cut-1]
             Hasite,Hbsite=self.mpo[self.mps.cut-1],self.mpo[self.mps.cut]
@@ -283,17 +333,11 @@ class DMRG(Engine):
             self.info['nnz']=matrix.nnz
             self.info['nz']='%1.1f%%'%(len(np.argwhere(np.abs(matrix.data)<tol))*100.0/matrix.nnz)
         with self.timers.get('Diagonalization'):
-            if job=='sweep':
-                u,s,v=self.mps[self.mps.cut-1],self.mps.Lambda,self.mps[self.mps.cut]
+            u,s,v=self.mps[self.mps.cut-1],self.mps.Lambda,self.mps[self.mps.cut]
+            if sp and norm(s)>RZERO:
                 v0=np.asarray(contract([u,s,v],engine='einsum').merge(([La,Sa],Lsys,syspt),([Sb,Rb],Lenv,envpt))).reshape(-1)[subslice]
             else:
-                assert self.mps.cut==self.mps.nsite/2
                 v0=None
-                if self.mps.nsite>=6:
-                    u,nsvs,osvs,v=self.mps[self.mps.cut-2],np.asarray(self.mps.Lambda),self.cache['osvs'],self.mps[self.mps.cut+1]
-                    ml=np.asarray(v.dotarray(axis=MPS.L,array=nsvs).merge(([MPS.L,MPS.S],Lsys,syspt)))
-                    mr=np.asarray(u.dotarray(axis=MPS.R,array=nsvs).merge(([MPS.S,MPS.R],Lenv,envpt)))
-                    v0=np.einsum('ij,j,jk->ik',ml,1.0/osvs,mr).reshape(-1)[subslice]
             es,vs=hm.eigsh(matrix,which='SA',v0=v0,k=1)
             energy,Psi=es[0],vs[:,0]
             self.info['energy']=energy/self.mps.nsite
@@ -302,7 +346,6 @@ class DMRG(Engine):
             u,s,v,err=Tensor(Psi,labels=[Label('__DMRG_TWO_SITE_STEP__',qns=qns)]).partitioned_svd(Lsys,new,Lenv,nmax=nmax,tol=tol,return_truncation_err=True)
             self.mps[self.mps.cut-1]=u.split((Lsys,[La,Sa],sysantipt))
             self.mps[self.mps.cut]=v.split((Lenv,[Sb,Rb],envantipt))
-            self.cache['osvs']=np.asarray(self.mps.Lambda)
             self.mps.Lambda=s
             self.set_HL_(self.mps.cut-1,tol=tol)
             self.set_HR_(self.mps.cut,tol=tol)
@@ -331,6 +374,84 @@ class DMRG(Engine):
         self.mps=self.mps.relayer(self.degfres,layer,nmax=nmax,tol=tol)
         self.mps.compress(nsweep=nsweep,cut=cut,nmax=nmax,tol=tol)
         self.set_Hs_(tol=tol)
+
+    def insert(self,A,B,target=None):
+        '''
+        Insert two blocks of points into the center of the lattice.
+        Parameters:
+            A,B: any hashable object
+                The scopes of the insert block points.
+            target: QuantumNumber, optional
+                The new target of the DMRG.
+        '''
+        self.lattice.insert(A,B)
+        self.config.reset(pids=self.lattice.pids)
+        self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
+        self.generator.reset(bonds=self.lattice.bonds,config=self.config)
+        self.set_operators_mpo()
+        if self.mps.cut is None: self.mps.cut=0
+        assert self.mps.cut==self.mps.nsite/2 and self.mps.nsite%2==0
+        layer=self.degfres.layers[self.layer]
+        sites,bonds=self.degfres.labels(layer,'S'),self.degfres.labels(layer,'B')
+        obonds=self.mps.bonds
+        diff=0 if target is None else (target if self.target is None else target-self.target)
+        ob,nb=(len(obonds)+1)/2 if self.mps.nsite>0 else 1,(len(bonds)+1)/2
+        L,LS,RS,R=bonds[:ob],bonds[ob:nb],bonds[nb:-ob],bonds[-ob:]
+        if self.mps.cut==0:
+            L[+0]=L[+0].replace(qns=QuantumNumbers.mono(target.zeros(),count=1) if self.mps.mode=='QN' else 1)
+            R[-1]=R[-1].replace(qns=QuantumNumbers.mono(target,count=1) if self.mps.mode=='QN' else 1)
+        for i,(bond,obond) in enumerate(zip(L,obonds[:ob])):
+            L[i]=bond.replace(qns=obond.qns)
+        for i,(bond,obond) in enumerate(zip(R,obonds[-ob:])):
+            R[i]=bond.replace(qns=obond.qns+diff)
+        if self.mps.nsite>0:
+            for i,(bond,obond) in enumerate(zip(LS,obonds[ob:nb])):
+                LS[i]=bond.replace(qns=obond.qns)
+            for i,(bond,obond) in enumerate(zip(RS,obonds[-nb+1:-ob])):
+                RS[i]=bond.replace(qns=obond.qns+diff)
+        else:
+            LS,RS=deepcopy(LS),deepcopy(RS)
+        nbonds=L+LS+RS+R
+        ns,nms,lms,rms=nb-ob,[],[],[]
+        if self.mps.nsite>0:
+            us,vs=self.mps[self.mps.cut-ns:self.mps.cut],self.mps[self.mps.cut:self.mps.cut+ns]
+            nsvs,osvs=np.asarray(self.mps.Lambda),self.cache.get('osvs',np.array([1.0]))
+            for i,(m,L,S,R) in enumerate(zip(vs,nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb])):
+                m=Tensor(np.asarray(m.dotarray(axis=MPS.L,array=nsvs) if i==0 else m),labels=[L,S,R])
+                u,s,v=m.svd(row=[L,S],new=Label('__DMRG_INSERT_L_%i__'%i),col=[R],row_signs='++',col_signs='+')
+                if i<len(vs)-1:
+                    u.relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
+                    vs[i+1]=contract([s,v,vs[i+1]],engine='einsum',reserve=s.labels)
+                    vs[i+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
+                else:
+                    ml=v.dotarray(axis=0,array=np.asarray(s))
+                lms.append(u)
+            for i,(m,L,S,R) in enumerate(reversed(zip(us,nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]))):
+                m=Tensor(np.asarray(m.dotarray(axis=MPS.R,array=nsvs) if i==0 else m),labels=[L,S,R])
+                u,s,v=m.svd(row=[L],new=Label('__DMRG_INSERT_R_%i__'%i),col=[S,R],row_signs='+',col_signs='-+')
+                if i<len(us)-1:
+                    v.relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
+                    us[-i-2]=contract([us[-i-2],u,s],engine='einsum',reserve=s.labels)
+                    us[-i-2].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
+                else:
+                    mr=u.dotarray(axis=1,array=np.asarray(s))
+                rms.insert(0,v)
+            u,s,v=contract([ml,Tensor(1.0/osvs,labels=[nbonds[nb-1]]),mr],engine='einsum').svd(row=[0],new=nbonds[nb-1],col=[1])
+            lms[-1]=contract([lms[-1],u],engine='tensordot')
+            rms[+0]=contract([v,rms[+0]],engine='tensordot')
+            nms=lms+rms
+            self.cache['osvs']=np.asarray(self.mps.Lambda)
+            self.mps.Lambda=s
+        else:
+            for L,S,R in zip(nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb]):
+                nms.append(Tensor([[[0.0]]],labels=[L,S,R]))
+            for L,S,R in zip(nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]):
+                nms.append(Tensor([[[0.0]]],labels=[L,S,R]))
+        self.mps[self.mps.cut:self.mps.cut]=nms
+        self.mps.relabel(sites=sites,bonds=nbonds)
+        self.mps.cut+=1
+        self.set_Hs_(L=self.mps.cut-2,R=self.mps.cut+1)
+        self.target=target
 
     def coredump(self):
         '''
@@ -383,132 +504,99 @@ class TSG(App):
     '''
     Two site growth of a DMRG.
     Attribues:
-        block: Lattice
-            The building block of the lattice of a DMRG.
-        vector: 1d ndarray
-            The translation vector of the left blocks and right blocks before the addition of two new ones.
         scopes: list of hashable objects
             The scopes of the blocks to be added two-by-two into the lattice of the DMRG.
         targets: sequence of QuantumNumber
             The target space at each growth of the DMRG.
+        nsweep: integer
+            The number of sweeps on the newly added sites.
         nmax: integer
             The maximum singular values to be kept.
         tol: float64
             The tolerance of the singular values.
     '''
 
-    def __init__(self,block,vector,scopes,targets,nmax=200,tol=hm.TOL,**karg):
+    def __init__(self,scopes,targets,nsweep=4,nmax=200,tol=hm.TOL,**karg):
         '''
         Constructor.
         Parameters:
-            block: Lattice
-                The building block of the lattice of a DMRG.
-            vector: 1d ndarray
-                The translation vector of the left blocks and right blocks before the addition of two new ones.
             scopes: list of hashable objects
                 The scopes of the blocks to be added two-by-two into the lattice of the DMRG.
             targets: sequence of QuantumNumber
                 The target space at each growth of the DMRG.
+            nsweep: integer, optional
+                The number of sweeps on the newly added sites.
             nmax: integer, optional
                 The maximum number of singular values to be kept.
             tol: float64, optional
                 The tolerance of the singular values.
         '''
         assert len(scopes)==len(targets)*2
-        self.block=block
-        self.vector=vector
         self.scopes=scopes
         self.targets=targets
+        self.nsweep=nsweep
         self.nmax=nmax
         self.tol=tol
 
-    def iterlattices(self):
+    def recover(self,engine):
         '''
-        Return a generator over the sequence of the SuperLattices of the DMRG with blocks added two-by-two into the center.
+        Recover the core of a dmrg engine.
+        Parameters:
+            engine: DMRG
+                The dmrg engine whose core is to be recovered.
+        Returns: integer
+            The recover code.
         '''
-        scopes=copy(self.scopes)
-        assert len(scopes)%2==0
-        for i in xrange(len(scopes)/2):
-            A=scopes.pop(0)
-            B=scopes.pop(-1)
-            if i==0:
-                aps=[Point(p.pid._replace(scope=A),rcoord=p.rcoord-self.vector/2,icoord=p.icoord) for p in self.block.points]
-                bps=[Point(p.pid._replace(scope=B),rcoord=p.rcoord+self.vector/2,icoord=p.icoord) for p in self.block.points]
+        for i,target in enumerate(reversed(self.targets)):
+            core=DMRG.coreload(din=engine.din,pattern=pattern(engine.status,target,engine.layer,mode='re'),nsite=(len(self.targets)-i)*2,nmax=self.nmax)
+            if core:
+                for key,value in core.iteritems():
+                    setattr(engine,key,value)
+                engine.config.reset(pids=engine.lattice.pids)
+                engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
+                engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
+                code=len(self.targets)-i-1
+                break
             else:
-                aps=[Point(p.pid,rcoord=p.rcoord-self.vector,icoord=p.icoord) for p in aps]
-                bps=[Point(p.pid,rcoord=p.rcoord+self.vector,icoord=p.icoord) for p in bps]
-                aps.extend([Point(p.pid._replace(scope=A),rcoord=p.rcoord-self.vector/2,icoord=p.icoord) for p in self.block.points])
-                bps.extend([Point(p.pid._replace(scope=B),rcoord=p.rcoord+self.vector/2,icoord=p.icoord) for p in self.block.points])
-            yield Lattice.compose(
-                name=                   self.block.name,
-                points=                 aps+bps,
-                vectors=                self.block.vectors,
-                nneighbour=             self.block.nneighbour,
-                max_coordinate_number=  self.block.max_coordinate_number
-                )
-
-    def lattices(self):
-        '''
-        Return a list over the sequence of the SuperLattices of the DMRG with blocks added two-by-two into the center.
-        '''
-        return list(self.iterlattices())
+                code=-1
+        return code
 
 def DMRGTSG(engine,app):
     '''
     This method iterativey update the DMRG by increasing its lattice in the center by 2 blocks at each iteration.
     '''
     engine.log.open()
-    engine.layer=0
-    for i,target in enumerate(reversed(app.targets)):
-        core=DMRG.coreload(din=engine.din,pattern=pattern(engine.status,target,engine.layer,mode='re'),nsite=(len(app.targets)-i)*2,nmax=app.nmax)
-        if core:
-            for key,value in core.iteritems():
-                setattr(engine,key,value)
-            engine.config.reset(pids=engine.lattice.pids)
-            engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
-            engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
-            num=len(app.targets)-i-1
-            break
-        else:
-            num=-1
-    for lattice,target in zip(app.lattices()[num+1:],app.targets[num+1:]):
-        engine.lattice=lattice
-        engine.config.reset(pids=engine.lattice.pids)
-        engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
-        engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
-        engine.set_operators_mpo()
-        if engine.mps.cut is None: engine.mps.cut=0
-        assert engine.mps.cut==engine.mps.nsite/2
-        layer=engine.degfres.layers[engine.layer]
-        sites,bonds=engine.degfres.labels(layer,'S'),engine.degfres.labels(layer,'B')
-        obonds,nbonds,diff=engine.mps.bonds,[],0 if target is None else (target if engine.target is None else target-engine.target)
-        for i,bond in enumerate(bonds):
-            if i==0:
-                nbonds.append(bond.replace(qns=QuantumNumbers.mono(target.zeros(),count=1)))
-            elif i==len(bonds)-1:
-                nbonds.append(bond.replace(qns=QuantumNumbers.mono(target,count=1)))
-            elif i<engine.mps.cut+1:
-                nbonds.append(bond.replace(qns=obonds[i].qns))
-            elif i>engine.mps.cut+1:
-                nbonds.append(bond.replace(qns=obonds[i-2].qns+diff))
-            else:
-                nbonds.append(bond.replace(qns=None))
-        engine.mps.insert(engine.mps.cut,Tensor([[[0.0]]],labels=[nbonds[engine.mps.cut-1],sites[engine.mps.cut-1],nbonds[engine.mps.cut]]))
-        engine.mps.insert(engine.mps.cut+1,Tensor([[[0.0]]],labels=[nbonds[engine.mps.cut],sites[engine.mps.cut],nbonds[engine.mps.cut+1]]))
-        engine.mps.relabel(sites=sites,bonds=nbonds)
-        engine.mps.cut+=1
-        engine._Hs_["L"].extend([None,None])
-        engine._Hs_["R"].extend([None,None])
-        engine.set_Hs_(L=engine.mps.cut-2,R=engine.mps.cut+1,tol=app.tol)
-        engine.target=target
-        engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s)(++)\n'%(engine.status,engine.target,engine.layer,engine.mps.nsite,engine.mps.cut)
+    num=app.recover(engine)
+    for pos,target in enumerate(app.targets[num+1:]):
+        nold=engine.mps.nsite
+        engine.insert(app.scopes[pos+num+1],app.scopes[-pos-num-2],target=target)
+        nnew=engine.mps.nsite
+        engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s)(++)\n'%(engine.status,target,engine.layer,nnew,engine.mps.cut)
         engine.log<<engine.graph<<'\n'
         engine.log<<'-'.join(str(bond.dim) for bond in engine.mpo.bonds)<<'\n'
-        engine.two_site_step(job='grow',nmax=app.nmax,tol=app.tol)
+        engine.two_site_step(sp=True if num+pos>=0 else False,nmax=app.nmax,tol=app.tol)
         engine.timers.record()
         engine.log<<'timers of the dmrg:\n'<<engine.timers.tostr(None)<<'\n'
         engine.log<<'info of the dmrg:\n'<<engine.info<<'\n\n'
         if app.plot: engine.timers.graph(parents=Timers.ALL)
+
+        path=['++<<']*((nnew-nold-2)/2)+['++>>']*(nnew-nold-2)+['++<<']*((nnew-nold-2)/2)
+        for i in xrange(app.nsweep):
+            suffix='st'if i==0 else ('nd' if i==1 else ('rd' if i==2 else 'th'))
+            for move in path:
+                if move=='++<<':
+                    engine.mps<<=1
+                else:
+                    engine.mps>>=1
+                engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s) %s%s(%s)\n'%(engine.status,target,engine.layer,nnew,engine.mps.cut,i+1,suffix,move)
+                engine.log<<engine.graph<<'\n'
+                engine.log<<'-'.join(str(bond.dim) for bond in engine.mpo.bonds)<<'\n'
+                engine.two_site_step(sp=True,nmax=app.nmax,tol=app.tol)
+                engine.timers.record()
+                engine.log<<'timers of the dmrg:\n%s\n'%engine.timers.tostr(None)
+                engine.log<<'info of the dmrg:\n%s\n\n'%engine.info
+                if app.plot: engine.timers.graph(parents=Timers.ALL)
+
     if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
     engine.log.close()
     if app.save_data: engine.coredump()
@@ -568,25 +656,39 @@ class TSS(App):
         assert len(nmaxs)==len(self.BS) and len(nmaxs)==len(self.paths)
         self.tol=tol
 
+    def recover(self,engine):
+        '''
+        Recover the core of a dmrg engine.
+        Parameters:
+            engine: DMRG
+                The dmrg engine whose core is to be recovered.
+        Returns: integer
+            The recover code.
+        '''
+        status=deepcopy(engine.status)
+        for i,(nmax,parameters) in enumerate(reversed(zip(self.nmaxs,self.BS))):
+            status.update(alter=parameters)
+            core=DMRG.coreload(din=engine.din,pattern=pattern(status,self.target,self.layer,mode='re'),nsite=self.nsite,nmax=nmax)
+            if core:
+                for key,value in core.iteritems():
+                    setattr(engine,key,value)
+                engine.status=status
+                engine.config.reset(pids=engine.lattice.pids)
+                engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
+                code=len(self.nmaxs)-1-i
+                if self.protocal==1 or engine.mps.status['nmax']<nmax: code-=1
+                break
+        else:
+            code=None
+        return code
+
 def DMRGTSS(engine,app):
     '''
     This method iterativey sweep the DMRG with 2 sites updated at each iteration.
     '''
     engine.log.open()
-    status=deepcopy(engine.status)
-    for i,(nmax,parameters) in enumerate(reversed(zip(app.nmaxs,app.BS))):
-        status.update(alter=parameters)
-        core=DMRG.coreload(din=engine.din,pattern=pattern(status,app.target,app.layer,mode='re'),nsite=app.nsite,nmax=nmax)
-        if core:
-            for key,value in core.iteritems():
-                setattr(engine,key,value)
-            engine.status=status
-            engine.config.reset(pids=engine.lattice.pids)
-            engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
-            num=len(app.nmaxs)-1-i
-            if app.protocal==1 or engine.mps.status['nmax']<nmax: num-=1
-            break
-    else:
+    num=app.recover(engine)
+    if num is None:
         engine.rundependences(app.status.name)
         num=-1
     if engine.layer!=app.layer: engine.relayer(layer=app.layer,cut=engine.mps.nsite/2,tol=app.tol)
@@ -608,7 +710,7 @@ def DMRGTSS(engine,app):
             engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s) %s%s(%s)\n'%(engine.status,engine.target,engine.layer,app.nsite,engine.mps.cut,i+1,suffix,move)
             engine.log<<engine.graph<<'\n'
             engine.log<<'-'.join(str(bond.dim) for bond in engine.mpo.bonds)<<'\n'
-            engine.two_site_step(job='sweep',nmax=nmax,tol=app.tol)
+            engine.two_site_step(sp=True,nmax=nmax,tol=app.tol)
             engine.timers.record()
             engine.log<<'timers of the dmrg:\n%s\n'%engine.timers.tostr(None)
             engine.log<<'info of the dmrg:\n%s\n\n'%engine.info

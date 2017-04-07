@@ -287,12 +287,26 @@ class Point(np.ndarray):
         '''
         return np.asarray(self)[0,:]
 
+    @rcoord.setter
+    def rcoord(self,value):
+        '''
+        Set the rcoord of a point.
+        '''
+        self[0,:]=value
+
     @property
     def icoord(self):
         '''
         The coordinate in lattice space.
         '''
         return np.asarray(self)[1,:]
+
+    @icoord.setter
+    def icoord(self,value):
+        '''
+        Set the icoord of a point.
+        '''
+        self[1,:]=value
 
     def __str__(self):
         '''
