@@ -2,10 +2,10 @@
 Fermionic degree of freedom package, including:
 1) constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY
 2) classes: FID, Fermi, FermiPack
-3) functions: sigmax, sigmay, sigmaz
+3) functions: sigma0, sigmax, sigmay, sigmaz
 '''
 
-__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','FermiPack','sigmax','sigmay','sigmaz']
+__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','FermiPack','sigma0','sigmax','sigmay','sigmaz']
 
 from numpy import *
 from numpy.linalg import norm
