@@ -10,6 +10,7 @@ import os
 import re
 import numpy as np
 import pickle as pk
+import itertools as it
 import scipy.sparse as sp
 import HamiltonianPy.Misc as hm
 import matplotlib.pyplot as plt
@@ -18,7 +19,7 @@ from HamiltonianPy import *
 from HamiltonianPy.TensorNetwork import *
 from copy import copy,deepcopy
 
-def pattern(status,target,layer,mode='re'):
+def pattern(status,target,layer,nsite,mode='re'):
     '''
     Return the pattern of data files for match.
     Parameters:
@@ -28,18 +29,20 @@ def pattern(status,target,layer,mode='re'):
             The target of the DMRG.
         layer: integer
             The layer of the DMRG.
+        nsite: integer
+            The number of sites of the DMRG.
         mode: 're','py'
     Returns: string
         The pattern.
     '''
     assert mode in ('re','py')
-    pattern='%s_(%s,%s)'%(status,tuple(target) if isinstance(target,QuantumNumber) else None,layer)
+    result='%s_(%s,%s,%s)'%(status,tuple(target) if isinstance(target,QuantumNumber) else None,layer,nsite)
     if mode=='re':
         ss=['(',')','[',']']
         rs=['\(','\)','\[','\]']
         for s,r in zip(ss,rs):
-            pattern=pattern.replace(s,r)
-    return pattern
+            result=result.replace(s,r)
+    return result
 
 class Cylinder(Lattice):
     '''
@@ -93,6 +96,20 @@ class Cylinder(Lattice):
                 )
         self.links=links
         self.mindists=mindists
+
+    def lattice(self,scopes):
+        '''
+        Construct a cylinder with the assigned scopes.
+        Parameters:
+            scopes: list of hashable object
+                The scopes of the cylinder.
+        Returns: Lattice
+            The constructed cylinder.
+        '''
+        points,num=[],len(scopes)
+        for i,rcoord in enumerate(tiling(self.block,vectors=[self.translation],translations=np.linspace(-(num-1)/2.0,(num-1)/2.0,num))):
+            points.append(Point(PID(scope=scopes[i/num],site=i%num),rcoord=rcoord,icoord=np.zeros_like(rcoord)))
+        return Lattice.compose(name=self.name,points=points,vectors=self.vectors,nneighbour=self.nneighbour)
 
 class DMRG(Engine):
     '''
@@ -178,7 +195,7 @@ class DMRG(Engine):
         self.timers.add(parent='Hamiltonian',name='sum')
         self.timers.add(parent='kron',name='csr')
         self.timers.add(parent='kron',name='fkron')
-        self.info=Info(['energy','nbasis','subslice','nnz','nz','density','overlap','err'])
+        self.info=Info('Etotal','Esite','nbasis','nslice','nnz','nz','density','overlap','err')
         self.cache={}
 
     @property
@@ -186,12 +203,16 @@ class DMRG(Engine):
         '''
         The graph representation of the DMRG.
         '''
-        result=[]
-        temp=''.join(['A'*(self.mps.cut-1),'..','B'*(self.mps.nsite-self.mps.cut-1)])
-        while temp:
-            result.append(temp[0:87])
-            temp=temp[87:]
-        return '\n'.join(result)
+        sites=''.join([' ','A-'*(self.mps.cut-1),'.-.','-B'*(self.mps.nsite-self.mps.cut-1)])
+        bonds=''.join(str(bond.dim)+('=' if i in (self.mps.cut-1,self.mps.cut) else ('-' if i<self.mps.nsite else '')) for i,bond in enumerate(self.mpo.bonds))
+        return '\n'.join([sites,bonds])
+
+    @property
+    def state(self):
+        '''
+        The current state of the dmrg.
+        '''
+        return '%s(target=%s,layer=%s,nsite=%s,cut=%s)'%(self.status,self.target,self.layer,self.mps.nsite,self.mps.cut)
 
     def update(self,**karg):
         '''
@@ -278,16 +299,18 @@ class DMRG(Engine):
             for pos in xrange(self.mps.nsite,R-1,-1):
                 self.set_HR_(pos,tol=tol)
 
-    def two_site_step(self,nmax=200,tol=hm.TOL,sp=True):
+    def two_site_step(self,sp=True,nmax=200,tol=hm.TOL,piechart=True):
         '''
         The two site dmrg step.
         Parameters:
-            nmax: integer, optional
-                The maximum singular values to be kept.
-            tol: float64, optional
-                The tolerance of the singular values.
             sp: logical, optional
                 True for state prediction False for not.
+            nmax: integer, optional
+                The maximum singular values to be kept.
+            tol: np.float64, optional
+                The tolerance of the singular values.
+            piechart: logical, optional
+                True for showing the piechart of self.timers while False for not.
         '''
         with self.timers.get('Preparation'):
             Ha,Hb=self._Hs_['L'][self.mps.cut-1],self._Hs_['R'][self.mps.nsite-self.mps.cut-1]
@@ -303,7 +326,7 @@ class DMRG(Engine):
                 subslice=QuantumNumbers.kron([sysqns,envqns],signs='+-').subslice(targets=(self.target.zeros(),))
                 rcs=subslice
                 qns=QuantumNumbers.mono(self.target.zeros(),count=len(subslice))
-                self.info['subslice']=len(subslice)
+                self.info['nslice']=len(subslice)
             else:
                 sysqns,syspt=np.product([La.qns,Sa.qns]),None
                 envqns,envpt=np.product([Sb.qns,Rb.qns]),None
@@ -311,7 +334,7 @@ class DMRG(Engine):
                 subslice=slice(None)
                 rcs=None
                 qns=sysqns*envqns
-                self.info['subslice']=qns
+                self.info['nslice']=qns
             Lpa,Spa,Spb,Rpb=La.prime,Sa.prime,Sb.prime,Rb.prime
             Lsys,Lenv,new=Label('__DMRG_TWO_SITE_STEP_SYS__',qns=sysqns),Label('__DMRG_TWO_SITE_STEP_ENV__',qns=envqns),Ra.replace(qns=None)
             Lpsys,Lpenv=Lsys.prime,Lenv.prime
@@ -331,7 +354,7 @@ class DMRG(Engine):
                 with self.timers.get('sum'):
                     matrix+=temp
             self.info['nnz']=matrix.nnz
-            self.info['nz']='%1.1f%%'%(len(np.argwhere(np.abs(matrix.data)<tol))*100.0/matrix.nnz)
+            self.info['nz']=len(np.argwhere(np.abs(matrix.data)<tol))*100.0/matrix.nnz,'%1.1f%%'
         with self.timers.get('Diagonalization'):
             u,s,v=self.mps[self.mps.cut-1],self.mps.Lambda,self.mps[self.mps.cut]
             if sp and norm(s)>RZERO:
@@ -340,8 +363,9 @@ class DMRG(Engine):
                 v0=None
             es,vs=hm.eigsh(matrix,which='SA',v0=v0,k=1)
             energy,Psi=es[0],vs[:,0]
-            self.info['energy']=energy/self.mps.nsite
-            self.info['overlap']=None if v0 is None else '%1.8f'%np.abs(Psi.conjugate().dot(v0)/norm(v0)/norm(Psi))
+            self.info['Etotal']=energy,'%.6f'
+            self.info['Esite']=energy/self.mps.nsite,'%.8f'
+            self.info['overlap']=np.inf if v0 is None else np.abs(Psi.conjugate().dot(v0)/norm(v0)/norm(Psi)),'%.6f'
         with self.timers.get('Truncation'):
             u,s,v,err=Tensor(Psi,labels=[Label('__DMRG_TWO_SITE_STEP__',qns=qns)]).partitioned_svd(Lsys,new,Lenv,nmax=nmax,tol=tol,return_truncation_err=True)
             self.mps[self.mps.cut-1]=u.split((Lsys,[La,Sa],sysantipt))
@@ -350,8 +374,12 @@ class DMRG(Engine):
             self.set_HL_(self.mps.cut-1,tol=tol)
             self.set_HR_(self.mps.cut,tol=tol)
             self.info['nbasis']=len(s)
-            self.info['density']='%.2e'%(1.0*self.info['nnz']/self.info['subslice']**2)
-            self.info['err']='%.2e'%err
+            self.info['density']=1.0*self.info['nnz']/self.info['nslice']**2,'%.1e'
+            self.info['err']=err,'%.1e'
+        self.timers.record()
+        self.log<<'timers of the dmrg:\n%s\n'%self.timers.tostr(None)
+        self.log<<'info of the dmrg:\n%s\n\n'%self.info
+        if piechart: self.timers.graph(parents=Timers.ALL)
 
     def relayer(self,layer,nsweep=1,cut=0,nmax=None,tol=None):
         '''
@@ -375,7 +403,7 @@ class DMRG(Engine):
         self.mps.compress(nsweep=nsweep,cut=cut,nmax=nmax,tol=tol)
         self.set_Hs_(tol=tol)
 
-    def insert(self,A,B,target=None):
+    def insert(self,A,B,target=None,mps0=None):
         '''
         Insert two blocks of points into the center of the lattice.
         Parameters:
@@ -383,73 +411,82 @@ class DMRG(Engine):
                 The scopes of the insert block points.
             target: QuantumNumber, optional
                 The new target of the DMRG.
+            mps0: MPS, optional
+                The initial mps.
         '''
         self.lattice.insert(A,B)
         self.config.reset(pids=self.lattice.pids)
         self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
         self.generator.reset(bonds=self.lattice.bonds,config=self.config)
         self.set_operators_mpo()
-        if self.mps.cut is None: self.mps.cut=0
-        assert self.mps.cut==self.mps.nsite/2 and self.mps.nsite%2==0
         layer=self.degfres.layers[self.layer]
         sites,bonds=self.degfres.labels(layer,'S'),self.degfres.labels(layer,'B')
-        obonds=self.mps.bonds
-        diff=0 if target is None else (target if self.target is None else target-self.target)
-        ob,nb=(len(obonds)+1)/2 if self.mps.nsite>0 else 1,(len(bonds)+1)/2
-        L,LS,RS,R=bonds[:ob],bonds[ob:nb],bonds[nb:-ob],bonds[-ob:]
-        if self.mps.cut==0:
-            L[+0]=L[+0].replace(qns=QuantumNumbers.mono(target.zeros(),count=1) if self.mps.mode=='QN' else 1)
-            R[-1]=R[-1].replace(qns=QuantumNumbers.mono(target,count=1) if self.mps.mode=='QN' else 1)
-        for i,(bond,obond) in enumerate(zip(L,obonds[:ob])):
-            L[i]=bond.replace(qns=obond.qns)
-        for i,(bond,obond) in enumerate(zip(R,obonds[-ob:])):
-            R[i]=bond.replace(qns=obond.qns+diff)
-        if self.mps.nsite>0:
-            for i,(bond,obond) in enumerate(zip(LS,obonds[ob:nb])):
-                LS[i]=bond.replace(qns=obond.qns)
-            for i,(bond,obond) in enumerate(zip(RS,obonds[-nb+1:-ob])):
-                RS[i]=bond.replace(qns=obond.qns+diff)
+        if mps0 is None:
+            if self.mps.cut is None: self.mps.cut=0
+            assert self.mps.cut==self.mps.nsite/2 and self.mps.nsite%2==0
+            obonds=self.mps.bonds
+            diff=0 if target is None else (target if self.target is None else target-self.target)
+            ob,nb=(len(obonds)+1)/2 if self.mps.nsite>0 else 1,(len(bonds)+1)/2
+            L,LS,RS,R=bonds[:ob],bonds[ob:nb],bonds[nb:-ob],bonds[-ob:]
+            if self.mps.cut==0:
+                L[+0]=L[+0].replace(qns=QuantumNumbers.mono(target.zeros(),count=1) if self.mps.mode=='QN' else 1)
+                R[-1]=R[-1].replace(qns=QuantumNumbers.mono(target,count=1) if self.mps.mode=='QN' else 1)
+            for i,(bond,obond) in enumerate(zip(L,obonds[:ob])):
+                L[i]=bond.replace(qns=obond.qns)
+            for i,(bond,obond) in enumerate(zip(R,obonds[-ob:])):
+                R[i]=bond.replace(qns=obond.qns+diff)
+            if self.mps.nsite>0:
+                for i,(bond,obond) in enumerate(zip(LS,obonds[ob:nb])):
+                    LS[i]=bond.replace(qns=obond.qns)
+                for i,(bond,obond) in enumerate(zip(RS,obonds[-nb+1:-ob])):
+                    RS[i]=bond.replace(qns=obond.qns+diff)
+            else:
+                LS,RS=deepcopy(LS),deepcopy(RS)
+            nbonds=L+LS+RS+R
+            ns,nms,lms,rms=nb-ob,[],[],[]
+            if len(self.lattice)/len(self.lattice.block)>2:
+                us,vs=self.mps[self.mps.cut-ns:self.mps.cut],self.mps[self.mps.cut:self.mps.cut+ns]
+                nsvs,osvs=np.asarray(self.mps.Lambda),self.cache.get('osvs',np.array([1.0]))
+                for i,(L,S,R) in enumerate(zip(nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb])):
+                    m=Tensor(np.asarray(vs[i].dotarray(axis=MPS.L,array=nsvs) if i==0 else vs[i]),labels=[L,S,R])
+                    u,s,v=m.svd(row=[L,S],new=Label('__DMRG_INSERT_L_%i__'%i),col=[R],row_signs='++',col_signs='+')
+                    if i<len(vs)-1:
+                        u.relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
+                        vs[i+1].relabel(olds=[MPS.L],news=[R.replace(qns=s.labels[0].qns)])
+                        vs[i+1]=contract([s,v,vs[i+1]],engine='einsum',reserve=s.labels)
+                        vs[i+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
+                    else:
+                        ml=v.dotarray(axis=0,array=np.asarray(s))
+                    lms.append(u)
+                for i,(L,S,R) in enumerate(reversed(zip(nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]))):
+                    m=Tensor(np.asarray(us[-1-i].dotarray(axis=MPS.R,array=nsvs) if i==0 else us[-1-i]),labels=[L,S,R])
+                    u,s,v=m.svd(row=[L],new=Label('__DMRG_INSERT_R_%i__'%i),col=[S,R],row_signs='+',col_signs='-+')
+                    if i<len(us)-1:
+                        v.relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
+                        us[-i-2].relabel(olds=[MPS.R],news=[L.replace(qns=s.labels[0].qns)])
+                        us[-i-2]=contract([us[-i-2],u,s],engine='einsum',reserve=s.labels)
+                        us[-i-2].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
+                    else:
+                        mr=u.dotarray(axis=1,array=np.asarray(s))
+                    rms.insert(0,v)
+                u,s,v=contract([ml,Tensor(1.0/osvs,labels=[nbonds[nb-1]]),mr],engine='einsum').svd(row=[0],new=nbonds[nb-1],col=[1])
+                lms[-1]=contract([lms[-1],u],engine='tensordot')
+                rms[+0]=contract([v,rms[+0]],engine='tensordot')
+                nms=lms+rms
+                self.cache['osvs']=np.asarray(self.mps.Lambda)
+                self.mps.Lambda=s
+            else:
+                for L,S,R in zip(nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb]):
+                    nms.append(Tensor([[[0.0]]],labels=[L,S,R]))
+                for L,S,R in zip(nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]):
+                    nms.append(Tensor([[[0.0]]],labels=[L,S,R]))
+            self.mps[self.mps.cut:self.mps.cut]=nms
+            self.mps.relabel(sites=sites,bonds=nbonds)
+            self.mps.cut=self.mps.nsite/2
         else:
-            LS,RS=deepcopy(LS),deepcopy(RS)
-        nbonds=L+LS+RS+R
-        ns,nms,lms,rms=nb-ob,[],[],[]
-        if self.mps.nsite>0:
-            us,vs=self.mps[self.mps.cut-ns:self.mps.cut],self.mps[self.mps.cut:self.mps.cut+ns]
-            nsvs,osvs=np.asarray(self.mps.Lambda),self.cache.get('osvs',np.array([1.0]))
-            for i,(m,L,S,R) in enumerate(zip(vs,nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb])):
-                m=Tensor(np.asarray(m.dotarray(axis=MPS.L,array=nsvs) if i==0 else m),labels=[L,S,R])
-                u,s,v=m.svd(row=[L,S],new=Label('__DMRG_INSERT_L_%i__'%i),col=[R],row_signs='++',col_signs='+')
-                if i<len(vs)-1:
-                    u.relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
-                    vs[i+1]=contract([s,v,vs[i+1]],engine='einsum',reserve=s.labels)
-                    vs[i+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
-                else:
-                    ml=v.dotarray(axis=0,array=np.asarray(s))
-                lms.append(u)
-            for i,(m,L,S,R) in enumerate(reversed(zip(us,nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]))):
-                m=Tensor(np.asarray(m.dotarray(axis=MPS.R,array=nsvs) if i==0 else m),labels=[L,S,R])
-                u,s,v=m.svd(row=[L],new=Label('__DMRG_INSERT_R_%i__'%i),col=[S,R],row_signs='+',col_signs='-+')
-                if i<len(us)-1:
-                    v.relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
-                    us[-i-2]=contract([us[-i-2],u,s],engine='einsum',reserve=s.labels)
-                    us[-i-2].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
-                else:
-                    mr=u.dotarray(axis=1,array=np.asarray(s))
-                rms.insert(0,v)
-            u,s,v=contract([ml,Tensor(1.0/osvs,labels=[nbonds[nb-1]]),mr],engine='einsum').svd(row=[0],new=nbonds[nb-1],col=[1])
-            lms[-1]=contract([lms[-1],u],engine='tensordot')
-            rms[+0]=contract([v,rms[+0]],engine='tensordot')
-            nms=lms+rms
-            self.cache['osvs']=np.asarray(self.mps.Lambda)
-            self.mps.Lambda=s
-        else:
-            for L,S,R in zip(nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb]):
-                nms.append(Tensor([[[0.0]]],labels=[L,S,R]))
-            for L,S,R in zip(nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]):
-                nms.append(Tensor([[[0.0]]],labels=[L,S,R]))
-        self.mps[self.mps.cut:self.mps.cut]=nms
-        self.mps.relabel(sites=sites,bonds=nbonds)
-        self.mps.cut+=1
+            assert self.mps.nsite==0 and mps0.nsite==len(self.mpo) and mps0.cut==mps0.nsite/2
+            self.mps=mps0
+            self.mps.relabel(sites=sites,bonds=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds,mps0.bonds)])
         self.set_Hs_(L=self.mps.cut-2,R=self.mps.cut+1)
         self.target=target
 
@@ -457,7 +494,7 @@ class DMRG(Engine):
         '''
         Use pickle to dump the core of the dmrg.
         '''
-        with open('%s/%s_%s.dat'%(self.din,pattern(self.status,self.target,self.layer,mode='py'),self.mps.status),'wb') as fout:
+        with open('%s/%s_%s.dat'%(self.din,pattern(self.status,self.target,self.layer,self.mps.nsite,mode='py'),self.mps.nmax),'wb') as fout:
             core=   {
                         'lattice':      self.lattice,
                         'layer':        self.layer,
@@ -472,7 +509,7 @@ class DMRG(Engine):
             pk.dump(core,fout,2)
 
     @staticmethod
-    def coreload(din,pattern,nsite,nmax):
+    def coreload(din,pattern,nmax):
         '''
         Use pickle to laod the core of the dmrg from existing data files.
         Parameters:
@@ -480,8 +517,6 @@ class DMRG(Engine):
                 The directory where the data files are searched.
             pattern: string
                 The matching pattern of the data files.
-            nsite: integer
-                The length of the mps.
             nmax: integer
                 The maximum number of singular values kept in the mps.
         Returns: dict
@@ -491,8 +526,8 @@ class DMRG(Engine):
         names=[name for name in os.listdir(din) if re.match(pattern,name)]
         for name in names:
             split=name.split('_')
-            cnsite,cnmax=int(split[-2]),int(split[-1][0:-4])
-            if cnsite==nsite and cnmax<=nmax:candidates[name]=(cnsite,cnmax)
+            cnmax=int(split[-1][0:-4])
+            if cnmax<=nmax:candidates[name]=cnmax
         if len(candidates)>0:
             with open('%s/%s'%(din,sorted(candidates.keys(),key=candidates.get)[-1]),'rb') as fin:
                 result=pk.load(fin)
@@ -508,15 +543,23 @@ class TSG(App):
             The scopes of the blocks to be added two-by-two into the lattice of the DMRG.
         targets: sequence of QuantumNumber
             The target space at each growth of the DMRG.
-        nsweep: integer
-            The number of sweeps on the newly added sites.
+        mps0: MPS
+            The initial mps.
+        layer: integer
+            The layer of the DMRG's mps.
+        ns: integer
+            The number of sites per block of the dmrg.
         nmax: integer
             The maximum singular values to be kept.
         tol: float64
             The tolerance of the singular values.
+        heatbaths: list of integer
+            The maximum bond dimensions for the heat bath processes.
+        sweeps: list of integer
+            The maximum bond dimensions for the sweep processes.
     '''
 
-    def __init__(self,scopes,targets,nsweep=4,nmax=200,tol=hm.TOL,**karg):
+    def __init__(self,scopes,targets,mps0=None,layer=0,ns=1,nmax=200,tol=hm.TOL,heatbaths=None,sweeps=None,**karg):
         '''
         Constructor.
         Parameters:
@@ -524,19 +567,31 @@ class TSG(App):
                 The scopes of the blocks to be added two-by-two into the lattice of the DMRG.
             targets: sequence of QuantumNumber
                 The target space at each growth of the DMRG.
-            nsweep: integer, optional
-                The number of sweeps on the newly added sites.
+            mps0: MPS, optional
+                The initial mps.
+            layer: integer, optional
+                The layer of the DMRG's mps.
+            ns: integer, optional
+                The number of sites per block of the dmrg.
             nmax: integer, optional
                 The maximum number of singular values to be kept.
             tol: float64, optional
                 The tolerance of the singular values.
+            heatbaths: list of integer, optional
+                The maximum bond dimensions for the heat bath processes.
+            sweeps: list of integer, optional
+                The maximum bond dimensions for the sweep processes.
         '''
         assert len(scopes)==len(targets)*2
         self.scopes=scopes
         self.targets=targets
-        self.nsweep=nsweep
+        self.mps0=mps0
+        self.layer=layer
+        self.ns=ns
         self.nmax=nmax
         self.tol=tol
+        self.heatbaths=[nmax*(i+1)/15 for i in xrange(15)] if heatbaths is None else heatbaths
+        self.sweeps=[nmax]*4 if sweeps is None else sweeps
 
     def recover(self,engine):
         '''
@@ -548,7 +603,7 @@ class TSG(App):
             The recover code.
         '''
         for i,target in enumerate(reversed(self.targets)):
-            core=DMRG.coreload(din=engine.din,pattern=pattern(engine.status,target,engine.layer,mode='re'),nsite=(len(self.targets)-i)*2,nmax=self.nmax)
+            core=DMRG.coreload(din=engine.din,pattern=pattern(engine.status,target,self.layer,(len(self.targets)-i)*self.ns*2,mode='re'),nmax=self.nmax)
             if core:
                 for key,value in core.iteritems():
                     setattr(engine,key,value)
@@ -567,36 +622,18 @@ def DMRGTSG(engine,app):
     '''
     engine.log.open()
     num=app.recover(engine)
+    if engine.layer!=app.layer: engine.layer=app.layer
     for pos,target in enumerate(app.targets[num+1:]):
         nold=engine.mps.nsite
-        engine.insert(app.scopes[pos+num+1],app.scopes[-pos-num-2],target=target)
+        engine.insert(app.scopes[pos+num+1],app.scopes[-pos-num-2],target=target,mps0=app.mps0 if num+pos<0 else None)
         nnew=engine.mps.nsite
-        engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s)(++)\n'%(engine.status,target,engine.layer,nnew,engine.mps.cut)
-        engine.log<<engine.graph<<'\n'
-        engine.log<<'-'.join(str(bond.dim) for bond in engine.mpo.bonds)<<'\n'
-        engine.two_site_step(sp=True if num+pos>=0 else False,nmax=app.nmax,tol=app.tol)
-        engine.timers.record()
-        engine.log<<'timers of the dmrg:\n'<<engine.timers.tostr(None)<<'\n'
-        engine.log<<'info of the dmrg:\n'<<engine.info<<'\n\n'
-        if app.plot: engine.timers.graph(parents=Timers.ALL)
-
-        path=['++<<']*((nnew-nold-2)/2)+['++>>']*(nnew-nold-2)+['++<<']*((nnew-nold-2)/2)
-        for i in xrange(app.nsweep):
-            suffix='st'if i==0 else ('nd' if i==1 else ('rd' if i==2 else 'th'))
-            for move in path:
-                if move=='++<<':
-                    engine.mps<<=1
-                else:
-                    engine.mps>>=1
-                engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s) %s%s(%s)\n'%(engine.status,target,engine.layer,nnew,engine.mps.cut,i+1,suffix,move)
-                engine.log<<engine.graph<<'\n'
-                engine.log<<'-'.join(str(bond.dim) for bond in engine.mpo.bonds)<<'\n'
-                engine.two_site_step(sp=True,nmax=app.nmax,tol=app.tol)
-                engine.timers.record()
-                engine.log<<'timers of the dmrg:\n%s\n'%engine.timers.tostr(None)
-                engine.log<<'info of the dmrg:\n%s\n\n'%engine.info
-                if app.plot: engine.timers.graph(parents=Timers.ALL)
-
+        engine.log<<'%s(++)\n%s\n'%(engine.state,engine.graph)
+        engine.two_site_step(sp=True if num+pos>=0 else False,nmax=app.nmax,tol=app.tol,piechart=app.plot)
+        for i,nmax in enumerate(app.heatbaths if num+pos==-1 else app.sweeps):
+            for move in it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2)):
+                engine.mps<<=1 if move=='++<<' else -1
+                engine.log<<'%s No.%s(%s)\n%s\n'%(engine.state,i+1,move,engine.graph)
+                engine.two_site_step(sp=True,nmax=nmax,tol=app.tol,piechart=app.plot)
     if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
     engine.log.close()
     if app.save_data: engine.coredump()
@@ -668,15 +705,16 @@ class TSS(App):
         status=deepcopy(engine.status)
         for i,(nmax,parameters) in enumerate(reversed(zip(self.nmaxs,self.BS))):
             status.update(alter=parameters)
-            core=DMRG.coreload(din=engine.din,pattern=pattern(status,self.target,self.layer,mode='re'),nsite=self.nsite,nmax=nmax)
+            core=DMRG.coreload(din=engine.din,pattern=pattern(status,self.target,self.layer,self.nsite,mode='re'),nmax=nmax)
             if core:
                 for key,value in core.iteritems():
                     setattr(engine,key,value)
                 engine.status=status
                 engine.config.reset(pids=engine.lattice.pids)
                 engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
+                engine.mps>>=1 if engine.mps.cut==0 else (-1 if engine.mps.cut==engine.mps.nsite else 0)
                 code=len(self.nmaxs)-1-i
-                if self.protocal==1 or engine.mps.status['nmax']<nmax: code-=1
+                if self.protocal==1 or engine.mps.nmax<nmax: code-=1
                 break
         else:
             code=None
@@ -689,32 +727,16 @@ def DMRGTSS(engine,app):
     engine.log.open()
     num=app.recover(engine)
     if num is None:
-        engine.rundependences(app.status.name)
+        if app.status.name in engine.apps: engine.rundependences(app.status.name)
+        if engine.layer!=app.layer: engine.relayer(layer=app.layer,cut=app.nsite/2,tol=app.tol)
         num=-1
-    if engine.layer!=app.layer: engine.relayer(layer=app.layer,cut=engine.mps.nsite/2,tol=app.tol)
     for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs[num+1:],app.BS[num+1:],app.paths[num+1:])):
-        suffix='st'if i==0 else ('nd' if i==1 else ('rd' if i==2 else 'th'))
         app.status.update(alter=parameters)
         if not (app.status<=engine.status): engine.update(**parameters)
-        if path is None:
-            if engine.mps.cut==0:
-                engine.mps>>=1
-            elif engine.mps.cut==engine.mps.nsite:
-                engine.mps<<=1
-            path=['<<']*(engine.mps.cut-1)+['>>']*(engine.mps.nsite-2)+['<<']*(engine.mps.nsite-engine.mps.cut-1)
-        for move in path:
-            if move=='<<':
-                engine.mps<<=1
-            else:
-                engine.mps>>=1
-            engine.log<<'%s(target=%s,layer=%s,nsite=%s,cut=%s) %s%s(%s)\n'%(engine.status,engine.target,engine.layer,app.nsite,engine.mps.cut,i+1,suffix,move)
-            engine.log<<engine.graph<<'\n'
-            engine.log<<'-'.join(str(bond.dim) for bond in engine.mpo.bonds)<<'\n'
-            engine.two_site_step(sp=True,nmax=nmax,tol=app.tol)
-            engine.timers.record()
-            engine.log<<'timers of the dmrg:\n%s\n'%engine.timers.tostr(None)
-            engine.log<<'info of the dmrg:\n%s\n\n'%engine.info
-            if app.plot: engine.timers.graph(parents=Timers.ALL)
+        for move in it.chain(['<<']*(engine.mps.cut-1),['>>']*(engine.mps.nsite-2),['<<']*(engine.mps.nsite-engine.mps.cut-1)) if path is None else path:
+            engine.mps<<=1 if move=='<<' else -1
+            engine.log<<'%s No.%s(%s)\n%s\n'%(engine.state,i+1,move,engine.graph)
+            engine.two_site_step(sp=True,nmax=nmax,tol=app.tol,piechart=app.plot)
         if app.save_data: engine.coredump()
     if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
     engine.log.close()

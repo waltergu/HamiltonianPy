@@ -7,7 +7,9 @@ __all__=['MPS','Vidal']
 
 import numpy as np
 from numpy.linalg import norm
-from HamiltonianPy import Status,QuantumNumbers
+from HamiltonianPy import Status
+from HamiltonianPy import QuantumNumber as QN
+from HamiltonianPy import QuantumNumbers as QNS
 from ..Misc import TOL
 from Tensor import *
 from copy import copy,deepcopy
@@ -94,7 +96,7 @@ class MPS(list):
         '''
         assert state.ndim==1 and len(sites)+1==len(bonds)
         L,R=Label('__MPS_from_state_L__',qns=bonds[+0].qns),Label('__MPS_from_state_R__',qns=bonds[-1].qns)
-        S=Label('__MPS_from_state_S__',qns=QuantumNumbers.kron([label.qns for label in sites]) if L.qnon else np.product([label.dim for label in sites]))
+        S=Label('__MPS_from_state_S__',qns=QNS.kron([label.qns for label in sites]) if L.qnon else np.product([label.dim for label in sites]))
         m=Tensor(state.reshape((1,-1,1)),labels=[L,S,R])
         if cut==0:
             u,s,ms=m.expanded_svd(L=[L],S=S,R=[R],E=sites,I=bonds[:-1],nmax=nmax,tol=tol,cut=0)
@@ -146,14 +148,18 @@ class MPS(list):
                 return np.asarray(result).reshape((L.dim,-1))
 
     @staticmethod
-    def random(sites,bonds,cut=0,nmax=None,tol=None,dtype=np.float64):
+    def random(sites,bonds,cut=None,nmax=None,tol=None,dtype=np.float64):
         '''
-        Generate a random mixed-canonical mps.
+        Generate a random mps.
         Parameters:
-            sites: list of Label
-                The labels for the physical legs.
-            bonds: list of Label
-                The labels for the virtual legs.
+            sites: list of Label/integer/QuantumNumbers
+                The labels/number-of-freedom/quantum-numbers of the physical legs.
+            bonds:
+                1) list of Label
+                    The labels of the virtual legs.
+                2) list of None/1/QuantumNumber
+                    The positions of the non-None values are the breakpoints of the random mps.
+                    At the breakpoints, the bond dimension are forced to be 1.
             cut: integer, optional
                 The index of the connecting link.
             namx: integer, optional
@@ -165,35 +171,67 @@ class MPS(list):
         Returns: MPS
             The random mixed-canonical mps.
         '''
-        assert bonds[0].dim==1 and bonds[-1].dim==1
+        assert len(bonds)==len(sites)+1
         np.random.seed()
-        mode,shape='QN' if next(iter(sites)).qnon else 'NB',tuple([site.dim for site in sites])
-        if mode=='QN':
-            state=np.zeros(shape,dtype=dtype)
-            for index in QuantumNumbers.decomposition([bonds[0].qns]+[site.qns for site in sites],target=next(iter(bonds[-1].qns))):
-                if dtype in (np.float32,np.float64):
-                    state[index[1:]]=np.random.random()
-                else:
-                    state[index[1:]]=np.random.random()+1j*np.random.random()
-            state=state.reshape((-1,))/norm(state)
-            return MPS.from_state(state,sites,bonds,cut=cut,nmax=nmax,tol=tol)
-        else:
-            if dtype in (np.float32,np.float64):
-                state=np.random.random(shape).reshape((-1,))
+        sites=[s if isinstance(s,Label) else Label('__MPS_RANDOM_S_%s__'%i,qns=s) for i,s in enumerate(sites)]
+        bonds=[b if isinstance(b,Label) else Label('__MPS_RANDOM_B_%s__'%i,qns=QNS.mono(b) if isinstance(b,QN) else b) for i,b in enumerate(bonds)]
+        breakpoints=[i for i,bond in enumerate(bonds) if bond.dim==1]
+        result,mode,shape=[],'QN' if next(iter(sites)).qnon else 'NB',tuple([site.dim for site in sites])
+        for start,stop in zip(breakpoints[:-1],breakpoints[1:]):
+            if mode=='QN':
+                state=np.zeros(shape[start:stop],dtype=dtype)
+                for index in QNS.decomposition([bonds[start].qns]+[site.qns for site in sites[start:stop]],target=next(iter(bonds[stop].qns))):
+                    if dtype in (np.float32,np.float64):
+                        state[index[1:]]=np.random.random()
+                    else:
+                        state[index[1:]]=np.random.random()+1j*np.random.random()
+                state=state.reshape((-1,))/norm(state)
+                result.append(MPS.from_state(state,sites[start:stop],bonds[start:stop+1],cut=0,nmax=nmax,tol=tol))
             else:
-                state=np.random.random(shape).reshape((-1,))+1j*np.random.random(shape).reshape((-1,))
-            state/=norm(state)
-            return MPS.from_state(state,sites,bonds,cut=cut,nmax=nmax,tol=tol)
+                if dtype in (np.float32,np.float64):
+                    state=np.random.random(shape[start:stop]).reshape((-1,))
+                else:
+                    state=np.random.random(shape[start:stop]).reshape((-1,))+1j*np.random.random(shape[start:stop]).reshape((-1,))
+                state/=norm(state)
+                result.append(MPS.from_state(state,sites,bonds,cut=0,nmax=nmax,tol=tol))
+        return MPS.concatenate(result,cut=cut)
+
+    @staticmethod
+    def concatenate(mpses,mode=None,cut=None):
+        '''
+        Concatenate several mpses into one.
+        Parameters:
+            mpses: list of MPS
+                The mpses to be concatenated.
+            mode: 'QN' or 'NB', optional
+                The mode of the result.
+                Only when len(mpses)==0 will it be considered.
+            cut: integer, optional
+                The position of the connecting bond after the canonicalization.
+        Returns: MPS
+            The result.
+        '''
+        modes=np.array([mps.mode=='QN' for mps in mpses])
+        assert all(modes) or all(~modes)
+        if len(mpses)==0:
+            result=MPS(mode=mode)
+        else:
+            result=copy(mpses[0])
+            result.reset()
+            for mps in mpses[1:]:
+                assert result[-1].labels[MPS.R]==mps[0].labels[MPS.L]
+                m,Lambda=mps._merge_ABL_()
+                result.extend(mps)
+                mps._set_ABL_(m,Lambda)
+            if cut is not None: result.canonicalization(cut=cut)
+        return result
 
     @property
-    def status(self):
+    def nmax(self):
         '''
-        The status of the MPS.
+        The maximum bond dimension of the mps.
         '''
-        result=OrderedDict()
-        result['nsite']=self.nsite
-        result['nmax']=np.array([m.shape[MPS.L] for m in self]).max() if self.nsite>0 else None
-        return Status(alter=result)
+        return max(bond.dim for bond in self.bonds) if self.nsite>0 else None
 
     @property
     def table(self):
@@ -313,7 +351,7 @@ class MPS(list):
         '''
         Canonicalize an mps by svd.
         Parameters:
-            cut: integer, integer
+            cut: integer, optional
                 The position of the connecting bond after the canonicalization.
             namx: integer, optional
                 The maximum number of singular values to be kept.
@@ -486,8 +524,12 @@ class MPS(list):
             k,nmax,tol=other
         else:
             k=other
-        for i in xrange(k):
-            self._set_B_and_lmove_(contract([self[self.cut-1],self.Lambda],engine='einsum',reserve=[self[self.cut-1].labels[MPS.R]]),nmax,tol)
+        if k>=0:
+            for i in xrange(k):
+                self._set_B_and_lmove_(contract([self[self.cut-1],self.Lambda],engine='einsum',reserve=[self[self.cut-1].labels[MPS.R]]),nmax,tol)
+        else:
+            for i in xrange(-k):
+                self._set_A_and_rmove_(contract([self.Lambda,self[self.cut]],engine='einsum',reserve=[self[self.cut].labels[MPS.L]]),nmax,tol)
         return self
 
     def __lshift__(self,other):
@@ -514,14 +556,7 @@ class MPS(list):
                     tuple[2]: float64
                         The truncation tolerance.
         '''
-        nmax,tol=None,None
-        if isinstance(other,tuple):
-            k,nmax,tol=other
-        else:
-            k=other
-        for i in xrange(k):
-            self._set_A_and_rmove_(contract([self.Lambda,self[self.cut]],engine='einsum',reserve=[self[self.cut].labels[MPS.L]]),nmax,tol)
-        return self
+        return self.__ilshift__((-other[0],other[1],other[2]) if isinstance(other,tuple) else -other)
 
     def __rshift__(self,other):
         '''

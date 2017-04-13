@@ -101,6 +101,12 @@ class QuantumNumber(np.ndarray):
         '''
         return cls([0 for i in xrange(len(cls.names))])
 
+    def __hash__(self):
+        '''
+        Return the hash value of the quantum number.
+        '''
+        return hash(tuple(self))
+
     def __neg__(self):
         '''
         Overloaded negative(-) operator.
@@ -339,7 +345,7 @@ class QuantumNumbers(object):
                     raise ValueError('QuantumNumbers index error: %s not in QuantumNumbers.'%(qn))
                 current=tuple(self.contents[pos])
             else:
-                return pos
+                return [pos]
         else:
             return np.argwhere(np.all(self.contents==np.asarray(qn),axis=1)).reshape((-1))
 

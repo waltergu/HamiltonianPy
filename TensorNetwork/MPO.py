@@ -316,6 +316,23 @@ class MPO(list):
             result.append(m.labels[MPO.R])
         return result
 
+    @property
+    def matrix(self):
+        '''
+        The normal matrix representation of the mpo.
+        '''
+        ls,rs,L,R=[],[],1,1
+        for i,m in enumerate(self):
+            ls.append(m.labels[MPO.U])
+            rs.append(m.labels[MPO.D])
+            L*=ls[-1].dim
+            R*=rs[-1].dim
+            if i==0:
+                result=m
+            else:
+                result=contract([result,m],engine='tensordot')
+        return np.asarray(result.transpose(axes=[self[0].labels[MPO.L]]+ls+rs+[self[-1].labels[MPO.R]])).reshape((L,R))
+
     def _mul_mpo_(self,other):
         '''
         The multiplication of two mpos.

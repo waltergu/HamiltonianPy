@@ -29,7 +29,7 @@ def test_timers():
 
 def test_info():
     print 'test_info'
-    info=Info()
+    info=Info('nnz','gse','overlap','nbasis')
     info['nnz']=10
     info['gse']=-0.12345667
     info['overlap']=0.99999899

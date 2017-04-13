@@ -13,11 +13,12 @@ from copy import copy,deepcopy
 def test_mps():
     print 'test_mps'
     test_mps_ordinary()
+    test_mps_random()
     test_mps_algebra()
     test_mps_relayer()
 
 def test_mps_ordinary():
-    'test_mps_ordinary'
+    print 'test_mps_ordinary'
     N=4
     np.random.seed()
     state,target=np.zeros((2,)*N),SQN(0.0)
@@ -32,6 +33,18 @@ def test_mps_ordinary():
     for cut in xrange(N+1):
         mps.canonicalization(cut)
         print 'mps.cut, mps.is_canonical: %s, %s.'%(mps.cut,mps.is_canonical())
+    print
+
+def test_mps_random():
+    print 'test_mps_random'
+    N=20
+    np.random.seed()
+    breakpoints=set(np.random.randint(1,N,size=N/2))|set([0,N])
+    sites=[Label('S%s'%i,qns=SQNS(0.5)) for i in xrange(N)]
+    bonds=[Label('B%s'%i,qns=QuantumNumbers.mono(SQN(0.0 if i%2==0 else 0.5)) if i in breakpoints else None) for i in xrange(N+1)]
+    print 'breakpoints: %s'%', '.join(str(breakpoint) for breakpoint in sorted(breakpoints))
+    mps=MPS.random(sites,bonds,cut=np.random.randint(0,N+1))
+    print 'mps.bonds:\n%s'%'\n'.join(repr(bond) for bond in mps.bonds)
     print
 
 def test_mps_algebra():

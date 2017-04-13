@@ -215,7 +215,7 @@ def deparallelization(m,mode='R',zero=10**-8,tol=10**-6,return_indices=False):
                 for j,krow in enumerate(M):
                     factor=(krow[inds[0]]/row[inds[0]])[0]
                     if np.allclose(row*factor,krow,rtol=tol):
-                        data.append(factor)
+                        data.append(1.0/factor)
                         rows.append(i)
                         cols.append(j)
                         break
@@ -242,7 +242,7 @@ def deparallelization(m,mode='R',zero=10**-8,tol=10**-6,return_indices=False):
                 for j,kcol in enumerate(M):
                     factor=(kcol[inds[0]]/col[inds[0]])[0]
                     if np.allclose(col*factor,kcol,rtol=tol):
-                        data.append(factor)
+                        data.append(1.0/factor)
                         rows.append(j)
                         cols.append(i)
                         break

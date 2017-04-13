@@ -7,7 +7,7 @@ Geometry, including
 __all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'isparallel', 'issubordinate', 'reciprocals', 'translation', 'rotation', 'tiling', 'intralinks', 'interlinks', 'PID', 'Point', 'Bond', 'Link', 'Lattice', 'SuperLattice']
 
 from Constant import RZERO
-from collections import namedtuple,OrderedDict
+from collections import namedtuple,OrderedDict,Iterable
 from scipy.spatial import cKDTree
 from copy import copy,deepcopy
 import numpy as np
@@ -211,7 +211,7 @@ def tiling(cluster,vectors=[],translations=[]):
     supercluster=[]
     if len(vectors)==0: vectors,translations=0,(0,)
     for translation in translations:
-        disp=np.dot((translation,) if type(translation) in (int,long) else tuple(translation),vectors)
+        disp=np.dot(tuple(translation) if isinstance(translation,Iterable) else (translation,),vectors)
         for coord in cluster:
             supercluster.append(coord+disp)
     return supercluster

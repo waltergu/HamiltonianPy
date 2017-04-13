@@ -3,7 +3,6 @@ Log for code executing, including:
 1) classes: Timer,Timers,Info,Log
 '''
 
-from collections import OrderedDict
 from ..Misc import Tree
 import numpy as np
 import matplotlib.pyplot as plt
@@ -245,44 +244,65 @@ class Timers(Tree):
         '''
         return self[key].time
 
-class Info(OrderedDict):
+class Info(object):
     '''
     Information for code executing.
-    For each of its (key,value):
-        key: string
-            An entry of the information.
-        value: object
-            The content of the corresponding entry.
+    Attribues:
+        entries: list of string
+            The entries of the info.
+        contents: list of any object
+            The contents of the info.
+        formats: list of string
+            The output formats of the contents.
     '''
 
-    def __init__(self,paras=[]):
+    def __init__(self,*entries):
         '''
         Constructor.
         Parameters:
-            paras: list of string
-                The entries of the information.
+            entries: list of string, optional
+                The entries of the info.
         '''
-        super(Info,self).__init__()
-        for para in paras:
-            if isinstance(para,list):
-                key,value=para
-                self[key]=value
-            else:
-                self[para]=None
+        self.entries=entries
+        self.contents=[None]*len(entries)
+        self.formats=['%s']*len(entries)
+
+    def __len__(self):
+        '''
+        The length of the info.
+        '''
+        return len(self.entries)
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
-        lens=[max(len(str(entry)),len(str(content)))+2 for entry,content in self.iteritems()]
+        lens=[max(len(str(entry)),len(format%(content,)))+2 for entry,content,format in zip(self.entries,self.contents,self.formats)]
         result=[None,None,None,None,None]
         result[0]=(sum(lens)+9+len(self))*'~'
-        result[1]='Entry'.center(9)+'|'+'|'.join([str(key).center(length) for key,length in zip(self,lens)])
+        result[1]='Entry'.center(9)+'|'+'|'.join([str(key).center(length) for key,length in zip(self.entries,lens)])
         result[2]=(sum(lens)+9+len(self))*'-'
-        result[3]='Content'.center(9)+'|'+'|'.join([str(content).center(length) for content,length in zip(self.values(),lens)])
+        result[3]='Content'.center(9)+'|'+'|'.join([(format%(content,)).center(length) for content,format,length in zip(self.contents,self.formats,lens)])
         result[4]=result[0]
-        temp=[str(content) for content in self.values()]
         return '\n'.join(result)
+
+    def __setitem__(self,entry,content):
+        '''
+        Set the content of an entry.
+        '''
+        index=self.entries.index(entry)
+        if isinstance(content,tuple):
+            assert len(content)==2
+            self.contents[index]=content[0]
+            self.formats[index]=content[1]
+        else:
+            self.contents[index]=content
+
+    def __getitem__(self,entry):
+        '''
+        Get the content of an entry.
+        '''
+        return self.contents[self.entries.index(entry)]
 
 class Log(object):
     '''

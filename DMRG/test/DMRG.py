@@ -15,8 +15,8 @@ def test_dmrg():
     print 'test_dmrg'
     mkl.set_num_threads(1)
     Engine.DEBUG=True
-    #test_dmrg_spin()
-    #test_dmrg_spinless_fermion()
+    test_dmrg_spin()
+    test_dmrg_spinless_fermion()
     test_dmrg_spinful_fermion()
 
 def test_dmrg_spin():
@@ -42,10 +42,10 @@ def test_dmrg_spin():
             targets=    [SQN(1.0)]*(N/2) if qn_on else [None]*(N/2),
             nmax=       20,
             save_data=  False,
-            plot=       True,
+            plot=       False,
             run=DMRGTSG
             )
-    dmrg.register(TSS(name='SWEEP',target=SQN(1.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=SQN(1.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=False,save_fig=True,run=DMRGTSS))
     dmrg.summary()
     print
 
