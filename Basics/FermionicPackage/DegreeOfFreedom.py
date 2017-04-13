@@ -253,12 +253,12 @@ def sigma0(mode):
         result.append(FermiPack(1.0,atom1=0,atom2=0))
         result.append(FermiPack(1.0,atom1=1,atom2=1))
     else:
-        raise ValueError("SigmaZ error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
+        raise ValueError("sigma0 error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
     return result
 
 def sigmax(mode):
     '''
-    The Pauli matrix SigmaX, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
+    The Pauli matrix sigmax, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
     '''
     result=IndexPackList()
     if mode.lower()=='sp':
@@ -271,12 +271,12 @@ def sigmax(mode):
         result.append(FermiPack(1.0,atom1=0,atom2=1))
         result.append(FermiPack(1.0,atom1=1,atom2=0))
     else:
-        raise ValueError("SigmaX error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
+        raise ValueError("sigmax error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
     return result
 
 def sigmay(mode):
     '''
-    The Pauli matrix SigmaY, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
+    The Pauli matrix sigmay, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
     '''
     result=IndexPackList()
     if mode.lower()=='sp':
@@ -289,12 +289,12 @@ def sigmay(mode):
         result.append(FermiPack(1.0j,atom1=0,atom2=1))
         result.append(FermiPack(-1.0j,atom1=1,atom2=0))
     else:
-        raise ValueError("SigmaY error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
+        raise ValueError("sigmay error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
     return result
 
 def sigmaz(mode):
     '''
-    The Pauli matrix SigmaZ, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
+    The Pauli matrix sigmaz, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
     '''
     result=IndexPackList()
     if mode.lower()=='sp':
@@ -307,5 +307,5 @@ def sigmaz(mode):
         result.append(FermiPack(-1.0,atom1=0,atom2=0))
         result.append(FermiPack(1.0,atom1=1,atom2=1))
     else:
-        raise ValueError("SigmaZ error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
+        raise ValueError("sigmaz error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
     return result
