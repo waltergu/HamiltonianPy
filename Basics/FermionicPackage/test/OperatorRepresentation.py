@@ -38,5 +38,5 @@ def test_f_opt_rep():
         f_opt_rep(opts.values()[0],basis,transpose=False)
 #        print f_opt_rep(opts[0],basis,transpose=False)
     etime=time.time()
-    print etime-stime
+    print 'time consumed: %ss.'%(etime-stime)
     print

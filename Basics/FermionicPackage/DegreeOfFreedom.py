@@ -8,6 +8,8 @@ Fermionic degree of freedom package, including:
 __all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','FermiPack','sigmax','sigmay','sigmaz']
 
 from numpy import *
+from numpy.linalg import norm
+from ..Constant import RZERO
 from ..Geometry import PID
 from ..DegreeOfFreedom import *
 from copy import copy
@@ -193,25 +195,29 @@ class FermiPack(IndexPack):
         Private methods used for operator(*) overloading.
         '''
         if isinstance(other,FermiPack):
+            delta=lambda i,j: 1.0 if i==j else 0.0
             result=FermiPack(self.value*other.value)
-            if hasattr(self,'atoms'): result.atoms=self.atoms
-            if hasattr(self,'orbitals'): result.orbitals=self.orbitals
-            if hasattr(self,'spins'): result.spins=self.spins
-            if hasattr(other,'atoms'):
-                if not hasattr(result,'atoms'):
-                    result.atoms=other.atoms
-                else:
-                    raise ValueError("FermiPack '*' error: 'self' and 'other' cannot simultaneously have the 'atoms' attribute.")
-            if hasattr(other,'orbitals'):
-                if not hasattr(result,'orbitals'):
-                    result.orbitals=other.orbitals
-                else:
-                    raise ValueError("FermiPack '*' error: 'self' and 'other' cannot simultaneously have the 'orbitals' attribute.")
-            if hasattr(other,'spins'):
-                if not hasattr(result,'spins'):
-                    result.spins=other.spins
-                else:
-                    raise ValueError("FermiPack '*' error: 'self' and 'other' cannot simultaneously have the 'spins' attribute.")
+            if hasattr(self,'atoms') and hasattr(other,'atoms'):
+                result.atoms=(self.atoms[0],other.atoms[1])
+                result.value*=delta(self.atoms[1],other.atoms[0])
+            elif hasattr(self,'atoms'):
+                result.atoms=self.atoms
+            elif hasattr(other,'atoms'):
+                result.atoms=other.atoms
+            if hasattr(self,'orbitals') and hasattr(other,'orbitals'):
+                result.orbitals=(self.orbitals[0],other.orbitals[1])
+                result.value*=delta(self.orbitals[1],other.orbitals[0])
+            elif hasattr(self,'orbitals'):
+                result.orbitals=self.orbitals
+            elif hasattr(other,'orbitals'):
+                result.orbitals=other.orbitals
+            if hasattr(self,'spins') and hasattr(other,'spins'):
+                result.spins=(self.spins[0],other.spins[1])
+                result.value*=delta(self.spins[1],other.spins[0])
+            elif hasattr(self,'spins'):
+                result.spins=self.spins
+            elif hasattr(other,'spins'):
+                result.spins=other.spins
         else:
             result=copy(self)
             result.value=self.value*other
@@ -225,11 +231,30 @@ class FermiPack(IndexPack):
             result=self._mul_(other)
         elif isinstance(other,IndexPackList):
             result=IndexPackList()
-            for buff in other:
-                result.append(self._mul_(buff))
+            for fpack in other:
+                temp=self._mul_(fpack)
+                if norm(temp.value)>RZERO: result.append(temp)
         else:
             raise ValueError("FermiPack '*' error: the 'other' parameter must be of class FermiPack or IndexPackList, or a number.")
         return result
+
+def sigma0(mode):
+    '''
+    The 2-dimensional identity matrix, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
+    '''
+    result=IndexPackList()
+    if mode.lower()=='sp':
+        result.append(FermiPack(1.0,spin1=0,spin2=0))
+        result.append(FermiPack(1.0,spin1=1,spin2=1))
+    elif mode.lower()=='ob':
+        result.append(FermiPack(1.0,orbital1=0,orbital2=0))
+        result.append(FermiPack(1.0,orbital1=1,orbital2=1))
+    elif mode.lower()=='sl':
+        result.append(FermiPack(1.0,atom1=0,atom2=0))
+        result.append(FermiPack(1.0,atom1=1,atom2=1))
+    else:
+        raise ValueError("SigmaZ error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
+    return result
 
 def sigmax(mode):
     '''

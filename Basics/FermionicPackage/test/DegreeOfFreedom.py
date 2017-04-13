@@ -81,4 +81,5 @@ def test_indexpack():
     print "sigmaz('sp'): %s"%sigmaz('sp')
     print "sigmaz('ob'): %s"%sigmaz('ob')
     print "sigmaz('sl')*(3+2.0j): %s"%(sigmaz('sl')*(3+2.0j))
+    print "sigmax('sp')*sigmay('sp'): %s"%(sigmax('sp')*sigmay('sp'))
     print

@@ -17,7 +17,7 @@ def test_basisf():
         #test_while1(a.nbasis,a.basis_table)
         #test_while2(a.nbasis,a.basis_table)
     etime=time.time()
-    print etime-stime
+    print 'time consumed: %ss.'%(etime-stime)
     print
 
 @jit
