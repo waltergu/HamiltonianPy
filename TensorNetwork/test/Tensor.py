@@ -162,15 +162,13 @@ def test_tensor_deparallelization():
     m[1,:]=a1
     m[2,:]=a2
     m[3,:]=a1
-    row=Label('i')
-    col=Label('j')
-    m=Tensor(m,labels=[row,col])
-    T,M=m.deparallelization(row=[row],new=Label('new'),col=[col],mode='R')
+    m=Tensor(m,labels=[Label('i'),Label('j')])
+    T,M=m.deparallelization(row=[0],new=Label('new'),col=[1],mode='R')
     print 'R deparallelization'
     print 'T.shape,M.shape: %s,%s.'%(T.shape,M.shape)
     print 'diff: %s.'%norm(m-contract([T,M]))
-    m=Tensor(m.T,labels=[row,col])
-    M,T=m.deparallelization(row=[row],new=Label('new'),col=[col],mode='C')
+    m=Tensor(m.T,labels=[Label('i'),Label('j')])
+    M,T=m.deparallelization(row=[0],new=Label('new'),col=[1],mode='C')
     print 'C deparallelization'
     print 'M.shape,T.shape: %s,%s.'%(M.shape,T.shape)
     print 'diff: %s.'%norm(m-contract([M,T]))

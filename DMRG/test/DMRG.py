@@ -39,13 +39,13 @@ def test_dmrg_spin():
     tsg=TSG(
             name=       'GTOWTH',
             scopes=     range(N),
-            targets=    [SQN(1.0)]*(N/2) if qn_on else [None]*(N/2),
+            targets=    [SQN(0.0)]*(N/2) if qn_on else [None]*(N/2),
             nmax=       20,
             save_data=  False,
             plot=       False,
             run=DMRGTSG
             )
-    dmrg.register(TSS(name='SWEEP',target=SQN(1.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=False,save_fig=True,run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=SQN(0.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=False,save_fig=True,run=DMRGTSS))
     dmrg.summary()
     print
 

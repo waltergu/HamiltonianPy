@@ -155,7 +155,10 @@ class Tensor(np.ndarray):
             assert len(labels)==data.ndim
             for label,dim in zip(labels,data.shape):
                 assert isinstance(label,Label)
-                if not isinstance(label.qns,QuantumNumbers):label.qns=dim
+                if label.qns is None:
+                    label.qns=dim
+                else:
+                    assert label.dim==dim
             result=data.view(cls)
             result.labels=labels
         if Tensor.autocheck: assert result.dimcheck()
@@ -459,18 +462,20 @@ class Tensor(np.ndarray):
         axes=[self.axis(axis) if isinstance(axis,Label) else axis for axis in axes]
         signs='+'*len(axes) if signs is None else signs
         assert len(axes)==len(qnses) and len(axes)==len(signs) and len(axes)==self.ndim-1
+        type=next(iter(qnses)).type
         for axis,qns in zip(axes,qnses):
             self.labels[axis].qns=qns
+            assert qns.type is type
         unkownaxis=next(iter(set(xrange(self.ndim))-set(axes)))
         expansions=[qns.expansion() for qns in qnses]
         contents=[None]*self.shape[unkownaxis]
         for index in sorted(np.argwhere(np.abs(np.asarray(self))>hm.TOL if tol is None else tol),key=lambda index: index[unkownaxis]):
-            qn=sum([expansions[i][index[axis]] if sign=='+' else -expansions[i][index[axis]] for i,(axis,sign) in enumerate(zip(axes,signs))])
+            qn=type.regularization(sum([expansions[i][index[axis]] if sign=='+' else -expansions[i][index[axis]] for i,(axis,sign) in enumerate(zip(axes,signs))]))
             if contents[index[unkownaxis]] is None:
                 contents[index[unkownaxis]]=qn
             else:
                 assert (contents[index[unkownaxis]]==qn).all()
-        self.labels[unkownaxis].qns=QuantumNumbers('G',(next(iter(qnses)).type,contents,np.arange(len(contents)+1)),protocal=QuantumNumbers.INDPTR)
+        self.labels[unkownaxis].qns=QuantumNumbers('G',(type,contents,np.arange(len(contents)+1)),protocal=QuantumNumbers.INDPTR)
 
     @staticmethod
     def random(shape,labels,signs=None,dtype=np.float64):
@@ -595,12 +600,12 @@ class Tensor(np.ndarray):
                 return U,S,V
         else:
             data=hm.truncated_svd(np.asarray(self).reshape((L.dim,R.dim)),full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=return_truncation_err)
-            S=S.replace(qns=len(temp[1]))
-            U=Tensor(temp[0],labels=[L,S])
-            S=Tensor(temp[1],labels=[S])
-            V=Tensor(temp[2],labels=[S,R])
+            new=new.replace(qns=len(data[1]))
+            U=Tensor(data[0],labels=[L,new])
+            S=Tensor(data[1],labels=[new])
+            V=Tensor(data[2],labels=[new,R])
             if return_truncation_err:
-                err=temp[3]
+                err=data[3]
                 return U,S,V,err
             else:
                 return U,S,V

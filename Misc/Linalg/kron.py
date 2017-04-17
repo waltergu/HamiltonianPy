@@ -18,8 +18,8 @@ def kron(m1,m2,timers=None,**karg):
     Returns: csr_matrix
         The product.
     '''
-    if len(karg)==0:
-        result=sp.kron(m1,m2,format=format)
+    if karg.get('rcs',None) is None:
+        result=sp.kron(m1,m2,format='csr')
     else:
         assert len(karg)==4 and m1.dtype==m2.dtype and m1.shape[0]==m1.shape[1] and m2.shape[0]==m2.shape[1]
         rcs,rcs1,rcs2,slices=karg['rcs'],karg['rcs1'],karg['rcs2'],karg['slices']

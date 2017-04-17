@@ -16,13 +16,10 @@ def test_vca():
     m=2;n=2
     name='%s%s%s'%('WG',m,n)
     a1,a2=np.array([1.0,0.0]),np.array([0.0,1.0])
-    rcoords=tiling([np.array([0.0,0.0])],vectors=[a1,a2],translations=it.product(xrange(m),xrange(n)))
-    lattice=Lattice(name=name,rcoords=rcoords,vectors=[a1*m,a2*n])
+    lattice=Lattice(name=name,rcoords=tiling([np.array([0.0,0.0])],vectors=[a1,a2],translations=it.product(xrange(m),xrange(n))),vectors=[a1*m,a2*n])
     cell=Lattice(name=name,rcoords=[np.array([0.0,0.0])],vectors=[a1,a2])
+    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1))
     afm=lambda bond: 1 if bond.spoint.pid.site in (0,3) else -1
-    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
-    for pid in lattice.pids:
-        config[pid]=Fermi(atom=0,norbital=1,nspin=2,nnambu=1)
     vca=VCA.VCA(
             name=       name,
             cgf=        ED.GF(nspin=2,mask=['nambu'],nstep=200,save_data=False,vtype='RD',prepare=ED.EDGFP,run=ED.EDGF),

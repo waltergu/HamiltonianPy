@@ -1,14 +1,14 @@
 '''
 Quantum number pack, including:
-1) classes: SQN, PQN, SPQN
-2) functions: SQNS, PQNS, SPQNS
+1) classes: SQN, PQN, SPQN, Z2QN
+2) functions: SQNS, PQNS, SPQNS, Z2QNS
 '''
 
 import numpy as np
 import itertools as it
 from QuantumNumber import *
 
-__all__=['SQN','SQNS','PQN','PQNS','SPQN','SPQNS']
+__all__=['SQN','SQNS','PQN','PQNS','SPQN','SPQNS','Z2QN','Z2QNS']
 
 class SQN(QuantumNumber):
     '''
@@ -83,3 +83,22 @@ def SPQNS(S):
         for ss in it.combinations(spins,n):
             qns.append(SPQN.directsum(pn,sum(ss)))
     return QuantumNumbers('G',(qns,range(len(qns)+1)),protocal=QuantumNumbers.INDPTR).sort()
+
+class Z2QN(QuantumNumber):
+    '''
+    The Z2-typed quantum number.
+    Attribues:
+        names: ('Z2')
+            The names of the quantum number.
+        periods: (2,)
+    '''
+    names=('Z2',)
+    periods=(2,)
+
+def Z2QNS():
+    '''
+    The collection of Z2 quantum numbers.
+    Returns: QuantumNumbers
+        As above.
+    '''
+    return QuantumNumbers('C',([Z2QN(0.0),Z2QN(1.0)],range(3)),protocal=QuantumNumbers.INDPTR)

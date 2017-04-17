@@ -46,7 +46,7 @@ class QuantumNumber(np.ndarray):
         assert len(names)==len(periods)
         for name,period in zip(names,periods):
             assert isinstance(name,str)
-            assert (period is None) or (period in (long,int) and period>0)
+            assert (period is None) or (type(period) in (long,int) and period>0)
         cls.names=tuple(names)
         cls.periods=tuple(periods)
 
@@ -363,7 +363,7 @@ class QuantumNumbers(object):
         '''
         Overloaded negative(-) operator.
         '''
-        return QuantumNumbers('U' if self.form=='C' else self.form,(self.type,-self.contents,self.indptr),protocal=QuantumNumbers.INDPTR)
+        return QuantumNumbers('U' if self.form=='C' else self.form,(self.type,self.type.regularization(-self.contents),self.indptr),protocal=QuantumNumbers.INDPTR)
 
     def __add__(self,other):
         '''
@@ -391,7 +391,7 @@ class QuantumNumbers(object):
             The subset.
         '''
         indices=np.concatenate([self.indices(target) for target in targets])
-        return QuantumNumbers('U',(self.type,self.contents[indices],self.indptr[indices+1]-self.indptr[indices]),protocal=QuantumNumbers.COUNTS)
+        return QuantumNumbers('G' if self.form=='G' else 'U',(self.type,self.contents[indices],self.indptr[indices+1]-self.indptr[indices]),protocal=QuantumNumbers.COUNTS)
 
     def subslice(self,targets=()):
         '''
@@ -465,7 +465,8 @@ class QuantumNumbers(object):
                 contents=(contents[:,np.newaxis,...]+temp[np.newaxis,:,...]).reshape((len(contents)*len(temp),-1))
             else:
                 contents=(contents[:,np.newaxis,...]-temp[np.newaxis,:,...]).reshape((len(contents)*len(temp),-1))
-        return QuantumNumbers('G',(type,contents,counts),protocal=QuantumNumbers.COUNTS)
+        assert all([qns.type is type for qns in args])
+        return QuantumNumbers('G',(type,type.regularization(contents),counts),protocal=QuantumNumbers.COUNTS)
 
     def to_ordereddict(self,protocal=INDPTR):
         '''
@@ -530,7 +531,7 @@ class QuantumNumbers(object):
             if protocal=='EXPANSION':
                 return QuantumNumbers('G',(self.type,self.expansion()[permutation],range(len(permutation)+1)),QuantumNumbers.INDPTR)
             else:
-                return QuantumNumbers('G',(self.type,self.contents[permutation],(self.indptr[1:]-self.indptr[:-1])[permutation]),QuantumNumbers.COUNTS)
+                return QuantumNumbers('G' if self.form=='G' else 'U',(self.type,self.contents[permutation],(self.indptr[1:]-self.indptr[:-1])[permutation]),QuantumNumbers.COUNTS)
 
     @staticmethod
     def decomposition(qnses,target,signs=None):

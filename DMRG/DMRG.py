@@ -193,8 +193,9 @@ class DMRG(Engine):
         self.timers=Timers('Preparation','Hamiltonian','Diagonalization','Truncation')
         self.timers.add(parent='Hamiltonian',name='kron')
         self.timers.add(parent='Hamiltonian',name='sum')
-        self.timers.add(parent='kron',name='csr')
-        self.timers.add(parent='kron',name='fkron')
+        if self.mps.mode=='QN':
+            self.timers.add(parent='kron',name='csr')
+            self.timers.add(parent='kron',name='fkron')
         self.info=Info('Etotal','Esite','nbasis','nslice','nnz','nz','density','overlap','err')
         self.cache={}
 
@@ -477,9 +478,9 @@ class DMRG(Engine):
                 self.mps.Lambda=s
             else:
                 for L,S,R in zip(nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb]):
-                    nms.append(Tensor([[[0.0]]],labels=[L,S,R]))
+                    nms.append(Tensor(np.zeros((1,S.dim,1),dtype=self.dtype),labels=[L,S,R]))
                 for L,S,R in zip(nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]):
-                    nms.append(Tensor([[[0.0]]],labels=[L,S,R]))
+                    nms.append(Tensor(np.zeros((1,S.dim,1),dtype=self.dtype),labels=[L,S,R]))
             self.mps[self.mps.cut:self.mps.cut]=nms
             self.mps.relabel(sites=sites,bonds=nbonds)
             self.mps.cut=self.mps.nsite/2

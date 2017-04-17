@@ -210,7 +210,7 @@ class OptStr(list):
                 ms.append(Tensor(np.asarray(self[count]).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
                 count+=1
             else:
-                ms.append(Tensor(np.identity(len(sqns)).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
+                ms.append(Tensor(np.identity(sites[pos].dim).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
             if degfres.mode=='QN':
                 ms[-1].qng(axes=[MPO.L,MPO.U,MPO.D],qnses=[lqns,sqns,sqns],signs='++-')
         return MPO(ms)
