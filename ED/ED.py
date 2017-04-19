@@ -239,7 +239,7 @@ def EDGFP(engine,app):
     '''
     This method prepares the GF.
     '''
-    engine.log<<'Parameters of the engine:\n%s\n'%HP.Info.from_ordereddict(engine.status.data,entry='Parameters',content='Value')
+    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.data.iteritems()))
     if engine.basis.mode in ('FG','FP'): assert app.nspin==2
     if app.operators is None: app.reinitialization(HP.fspoperators(app.table(engine.config),engine.lattice))
     if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine.status)):
@@ -248,7 +248,6 @@ def EDGFP(engine,app):
             app.coeff=pk.load(fin)
             app.hs=pk.load(fin)
         return
-    info=HP.Info('opts','shape','nnz','GSE',entry='Preparation')
     timers=HP.Timers('Matrix','GSE','GF')
     timers.add(parent='GF',name='Preparation')
     timers.add(parent='GF',name='Iteration')
@@ -256,6 +255,7 @@ def EDGFP(engine,app):
     app.hs=np.zeros((2,app.nopt,2,app.nstep),dtype=app.dtype)
     with timers.get('Matrix'):
         engine.set_matrix()
+    engine.log<<'::<Information>:: %s=%s, %s=%s, %s=%s, '%('nopts',len(engine.operators),'shape',engine.matrix.shape,'nnz',engine.matrix.nnz)
     with timers.get('GSE'):
         if app.method in ('user',):
             app.gse,app.v0=Lanczos(engine.matrix,v0=app.v0,vtype=app.vtype,zero=app.tol).eig(job='v',precision=app.tol)
@@ -267,20 +267,15 @@ def EDGFP(engine,app):
             app.gse,app.v0=w[0],v[:,0]
         else:
             raise ValueError('GF preparation error: mehtod(%s) not supported.'%(app.method))
-    info['opts']=len(engine.operators)
-    info['shape']=str(engine.matrix.shape)
-    info['nnz']=engine.matrix.nnz
-    info['GSE']=app.gse
-    engine.log<<'Information of the preparation:\n%s\n'%info
+    engine.log<<'%s=%.6f\n'%('GSE',app.gse)
     with timers.get('GF'):
         if engine.basis.mode in ('FS','FP'): engine.matrix=None
-        engine.log<<'Calculation of the GF:\n%s\n'%('~'*56)
+        engine.log<<'%s\n'%('~'*56)
         engine.log<<'%s|%s|%s|%s\n%s\n'%('Time(seconds)'.center(13),'Preparation'.center(13),'Iteration'.center(13),'Total'.center(13),'-'*56)
         for h in xrange(2):
+            t0=time.time()
             with timers.get('Preparation'):
-                t0=time.time()
-                engine.log<<'%s|'%('Electron' if h==0 else 'Hole').center(13)
-                t1=time.time()
+                engine.log<<'%s|'%(':Electron:' if h==0 else ':Hole:').center(13)
                 states,norms,lczs=[],[],[]
                 for i,opt in enumerate(app.operators):
                     if i==0:
@@ -293,10 +288,10 @@ def EDGFP(engine,app):
                     temp=norm(state)
                     norms.append(temp)
                     lczs.append(Lanczos(ed.matrix,v0=state/temp,check_normalization=False))
-                    engine.log<<'%s%s'%('\b'*25 if i>0 else '',('%s/%s(%es)'%(i,app.nopt,time.time()-t1)).center(25))
+                    engine.log<<'%s%s'%('\b'*21 if i>0 else '',('%s/%s(%1.5es)'%(i,app.nopt,time.time()-t0)).center(21))
+                engine.log<<'%s%s|'%('\b'*21,('%1.5e'%(time.time()-t0)).center(13))
+            t1=time.time()
             with timers.get('Iteration'):
-                t2=time.time()
-                engine.log<<'%s%s|'%('\b'*25,('%1.5e'%(t2-t1)).center(13))
                 for k in xrange(app.nstep):
                     for i,(temp,lcz) in enumerate(zip(norms,lczs)):
                         if not lcz.cut:
@@ -304,17 +299,16 @@ def EDGFP(engine,app):
                                 if engine.basis.mode in ('FP','FG') or app.nspin==1 or (i<app.nopt/2 and j<app.nopt/2) or (i>=app.nopt/2 and j>=app.nopt/2):
                                     app.coeff[h,i,j,k]=np.vdot(state,lcz.new)*temp
                             lcz.iter()
-                    engine.log<<'%s%s'%(('\b'*25 if k>0 else ''),('%s/%s(%es)'%(k,app.nstep,time.time()-t2)).center(25))
-                t3=time.time()
-                engine.log<<'%s%s|'%('\b'*25,('%1.5e'%(t3-t2)).center(13))
+                    engine.log<<'%s%s'%(('\b'*21 if k>0 else ''),('%s/%s(%1.5es)'%(k,app.nstep,time.time()-t1)).center(21))
+                engine.log<<'%s%s|'%('\b'*21,('%1.5e'%(time.time()-t1)).center(13))
                 for i,lcz in enumerate(lczs):
                     app.hs[h,i,0,0:len(lcz.a)]=np.array(lcz.a)
                     app.hs[h,i,1,0:len(lcz.b)]=np.array(lcz.b)
-                t4=time.time()
-                engine.log<<('%1.5e'%(t4-t0)).center(13)<<'\n'
-        engine.log<<'~'*56<<'\n'
+            engine.log<<('%1.5e'%(time.time()-t0)).center(13)<<'\n'
+        tp,ti,tg=('%1.5e'%timers.time('Preparation')).center(13),('%1.5e'%timers.time('Iteration')).center(13),('%1.5e'%timers.time('GF')).center(13)
+        engine.log<<'%s|%s|%s|%s\n%s\n'%('Total'.center(13),tp,ti,tg,'~'*56)
     timers.record()
-    engine.log<<'Summary of the gf preparation:\n%s\n'%timers.tostr(form='s')
+    engine.log<<'Summary of the gf preparation:\n%s\n'%timers.tostr(None,form='s')
     if app.save_data:
         with open('%s/%s_coeff.dat'%(engine.din,engine.status),'wb') as fout:
             pk.dump(app.gse,fout,2)
