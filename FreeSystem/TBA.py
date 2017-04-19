@@ -139,34 +139,21 @@ class TBA(Engine):
         Returns: float64
             The chemical potential of the system.
         '''
-        nelectron,eigvals=int(round(filling*(1 if kspace is None else kspace.rank['k'])*self.nmatrix)),sort((self.eigvals(kspace)))
+        nelectron,eigvals=int(round(filling*(1 if kspace is None else kspace.rank['k'])*self.nmatrix)),sort(self.eigvals(kspace))
         return (eigvals[nelectron]+eigvals[nelectron-2])/2
 
-class GSE(App):
-    '''
-    The ground state energy.
-    Attribues:
-        basespace: BaseSpace
-            The basespace.
-        gse: np.float64
-            The ground state energy.
-    '''
-
-    def __init__(self,basespace=None):
+    def gse(self,filling,kspace=None):
         '''
-        Constructor.
+        Return the ground state energy of the system.
         Parameters:
-            basespace: BaseSpace, optional
-                The basespace.
+            filling: float64
+                The filling factor of the system.
+            kspace: BaseSpace, optional
+                The first Brillouin zone.
+        Returns: float64
+            The ground state energy of the system.
         '''
-        self.basespace=basespace
-        self.gse=0.0
-
-def TBAGSE(engine,app):
-    '''
-    This method calculates the ground state energy.
-    '''
-    pass
+        return sort(self.eigvals(kspace))[0:int(round(filling*(1 if kspace is None else kspace.rank['k'])*self.nmatrix))].sum()
 
 def TBAEB(engine,app):
     '''
