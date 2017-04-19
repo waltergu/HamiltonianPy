@@ -248,6 +248,10 @@ class Info(object):
     '''
     Information for code executing.
     Attribues:
+        entry: string
+            The name for the entries of Info.
+        content: string
+            The name for the contents of Info.
         entries: list of string
             The entries of the info.
         contents: list of any object
@@ -256,7 +260,7 @@ class Info(object):
             The output formats of the contents.
     '''
 
-    def __init__(self,*entries):
+    def __init__(self,*entries,**karg):
         '''
         Constructor.
         Parameters:
@@ -264,6 +268,8 @@ class Info(object):
                 The entries of the info.
         '''
         self.entries=entries
+        self.entry=karg.get('entry','Entry')
+        self.content=karg.get('content','Content')
         self.contents=[None]*len(entries)
         self.formats=['%s']*len(entries)
 
@@ -277,12 +283,13 @@ class Info(object):
         '''
         Convert an instance to string.
         '''
+        N=max(len(self.entry)+2,len(self.content)+2)
         lens=[max(len(str(entry)),len(format%(content,)))+2 for entry,content,format in zip(self.entries,self.contents,self.formats)]
         result=[None,None,None,None,None]
-        result[0]=(sum(lens)+9+len(self))*'~'
-        result[1]='Entry'.center(9)+'|'+'|'.join([str(key).center(length) for key,length in zip(self.entries,lens)])
-        result[2]=(sum(lens)+9+len(self))*'-'
-        result[3]='Content'.center(9)+'|'+'|'.join([(format%(content,)).center(length) for content,format,length in zip(self.contents,self.formats,lens)])
+        result[0]=(sum(lens)+N+len(self))*'~'
+        result[1]=self.entry.center(N)+'|'+'|'.join([str(key).center(length) for key,length in zip(self.entries,lens)])
+        result[2]=(sum(lens)+N+len(self))*'-'
+        result[3]=self.content.center(N)+'|'+'|'.join([(format%(content,)).center(length) for content,format,length in zip(self.contents,self.formats,lens)])
         result[4]=result[0]
         return '\n'.join(result)
 
@@ -303,6 +310,16 @@ class Info(object):
         Get the content of an entry.
         '''
         return self.contents[self.entries.index(entry)]
+
+    @staticmethod
+    def from_ordereddict(od,**karg):
+        '''
+        Convert an OrderedDict to Info.
+        '''
+        result=Info(*od.keys(),**karg)
+        for key,value in od.iteritems():
+            result[key]=value
+        return result
 
 class Log(object):
     '''

@@ -1,14 +1,14 @@
 '''
 Quantum number pack, including:
-1) classes: SQN, PQN, SPQN, Z2QN
-2) functions: SQNS, PQNS, SPQNS, Z2QNS
+1) classes: SQN, PQN, SPQN, Z2QN, Z2PQN
+2) functions: SQNS, PQNS, SPQNS, Z2QNS, Z2PQNS
 '''
 
 import numpy as np
 import itertools as it
 from QuantumNumber import *
 
-__all__=['SQN','SQNS','PQN','PQNS','SPQN','SPQNS','Z2QN','Z2QNS']
+__all__=['SQN','SQNS','PQN','PQNS','SPQN','SPQNS','Z2QN','Z2QNS','Z2PQN','Z2PQNS']
 
 class SQN(QuantumNumber):
     '''
@@ -87,10 +87,11 @@ def SPQNS(S):
 class Z2QN(QuantumNumber):
     '''
     The Z2-typed quantum number.
-    Attribues:
-        names: ('Z2')
+    Attributes:
+        names: ('Z2',)
             The names of the quantum number.
         periods: (2,)
+            The periods of the quantum number.
     '''
     names=('Z2',)
     periods=(2,)
@@ -102,3 +103,23 @@ def Z2QNS():
         As above.
     '''
     return QuantumNumbers('C',([Z2QN(0.0),Z2QN(1.0)],range(3)),protocal=QuantumNumbers.INDPTR)
+
+class Z2PQN(QuantumNumber):
+    '''
+    The quantum number for a spinful particle state with a Z2 spin parity.
+    Attributes:
+        names: ('N','Z2')
+            The names of the quantum number.
+        periods: (None,2)
+            The periods of the quantum number.
+    '''
+    names=('N','Z2')
+    periods=(None,2)
+
+def Z2PQNS():
+    '''
+    The collection of quantum numbers for a single site occupied with a spin Z2 particle.
+    Returns: QuantumNumbers
+        As above.
+    '''
+    return QuantumNumbers('C',([Z2PQN((0.0,0.0)),Z2PQN((1.0,1.0)),Z2PQN((2.0,0.0))],[1,2,1]),protocal=QuantumNumbers.COUNTS)

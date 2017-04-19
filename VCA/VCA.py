@@ -1,10 +1,10 @@
 '''
 Variational cluster approach, including:
-1) classes: VCA, EB, GPM, CP, FF, OP
-s2) functions: VCAEB, VCADOS, VCAFS, VCABC, VCATEB, VCAGP, VCAGPM, VCACP, VCAFF, VCAOP
+1) classes: VCA, EB, GPM, CPFF,OP
+s2) functions: VCAEB, VCADOS, VCAFS, VCABC, VCATEB, VCAGP, VCAGPM, VCACPFF, VCAOP
 '''
 
-__all__=['VCA','EB','VCAEB','VCADOS','VCAFS','VCABC','VCATEB','VCAGP','GPM','VCAGPM','CP','VCACP','FF','VCAFF','OP','VCAOP']
+__all__=['VCA','EB','VCAEB','VCADOS','VCAFS','VCABC','VCATEB','VCAGP','GPM','VCAGPM','CPFF','VCACPFF','OP','VCAOP']
 
 from gf_contract import *
 from numpy.linalg import det,inv
@@ -13,6 +13,7 @@ from scipy import interpolate
 from scipy.sparse import csr_matrix
 from scipy.integrate import quad
 from scipy.optimize import minimize,newton,brenth,brentq,broyden1,broyden2
+from collections import OrderedDict
 from copy import deepcopy
 import numpy as np
 import HamiltonianPy as HP
@@ -44,23 +45,19 @@ class VCA(ED.ED):
     '''
     This class implements the algorithm of the variational cluster approach of an electron system.
     Attributes:
-        preloads: 2-list
+        preloads: 2 list
             preloads[0]: HP.ED.GF
                 The cluster Green's function.
             preloads[1]: HP.GF
                 The VCA Green's function.
         basis: BasisF
             The occupation number basis of the system.
-        filling: float
-            The filling factor.
-        mu: float
-            The chemical potential.
         cell: Lattice
             The unit cell of the system.
         lattice: Lattice
             The cluster the system uses.
         config: IDFConfig
-            The configuration of the degrees of freedom on the lattice.
+            The configuration of the internal degrees of freedom on the lattice.
         terms: list of Term
             The terms of the system.
             The weiss terms are not included in this list.
@@ -68,47 +65,41 @@ class VCA(ED.ED):
             The Weiss terms of the system.
         dtype: np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
-        generators: dict of Generator
-            It has four entries:
-            1) 'h': Generator
-                The generator for the cluster Hamiltonian, not including the Weiss terms.
-            2) 'h_w': Generator
-                The generator for the cluster Hamiltonian of the Weiss terms.
-            3) 'pt_h': Generator
-                The generator for the perturbation coming from the inter-cluster single-particle terms.
-            4) 'pt_w': Generator
-                The generator for the perturbation cominig from the Weiss terms.
-        operators: dict of OperatorCollection
-            It has three entries:
-            1) 'h': OperatorCollection
-                The 'half' of the operators for the cluster Hamiltonian, including the Weiss terms.
-            2) 'pt_h': OperatorCollection
-                The 'half' of the operators for the perturbation, not including Weiss terms.
-            3) 'pt_w': OperatorCollection
-                The 'half' of the operators for the perturbation of Weiss terms.
-        clmap: dict
-            This dict is used to restore the translation symmetry broken by the explicit tiling of the original lattice.
-            It has two entries:
-            1) 'seqs': 2D ndarray of integers
-            2) 'coords': 3D ndarray of floats
+        generator: Generator
+            The generator for the cluster Hamiltonian, not including the Weiss terms.
+        hwgenerator: Generator
+            The generator for the cluster Hamiltonian of the Weiss terms.
+        pthgenerator: Generator
+            The generator for the perturbation coming from the inter-cluster single-particle terms.
+        ptwgenerator: Generator
+            The generator for the perturbation cominig from the Weiss terms.
+        operators: OperatorCollection
+            The 'half' of the operators for the cluster Hamiltonian, including the Weiss terms.
+        pthoperators: OperatorCollection
+            The 'half' of the operators for the perturbation, not including Weiss terms.
+        ptwoperators: OperatorCollection
+            The 'half' of the operators for the perturbation of Weiss terms.
+        periodization: dict
+            It contains two entries, the necessary information to restore the translation symmetry broken by the explicit tiling of the original lattice:
+            1) 'seqs': 2d ndarray of integers
+            2) 'coords': 3d ndarray of floats
         matrix: csr_matrix
             The sparse matrix representation of the cluster Hamiltonian.
         cache: dict
             The cache during the process of calculation, usually to store some meshes.
     Supported methods include:
-        1)  VCAEB: calculates the single particle spectrum along a path in Brillouin zone.
-        2)  VCADOS: calculates the single particle density of states.
-        3)  VCAFS: calculates the single particle spectrum at the Fermi surface.
-        4)  VCABC: calculates the Berry curvature and Chern number based on the so-called topological Hamiltonian (PRX 2, 031008 (2012)).
-        5)  VCATEB: calculates the topological Hamiltonian's spectrum.
-        6)  VCAGP: calculates the grand potential.
-        7)  VCAGPM: minimizes the grand potential.
-        8)  VCACP: calculates the chemical potential, behaves bad.
-        9)  VCAFF: calculates the filling factor.
-        10) VCAOP: calculates the order parameter.
+        1) VCAEB: calculates the single particle spectrum along a path in Brillouin zone.
+        2) VCADOS: calculates the single particle density of states.
+        3) VCAFS: calculates the single particle spectrum at the Fermi surface.
+        4) VCABC: calculates the Berry curvature and Chern number based on the so-called topological Hamiltonian (PRX 2, 031008 (2012)).
+        5) VCATEB: calculates the topological Hamiltonian's spectrum.
+        6) VCAGP: calculates the grand potential.
+        7) VCAGPM: minimizes the grand potential.
+        8) VCACPFF: calculates the chemical potential or filling factor.
+        9) VCAOP: calculates the order parameter.
     '''
 
-    def __init__(self,cgf,basis=None,filling=0.5,mu=0,cell=None,lattice=None,config=None,terms=None,weiss=None,dtype=np.complex128,**karg):
+    def __init__(self,cgf,basis=None,cell=None,lattice=None,config=None,terms=None,weiss=None,dtype=np.complex128,**karg):
         '''
         Constructor.
         Parameters:
@@ -116,10 +107,6 @@ class VCA(ED.ED):
                 The cluster Green's function.
             basis: BasisF, optional
                 The occupation number basis of the system.
-            filling: float, optional
-                The filling factor.
-            mu: float, optional
-                The chemical potential.
             cell: Lattice, optional
                 The unit cell of the system.
             lattice: Lattice, optional
@@ -133,102 +120,101 @@ class VCA(ED.ED):
             dtype: np.float32, np.float64, np.complex64, np.complex128
                 The data type of the matrix representation of the Hamiltonian.
         '''
-        # initialize the cgf and gf
         assert isinstance(cgf,ED.GF)
         gf=HP.GF(dtype=cgf.dtype)
-        cgf.reinitialization(operators=HP.GF.fsp_operators(table=cgf.table(config),lattice=lattice))
-        gf.reinitialization(operators=HP.GF.fsp_operators(table=cgf.table(config.subset(set(cell.pids).__contains__)),lattice=cell))
+        cgf.reinitialization(operators=HP.fspoperators(table=cgf.table(config),lattice=lattice))
+        gf.reinitialization(operators=HP.fspoperators(table=cgf.table(config.subset(set(cell.pids).__contains__)),lattice=cell))
         self.preloads.extend([cgf,gf])
-        # initialize the ordinary attributes
         nspin,mask=cgf.nspin,cgf.mask
         self.basis=basis
-        if basis.mode=='FG':
-            assert nspin==2
-            self.filling=filling
-            self.mu=[term for term in terms if term.id=='mu'][0].value
-            self.status.update(alter={'mu':self.mu})
-        else:
-            if basis.mode=='FP':assert nspin==2
-            self.filling=1.0*basis.nparticle.sum()/basis.nstate.sum()
-            self.mu=mu
-            self.status.update(const={'filling':self.filling})
+        if basis.mode in ('FG','FP'): assert nspin==2
+        if basis.mode in ('FS','FP'): self.status.update(const={'filling':1.0*basis.nparticle.sum()/basis.nstate.sum()})
         self.cell=cell
         self.lattice=lattice
         self.config=config
         self.terms=terms
         self.weiss=weiss
         self.dtype=dtype
-        # initialize the generators
-        self.generators={}
-        self.generators['h']=HP.Generator(
+        self.generator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if bond.isintracell()],
             config=     config,
             table=      config.table(mask=['nambu']),
             terms=      terms
             )
-        self.generators['h_w']=HP.Generator(
+        self.hwgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds],
             config=     config,
             table=      config.table(mask=['nambu']),
             terms=      weiss
             )
-        self.generators['pt_h']=HP.Generator(
+        self.pthgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if not bond.isintracell()],
             config=     config,
             table=      config.table(mask=mask) if nspin==2 else config.table(mask=mask).subset(select=lambda index: True if index.spin==0 else False),
             terms=      [term for term in terms if isinstance(term,HP.Quadratic)],
             )
-        self.generators['pt_w']=HP.Generator(
+        self.ptwgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds],
             config=     config,
             table=      config.table(mask=mask) if nspin==2 else config.table(mask=mask).subset(select=lambda index: True if index.spin==0 else False),
             terms=      None if weiss is None else [term*(-1) for term in weiss],
             )
-        # update the status
-        self.status.update(const=self.generators['h'].parameters['const'])
-        self.status.update(alter=self.generators['h'].parameters['alter'])
-        self.status.update(const=self.generators['h_w'].parameters['const'])
-        self.status.update(alter=self.generators['h_w'].parameters['alter'])
-        # initialize the operators
-        self.operators={}
-        self.operators['h']=self.generators['h'].operators+self.generators['h_w'].operators
-        self.operators['pt_h']=self.generators['pt_h'].operators
-        self.operators['pt_w']=self.generators['pt_w'].operators
-        self.set_clmap()
+        self.status.update(const=self.generator.parameters['const'])
+        self.status.update(alter=self.generator.parameters['alter'])
+        self.status.update(const=self.hwgenerator.parameters['const'])
+        self.status.update(alter=self.hwgenerator.parameters['alter'])
+        self.operators=self.generator.operators+self.hwgenerator.operators
+        self.pthoperators=self.pthgenerator.operators
+        self.ptwoperators=self.ptwgenerator.operators
+        self.periodize()
         self.cache={}
 
-    def set_clmap(self):
+    def periodize(self):
         '''
-        Prepare self.clmap.
+        Set self.periodization.
         '''
-        self.clmap={}
+        self.periodization={}
         cgf,gf=self.preloads
-        buff=[[] for i in xrange(gf.nopt)]
+        groups=[[] for i in xrange(gf.nopt)]
         for copt in cgf.operators:
             for i,opt in enumerate(gf.operators):
                 if copt.indices[0].iid==opt.indices[0].iid and HP.issubordinate(copt.rcoords[0]-opt.rcoords[0],self.cell.vectors):
-                    buff[i].append(copt)
+                    groups[i].append(copt)
                     break
-        self.clmap['seqs']=np.zeros((gf.nopt,cgf.nopt/gf.nopt),dtype=np.int64)
-        self.clmap['coords']=np.zeros((gf.nopt,cgf.nopt/gf.nopt,len(gf.operators[0].rcoords[0])),dtype=np.float64)
+        self.periodization['seqs']=np.zeros((gf.nopt,cgf.nopt/gf.nopt),dtype=np.int64)
+        self.periodization['coords']=np.zeros((gf.nopt,cgf.nopt/gf.nopt,len(gf.operators[0].rcoords[0])),dtype=np.float64)
         for i in xrange(gf.nopt):
-            for j,opt in enumerate(sorted(buff[i],key=lambda operator: operator.seqs[0])):
-                self.clmap['seqs'][i,j]=opt.seqs[0]+1
-                self.clmap['coords'][i,j,:]=opt.rcoords[0]
+            for j,opt in enumerate(sorted(groups[i],key=lambda operator: operator.seqs[0])):
+                self.periodization['seqs'][i,j]=opt.seqs[0]+1
+                self.periodization['coords'][i,j,:]=opt.rcoords[0]
 
     def update(self,**karg):
         '''
         Update the alterable operators, such as the weiss terms.
         '''
-        self.mu=karg.pop('mu',self.mu)
-        self.filling=karg.pop('filling',self.filling)
-        for generator in self.generators.itervalues():
-            generator.update(**karg)
-        self.operators['h']=self.generators['h'].operators+self.generators['h_w'].operators
-        self.operators['pt_h']=self.generators['pt_h'].operators
-        self.operators['pt_w']=self.generators['pt_w'].operators
-        self.status.update(alter=self.generators['h'].parameters['alter'])
-        self.status.update(alter=self.generators['h_w'].parameters['alter'])
+        self.generator.update(**karg)
+        self.hwgenerator.update(**karg)
+        self.pthgenerator.update(**karg)
+        self.ptwgenerator.update(**karg)
+        self.operators=self.generator.operators+self.hwgenerator.operators
+        self.pthoperators=self.pthgenerator.operators
+        self.ptwoperators=self.ptwgenerator.operators
+        self.status.update(alter=self.generator.parameters['alter'])
+        self.status.update(alter=self.hwgenerator.parameters['alter'])
+
+    @property
+    def ncopt(self):
+        '''
+        The number of the cluster single particle operators.
+        '''
+        return self.preloads[0].nopt
+
+    @property
+    def nopt(self):
+        '''
+        The number of the unit cell single particle operators.
+        '''
+        return self.preloads[1].nopt
 
     def cgf(self,omega=None):
         '''
@@ -254,10 +240,10 @@ class VCA(ED.ED):
         Returns: 2d ndarray
             The matrix form of the inter-cluster perturbations.
         '''
-        result=np.zeros(self.preloads[0].gf.shape,dtype=self.preloads[0].dtype)
-        for opt in self.operators['pt_h'].values():
+        result=np.zeros((self.ncopt,self.ncopt),dtype=np.complex128)
+        for opt in self.pthoperators.itervalues():
             result[opt.seqs]+=opt.value*(1 if len(k)==0 else np.exp(-1j*np.inner(k,opt.icoords[0])))
-        for opt in self.operators['pt_w'].values():
+        for opt in self.ptwoperators.itervalues():
             result[opt.seqs]+=opt.value
         return result+result.T.conjugate()
 
@@ -274,7 +260,7 @@ class VCA(ED.ED):
         if 'pt_kmesh' in self.cache:
             return self.cache['pt_kmesh']
         else:
-            result=np.zeros((kmesh.shape[0],)+self.preloads[0].gf.shape,dtype=self.preloads[0].dtype)
+            result=np.zeros((kmesh.shape[0],self.ncopt,self.ncopt),dtype=np.complex128)
             for i,k in enumerate(kmesh):
                 result[i,:,:]=self.pt(k)
             self.cache['pt_kmesh']=result
@@ -320,7 +306,7 @@ class VCA(ED.ED):
         Returns: 2d ndarray
             The VCA Green's function.
         '''
-        return _gf_contract_(k=k,mgf=self.mgf(omega,k),seqs=self.clmap['seqs'],coords=self.clmap['coords'])/(self.preloads[0].nopt/self.preloads[1].nopt)
+        return _gf_contract_(k=k,mgf=self.mgf(omega,k),seqs=self.periodization['seqs'],coords=self.periodization['coords'])/(self.ncopt/self.nopt)
 
     def gf_kmesh(self,omega,kmesh):
         '''
@@ -335,10 +321,10 @@ class VCA(ED.ED):
             The mesh of the VCA Green's functions.
         '''
         mgf_kmesh=self.mgf_kmesh(omega,kmesh)
-        result=np.zeros((kmesh.shape[0],)+self.preloads[1].gf.shape,dtype=self.preloads[1].dtype)
+        result=np.zeros((kmesh.shape[0],self.nopt,self.nopt),dtype=np.complex128)
         for n,k in enumerate(kmesh):
-            result[n,:,:]=_gf_contract_(k=k,mgf=mgf_kmesh[n,:,:],seqs=self.clmap['seqs'],coords=self.clmap['coords'])
-        return result/(self.preloads[0].nopt/self.preloads[1].nopt)
+            result[n,:,:]=_gf_contract_(k=k,mgf=mgf_kmesh[n,:,:],seqs=self.periodization['seqs'],coords=self.periodization['coords'])
+        return result/(self.ncopt/self.nopt)
 
 class EB(HP.EB):
     '''
@@ -375,22 +361,22 @@ def VCAEB(engine,app):
     '''
     engine.rundependences(app.status.name)
     engine.cache.pop('pt_kmesh',None)
-    erange=np.linspace(app.emin,app.emax,app.ne)
-    result=np.zeros((app.path.rank['k'],app.ne))
+    erange,kmesh,nk=np.linspace(app.emin,app.emax,app.ne),app.path.mesh['k'],app.path.rank['k']
+    result=np.zeros((nk,app.ne))
     for i,omega in enumerate(erange):
-        result[:,i]=-(np.trace(engine.gf_kmesh(omega+engine.mu+app.eta*1j,app.path.mesh['k']),axis1=1,axis2=2)).imag/engine.preloads[1].nopt/np.pi
+        result[:,i]=-(np.trace(engine.gf_kmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2)).imag/engine.nopt/np.pi
     if app.save_data:
-        buff=np.zeros((app.path.rank['k']*app.ne,3))
-        for k in xrange(buff.shape[0]):
-            i,j=divmod(k,app.path.rank['k'])
-            buff[k,0]=j
-            buff[k,1]=erange[i]
-            buff[k,2]=result[j,i]
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),buff)
+        data=np.zeros((nk*app.ne,3))
+        for k in xrange(data.shape[0]):
+            i,j=divmod(k,nk)
+            data[k,0]=j
+            data[k,1]=erange[i]
+            data[k,2]=result[j,i]
+        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),data)
     if app.plot:
-        krange=np.array(xrange(app.path.rank['k']))
+        krange=np.array(xrange(nk))
         plt.title('%s_%s'%(engine.status,app.status.name))
-        plt.colorbar(plt.pcolormesh(np.tensordot(krange,np.ones(app.ne),axes=0),np.tensordot(np.ones(app.path.rank['k']),erange,axes=0),result))
+        plt.colorbar(plt.pcolormesh(np.tensordot(krange,np.ones(app.ne),axes=0),np.tensordot(np.ones(nk),erange,axes=0),result))
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
         if app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
@@ -402,11 +388,11 @@ def VCADOS(engine,app):
     '''
     engine.rundependences(app.status.name)
     engine.cache.pop('pt_kmesh',None)
-    erange=np.linspace(app.emin,app.emax,app.ne)
+    erange,kmesh,nk=np.linspace(app.emin,app.emax,app.ne),app.BZ.mesh['k'],app.BZ.rank['k']
     result=np.zeros((app.ne,2))
     for i,omega in enumerate(erange):
         result[i,0]=omega
-        result[i,1]=-np.trace(engine.mgf_kmesh(omega+engine.mu+app.eta*1j,app.BZ.mesh['k']),axis1=1,axis2=2).sum().imag/engine.preloads[0].nopt/app.BZ.rank['k']/np.pi
+        result[i,1]=-np.trace(engine.mgf_kmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).sum().imag/engine.ncopt/nk/np.pi
     engine.log<<'Sum of DOS: %s\n'%(sum(result[:,1])*(app.emax-app.emin)/app.ne)
     if app.save_data:
         np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
@@ -424,14 +410,15 @@ def VCAFS(engine,app):
     '''
     engine.rundependences(app.status.name)
     engine.cache.pop('pt_kmesh',None)
-    result=-np.trace(engine.gf_kmesh(engine.mu+app.eta*1j,app.BZ.mesh['k']),axis1=1,axis2=2).imag/engine.preloads[0].nopt/np.pi
+    kmesh,nk=app.BZ.mesh['k'],app.BZ.rank['k']
+    result=-np.trace(engine.gf_kmesh(app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).imag/engine.ncopt/np.pi
     if app.save_data:
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),np.append(app.BZ.mesh['k'],result.reshape((app.BZ.rank['k'],1)),axis=1))
+        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),np.append(kmesh,result.reshape((nk,1)),axis=1))
     if app.plot:
         plt.title('%s_%s'%(engine.status,app.status.name))
         plt.axis('equal')
-        N=int(round(np.sqrt(app.BZ.rank['k'])))
-        plt.colorbar(plt.pcolormesh(app.BZ.mesh['k'][:,0].reshape((N,N)),app.BZ.mesh['k'][:,1].reshape(N,N),result.reshape(N,N)))
+        N=int(round(np.sqrt(nk)))
+        plt.colorbar(plt.pcolormesh(kmesh[:,0].reshape((N,N)),kmesh[:,1].reshape(N,N),result.reshape(N,N)))
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
         if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
@@ -442,20 +429,22 @@ def VCABC(engine,app):
     This method calculates the Berry curvature and Chern number based on the so-called topological Hamiltonian (PRX 2, 031008 (2012))
     '''
     engine.rundependences(app.status.name)
-    engine.gf(omega=engine.mu)
-    app.set(H=lambda kx,ky: -inv(engine.gf(k=[kx,ky])),mu=0)
-    engine.log<<'Chern number(mu): %s(%s)\n'%(app.cn,engine.mu)
+    mu,app.mu=app.mu,0.0
+    engine.gf(omega=mu)
+    app.set(H=lambda kx,ky: -inv(engine.gf(k=[kx,ky])))
+    app.mu=mu
+    engine.log<<'Chern number(mu): %s(%s)\n'%(app.cn,app.mu)
     if app.save_data or app.plot:
-        buff=np.zeros((app.BZ.rank['k'],3))
-        buff[:,0:2]=app.BZ.mesh['k']
-        buff[:,2]=app.bc
+        data=np.zeros((app.BZ.rank['k'],3))
+        data[:,0:2]=app.BZ.mesh['k']
+        data[:,2]=app.bc
     if app.save_data:
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),buff)
+        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),data)
     if app.plot:
         nk=int(round(np.sqrt(app.BZ.rank['k'])))
         plt.title('%s_%s'%(engine.status,app.status.name))
         plt.axis('equal')
-        plt.colorbar(plt.pcolormesh(buff[:,0].reshape((nk,nk)),buff[:,1].reshape((nk,nk)),buff[:,2].reshape((nk,nk))))
+        plt.colorbar(plt.pcolormesh(data[:,0].reshape((nk,nk)),data[:,1].reshape((nk,nk)),data[:,2].reshape((nk,nk))))
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
         if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
@@ -466,9 +455,9 @@ def VCATEB(engine,app):
     This method calculates the topological Hamiltonian's spectrum.
     '''
     engine.rundependences(app.status.name)
-    engine.gf(omega=engine.mu)
+    engine.gf(omega=app.mu)
     H=lambda kx,ky: -inv(engine.gf(k=[kx,ky]))
-    result=np.zeros((app.path.rank['k'],engine.preloads[1].nopt+1))
+    result=np.zeros((app.path.rank['k'],engine.nopt+1))
     for i,paras in enumerate(app.path()):
         result[i,0]=i
         result[i,1:]=eigh(H(paras['k'][0],paras['k'][1]),eigvals_only=True)
@@ -488,15 +477,12 @@ def VCAGP(engine,app):
     '''
     if app.status.name in engine.apps: engine.rundependences(app.status.name)
     engine.cache.pop('pt_kmesh',None)
-    ncgf=engine.preloads[0].nopt
-    app.gp=0
-    fx=lambda omega: np.log(np.abs(det(np.eye(ncgf)-engine.pt_kmesh(app.BZ.mesh['k']).dot(engine.cgf(omega=omega*1j+engine.mu))))).sum()
-    app.gp=quad(fx,0,np.float(np.inf))[0]
-    app.gp=(engine.preloads[0].gse-2/engine.preloads[0].nspin*app.gp/(np.pi*app.BZ.rank['k']))/engine.clmap['seqs'].shape[1]
-    app.gp=app.gp+np.trace(engine.pt_kmesh(app.BZ.mesh['k']),axis1=1,axis2=2).sum().real/app.BZ.rank['k']/engine.clmap['seqs'].shape[1]
-    app.gp=app.gp-engine.mu*engine.filling*engine.preloads[1].nopt*2/engine.preloads[0].nspin
-    app.gp=app.gp/len(engine.cell)
-    print 'gp(%s): %s'%(', '.join(['%s: %s'%(key,value) for key,value in engine.status.data.items()]),app.gp)
+    cgf,kmesh,nk=engine.preloads[0],app.BZ.mesh['k'],app.BZ.rank['k']
+    fx=lambda omega: np.log(np.abs(det(np.eye(engine.ncopt)-engine.pt_kmesh(kmesh).dot(engine.cgf(omega=omega*1j+app.mu))))).sum()
+    part1=-quad(fx,0,np.float(np.inf))[0]/np.pi*2/cgf.nspin
+    part2=np.trace(engine.pt_kmesh(kmesh),axis1=1,axis2=2).sum().real
+    app.gp=(cgf.gse+(part1+part2)/nk)/(engine.ncopt/engine.nopt)/len(engine.cell)
+    engine.log<<'gp: %s\n\n'%app.gp
 
 class GPM(HP.App):
     '''
@@ -505,7 +491,7 @@ class GPM(HP.App):
         BS: BaseSpace or dict
             When BaseSpace, it is the basespace on which the grand potential is to be computed;
             When dict, it is the initial guess of the minimum point in the basespace.
-        attrs: dict, optional
+        extras: dict, optional
             It exists only when BS is a dict.
             entry 'fout': string
                 The output file that contains the results.
@@ -531,7 +517,7 @@ class GPM(HP.App):
             NOTE: fout, method and options will be omitted if BS is an instance of BaseSpace.
         '''
         self.BS=BS
-        if isinstance(BS,dict): self.attrs={'fout':fout,'method':method,'options':options}
+        if isinstance(BS,dict): self.extras={'fout':fout,'method':method,'options':options}
         self.bsm={}
         self.gpm=0.0
 
@@ -543,19 +529,17 @@ def VCAGPM(engine,app):
         engine.cache.pop('pt_kmesh',None)
         engine.update(**{key:value for key,value in zip(keys,values)})
         engine.rundependences(app.status.name)
-        print
         return app.dependences[2].gp
     if isinstance(app.BS,HP.BaseSpace):
         nbs=len(app.BS.mesh.keys())
         result=np.zeros((np.product(app.BS.rank.values()),nbs+1),dtype=np.float64)
         for i,paras in enumerate(app.BS('*')):
-            print paras
             result[i,0:nbs]=np.array(paras.values())
             result[i,nbs]=gp(paras.values(),paras.keys())
         app.gpm=np.amin(result[:,nbs])
         index=np.argmin(result[:,nbs])
         app.bsm={key:value for key,value in zip(paras.keys(),result[index,0:nbs])}
-        print 'Minimum value(%s) at point %s'%(app.gpm,app.bsm)
+        engine.log<<'Summary of Minimization:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bsm.items()+[('value',app.gpm)]))
         if app.save_data:
             np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.const,app.status.name),result)
         if app.plot:
@@ -572,9 +556,9 @@ def VCAGPM(engine,app):
                 if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.const,app.status.name))
                 plt.close()
     else:
-        temp=minimize(gp,app.BS.values(),args=(app.BS.keys()),method=app.attrs['method'],options=app.attrs['options'])
+        temp=minimize(gp,app.BS.values(),args=(app.BS.keys()),method=app.extras['method'],options=app.extras['options'])
         app.bsm,app.gpm={key:value for key,value in zip(app.BS.keys(),temp.x)},temp.fun
-        print 'Minimum value(%s) at point %s'%(app.gpm,app.bsm)
+        engine.log<<'Summary of Minimization:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bsm.items()+[('value',app.gpm)]))
         if app.save_data:
             result=np.array([app.bsm.values()+[app.gpm]])
             if app.fout is None:
@@ -587,9 +571,9 @@ def VCAGPM(engine,app):
                 else:
                     np.savetxt(app.fout,result)
 
-class CP(HP.CP):
+class CPFF(HP.CPFF):
     '''
-    Chemical potential.
+    Chemical potential or filling factor.
     Attribues:
         p: np.float64
             A tunale parameter used in the calculation.
@@ -608,54 +592,26 @@ class CP(HP.CP):
             tol: np.float64
                 The tolerance of the result.
         '''
-        super(CP,self).__init__(**karg)
+        super(CPFF,self).__init__(**karg)
         self.p=p
         self.tol=10**-6
 
-def VCACP(engine,app):
+def VCACPFF(engine,app):
     '''
-    This method calculates the chemical potential, but behaves rather bad due to the singularity of the density of states.
-    '''
-    engine.rundependences(app.status.name)
-    engine.cache.pop('pt_kmesh',None)
-    nk,nmatrix=app.BZ.rank['k'],engine.preloads[0].nopt
-    fx=lambda omega,mu: (np.trace(engine.mgf_kmesh(omega=mu+1j*omega,kmesh=app.BZ.mesh['k']),axis1=1,axis2=2)-nmatrix/(1j*omega-mu-app.p)).sum().real
-    gx=lambda mu: quad(fx,0,np.float(np.inf),args=(mu))[0]/nk/nmatrix/np.pi-engine.filling
-    app.mu=broyden2(gx,engine.mu,verbose=True,reduction_method='svd',maxiter=20,x_tol=app.tol)
-    engine.mu=app.mu
-    engine.log<<'mu,error: %s, %s\n'%(engine.mu,gx(engine.mu))
-
-class FF(HP.FF):
-    '''
-    Filling factor.
-    Attribues:
-        p: np.float64
-            A tunale parameter used in the calculation.
-            For details, please refer arXiv:0806.2690.
-    '''
-
-    def __init__(self,p=1.0,**karg):
-        '''
-        Constructor.
-        Parameter:
-            p: np.float64, optional
-                A tunale parameter used in the calculation.
-                For details, please refer arXiv:0806.2690.
-        '''
-        super(FF,self).__init__(**karg)
-        self.p=p
-
-def VCAFF(engine,app):
-    '''
-    This method calculates the filling factor.
+    This method calculates the chemical potential or filling factor.
     '''
     engine.rundependences(app.status.name)
     engine.cache.pop('pt_kmesh',None)
-    nk,nmatrix=app.BZ.rank['k'],engine.preloads[0].nopt
-    fx=lambda omega: (np.trace(engine.mgf_kmesh(omega=engine.mu+1j*omega,kmesh=app.BZ.mesh['k']),axis1=1,axis2=2)-nmatrix/(1j*omega-engine.mu-app.p)).sum().real
-    app.filling=quad(fx,0,np.float(np.inf))[0]/nk/nmatrix/np.pi
-    engine.filling=app.filling
-    engine.log<<'Filling factor: %s\n'%app.filling
+    kmesh,nk=app.BZ.mesh['k'],app.BZ.rank['k']
+    fx=lambda omega,mu: (np.trace(engine.mgf_kmesh(omega=mu+1j*omega,kmesh=kmesh),axis1=1,axis2=2)-engine.ncopt/(1j*omega-mu-app.p)).sum().real
+    if app.task=='CP':
+        gx=lambda mu: quad(fx,0,np.float(np.inf),args=mu)[0]/nk/engine.ncopt/np.pi-app.filling
+        app.mu=broyden2(gx,app.mu,verbose=True,reduction_method='svd',maxiter=20,x_tol=app.tol)
+        engine.log<<'mu,error: %s, %s\n'%(app.mu,gx(engine.mu))
+    else:
+        app.filling=quad(fx,0,np.float(np.inf),args=app.mu)[0]/nk/engine.ncopt/np.pi
+        engine.filling=app.filling
+        engine.log<<'Filling factor: %s\n'%app.filling
 
 class OP(HP.App):
     '''
@@ -665,14 +621,18 @@ class OP(HP.App):
             The terms representing the orders.
         BZ: BaseSpace
             The first Brillouin zone.
+        mu: np.float64
+            The Fermi level.
         p: np.float64
             A tunale parameter used in the calculation.
             For details, please refer arXiv:0806.2690.
+        dtypes: list of np.float32/np.float64/np.complex64,np.complex128, optional
+            The data types of the order parameters.
         ops: list of number
             The values of the order parameters.
     '''
 
-    def __init__(self,terms,BZ=None,p=1.0,**karg):
+    def __init__(self,terms,BZ=None,mu=0.0,p=1.0,dtypes=None,**karg):
         '''
         Constructor.
         Parameters:
@@ -680,14 +640,21 @@ class OP(HP.App):
                 The terms representing the orders.
             BZ: BaseSpace, optional
                 The first Brillouin zone.
+            mu: np.float64, optional
+                The Fermi level.
             p: float, optional
                 A tunale parameter used in the calculation.
                 For details, please refer arXiv:0806.2690.
+            dtypes: list of np.float32/np.float64/np.complex64,np.complex128, optional
+                The data types of the order parameters.
         '''
         self.terms=terms
         self.BZ=BZ
+        self.mu=mu
         self.p=p
-        self.ops=np.zeros(len(terms),dtype=np.complex128)
+        self.dtypes=[np.float64]*len(terms) if dtypes is None else dtypes
+        assert len(self.dtypes)==len(self.terms)
+        self.ops=[None]*len(terms)
 
 def VCAOP(engine,app):
     '''
@@ -695,19 +662,19 @@ def VCAOP(engine,app):
     '''
     engine.rundependences(app.status.name)
     engine.cache.pop('pt_kmesh',None)
-    nmatrix=engine.preloads[0].nopt
-    ms=np.zeros((len(app.terms),nmatrix,nmatrix),dtype=np.complex128)
+    cgf,kmesh,nk=engine.preloads[0],app.BZ.mesh['k'],app.BZ.rank['k']
+    ms=np.zeros((len(app.terms),engine.ncopt,engine.ncopt),dtype=np.complex128)
     for i,term in enumerate(app.terms):
-        buff=deepcopy(term)
-        buff.value=1
-        m=np.zeros((nmatrix,nmatrix),dtype=np.complex128)
-        generator=HP.Generator(bonds=engine.lattice.bonds,config=engine.config,table=engine.config.table(mask=engine.preloads[0].mask),terms=[buff])
-        for opt in generator.operators.values():
+        order=deepcopy(term)
+        order.value=1
+        m=np.zeros((engine.ncopt,engine.ncopt),dtype=np.complex128)
+        for opt in HP.Generator(engine.lattice.bonds,engine.config,table=engine.config.table(mask=cgf.mask),terms=[order]).operators.values():
             m[opt.seqs]+=opt.value
         m+=m.T.conjugate()
         ms[i,:,:]=m
-    fx=lambda omega,m: (np.trace(engine.mgf_kmesh(omega=engine.mu+1j*omega,kmesh=app.BZ.mesh['k']).dot(m),axis1=1,axis2=2)-np.trace(m)/(1j*omega-engine.mu-app.p)).sum().real
-    for i,m in enumerate(ms):
-        app.ops[i]=quad(fx,0,np.float(np.inf),args=(m))[0]/app.BZ.rank['k']/nmatrix*2/np.pi
+    fx=lambda omega,m: (np.trace(engine.mgf_kmesh(omega=app.mu+1j*omega,kmesh=kmesh).dot(m),axis1=1,axis2=2)-np.trace(m)/(1j*omega-app.mu-app.p)).sum().real
+    for i,(m,dtype) in enumerate(zip(ms,app.dtypes)):
+        app.ops[i]=quad(fx,0,np.float(np.inf),args=m)[0]/nk/engine.ncopt*2/np.pi
+        if dtype in (np.float32,np.float64): app.ops[i]=app.ops[i].real
     for term,op in zip(app.terms,app.ops):
         engine.log<<'%s: %s\n'%(term.id,op)

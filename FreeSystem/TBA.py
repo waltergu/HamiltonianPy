@@ -1,10 +1,10 @@
 '''
 Tight Binding Approximation for fermionic systems, including:
 1) classes: TBA
-2) functions: TBAEB, TBADOS, TBACP, TBABC
+2) functions: TBAEB, TBADOS, TBABC
 '''
 
-__all__=['TBA','TBAEB','TBADOS','TBACP','TBABC']
+__all__=['TBA','TBAEB','TBADOS','TBABC']
 
 from ..Basics import *
 from numpy import *
@@ -16,61 +16,55 @@ class TBA(Engine):
     Tight-binding approximation for fermionic systems.
     Also support BdG systems (phenomenological superconducting systems at the mean-field level).
     Attributes:
-        filling: float
-            The filling factor of the system.
-        mu: float
-            The chemical potential of the system.
         lattice: Lattice
             The lattice of the system.
         config: IDFConfig
             The configuration of degrees of freedom.
         terms: list of Term
             The terms of the system.
-        mask: list of string
-            A list to tell whether or not to use the nambu space.
-        generators: dict of Generator
-            The operator generators, which has the following entries:
-            1) entry 'h': the generator for the Hamiltonian.
+        mask: ['nambu'] or []
+            ['nambu'] for not using the nambu space and [] for using the nambu space.
+        generator: Generator
+            The operator generator for the Hamiltonian.
     Supported methods include:
         1) TBAEB: calculate the energy bands.
         2) TBADOS: calculate the density of states.
-        3) TBACP: calculate the chemical potential.
-        4) TBABC: calculate the Berry curvature and Chern number.
+        3) TBABC: calculate the Berry curvature and Chern number.
     '''
-    
-    def __init__(self,filling=0,mu=0,lattice=None,config=None,terms=None,mask=['nambu'],**karg):
+
+    def __init__(self,lattice=None,config=None,terms=None,mask=['nambu'],**karg):
         '''
         Constructor.
         Parameters:
-            filling: float
-                The filling factor of the system.
-            mu: float
-                The chemical potential of the system.
-            lattice: Lattice
+            lattice: Lattice, optional
                 The lattice of the system.
-            config: Configuration
+            config: Configuration, optional
                 The configuration of degrees of freedom.
-            terms: list of Term
+            terms: list of Term, optional
                 The terms of the system.
-            mask: list of string
-                A list to tell whether or not to use the nambu space.
+            mask: ['nambu'] or [], optional
+                ['nambu'] for not using the nambu space and [] for using the nambu space.
         '''
-        self.filling=filling
-        self.mu=mu
         self.lattice=lattice
         self.config=config
         self.terms=terms
         self.mask=mask
-        self.generators={}
-        self.generators['h']=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms)
-        self.status.update(const=self.generators['h'].parameters['const'],alter=self.generators['h'].parameters['alter'])
+        self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms)
+        self.status.update(const=self.generator.parameters['const'],alter=self.generator.parameters['alter'])
 
     def update(self,**karg):
         '''
         This method update the engine.
         '''
-        self.generators['h'].update(**karg)
+        self.generator.update(**karg)
         self.status.update(alter=karg)
+
+    @property
+    def nmatrix(self):
+        '''
+        The dimension of the matrix representation of the Hamiltonian.
+        '''
+        return len(self.generator.table)
 
     def matrix(self,k=[],**karg):
         '''
@@ -85,12 +79,12 @@ class TBA(Engine):
                 The matrix representation of the Hamiltonian.
         '''
         self.update(**karg)
-        nmatrix=len(self.generators['h'].table)
+        nmatrix=self.nmatrix
         result=zeros((nmatrix,nmatrix),dtype=complex128)
-        for opt in self.generators['h'].operators.values():
+        for opt in self.generator.operators.values():
             phase=1 if len(k)==0 else exp(-1j*inner(k,opt.rcoords[0]))
             result[opt.seqs]+=opt.value*phase
-            if 'nambu' not in self.mask:
+            if len(self.mask)==0:
                 i,j=opt.seqs
                 if i<nmatrix/2 and j<nmatrix/2: result[j+nmatrix/2,i+nmatrix/2]+=-opt.value*conjugate(phase)
         result+=conjugate(result.T)
@@ -103,7 +97,7 @@ class TBA(Engine):
             basespace: BaseSpace,optional
                 The base space on which the Hamiltonian is defined.
             mode: string,optional
-                The mode which the generators takes to iterate over the base space.
+                The mode to iterate over the base space.
         Returns:
             yield a 2D ndarray.
         '''
@@ -113,41 +107,72 @@ class TBA(Engine):
             for paras in basespace(mode):
                 yield self.matrix(**paras)
 
-    def eigvals(self,basespace=None):
+    def eigvals(self,basespace=None,mode='*'):
         '''
         This method returns all the eigenvalues of the Hamiltonian.
         Parameters:
             basespace: BaseSpace, optional
                 The base space on which the Hamiltonian is defined.
+            mode: string,optional
+                The mode to iterate over the base space.
         Returns:
             result: 1D ndarray
                 All the eigenvalues.
         '''
-        nmatrix=len(self.generators['h'].table)
+        nmatrix=self.nmatrix
         result=zeros(nmatrix*(1 if basespace==None else product(basespace.rank.values())))
         if basespace is None:
             result[...]=eigh(self.matrix(),eigvals_only=True)
         else:
-            for i,paras in enumerate(basespace('*')):
+            for i,paras in enumerate(basespace(mode)):
                 result[i*nmatrix:(i+1)*nmatrix]=eigh(self.matrix(**paras),eigvals_only=True)
         return result
 
-    def set_mu(self,kspace=None):
+    def mu(self,filling,kspace=None):
         '''
-        Set the chemical potential of the Hamiltonian.
+        Return the chemical potential of the system.
         Parameters:
+            filling: float64
+                The filling factor of the system.
             kspace: BaseSpace, optional
-                The basespace of the on which the Hamiltonian is defined.
+                The first Brillouin zone.
+        Returns: float64
+            The chemical potential of the system.
         '''
-        nelectron=int(round(self.filling*(1 if kspace is None else kspace.rank['k'])*len(self.generators['h'].table)))
-        eigvals=sort((self.eigvals(kspace)))
-        self.mu=(eigvals[nelectron]+eigvals[nelectron-2])/2
+        nelectron,eigvals=int(round(filling*(1 if kspace is None else kspace.rank['k'])*self.nmatrix)),sort((self.eigvals(kspace)))
+        return (eigvals[nelectron]+eigvals[nelectron-2])/2
+
+class GSE(App):
+    '''
+    The ground state energy.
+    Attribues:
+        basespace: BaseSpace
+            The basespace.
+        gse: np.float64
+            The ground state energy.
+    '''
+
+    def __init__(self,basespace=None):
+        '''
+        Constructor.
+        Parameters:
+            basespace: BaseSpace, optional
+                The basespace.
+        '''
+        self.basespace=basespace
+        self.gse=0.0
+
+def TBAGSE(engine,app):
+    '''
+    This method calculates the ground state energy.
+    '''
+    pass
 
 def TBAEB(engine,app):
     '''
     This method calculates the energy bands of the Hamiltonian.
     '''
-    nmatrix=len(engine.generators['h'].table)
+    nmatrix=engine.nmatrix
     if app.path!=None:
         key=app.path.mesh.keys()[0]
         result=zeros((app.path.rank[key],nmatrix+1))
@@ -193,23 +218,12 @@ def TBADOS(engine,app):
         if app.save_fig: plt.savefig('%s/%s_DOS.png'%(engine.dout,engine.status))
         plt.close()
 
-def TBACP(engine,app):
-    '''
-    This method calculates the chemical potential of the Hamiltonian.
-    '''
-    nelectron=int(round(engine.filling*app.BZ.rank['k']*len(engine.generators['h'].table)))
-    eigvals=sort((engine.eigvals(app.BZ)))
-    app.mu=(eigvals[nelectron]+eigvals[nelectron-2])/2
-    engine.mu=app.mu
-    engine.log<<'mu: %s'%(app.mu)<<'\n'
-
 def TBABC(engine,app):
     '''
     This method calculates the total Berry curvature and Chern number of the filled bands of the Hamiltonian.
     '''
-    H=lambda kx,ky: engine.matrix(k=[kx,ky])
-    app.set(H,engine.mu)
-    engine.log<<'Chern number(mu): %s(%s)'%(app.cn,engine.mu)<<'\n'
+    app.set(lambda kx,ky: engine.matrix(k=[kx,ky]))
+    engine.log<<'Chern number(mu): %s(%s)'%(app.cn,app.mu)<<'\n'
     if app.save_data or app.plot:
         buff=zeros((app.BZ.rank['k'],3))
         buff[:,0:2]=app.BZ.mesh['k']

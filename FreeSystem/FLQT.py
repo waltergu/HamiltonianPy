@@ -14,19 +14,11 @@ import HamiltonianPy as HP
 
 class FLQT(TBA):
     '''
-    This class deals with floquet problems. All its attributes are inherited from TBA.
+    This class deals with floquet problems.
+    All its attributes are inherited from TBA.
     Supported methods include:
     1) FLQTQEB: calculate the quasi-energy bands.
     '''
-    def __init__(self,filling=0,mu=0,lattice=None,config=None,terms=None,mask=['nambu'],**karg):
-        super(FLQT,self).__init__(
-            filling=    filling,
-            mu=         mu,
-            lattice=    lattice,
-            config=     config,
-            terms=      terms,
-            mask=      mask
-            )
 
     def evolution(self,t=[],**karg):
         '''
@@ -40,8 +32,7 @@ class FLQT(TBA):
             result: 2D ndarray
                 The matrix representation of the time evolution operator.
         '''
-        nmatrix=len(self.generators['h'].table)
-        result=eye(nmatrix,dtype=complex128)
+        result=eye(self.nmatrix,dtype=complex128)
         nt=len(t)
         for i,time in enumerate(t):
             if i<nt-1:
@@ -70,9 +61,8 @@ def FLQTQEB(engine,app):
     '''
     This method calculates the Floquet quasi-energy bands.
     '''
-    nmatrix=len(engine.generators['h'].table)
     if app.path!=None:
-        result=zeros((app.path.rank,nmatrix+1))
+        result=zeros((app.path.rank,engine.nmatrix+1))
         key=app.path.mesh.keys()[0]
         if len(app.path.mesh[key].shape)==1:
             result[:,0]=app.path.mesh[key]
@@ -81,7 +71,7 @@ def FLQTQEB(engine,app):
         for i,parameter in enumerate(list(app.path.mesh[key])):
             result[i,1:]=phase(eig(engine.evolution(t=app.ts.mesh['t'],**{key:parameter}))[0])/app.ts.volume['t']
     else:
-        result=zeros((2,nmatrix+1))
+        result=zeros((2,engine.nmatrix+1))
         result[:,0]=array(xrange(2))
         result[0,1:]=angle(eig(engine.evolution(t=app.ts.mesh['t']))[0])/app.ts.volume['t']
         result[1,1:]=result[0,1:]

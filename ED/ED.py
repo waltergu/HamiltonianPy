@@ -23,10 +23,6 @@ class ED(HP.Engine):
     Attributes:
         basis: BasisF
             The occupation number basis of the system.
-        filling: float
-            The filling factor.
-        mu: float
-            The chemical potential.
         lattice: Lattice
             The lattice of the system.
         config: IDFConfig
@@ -35,14 +31,10 @@ class ED(HP.Engine):
             The terms of the system.
         dtype: np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
-        generators: dict of Generator
-            It has only one entries:
-            1) 'h': Generator
-                The generator for the Hamiltonian.
-        operators: dict of OperatorCollection
-            It has only one entry:
-            1) 'h': OperatorCollection
-                The 'half' of the operators for the Hamiltonian.
+        generator: Generator
+            The generator for the Hamiltonian.
+        operators: OperatorCollection
+            The 'half' of the operators for the Hamiltonian.
         matrix: csr_matrix
             The sparse matrix representation of the cluster Hamiltonian.
     Supported methods include:
@@ -51,16 +43,12 @@ class ED(HP.Engine):
         3) EDDOS: calculates the density of states.
     '''
 
-    def __init__(self,basis=None,filling=None,mu=None,lattice=None,config=None,terms=None,dtype=np.complex128,**karg):
+    def __init__(self,basis=None,lattice=None,config=None,terms=None,dtype=np.complex128,**karg):
         '''
         Constructor.
         Parameters:
             basis: BasisF, optional
                 The occupation number basis of the system.
-            filling: float, optional
-                The filling factor.
-            mu: float, optional
-                The chemical potential.
             lattice: Lattice, optional
                 The lattice of the system.
             config: IDFConfig, optional
@@ -71,39 +59,30 @@ class ED(HP.Engine):
                 The data type of the matrix representation of the Hamiltonian.
         '''
         self.basis=basis
-        if basis.mode=='FG':
-            self.filling=filling
-            self.mu=[term for term in terms if term.id=='mu'][0].value
-            self.status.update(alter={'mu':self.mu})
-        else:
-            self.filling=1.0*basis.nparticle.sum()/basis.nstate.sum()
-            self.mu=mu
-            self.status.update(const={'filling':self.filling})
+        if basis.mode in ('FP','FS'): self.status.update(const={'filling':1.0*basis.nparticle.sum()/basis.nstate.sum()})
         self.lattice=lattice
         self.config=config
         self.terms=terms
         self.dtype=dtype
-        self.generators={'h':HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,dtype=dtype)}
-        self.status.update(const=self.generators['h'].parameters['const'])
-        self.status.update(alter=self.generators['h'].parameters['alter'])
-        self.operators={'h':self.generators['h'].operators}
+        self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,dtype=dtype)
+        self.status.update(const=self.generator.parameters['const'])
+        self.status.update(alter=self.generator.parameters['alter'])
+        self.operators=self.generator.operators
 
     def update(self,**karg):
         '''
         Update the alterable operators.
         '''
-        self.mu=karg.pop('mu',self.mu)
-        self.filling=karg.pop('filling',self.filling)
-        self.generators['h'].update(**karg)
-        self.operators['h']=self.generators['h'].operators
-        self.status.update(alter=self.generators['h'].parameters['alter'])
+        self.generator.update(**karg)
+        self.operators=self.generator.operators
+        self.status.update(alter=self.generator.parameters['alter'])
 
     def set_matrix(self):
         '''
         Set the csr_matrix representation of the Hamiltonian.
         '''
         self.matrix=csr_matrix((self.basis.nbasis,self.basis.nbasis),dtype=self.dtype)
-        for operator in self.operators['h'].itervalues():
+        for operator in self.operators.itervalues():
             self.matrix+=HP.f_opt_rep(operator,self.basis,transpose=False)
         self.matrix+=self.matrix.T.conjugate()
         self.matrix=self.matrix.T
@@ -260,82 +239,82 @@ def EDGFP(engine,app):
     '''
     This method prepares the GF.
     '''
-    # set the single particle operators and initialize gf.
+    engine.log<<'Parameters of the engine:\n%s\n'%HP.Info.from_ordereddict(engine.status.data,entry='Parameters',content='Value')
     if engine.basis.mode in ('FG','FP'): assert app.nspin==2
-    if app.operators is None:app.reinitialization(GF.fsp_operators(app.table(engine.config),engine.lattice))
-    # if the auxiliary data has been calculated before, recover it.
+    if app.operators is None: app.reinitialization(HP.fspoperators(app.table(engine.config),engine.lattice))
     if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine.status)):
         with open('%s/%s_coeff.dat'%(engine.din,engine.status),'rb') as fin:
             app.gse=pk.load(fin)
             app.coeff=pk.load(fin)
             app.hs=pk.load(fin)
         return
-    # if the auxiliary data hasn't been calculated before, calculate it.
-    app.gse=0.0
+    info=HP.Info('opts','shape','nnz','GSE',entry='Preparation')
+    timers=HP.Timers('Matrix','GSE','GF')
+    timers.add(parent='GF',name='Preparation')
+    timers.add(parent='GF',name='Iteration')
     app.coeff=np.zeros((2,app.nopt,app.nopt,app.nstep),dtype=app.dtype)
     app.hs=np.zeros((2,app.nopt,2,app.nstep),dtype=app.dtype)
-    # set the matrix of engine.
-    t0=time.time()
-    engine.set_matrix()
-    t1=time.time()
-    print "GF preparation: matrix%s containing %s operators and %s non-zeros set in %fs."%(engine.matrix.shape,len(engine.operators['h']),engine.matrix.nnz,t1-t0)
-    # get the ground state energy and ground state.
-    if app.method in ('user',):
-        app.gse,app.v0=Lanczos(engine.matrix,v0=app.v0,vtype=app.vtype,zero=app.tol).eig(job='v',precision=app.tol)
-    elif app.method in ('python',):
-        es,vs=eigsh(engine.matrix,k=1,which='SA',v0=app.v0,tol=app.tol)
-        app.gse,app.v0=es[0],vs[:,0]
-    elif app.method in ('dense',):
-        w,v=eigh(engine.matrix.todense())
-        app.gse,app.v0=w[0],v[:,0]
-    else:
-        raise ValueError('GF preparation error: mehtod(%s) not supported.'%(app.method))
-    t2=time.time()
-    print 'GF preparation: GSE(=%f) calculated in %fs'%(app.gse,t2-t1)
-    if engine.basis.mode in ('FS','FP'): engine.matrix=None
-    # calculate the auxiliary data.
-    print '-'*57
-    print '%s%s%s%s'%('Time(seconds)'.center(13),' Preparation'.center(15),'Iteration'.center(15),'Total'.center(15))
-    for h in xrange(2):
-        t0=time.time()
-        print ('Electron part' if h==0 else 'Hole part').center(13),
-        sys.stdout.flush()
-        t1=time.time()
-        states,norms,lczs=[],[],[]
-        for i,opt in enumerate(app.operators):
-            if i==0:
-                ed=engine.__replace_basis__(nambu=1-h,spin=0)
-            if i==app.nopt/2 and app.nspin==2 and engine.basis.mode=='FS':
-                ed=engine.__replace_basis__(nambu=1-h,spin=1)
-            mat=HP.f_opt_rep(opt.dagger if h==0 else opt,basis=[engine.basis,ed.basis],transpose=True)
-            state=mat.dot(app.v0)
-            states.append(state)
-            temp=norm(state)
-            norms.append(temp)
-            lczs.append(Lanczos(ed.matrix,v0=state/temp,check_normalization=False))
-            print ('\b'*26 if i>0 else '')+('%s/%s(%es)'%(i,app.nopt,time.time()-t1)).center(25),
-            sys.stdout.flush()
-        t2=time.time()
-        print '\b'*26+('%e'%(t2-t1)).center(14),
-        sys.stdout.flush()
-        for k in xrange(app.nstep):
-            for i,(temp,lcz) in enumerate(zip(norms,lczs)):
-                if not lcz.cut:
-                    for j,state in enumerate(states):
-                        if engine.basis.mode in ('FP','FG') or app.nspin==1 or (i<app.nopt/2 and j<app.nopt/2) or (i>=app.nopt/2 and j>=app.nopt/2):
-                            app.coeff[h,i,j,k]=np.vdot(state,lcz.new)*temp
-                    lcz.iter()
-            print ('\b'*26 if k>0 else '')+('%s/%s(%es)'%(k,app.nstep,time.time()-t2)).center(25),
-            sys.stdout.flush()
-        t3=time.time()
-        print '\b'*26+('%e'%(t3-t2)).center(14),
-        sys.stdout.flush()
-        for i,lcz in enumerate(lczs):
-            app.hs[h,i,0,0:len(lcz.a)]=np.array(lcz.a)
-            app.hs[h,i,1,0:len(lcz.b)]=np.array(lcz.b)
-        t4=time.time()
-        print ('%e'%(t4-t0)).center(14)
-    print '-'*57
+    with timers.get('Matrix'):
+        engine.set_matrix()
+    with timers.get('GSE'):
+        if app.method in ('user',):
+            app.gse,app.v0=Lanczos(engine.matrix,v0=app.v0,vtype=app.vtype,zero=app.tol).eig(job='v',precision=app.tol)
+        elif app.method in ('python',):
+            es,vs=eigsh(engine.matrix,k=1,which='SA',v0=app.v0,tol=app.tol)
+            app.gse,app.v0=es[0],vs[:,0]
+        elif app.method in ('dense',):
+            w,v=eigh(engine.matrix.todense())
+            app.gse,app.v0=w[0],v[:,0]
+        else:
+            raise ValueError('GF preparation error: mehtod(%s) not supported.'%(app.method))
+    info['opts']=len(engine.operators)
+    info['shape']=str(engine.matrix.shape)
+    info['nnz']=engine.matrix.nnz
+    info['GSE']=app.gse
+    engine.log<<'Information of the preparation:\n%s\n'%info
+    with timers.get('GF'):
+        if engine.basis.mode in ('FS','FP'): engine.matrix=None
+        engine.log<<'Calculation of the GF:\n%s\n'%('~'*56)
+        engine.log<<'%s|%s|%s|%s\n%s\n'%('Time(seconds)'.center(13),'Preparation'.center(13),'Iteration'.center(13),'Total'.center(13),'-'*56)
+        for h in xrange(2):
+            with timers.get('Preparation'):
+                t0=time.time()
+                engine.log<<'%s|'%('Electron' if h==0 else 'Hole').center(13)
+                t1=time.time()
+                states,norms,lczs=[],[],[]
+                for i,opt in enumerate(app.operators):
+                    if i==0:
+                        ed=engine.__replace_basis__(nambu=1-h,spin=0)
+                    if i==app.nopt/2 and app.nspin==2 and engine.basis.mode=='FS':
+                        ed=engine.__replace_basis__(nambu=1-h,spin=1)
+                    mat=HP.f_opt_rep(opt.dagger if h==0 else opt,basis=[engine.basis,ed.basis],transpose=True)
+                    state=mat.dot(app.v0)
+                    states.append(state)
+                    temp=norm(state)
+                    norms.append(temp)
+                    lczs.append(Lanczos(ed.matrix,v0=state/temp,check_normalization=False))
+                    engine.log<<'%s%s'%('\b'*25 if i>0 else '',('%s/%s(%es)'%(i,app.nopt,time.time()-t1)).center(25))
+            with timers.get('Iteration'):
+                t2=time.time()
+                engine.log<<'%s%s|'%('\b'*25,('%1.5e'%(t2-t1)).center(13))
+                for k in xrange(app.nstep):
+                    for i,(temp,lcz) in enumerate(zip(norms,lczs)):
+                        if not lcz.cut:
+                            for j,state in enumerate(states):
+                                if engine.basis.mode in ('FP','FG') or app.nspin==1 or (i<app.nopt/2 and j<app.nopt/2) or (i>=app.nopt/2 and j>=app.nopt/2):
+                                    app.coeff[h,i,j,k]=np.vdot(state,lcz.new)*temp
+                            lcz.iter()
+                    engine.log<<'%s%s'%(('\b'*25 if k>0 else ''),('%s/%s(%es)'%(k,app.nstep,time.time()-t2)).center(25))
+                t3=time.time()
+                engine.log<<'%s%s|'%('\b'*25,('%1.5e'%(t3-t2)).center(13))
+                for i,lcz in enumerate(lczs):
+                    app.hs[h,i,0,0:len(lcz.a)]=np.array(lcz.a)
+                    app.hs[h,i,1,0:len(lcz.b)]=np.array(lcz.b)
+                t4=time.time()
+                engine.log<<('%1.5e'%(t4-t0)).center(13)<<'\n'
+        engine.log<<'~'*56<<'\n'
+    timers.record()
+    engine.log<<'Summary of the gf preparation:\n%s\n'%timers.tostr(form='s')
     if app.save_data:
         with open('%s/%s_coeff.dat'%(engine.din,engine.status),'wb') as fout:
             pk.dump(app.gse,fout,2)
@@ -372,7 +351,7 @@ def EDDOS(engine,app):
     erange=np.linspace(app.emin,app.emax,num=app.ne)
     gf=app.dependences[0]
     gf_mesh=np.zeros((app.ne,)+gf.gf.shape,dtype=gf.dtype)
-    for i,omega in enumerate(erange+engine.mu+1j*app.eta):
+    for i,omega in enumerate(erange+app.mu+1j*app.eta):
         gf.omega=omega
         gf_mesh[i,:,:]=gf.run(engine,gf)
     result=np.zeros((app.ne,2))

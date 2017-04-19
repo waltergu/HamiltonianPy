@@ -1,10 +1,10 @@
 '''
 Fermionic Operator, including:
 1) classes: OperatorF
-2) functions: F_Linear, F_Quadratic, F_Hubbard
+2) functions: F_Linear, F_Quadratic, F_Hubbard, fspoperators
 '''
 
-__all__=['OperatorF','F_Linear','F_Quadratic','F_Hubbard']
+__all__=['OperatorF','F_Linear','F_Quadratic','F_Hubbard','fspoperators']
 
 from numpy import *
 from DegreeOfFreedom import ANNIHILATION,CREATION
@@ -120,3 +120,19 @@ def F_Hubbard(value,indices,rcoords,icoords,seqs=None):
     A specialized constructor to create an Operator instance with mode='f_hubbard'.
     '''
     return OperatorF('f_hubbard',value,indices,rcoords,icoords,seqs)
+
+def fspoperators(table,lattice):
+    '''
+    Generate the fermionic single particle operators corresponding to a table.
+    Parameters:
+        table: Table
+            The index-sequence table of the fermionic single particle operators.
+        lattice: Lattice
+            The lattice on which the fermionic single particle operators are defined.
+    Returns: list of OperatorF
+        The fermionic single particle operators corresponding to the table.
+    '''
+    result=[]
+    for ndx in sorted(table,key=table.get):
+        result.append(F_Linear(1,indices=[ndx],rcoords=[lattice.rcoord(ndx.pid)],icoords=[lattice.icoord(ndx.pid)],seqs=[table[ndx]]))
+    return result

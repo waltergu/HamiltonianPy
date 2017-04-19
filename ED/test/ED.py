@@ -21,7 +21,6 @@ def test_ed():
         config[pid]=Fermi(atom=0,norbital=1,nspin=2,nnambu=1)
     a=ED(
             name=       name,
-            filling=    0.5,
             basis=      BasisF(up=(m*n,m*n/2),down=(m*n,m*n/2)),
             lattice=    lattice,
             config=     config,
@@ -31,7 +30,7 @@ def test_ed():
         )
     a.register(EL(name='EL',path=BaseSpace({'tag':'U','mesh':linspace(0.0,5.0,100)}),ns=6,save_data=False,run=EDEL))
     gf=GF(name='GF',nspin=2,nstep=100,save_data=False,prepare=EDGFP,run=EDGF)
-    a.register(DOS(name='DOS-1',parameters={'U':0.0,'mu':0.0},emin=-10,emax=10,ne=501,eta=0.05,save_data=False,run=EDDOS,plot=True,show=True,dependences=[gf]))
-    a.register(DOS(name='DOS-2',parameters={'U':8.0,'mu':4.0},emin=-10,emax=10,ne=501,eta=0.05,save_data=False,run=EDDOS,plot=True,show=True,dependences=[gf]))
+    a.register(DOS(name='DOS-1',parameters={'U':0.0},mu=0.0,emin=-10,emax=10,ne=501,eta=0.05,save_data=False,run=EDDOS,plot=True,show=True,dependences=[gf]))
+    a.register(DOS(name='DOS-2',parameters={'U':8.0},mu=4.0,emin=-10,emax=10,ne=501,eta=0.05,save_data=False,run=EDDOS,plot=True,show=True,dependences=[gf]))
     a.summary()
     print
