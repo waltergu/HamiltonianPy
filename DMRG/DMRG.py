@@ -47,7 +47,7 @@ def pattern(status,target,layer,nsite,mode='re'):
 class Cylinder(Lattice):
     '''
     The cylinder geometry of a lattice.
-    Attribues:
+    Attributes:
         block: list of 1d ndarray
             The building block of the cylinder.
         translation: 1d ndarray
@@ -114,7 +114,7 @@ class Cylinder(Lattice):
 class DMRG(Engine):
     '''
    Density matrix renormalization group method.
-    Attribues:
+    Attributes:
         mps: MPS
             The matrix product state of the DMRG.
         lattice: Cylinder/Lattice
@@ -539,7 +539,7 @@ class DMRG(Engine):
 class TSG(App):
     '''
     Two site growth of a DMRG.
-    Attribues:
+    Attributes:
         scopes: list of hashable objects
             The scopes of the blocks to be added two-by-two into the lattice of the DMRG.
         targets: sequence of QuantumNumber
@@ -642,7 +642,7 @@ def DMRGTSG(engine,app):
 class TSS(App):
     '''
     Two site sweep of a DMRG.
-    Attribues:
+    Attributes:
         target: QuantumNumber
             The target of the DMRG's mps.
         layer: integer

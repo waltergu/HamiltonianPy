@@ -13,16 +13,17 @@ import itertools as it
 def test_vca():
     print 'test_vca'
     t,U=-1.0,8.0
-    m=2;n=2
+    m=2;n=2;nspin=2
     name='%s%s%s'%('WG',m,n)
     a1,a2=np.array([1.0,0.0]),np.array([0.0,1.0])
     lattice=Lattice(name=name,rcoords=tiling([np.array([0.0,0.0])],vectors=[a1,a2],translations=it.product(xrange(m),xrange(n))),vectors=[a1*m,a2*n])
     cell=Lattice(name=name,rcoords=[np.array([0.0,0.0])],vectors=[a1,a2])
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1))
+    cgf=ED.GF(operators=fspoperators(config.table().subset(ED.GF.select(nspin)),lattice),nspin=nspin,nstep=200,save_data=False,prepare=ED.EDGFP,run=ED.EDGF)
     afm=lambda bond: 1 if bond.spoint.pid.site in (0,3) else -1
     vca=VCA.VCA(
             name=       name,
-            cgf=        ED.GF(nspin=2,mask=['nambu'],nstep=200,save_data=False,vtype='RD',prepare=ED.EDGFP,run=ED.EDGF),
+            cgf=        cgf,
             basis=      BasisF(up=(m*n,m*n/2),down=(m*n,m*n/2)),
             cell=       cell,
             lattice=    lattice,

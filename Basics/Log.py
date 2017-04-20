@@ -14,7 +14,7 @@ __all__=['Timer','Timers','Info','Log']
 class Timer(object):
     '''
     Timer.
-    Attribues:
+    Attributes:
         _time_,_begin_,_end_,_last_: np.float64
             The auxiliary variables of the timer.
         records: list of float64
@@ -247,7 +247,7 @@ class Timers(Tree):
 class Info(object):
     '''
     Information for code executing.
-    Attribues:
+    Attributes:
         entry: string
             The name for the entries of Info.
         content: string
@@ -324,7 +324,7 @@ class Info(object):
 class Log(object):
     '''
     The log for code executing.
-    Attribues:
+    Attributes:
         name: string
             The name of the log file.
             NOTE: when the log file is the stdout, this attribute is set to be None.

@@ -73,7 +73,7 @@ class DOS(App):
 class GF(App):
     '''
     Green's functions.
-    Attribues:
+    Attributes:
         operators: list of Operator
             The operators of the GF.
         omega: number
@@ -86,11 +86,11 @@ class GF(App):
             The value of the GF.
     '''
 
-    def __init__(self,operators=None,omega=None,k=None,dtype=np.complex128,**karg):
+    def __init__(self,operators,omega=None,k=None,dtype=np.complex128,**karg):
         '''
         Constructor.
         Parameters:
-            operators: list of Operator, optional
+            operators: list of Operator
                 The operators of the GF.
             omega: number, optional
                 The frequency of the GF.
@@ -103,17 +103,7 @@ class GF(App):
         self.omega=omega
         self.k=k
         self.dtype=dtype
-        self.gf=None if operators is None else np.zeros((self.nopt,self.nopt),dtype=dtype)
-
-    def reinitialization(self,operators):
-        '''
-        Reinitialize the GF.
-        Parameters:
-            operators: list of Operator.
-                The operators of the GF.
-        '''
-        self.operators=operators
-        self.gf=np.zeros((self.nopt,self.nopt),dtype=self.dtype)
+        self.gf=np.zeros((self.nopt,self.nopt),dtype=dtype)
 
     @property
     def nopt(self):
@@ -125,7 +115,7 @@ class GF(App):
 class FS(App):
     '''
     Fermi surface.
-    Attribues:
+    Attributes:
         BZ: BaseSpace
             The Brillouin zone.
         mu: np.float64
@@ -152,7 +142,7 @@ class FS(App):
 class BC(App):
     '''
     Berry curvature.
-    Attribues:
+    Attributes:
         BZ: BaseSpace
             The Brillouin zone.
         mu: np.float64
@@ -197,7 +187,7 @@ class BC(App):
 class GP(App):
     '''
     Grand potential.
-    Attribues:
+    Attributes:
         BZ: BaseSpace
             The Brillouin zone.
         mu: np.float64
@@ -222,7 +212,7 @@ class GP(App):
 class CPFF(App):
     '''
     Chemical potential or filling factor.
-    Attribues:
+    Attributes:
         task: 'FF', 'CP', optional
             'FF' for filling factor and 'CP' for chemical potential.
         BZ: BaseSpace

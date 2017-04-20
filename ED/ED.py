@@ -59,7 +59,6 @@ class ED(HP.Engine):
                 The data type of the matrix representation of the Hamiltonian.
         '''
         self.basis=basis
-        if basis.mode in ('FP','FS'): self.status.update(const={'filling':1.0*basis.nparticle.sum()/basis.nstate.sum()})
         self.lattice=lattice
         self.config=config
         self.terms=terms
@@ -71,7 +70,7 @@ class ED(HP.Engine):
 
     def update(self,**karg):
         '''
-        Update the alterable operators.
+        Update the engine.
         '''
         self.generator.update(**karg)
         self.operators=self.generator.operators
@@ -126,7 +125,7 @@ class ED(HP.Engine):
 class EL(HP.EB):
     '''
     Energy level.
-    Attribues:
+    Attributes:
         ns: integer
             The number of energy levels.
     '''
@@ -168,7 +167,7 @@ def EDEL(engine,app):
 class GF(HP.GF):
     '''
     The single-particle zero-temperature Green's function.
-    Attribues:
+    Attributes:
         mask: ['nambu'] or []
             When ['nambu'], the anomalous Green's functions are not computed;
             When [], the anomalous Green's functions are also computed.
@@ -221,19 +220,12 @@ class GF(HP.GF):
         self.vtype=vtype
         self.tol=tol
 
-    def table(self,config):
+    @staticmethod
+    def select(nspin):
         '''
-        Return a index-sequence table defined by config but modified by self.nspin.
-        Parameters:
-            config: IDFConfig
-                The interanl degrees of freedom table.
-        Returns: Table
-            When self.nspin==1, only the spin-down index will be included in the final table;
-            Otherwise all the indices will be included..
+        Return a select function based on nspin.
         '''
-        result=config.table(mask=[])
-        if self.nspin==1: result=result.subset(select=lambda index: True if index.spin==0 else False)
-        return result
+        return lambda index: True if nspin==2 or index.spin==0 else False
 
 def EDGFP(engine,app):
     '''
@@ -241,7 +233,6 @@ def EDGFP(engine,app):
     '''
     engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.data.iteritems()))
     if engine.basis.mode in ('FG','FP'): assert app.nspin==2
-    if app.operators is None: app.reinitialization(HP.fspoperators(app.table(engine.config),engine.lattice))
     if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine.status)):
         with open('%s/%s_coeff.dat'%(engine.din,engine.status),'rb') as fin:
             app.gse=pk.load(fin)
@@ -306,7 +297,7 @@ def EDGFP(engine,app):
                     app.hs[h,i,1,0:len(lcz.b)]=np.array(lcz.b)
             engine.log<<('%1.5e'%(time.time()-t0)).center(13)<<'\n'
         tp,ti,tg=('%1.5e'%timers.time('Preparation')).center(13),('%1.5e'%timers.time('Iteration')).center(13),('%1.5e'%timers.time('GF')).center(13)
-        engine.log<<'%s|%s|%s|%s\n%s\n'%('Total'.center(13),tp,ti,tg,'~'*56)
+        engine.log<<'%s|%s|%s|%s\n%s\n'%('Summary'.center(13),tp,ti,tg,'~'*56)
     timers.record()
     engine.log<<'Summary of the gf preparation:\n%s\n'%timers.tostr(None,form='s')
     if app.save_data:

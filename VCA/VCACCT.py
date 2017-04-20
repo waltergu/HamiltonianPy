@@ -1,8 +1,10 @@
 '''
-VCA concatenate.
+VCA concatenate, including:
+1) classes: VCACCT
+2) functions: VCACCTGFP, VCACCTGF
 '''
 
-__all__=['VCACCT']
+__all__=['VCACCT','VCACCTGFP','VCACCTGF']
 
 from VCA import *
 from scipy.linalg import block_diag
@@ -12,100 +14,118 @@ import HamiltonianPy.ED as ED
 
 class VCACCT(VCA):
     '''
+    This class implements the algorithm of the variational cluster approach of an electron system composed of several subsystems.
+    Attributes:
+        preloads,cell,lattice,config,terms,weiss,dtype,pthgenerator,ptwgenerator,pthoperators,ptwoperators,periodization,matrix,cache:
+            Inherited from VCA. See VCA for details.
+        groups: list of hashable object
+            
+        subsystems: dict of ED.ED
+            
     '''
 
-    def __init__(self,preloads,subsystems=None,filling=0.5,mu=0,cell=None,lattice=None,config=None,terms=None,weiss=None,**karg):
+    def __init__(self,cgf,cell=None,lattice=None,config=None,terms=[],weiss=[],subsystems=None,dtype=np.complex128,**karg):
         '''
         Constructor.
+        Parameters:
+            cgf,cell,lattice,config,terms,weiss:
+                See VCA.__init__ for details.
+            subsystem: dict
+                entry 'basis': BasisF
+                
+                entry 'lattice': Lattice
+                
+                entry 'group': any hashable object, optional
+                
         '''
-        self.filling=filling
-        self.mu=mu
-        if self.ensemble.lower()=='c':
-            self.name.update(const={'filling':self.filling})
-        elif self.ensemble.lower()=='g':
-            self.name.update(alter={'mu':self.mu})
+        nspin,mask,cellconfig=cgf.nspin,cgf.mask,HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map)
+        self.preloads.extend([cgf,HP.GF(operators=HP.fspoperators(cellconfig.table().subset(select=ED.GF.select(nspin)),cell),dtype=cgf.dtype)])
         self.cell=cell
         self.lattice=lattice
+        self.config=config
         self.terms=terms
         self.weiss=weiss
-        self.nambu=nambu
-        self.groups={}
+        self.dtype=dtype
+        self.groups=[subsystem.get('group',subsystem['lattice'].name) for subsystem in subsystems]
         self.subsystems={}
-        for i,subsystem in enumerate(subsystems):
-            sub_filling=filling if 'filling' not in subsystem else subsystem['filling']
-            sub_mu=mu if 'mu' not in subsystem else subsytem['mu']
-            sub_basis=subsystem['basis']
-            sub_lattice=subsystem['lattice']
-            group=sub_lattice.name if 'group' not in subsystem else subsystem['group']
-            if group not in self.groups:
-                self.groups[group]=[]
-            self.groups[group].append(sub_lattice.name)
-            self.subsystems[sub_lattice.name]=ONR(
-                    name=       sub_lattice.name,
-                    ensemble=   ensemble,
-                    filling=    sub_filling,
-                    mu=         sub_mu,
-                    basis=      sub_basis,
-                    nspin=      nspin,
-                    lattice=    sub_lattice,
-                    terms=      terms if weiss is None else terms+weiss,
-                    nambu=      nambu,
-                    **{key:karg[key] for key in karg if key!='name'}
-                )
-            if i==0: flag=self.subsystems[sub_lattice.name].nspin
-            if flag!=self.subsystems[sub_lattice.name].nspin:
-                raise ValueError("VCACCT init error: all the subsystems must have the same nspin.")
-
-        self.generators={}
-        self.generators['pt_h']=Generator(
-                    bonds=      [bond for bond in lattice.bonds if not bond.is_intra_cell() or bond.spoint.scope!=bond.epoint.scope],
-                    table=      lattice.table(nambu=nambu) if self.nspin==2 else subset(lattice.table(nambu=nambu),select=lambda index: True if index.spin==0 else False),
-                    terms=      [term for term in terms if isinstance(term,Quadratic)],
-                    nambu=      nambu,
-                    half=       True
+        extras={key:value for key,value in karg.iteritems() if key!='name'}
+        for i,group in enumerate(set(self.groups)):
+            subsystem=subsystems[self.groups.index(group)]
+            if subsystem['basis'].mode in ('FG','FP'): assert nspin==2
+            subbasis,sublattice=subsystem['basis'],subsystem['lattice']
+            subconfig=HP.IDFConfig(priority=config.priority,pids=subsystem['lattice'].pids,map=config.map)
+            self.subsystems[group]=ED.ED(
+                    name=           group,
+                    basis=          subbasis,
+                    lattice=        sublattice,
+                    config=         subconfig,
+                    terms=          terms+weiss,
+                    dtype=          dtype,
+                    **extras
                     )
-        self.generators['pt_w']=Generator(
-                    bonds=      [bond for bond in lattice.bonds if bond.is_intra_cell() and bond.spoint.scope==bond.epoint.scope],
-                    table=      lattice.table(nambu=nambu) if self.nspin==2 else subset(lattice.table(nambu=nambu),select=lambda index: True if index.spin==0 else False),
-                    terms=      None if weiss is None else [term*(-1) for term in weiss],
-                    nambu=      nambu,
-                    half=       True
+            attributes={attr:vars(cgf)[attr] for attr in set(vars(cgf))-set(['status','operators','gf','k','omega','prepare','run'])}
+            gf=ED.GF(
+                    name=           'gf',
+                    operators=      HP.fspoperators(subconfig.table().subset(ED.GF.select(nspin)),lattice),
+                    prepare=        ED.EDGFP,
+                    run=            ED.EDGF,
+                    **attributes
                     )
-        self.name.update(const=self.subsystems[self.subsystems.keys()[0]].generators['h'].parameters['const'])
-        self.name.update(alter=self.subsystems[self.subsystems.keys()[0]].generators['h'].parameters['alter'])
-        self.operators={}
-        self.set_operators()
-        self.clmap={}
-        self.set_clmap()
+            self.subsystems[group].register(gf,run=False)
+            if i==0:
+                self.status.update(const=self.subsystems[group].generator.parameters['const'])
+                self.status.update(alter=self.subsystems[group].generator.parameters['alter'])
+        self.pthgenerator=HP.Generator(
+                    bonds=          [bond for bond in lattice.bonds if not bond.isintracell() or bond.spoint.pid.scope!=bond.epoint.pid.scope],
+                    config=         config,
+                    table=          config.table(mask=mask).subset(ED.GF.select(nspin)),
+                    terms=          [term for term in terms if isinstance(term,HP.Quadratic)],
+                    dtype=          dtype
+                    )
+        self.ptwgenerator=HP.Generator(
+                    bonds=          [bond for bond in lattice.bonds if bond.isintracell() and bond.spoint.pid.scope==bond.epoint.pid.scope],
+                    config=         config,
+                    table=          config.table(mask=mask).subset(ED.GF.select(nspin)),
+                    terms=          [term*(-1) for term in weiss],
+                    dtype=          dtype
+                    )
+        self.pthoperators=self.pthgenerator.operators
+        self.ptwoperators=self.ptwgenerator.operators
+        self.periodize()
         self.cache={}
-
-    def set_operators(self):
-        self.set_operators_perturbation()
-        self.set_operators_single_particle()
-        self.set_operators_cell_single_particle()
 
     def update(self,**karg):
         '''
-        Update the alterable operators, such as the weiss terms.
+        Update the engine.
         '''
-        for subsystem in self.subsystems.itervalues():
+        for i,subsystem in enumerate(self.subsystems.itervalues()):
             subsystem.update(**karg)
-        for generator in self.generators.itervalues():
-            generator.update(**karg)
-        self.name.update(alter=self.generators['pt_h'].parameters['alter'])
-        self.set_operators_perturbation()
+            if i==0: self.status.update(alter=subsystem.generator.parameters['alter'])
+        self.pthgenerator.update(**karg)
+        self.ptwgenerator.update(**karg)
+        self.pthoperators=self.pthgenerator.operators
+        self.ptwoperators=self.ptwgenerator.operators
 
-    def gf(self,omega=None):
-        buff=[]
-        for group in self.groups.itervalues():
-            buff.extend([self.subsystems[group[0]].gf(omega)]*len(group))
-        return block_diag(*buff)
+def VCACCTGFP(engine,app):
+    '''
+    This method prepares the cluster Green's function.
+    '''
+    for subsystem in engine.subsystems.values():
+        subsystem.apps['gf'].prepare(subsystem,subsystem.apps['gf'])
 
-def VCACCTGFC(engine,app):
-    buff=deepcopy(app)
-    buff.run=ONRGFC
-    for group in engine.groups.itervalues():
-        for i,name in enumerate(group):
-            if i==0:
-                engine.subsystems[name].addapps('GFC',buff)
-                engine.subsystems[name].runapps('GFC')
+def VCACCTGF(engine,app):
+    '''
+    This method calculate the cluster Green's function.
+    '''
+    if app.omega is not None:
+        gfs={}
+        for group,subsystem in engine.subsystems.iteritems():
+            gf=subsystem.apps['gf']
+            gf.omega=app.omega
+            gfs[group]=gf.run(subsystem,gf)
+        app.gf[...],row,col=0,0,0
+        for group in engine.groups:
+            app.gf[row:row+gfs[group].shape[0],col:col+gfs[group].shape[1]]=gfs[group]
+            row+=gfs[group].shape[0]
+            col+=gfs[group].shape[1]
+    return app.gf

@@ -394,7 +394,7 @@ class Bond(object):
 class Link(object):
     '''
     This class describes a link in a lattice.
-    Attribues:
+    Attributes:
         neighbour: integer
             The rank of the neighbour of the link.
         sindex: integer
@@ -858,7 +858,6 @@ class SuperLattice(Lattice):
                     indices2=       indiceses[n2],
                     mindists=       mindists
                     ))
-        self.cache={}
 
     @staticmethod
     def merge(name,sublattices,vectors=[],nneighbour=1,max_coordinate_number=8):

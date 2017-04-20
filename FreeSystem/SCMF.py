@@ -17,7 +17,7 @@ import time
 class OP(object):
     '''
     Order parameter.
-    Attribues:
+    Attributes:
         value: number
             The value of the order parameter.
         matrix: 2d ndarray
@@ -44,7 +44,7 @@ class OP(object):
 class SCMF(TBA):
     '''
     Self-consistent mean field theory for fermionic systems.
-    Attribues:
+    Attributes:
         filling: float64
             The filling factor of the system.
         mu: float64

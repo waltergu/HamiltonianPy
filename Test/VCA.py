@@ -8,6 +8,6 @@ def test_vca(arg):
     if arg in ('vca','all'):
         from HamiltonianPy.VCA import test
         test.test_vca()
-#    if arg in ('vcacct','all'):
-#        from HamiltonianPy.VCA import test
-#        test.test_vcacct()
+    if arg in ('vcacct','all'):
+        from HamiltonianPy.VCA import test
+        test.test_vcacct()

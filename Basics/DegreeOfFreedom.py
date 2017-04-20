@@ -206,7 +206,7 @@ class Table(dict):
 class Index(tuple):
     '''
     This class provides an index for a microscopic degree of freedom, including the spatial part and interanl part.
-    Attribues:
+    Attributes:
         names: tuple of string
             The names of the microscopic degrees of freedom.
         icls: Class

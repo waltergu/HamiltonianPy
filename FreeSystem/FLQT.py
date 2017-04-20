@@ -42,7 +42,7 @@ class FLQT(TBA):
 class QEB(HP.EB):
     '''
     Floquet quasi-energy bands.
-    Attribues:
+    Attributes:
         ts: BaseSpace
             The time domain of the Floquet process.
     '''

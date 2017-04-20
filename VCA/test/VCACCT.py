@@ -4,47 +4,36 @@ VCACCT test.
 
 __all__=['test_vcacct']
 
-import HamiltonianPy as HP
+from HamiltonianPy import *
+from HamiltonianPy.VCA import *
+from HamiltonianPy.DataBase import HexagonDataBase
+import numpy as np
 import HamiltonianPy.ED as ED
-import HamiltonianPy.VCA as VCA
 
 def test_vcacct():
     print 'test_vcacct'
-    t1,U=-1.0,0.0
-    p1=Point(scope='PA',site=0,rcoord=[0.0,0.0],icoord=[0.0,0.0],struct=Fermi(nspin=2,atom=1))
-    p2=Point(scope='PA',site=1,rcoord=[0.0,-sqrt(3)/3],icoord=[0.0,0.0],struct=Fermi(nspin=2,atom=2))
-    p3=Point(scope='PA',site=2,rcoord=[-0.5,sqrt(3)/6],icoord=[0.0,0.0],struct=Fermi(nspin=2,atom=2))
-    p4=Point(scope='PA',site=3,rcoord=[0.5,sqrt(3)/6],icoord=[0.0,0.0],struct=Fermi(nspin=2,atom=2))
-    p5=Point(scope='PB',site=0,rcoord=[0.0,2*sqrt(3)/3],icoord=[0.0,0.0],struct=Fermi(nspin=2,atom=2))
-    p6=Point(scope='PB',site=1,rcoord=[0.0,sqrt(3)],icoord=[0.0,0.0],struct=Fermi(nspin=2,atom=1))
-    p7=Point(scope='PB',site=2,rcoord=[0.5,sqrt(3)/2],icoord=[0.0,0.0],struct=Fermi(nspin=2,atom=1))
-    p8=Point(scope='PB',site=3,rcoord=[-0.5,sqrt(3)/2],icoord=[0.0,0.0],struct=Fermi(nspin=2,atom=1))
-    a1=array([1.0,0.0])
-    a2=array([0.5,sqrt(3)/2])
-    b1=array([1.0,sqrt(3)])
-    b2=array([1.5,-sqrt(3)/2])
-    PA=Lattice(name='PA',points=[p1,p2,p3,p4])
-    PB=Lattice(name='PB',points=[p5,p6,p7,p8])
-    a=VCACCT(
-        name=       'H4_concat',
-        ensemble=   'c',
-        filling=    0.5,
-        mu=         U/2,
-        nspin=      1,
-        cell=       Lattice(name='Hexagon',points=[p1,p3],vectors=[a1,a2]),
-        lattice=    SuperLattice(name='H4_concat',sublattices=[PA,PB],vectors=[b1,b2]),
-        subsystems= [
-                    {'basis':BasisE(up=(4,2),down=(4,2)),'lattice':PA},
-                    {'basis':BasisE(up=(4,2),down=(4,2)),'lattice':PB}
-                    ],
-        terms=      [
-                    Hopping('t1',t1),
-                    Hubbard('U',U)
-                    ],
-        nambu=      False
+    t1,U,nspin=-1.0,0.0,1
+    H2,H8P=HexagonDataBase('H2'),HexagonDataBase('H8P')
+    cell=Lattice(name='H2',rcoords=H2.rcoords,vectors=H2.vectors,nneighbour=1)
+    LA=Lattice(name='H4-A',rcoords=H8P.rcoords[[3,0,4,6]],nneighbour=1)
+    LB=Lattice(name='H4-B',rcoords=H8P.rcoords[[2,1,5,7]],nneighbour=1)
+    lattice=Lattice.compose(name='H4CCT',points=LA.points+LB.points,vectors=H8P.vectors,nneighbour=1)
+    map=lambda index: Fermi(atom=0 if (index.scope=='H4-A' and index.site==0) or (index.scope=='H4-B' and index.site>0) else 1,norbital=1,nspin=2,nnambu=1)
+    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=map)
+    cgf=ED.GF(operators=fspoperators(config.table().subset(ED.GF.select(nspin)),lattice),nspin=nspin,nstep=200,save_data=False,prepare=VCACCTGFP,run=VCACCTGF)
+    vcacct=VCACCT(
+        name=           'H4CCT',
+        cgf=            cgf,
+        cell=           cell,
+        lattice=        lattice,
+        config=         config,
+        terms=[         Hopping('t1',t1),
+                        Hubbard('U',U)
+                        ],
+        subsystems=[    {'basis':BasisF(up=(4,2),down=(4,2)),'lattice':LA},
+                        {'basis':BasisF(up=(4,2),down=(4,2)),'lattice':LB}
+                        ],
         )
-    a.addapps('GFC',GFC(nstep=200,save_data=False,vtype='RD',run=VCACCTGFC))
-    a.addapps('DOS',DOS(BZ=hexagon_bz(nk=50),emin=-5,emax=5,ne=400,eta=0.05,save_data=False,run=VCADOS,plot=True,show=True))
-    a.addapps('EB',EB(path=hexagon_gkm(nk=100),emax=6.0,emin=-6.0,eta=0.05,ne=400,save_data=False,plot=True,show=True,run=VCAEB))
-    a.runapps()
-    print
+    vcacct.register(EB(name='EB',path=hexagon_gkm(nk=100),emax=6.0,emin=-6.0,eta=0.05,ne=400,save_data=False,plot=True,show=True,run=VCAEB))
+    vcacct.register(DOS(name='DOS',BZ=hexagon_bz(nk=50),emin=-5,emax=5,ne=400,eta=0.05,save_data=False,run=VCADOS,plot=True,show=True))
+    vcacct.summary()

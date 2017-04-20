@@ -14,9 +14,9 @@ class TriangleDataBase(object):
     Attributes:
         name: string
             The name of the cluster.
-        rcoords: list of 1d ndarray
+        rcoords: 2d ndarray
             The rcoords of the cluster.
-        vectors: list of 1d ndarray
+        vectors: 2d ndarray
             The tanslation vectors of the cluster.
     '''
 
@@ -50,3 +50,5 @@ class TriangleDataBase(object):
             self.rcoords.append(array([2.5,sqrt(3.0)/2]))
             self.vectors.append(array([0.0,2*sqrt(3.0)]))
             self.vectors.append(array([3.0,sqrt(3.0)]))
+        self.rcoords=asarray(self.rcoords)
+        self.vectors=asarray(self.vectors)

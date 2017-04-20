@@ -1,7 +1,7 @@
 '''
 Variational cluster approach, including:
-1) classes: VCA, EB, GPM, CPFF,OP
-s2) functions: VCAEB, VCADOS, VCAFS, VCABC, VCATEB, VCAGP, VCAGPM, VCACPFF, VCAOP
+1) classes: VCA, EB, GPM, CPFF, OP
+2) functions: VCAEB, VCADOS, VCAFS, VCABC, VCATEB, VCAGP, VCAGPM, VCACPFF, VCAOP
 '''
 
 __all__=['VCA','EB','VCAEB','VCADOS','VCAFS','VCABC','VCATEB','VCAGP','GPM','VCAGPM','CPFF','VCACPFF','OP','VCAOP']
@@ -66,9 +66,7 @@ class VCA(ED.ED):
         dtype: np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
         generator: Generator
-            The generator for the cluster Hamiltonian, not including the Weiss terms.
-        hwgenerator: Generator
-            The generator for the cluster Hamiltonian of the Weiss terms.
+            The generator for the cluster Hamiltonian, including the Weiss terms.
         pthgenerator: Generator
             The generator for the perturbation coming from the inter-cluster single-particle terms.
         ptwgenerator: Generator
@@ -99,7 +97,7 @@ class VCA(ED.ED):
         9) VCAOP: calculates the order parameter.
     '''
 
-    def __init__(self,cgf,basis=None,cell=None,lattice=None,config=None,terms=None,weiss=None,dtype=np.complex128,**karg):
+    def __init__(self,cgf,basis=None,cell=None,lattice=None,config=None,terms=[],weiss=[],dtype=np.complex128,**karg):
         '''
         Constructor.
         Parameters:
@@ -120,15 +118,10 @@ class VCA(ED.ED):
             dtype: np.float32, np.float64, np.complex64, np.complex128
                 The data type of the matrix representation of the Hamiltonian.
         '''
-        assert isinstance(cgf,ED.GF)
-        gf=HP.GF(dtype=cgf.dtype)
-        cgf.reinitialization(operators=HP.fspoperators(table=cgf.table(config),lattice=lattice))
-        gf.reinitialization(operators=HP.fspoperators(table=cgf.table(config.subset(set(cell.pids).__contains__)),lattice=cell))
-        self.preloads.extend([cgf,gf])
-        nspin,mask=cgf.nspin,cgf.mask
-        self.basis=basis
+        nspin,mask,cellconfig=cgf.nspin,cgf.mask,HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map)
+        self.preloads.extend([cgf,HP.GF(operators=HP.fspoperators(cellconfig.table().subset(select=ED.GF.select(nspin)),cell),dtype=cgf.dtype)])
         if basis.mode in ('FG','FP'): assert nspin==2
-        if basis.mode in ('FS','FP'): self.status.update(const={'filling':1.0*basis.nparticle.sum()/basis.nstate.sum()})
+        self.basis=basis
         self.cell=cell
         self.lattice=lattice
         self.config=config
@@ -139,31 +132,26 @@ class VCA(ED.ED):
             bonds=      [bond for bond in lattice.bonds if bond.isintracell()],
             config=     config,
             table=      config.table(mask=['nambu']),
-            terms=      terms
-            )
-        self.hwgenerator=HP.Generator(
-            bonds=      [bond for bond in lattice.bonds],
-            config=     config,
-            table=      config.table(mask=['nambu']),
-            terms=      weiss
+            terms=      terms+weiss,
+            dtype=      dtype
             )
         self.pthgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if not bond.isintracell()],
             config=     config,
-            table=      config.table(mask=mask) if nspin==2 else config.table(mask=mask).subset(select=lambda index: True if index.spin==0 else False),
+            table=      config.table(mask=mask).subset(ED.GF.select(nspin)),
             terms=      [term for term in terms if isinstance(term,HP.Quadratic)],
+            dtype=      dtype
             )
         self.ptwgenerator=HP.Generator(
-            bonds=      [bond for bond in lattice.bonds],
+            bonds=      [bond for bond in lattice.bonds if bond.isintracell()],
             config=     config,
-            table=      config.table(mask=mask) if nspin==2 else config.table(mask=mask).subset(select=lambda index: True if index.spin==0 else False),
+            table=      config.table(mask=mask).subset(ED.GF.select(nspin)),
             terms=      None if weiss is None else [term*(-1) for term in weiss],
+            dtype=      dtype
             )
         self.status.update(const=self.generator.parameters['const'])
         self.status.update(alter=self.generator.parameters['alter'])
-        self.status.update(const=self.hwgenerator.parameters['const'])
-        self.status.update(alter=self.hwgenerator.parameters['alter'])
-        self.operators=self.generator.operators+self.hwgenerator.operators
+        self.operators=self.generator.operators
         self.pthoperators=self.pthgenerator.operators
         self.ptwoperators=self.ptwgenerator.operators
         self.periodize()
@@ -190,17 +178,15 @@ class VCA(ED.ED):
 
     def update(self,**karg):
         '''
-        Update the alterable operators, such as the weiss terms.
+        Update the engine.
         '''
         self.generator.update(**karg)
-        self.hwgenerator.update(**karg)
         self.pthgenerator.update(**karg)
         self.ptwgenerator.update(**karg)
-        self.operators=self.generator.operators+self.hwgenerator.operators
+        self.operators=self.generator.operators
         self.pthoperators=self.pthgenerator.operators
         self.ptwoperators=self.ptwgenerator.operators
         self.status.update(alter=self.generator.parameters['alter'])
-        self.status.update(alter=self.hwgenerator.parameters['alter'])
 
     @property
     def ncopt(self):
@@ -329,7 +315,7 @@ class VCA(ED.ED):
 class EB(HP.EB):
     '''
     Single particle spectrum along a path in the Brillouin zone.
-    Attribues:
+    Attributes:
         emin,emax: np.float64
             The energy range of the single particle spectrum.
         ne: integer
@@ -487,7 +473,7 @@ def VCAGP(engine,app):
 class GPM(HP.App):
     '''
     Grand potential minimization.
-    Attribues:
+    Attributes:
         BS: BaseSpace or dict
             When BaseSpace, it is the basespace on which the grand potential is to be computed;
             When dict, it is the initial guess of the minimum point in the basespace.
@@ -558,7 +544,7 @@ def VCAGPM(engine,app):
     else:
         temp=minimize(gp,app.BS.values(),args=(app.BS.keys()),method=app.extras['method'],options=app.extras['options'])
         app.bsm,app.gpm={key:value for key,value in zip(app.BS.keys(),temp.x)},temp.fun
-        engine.log<<'Summary of Minimization:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bsm.items()+[('value',app.gpm)]))
+        engine.log<<'Summary of Minimization:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bsm.items()+[('gp',app.gpm)]))
         if app.save_data:
             result=np.array([app.bsm.values()+[app.gpm]])
             if app.fout is None:
@@ -574,7 +560,7 @@ def VCAGPM(engine,app):
 class CPFF(HP.CPFF):
     '''
     Chemical potential or filling factor.
-    Attribues:
+    Attributes:
         p: np.float64
             A tunale parameter used in the calculation.
             For details, please refer arXiv:0806.2690.
@@ -616,7 +602,7 @@ def VCACPFF(engine,app):
 class OP(HP.App):
     '''
     Order parameter.
-    Attribues:
+    Attributes:
         terms: list of Term
             The terms representing the orders.
         BZ: BaseSpace
