@@ -9,39 +9,17 @@ import time
 
 def test_basisf():
     print 'test_basisf'
-    stime=time.time()
-    m=12;n=6;nloop=100
+    m,n,nloop=12,6,10
     a=BasisF(up=(m,n),down=(m,n))
-    for i in xrange(nloop):
-        pass
-        #test_while1(a.nbasis,a.basis_table)
-        #test_while2(a.nbasis,a.basis_table)
+    stime=time.time()
+    for j in xrange(nloop):
+        loop(a.table,a.nbasis)
     etime=time.time()
     print 'time consumed: %ss.'%(etime-stime)
     print
 
 @jit
-def test_while1(nbasis,basis_table):
-    ntable=len(basis_table)
+def loop(table,nbasis):
     for i in xrange(nbasis):
-        if ntable==0:
-            rep=i
-            seq=i
-        else:
-            rep=basis_table[i]
-            lb=0;ub=ntable
-            result=(lb+ub)/2
-            while basis_table[result]!=rep:
-                if basis_table[result]>rep:
-                    ub=result
-                else:
-                    lb=result
-                if ub==lb: 
-                    raise ValueError("Seq_basis error: the input basis_rep is not in the basis_table.")
-                result=(lb+ub)/2
-
-def test_while2(nbasis,basis_table):
-    ntable=len(basis_table)
-    for i in xrange(nbasis):
-        rep=basis_rep(i,basis_table)
-        seq=seq_basis(rep,basis_table)
+        rep=table[i]
+        seq=sequence(rep,table)

@@ -1,10 +1,10 @@
 '''
 The tree of physical degrees of freedom, including:
-1) constants: DEFAULT_FERMIONIC_LAYERS,DEFAULT_SPIN_LAYERS
+1) constants: DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS,DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
 2) classes: DegFreTree
 '''
 
-__all__=['DEFAULT_FERMIONIC_LAYERS','DEFAULT_SPIN_LAYERS','DegFreTree']
+__all__=['DEGFRE_FERMIONIC_PRIORITY','DEGFRE_SPIN_PRIORITY','DEGFRE_FERMIONIC_LAYERS','DEGFRE_SPIN_LAYERS','DegFreTree']
 
 import numpy as np
 from HamiltonianPy import PID,Table,QuantumNumbers
@@ -12,8 +12,10 @@ from ..Misc import Tree
 from Tensor import Label
 from collections import OrderedDict
 
-DEFAULT_FERMIONIC_LAYERS=[('scope',),('site',),('orbital','spin')]
-DEFAULT_SPIN_LAYERS=[('scope',),('site','S')]
+DEGFRE_FERMIONIC_PRIORITY=('scope','site','orbital','spin','nambu')
+DEGFRE_FERMIONIC_LAYERS=[('scope','site','orbital'),('spin',)]
+DEGFRE_SPIN_PRIORITY=['scope','site','S']
+DEGFRE_SPIN_LAYERS=[('scope','site','S')]
 
 class DegFreTree(Tree):
     '''

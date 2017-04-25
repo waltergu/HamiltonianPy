@@ -153,13 +153,13 @@ class MPS(list):
         Generate a random mps.
         Parameters:
             sites: list of Label/integer/QuantumNumbers
-                The labels/number-of-freedom/quantum-numbers of the physical legs.
+                The labels/number-of-degrees-of-freedom/quantum-numbers of the physical legs.
             bonds:
                 1) list of Label
                     The labels of the virtual legs.
                 2) list of None/1/QuantumNumber
-                    The positions of the non-None values are the breakpoints of the random mps.
-                    At the breakpoints, the bond dimension are forced to be 1.
+                    The number-of-degrees-of-freedom/quantum-numbers of the virtual legs.
+                    The positions of the non-None values are the breakpoints of the random mps, where the bond dimension are forced to be 1.
             cut: integer, optional
                 The index of the connecting link.
             namx: integer, optional
@@ -316,6 +316,8 @@ class MPS(list):
         assert len(sites)==self.nsite and len(bonds)==self.nsite+1
         for m,L,S,R in zip(self,bonds[:-1],sites,bonds[1:]):
             m.relabel(news=[L,S,R])
+        if self.Lambda is not None:
+            self.Lambda.relabel(news=[bonds[self.cut]])
 
     def copy(self,copy_data=False):
         '''

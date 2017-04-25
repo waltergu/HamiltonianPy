@@ -22,7 +22,7 @@ def test_dmrg():
 def test_dmrg_spin():
     print 'test_dmrg_spin'
     N,J,spin,qn_on=20,1.0,1.0,True
-    priority,layers=DEFAULT_SPIN_PRIORITY,DEFAULT_SPIN_LAYERS
+    priority,layers=DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
     dmrg=DMRG(
         log=        Log('spin-%s.log'%(spin),mode='a+'),
         name=       'spin-%s'%(spin),

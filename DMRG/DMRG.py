@@ -107,8 +107,8 @@ class Cylinder(Lattice):
             The constructed cylinder.
         '''
         points,num=[],len(scopes)
-        for i,rcoord in enumerate(tiling(self.block,vectors=[self.translation],translations=np.linspace(-(num-1)/2.0,(num-1)/2.0,num))):
-            points.append(Point(PID(scope=scopes[i/num],site=i%num),rcoord=rcoord,icoord=np.zeros_like(rcoord)))
+        for i,rcoord in enumerate(tiling(self.block,[self.translation],np.linspace(-(num-1)/2.0,(num-1)/2.0,num) if num>1 else xrange(1))):
+            points.append(Point(PID(scope=scopes[i/len(self.block)],site=i%len(self.block)),rcoord=rcoord,icoord=np.zeros_like(rcoord)))
         return Lattice.compose(name=self.name,points=points,vectors=self.vectors,nneighbour=self.nneighbour)
 
 class DMRG(Engine):
@@ -232,11 +232,12 @@ class DMRG(Engine):
         if self.mask==['nambu']:
             for operator in self.operators.values()[:]:
                 self.operators+=operator.dagger
-        for i,operator in enumerate(self.operators.itervalues()):
+        for i,opt in enumerate(self.operators.itervalues()):
+            optstr=OptStr.from_operator(opt,self.degfres,self.degfres.layers[-1] if self.mask==['nambu'] else self.layer).relayer(self.degfres,self.layer)
             if i==0:
-                self.mpo=OptStr.from_operator(operator,self.degfres,self.layer).to_mpo(self.degfres)
+                self.mpo=optstr.to_mpo(self.degfres)
             else:
-                self.mpo+=OptStr.from_operator(operator,self.degfres,self.layer).to_mpo(self.degfres)
+                self.mpo+=optstr.to_mpo(self.degfres)
             if i%20==0 or i==len(self.operators)-1:
                 self.mpo.compress(nsweep=1,method='dpl',options=dict(tol=hm.TOL))
 
@@ -300,10 +301,35 @@ class DMRG(Engine):
             for pos in xrange(self.mps.nsite,R-1,-1):
                 self.set_HR_(pos,tol=tol)
 
-    def two_site_step(self,sp=True,nmax=200,tol=hm.TOL,piechart=True):
+    def reset(self,layer,lattice,mps):
+        '''
+        Reset the core of the dmrg.
+        Parameters:
+            layer: integer
+                The new layer of the dmrg.
+            lattice: Lattice
+                The new lattice of the dmrg.
+            mps: MPS
+                The new mps of the dmrg.
+        '''
+        self.layer=layer
+        self.lattice=lattice
+        self.config.reset(pids=self.lattice.pids)
+        self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
+        self.generator.reset(bonds=self.lattice.bonds,config=self.config)
+        self.set_operators_mpo()
+        self.mps=mps
+        sites,bonds=self.degfres.labels(self.degfres.layers[self.layer],'S'),self.degfres.labels(self.degfres.layers[self.layer],'B')
+        self.mps.relabel(sites=sites,bonds=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds,mps.bonds)])
+        self.target=next(iter(mps[-1].labels[MPS.R].qns)) if mps.mode=='QN' else None
+        self.set_Hs_()
+
+    def iterate(self,info='',sp=True,nmax=200,tol=hm.TOL,piechart=True):
         '''
         The two site dmrg step.
         Parameters:
+            info: str, optional
+                The infomation string passed to self.log.
             sp: logical, optional
                 True for state prediction False for not.
             nmax: integer, optional
@@ -313,6 +339,7 @@ class DMRG(Engine):
             piechart: logical, optional
                 True for showing the piechart of self.timers while False for not.
         '''
+        self.log<<'%s%s\n%s\n'%(self.state,info,self.graph)
         with self.timers.get('Preparation'):
             Ha,Hb=self._Hs_['L'][self.mps.cut-1],self._Hs_['R'][self.mps.nsite-self.mps.cut-1]
             Hasite,Hbsite=self.mpo[self.mps.cut-1],self.mpo[self.mps.cut]
@@ -355,7 +382,7 @@ class DMRG(Engine):
                 with self.timers.get('sum'):
                     matrix+=temp
             self.info['nnz']=matrix.nnz
-            self.info['nz']=len(np.argwhere(np.abs(matrix.data)<tol))*100.0/matrix.nnz,'%1.1f%%'
+            self.info['nz']=(len(np.argwhere(np.abs(matrix.data)<tol))*100.0/matrix.nnz) if matrix.nnz>0 else 0,'%1.1f%%'
         with self.timers.get('Diagonalization'):
             u,s,v=self.mps[self.mps.cut-1],self.mps.Lambda,self.mps[self.mps.cut]
             if sp and norm(s)>RZERO:
@@ -381,28 +408,6 @@ class DMRG(Engine):
         self.log<<'timers of the dmrg:\n%s\n'%self.timers.tostr(None)
         self.log<<'info of the dmrg:\n%s\n\n'%self.info
         if piechart: self.timers.graph(parents=Timers.ALL)
-
-    def relayer(self,layer,nsweep=1,cut=0,nmax=None,tol=None):
-        '''
-        Change the layer of the physical degrees of freedom.
-        Parameters:
-            layer: integer/tuple-of-string
-                The new layer.
-            nsweep: integer, optional
-                The number of sweeps to compress the new mps and mpo.
-            cut: integer, optional
-                The position of the connecting bond of the new mps.
-            nmax: integer, optional
-                The maximum number of singular values to be kept.
-            tol: np.float64, optional
-                The tolerance of the singular values.
-        '''
-        self.layer=layer if type(layer) in (int,long) else self.degfres.layers.index(layer)
-        self.set_operators_mpo()
-        self.mpo.compress(nsweep=nsweep,options=dict(method='dpl',tol=hm.TOL))
-        self.mps=self.mps.relayer(self.degfres,layer,nmax=nmax,tol=tol)
-        self.mps.compress(nsweep=nsweep,cut=cut,nmax=nmax,tol=tol)
-        self.set_Hs_(tol=tol)
 
     def insert(self,A,B,target=None,mps0=None):
         '''
@@ -482,14 +487,50 @@ class DMRG(Engine):
                 for L,S,R in zip(nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]):
                     nms.append(Tensor(np.zeros((1,S.dim,1),dtype=self.dtype),labels=[L,S,R]))
             self.mps[self.mps.cut:self.mps.cut]=nms
-            self.mps.relabel(sites=sites,bonds=nbonds)
             self.mps.cut=self.mps.nsite/2
+            self.mps.relabel(sites=sites,bonds=nbonds)
         else:
             assert self.mps.nsite==0 and mps0.nsite==len(self.mpo) and mps0.cut==mps0.nsite/2
             self.mps=mps0
             self.mps.relabel(sites=sites,bonds=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds,mps0.bonds)])
         self.set_Hs_(L=self.mps.cut-2,R=self.mps.cut+1)
         self.target=target
+
+    def sweep(self,info='',path=None,**karg):
+        '''
+        Parameters:
+            info: str, optional
+                The info passed to self.log.
+            path: list of str, optional
+                The path along which the sweep is performed.
+            karg: 'nmax','tol','piechart'
+                See DMRG.iterate for details.
+        '''
+        for move in it.chain(['<<']*(self.mps.cut-1),['>>']*(self.mps.nsite-2),['<<']*(self.mps.nsite-self.mps.cut-1)) if path is None else path:
+            self.mps<<=1 if '<<' in move else -1
+            self.iterate(info='%s(%s)'%(info,move),sp=True,**karg)
+
+    def relayer(self,layer,nsweep=1,cut=0,nmax=None,tol=None):
+        '''
+        Change the layer of the physical degrees of freedom.
+        Parameters:
+            layer: integer/tuple-of-string
+                The new layer.
+            nsweep: integer, optional
+                The number of sweeps to compress the new mps and mpo.
+            cut: integer, optional
+                The position of the connecting bond of the new mps.
+            nmax: integer, optional
+                The maximum number of singular values to be kept.
+            tol: np.float64, optional
+                The tolerance of the singular values.
+        '''
+        self.layer=layer if type(layer) in (int,long) else self.degfres.layers.index(layer)
+        self.set_operators_mpo()
+        self.mpo.compress(nsweep=nsweep,options=dict(method='dpl',tol=hm.TOL))
+        self.mps=self.mps.relayer(self.degfres,layer,nmax=nmax,tol=tol)
+        self.mps.compress(nsweep=nsweep,cut=cut,nmax=nmax,tol=tol)
+        self.set_Hs_(tol=tol)
 
     def coredump(self):
         '''
@@ -625,19 +666,16 @@ def DMRGTSG(engine,app):
     num=app.recover(engine)
     if engine.layer!=app.layer: engine.layer=app.layer
     for pos,target in enumerate(app.targets[num+1:]):
-        nold=engine.mps.nsite
+        nold,nnew=engine.mps.nsite,engine.mps.nsite+2*app.ns
         engine.insert(app.scopes[pos+num+1],app.scopes[-pos-num-2],target=target,mps0=app.mps0 if num+pos<0 else None)
-        nnew=engine.mps.nsite
-        engine.log<<'%s(++)\n%s\n'%(engine.state,engine.graph)
-        engine.two_site_step(sp=True if num+pos>=0 else False,nmax=app.nmax,tol=app.tol,piechart=app.plot)
+        assert nnew==engine.mps.nsite
+        engine.iterate(info='(++)',sp=True if num+pos>=0 else False,nmax=app.nmax,tol=app.tol,piechart=app.plot)
         for i,nmax in enumerate(app.heatbaths if num+pos==-1 else app.sweeps):
-            for move in it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2)):
-                engine.mps<<=1 if move=='++<<' else -1
-                engine.log<<'%s No.%s(%s)\n%s\n'%(engine.state,i+1,move,engine.graph)
-                engine.two_site_step(sp=True,nmax=nmax,tol=app.tol,piechart=app.plot)
+            path=it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2))
+            engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,tol=app.tol,piechart=app.plot)
     if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
-    engine.log.close()
     if app.save_data: engine.coredump()
+    engine.log.close()
 
 class TSS(App):
     '''
@@ -734,10 +772,7 @@ def DMRGTSS(engine,app):
     for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs[num+1:],app.BS[num+1:],app.paths[num+1:])):
         app.status.update(alter=parameters)
         if not (app.status<=engine.status): engine.update(**parameters)
-        for move in it.chain(['<<']*(engine.mps.cut-1),['>>']*(engine.mps.nsite-2),['<<']*(engine.mps.nsite-engine.mps.cut-1)) if path is None else path:
-            engine.mps<<=1 if move=='<<' else -1
-            engine.log<<'%s No.%s(%s)\n%s\n'%(engine.state,i+1,move,engine.graph)
-            engine.two_site_step(sp=True,nmax=nmax,tol=app.tol,piechart=app.plot)
+        engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,tol=app.tol,piechart=app.plot)
         if app.save_data: engine.coredump()
     if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
     engine.log.close()

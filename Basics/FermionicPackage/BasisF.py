@@ -1,10 +1,10 @@
 '''
 Basis of fermionic systems in the occupation number representation, including:
 1) classes: BasisF
-2) function: basis_rep, seq_basis
+2) function: sequence
 '''
 
-__all__=['BasisF','basis_rep','seq_basis']
+__all__=['BasisF','sequence']
 
 from numpy import *
 from math import factorial
@@ -28,7 +28,7 @@ class BasisF(object):
             An array containing the numbers of states.
         nparticle: 1D ndarray of integers
             An array containing the numbers of particles.
-        basis_table: 1D ndarray of integers
+        table: 1d ndarray of integers
             The table of allowed binary basis of the Hilbert space.
         nbasis: integer 
             The dimension of the Hilbert space.
@@ -58,7 +58,7 @@ class BasisF(object):
             nstate: integer,optional
                 The number of states which is used to generate a particle-non-conserved basis.
             dtype: dtype
-                The data type of the attribute basis_table.
+                The data type of the basis table.
         Note: 
             If more than needed parameters to generate a certain kind a basis are assigned, this method obeys the following priority to create the instance: "FP" > "FS" > "FG".
         '''
@@ -66,19 +66,19 @@ class BasisF(object):
             self.mode="FP"
             self.nstate=array(tuple[0])
             self.nparticle=array(tuple[1])
-            self.basis_table=basis_table_ep(tuple[0],tuple[1],dtype=dtype)
-            self.nbasis=len(self.basis_table)
+            self.table=table_ep(tuple[0],tuple[1],dtype=dtype)
+            self.nbasis=len(self.table)
         elif len(up)==2 and len(down)==2:
             self.mode="FS"
             self.nstate=array([up[0],down[0]])
             self.nparticle=array([up[1],down[1]])
-            self.basis_table=basis_table_es(up,down,dtype=dtype)
-            self.nbasis=len(self.basis_table)
+            self.table=table_es(up,down,dtype=dtype)
+            self.nbasis=len(self.table)
         else:
             self.mode="FG"
             self.nstate=array(nstate)
             self.nparticle=array([])
-            self.basis_table=array([])
+            self.table=array([])
             self.nbasis=2**nstate
 
     def __str__(self):
@@ -90,11 +90,11 @@ class BasisF(object):
             for i in xrange(self.nbasis):
                 result+=str(i)+': '+'{0:b}'.format(i)+'\n'
         else:
-            for i,v in enumerate(self.basis_table):
+            for i,v in enumerate(self.table):
                 result+=str(i)+': '+'{0:b}'.format(v)+'\n'
         return result
 
-def basis_table_ep(nstate,nparticle,dtype=int64):
+def table_ep(nstate,nparticle,dtype=int64):
     '''
     This function generates the binary basis table with nstate orbitals occupied by nparticle electrons.
     '''
@@ -108,7 +108,7 @@ def basis_table_ep(nstate,nparticle,dtype=int64):
     result.sort()
     return result
 
-def basis_table_es(up,down,dtype=int64):
+def table_es(up,down,dtype=int64):
     '''
     This function generates the binary basis table according to the up and down tuples.
     '''
@@ -130,34 +130,32 @@ def basis_table_es(up,down,dtype=int64):
     result.sort()
     return result
 
-def basis_rep(seq_basis,basis_table):
-    '''
-    This function returns the binary basis representation whose sequence in basis_table is seq_basis.
-    '''
-    if len(basis_table)==0:
-        return seq_basis
-    else:
-        return basis_table[seq_basis]
-
 @jit
-def seq_basis(basis_rep,basis_table):
+def sequence(rep,table):
     '''
-    This function returns the basis sequence of basis_rep in basis_table.
+    This function returns the sequence of a basis in the basis table.
+    Parameters:
+        rep: integer
+            The binary representation of a basis.
+        table: 1d ndarray of integers
+            The basis table.
+    Returns: integer
+        The corresponding sequence of the basis.
     '''
-    if len(basis_table)==0 :
-        return basis_rep
+    if len(table)==0 :
+        return rep
     else:
-        lb=0;ub=len(basis_table)
+        lb=0;ub=len(table)
         result=(lb+ub)/2
-        while basis_table[result]!=basis_rep:
-            if basis_table[result]>basis_rep:
+        while table[result]!=rep:
+            if table[result]>rep:
                 ub=result
             else:
                 lb=result
-            if ub==lb: 
+            if ub==lb:
                 error=True
                 break
             result=(lb+ub)/2
         else:
             return result
-        raise ValueError('Seq_basis error: the input basis_rep is not in the basis_table.')
+        raise ValueError('sequence error: the input rep is not in the table.')

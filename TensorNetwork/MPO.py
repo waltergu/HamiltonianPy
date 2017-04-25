@@ -61,6 +61,7 @@ class OptStr(list):
             The corresponding OptStr.
         '''
         assert type(operator) in (OperatorS,OperatorF)
+        dtype=np.array(operator.value).dtype
         layer=degfres.layers[layer] if type(layer) in (int,long) else layer
         if type(operator) is OperatorS:
             ms=[]
@@ -77,7 +78,7 @@ class OptStr(list):
             groups,counts=OrderedDict(),[]
             for k in permutation:
                 leaf=table[operator.indices[k].replace(nambu=None)]
-                m=np.array([[0.0,0.0],[1.0,0.0]]) if operator.indices[k].nambu==CREATION else np.array([[0.0,1.0],[0.0,0.0]])
+                m=np.array([[0.0,0.0],[1.0,0.0]],dtype=dtype) if operator.indices[k].nambu==CREATION else np.array([[0.0,1.0],[0.0,0.0]],dtype=dtype)
                 if leaf in groups:
                     counts[-1]+=1
                     groups[leaf]=groups[leaf].dot(m)
@@ -87,7 +88,7 @@ class OptStr(list):
             ms=[]
             keys=groups.keys()
             sites=degfres.labels(degfres.layers[-1],'S')
-            zmatrix=np.array([[1.0,0.0],[0.0,-1.0]])
+            zmatrix=np.array([[1.0,0.0],[0.0,-1.0]],dtype=dtype)
             for leaf in xrange(keys[0],keys[-1]+1):
                 labels=[sites[leaf].prime,sites[leaf]]
                 if leaf in groups:
@@ -195,6 +196,7 @@ class OptStr(list):
         Returns: MPO
             The corresponding MPO.
         '''
+        dtype=next(iter(self)).dtype
         type=degfres[next(iter(next(iter(self)).labels)).identifier].type if degfres.mode=='QN' else None
         layer=degfres.layers[degfres.level(next(iter(self)).labels[1].identifier)-1]
         table,sites,bonds=degfres.table(layer),degfres.labels(layer,'S'),degfres.labels(layer,'O')
@@ -210,7 +212,7 @@ class OptStr(list):
                 ms.append(Tensor(np.asarray(self[count]).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
                 count+=1
             else:
-                ms.append(Tensor(np.identity(sites[pos].dim).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
+                ms.append(Tensor(np.identity(sites[pos].dim,dtype=dtype).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
             if degfres.mode=='QN':
                 ms[-1].qng(axes=[MPO.L,MPO.U,MPO.D],qnses=[lqns,sqns,sqns],signs='++-')
         return MPO(ms)

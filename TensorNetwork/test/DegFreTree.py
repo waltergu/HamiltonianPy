@@ -9,13 +9,13 @@ from HamiltonianPy.TensorNetwork.DegFreTree import *
 
 def test_degfretree():
     print 'test_degfretree'
-    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
+    config=IDFConfig(priority=DEGFRE_FERMIONIC_PRIORITY)
     for scope in xrange(2):
         config[PID(scope=scope,site=0)]=Fermi(norbital=1,nspin=2,nnambu=1)
         config[PID(scope=scope,site=1)]=Fermi(norbital=1,nspin=2,nnambu=1)
 
-    layers=DEFAULT_FERMIONIC_LAYERS
-    priority=DEFAULT_FERMIONIC_PRIORITY
+    layers=DEGFRE_FERMIONIC_LAYERS
+    priority=DEGFRE_FERMIONIC_PRIORITY
     leaves=config.table(mask=['nambu']).keys()
 
     map_nb=lambda index: 2
@@ -36,13 +36,13 @@ def test_degfretree():
             print 'tree[index]: %s'%tree[index]
         print
 
-    config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY)
+    config=IDFConfig(priority=DEGFRE_SPIN_PRIORITY)
     for site in xrange(4):
         config[PID(scope=1,site=site)]=Spin(S=0.5)
         config[PID(scope=2,site=site)]=Spin(S=0.5)
 
-    layers=DEFAULT_SPIN_LAYERS
-    priority=DEFAULT_SPIN_PRIORITY
+    layers=DEGFRE_SPIN_LAYERS
+    priority=DEGFRE_SPIN_PRIORITY
     leaves=config.table(mask=[]).keys()
 
     map_nb=lambda index: 2
