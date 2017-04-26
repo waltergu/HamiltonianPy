@@ -8,10 +8,10 @@ Based on this, it implements several algorithms, including:
 
 Dependency
 ---------------------------------------------------------------------------------------------------
-python 2.x
-numpy latest version
-scipy latest version
-mpi4py
+* python 2.x
+* numpy latest version
+* scipy latest version
+* mpi4py
 
 Source code
 ---------------------------------------------------------------------------------------------------
