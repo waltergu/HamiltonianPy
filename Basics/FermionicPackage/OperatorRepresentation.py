@@ -1,6 +1,6 @@
 '''
 Fermionic operator representation, including:
-1) functions: f_opt_rep
+    * functions: f_opt_rep
 '''
 
 __all__=['f_opt_rep']
@@ -15,21 +15,28 @@ from numba import jit
 def f_opt_rep(operator,basis,transpose=False,dtype=complex128):
     '''
     This function returns the csr_formed or csc_formed sparse matrix representation of an operator on the occupation number basis.
-    Parameters:
-        operator: OperatorF
-            Three kinds of operators are supported, f_linear, f_quadratic and f_hubbard.
-        basis: BasisF or list of BasisF
-            When operator.rank==1 it is a list of BasisF with len==2. Otherwise it is an instance of BasisF.
-            When the input operator represents a pairing term, basis.mode must be "FG" because of the non-conservation of particle numbers.
-        transpose: logical, optional
-            A flag to tag which form of sparse matrix the result is used. True for csr-formed and False for csc-formed.
-        dtype: dtype, optional
-            The data type of the non-zero values of the returned sparse matrix.
-    Returns:
-        csr_matrix.
-    Note:
-    1) All of those operators' representations are generated in the real space. 
-    2) The returned sparse matrix is always constructed by csr_matrix(...) since the difference between csc-formed matrix and csr-formed matrix is just a transpose.
+
+    Parameters
+    ----------
+    operator : OperatorF
+        Three kinds of operators are supported, f_linear, f_quadratic and f_hubbard.
+    basis : BasisF or list of BasisF
+        * When operator.rank==1 it is a list of BasisF with len==2. Otherwise it is an instance of BasisF.
+        * When the input operator represents a pairing term, basis.mode must be "FG" because of the non-conservation of particle numbers.
+    transpose : logical, optional
+        A flag to tag which form of sparse matrix the result is used. True for csr-formed and False for csc-formed.
+    dtype : dtype, optional
+        The data type of the non-zero values of the returned sparse matrix.
+
+    Returns
+    -------
+    csr_matrix.
+        The sparse matrix representation of the operator.
+
+    Notes
+    -----
+        * All of those operators' representations are generated in the real space. 
+        * The returned sparse matrix is always constructed by ``csr_matrix(...)`` since a csc-matrix is just a transpose of a csr-formed matrix.
     '''
     assert operator.rank in (1,2,4)
     if operator.rank==1:

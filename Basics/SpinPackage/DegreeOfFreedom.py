@@ -1,8 +1,8 @@
 '''
 Spin degree of freedom package, including:
-1) constants: DEFAULT_SPIN_PRIORITY
-2) classes: SID, Spin, SpinMatrix, SpinPack
-3) functions: Heisenberg, Ising, S
+    * constants: DEFAULT_SPIN_PRIORITY
+    * classes: SID, Spin, SpinMatrix, SpinPack
+    * functions: Heisenberg, Ising, S
 '''
 
 __all__=['DEFAULT_SPIN_PRIORITY','SID','Spin','SpinMatrix','SpinPack','Heisenberg','Ising','S']
@@ -18,9 +18,11 @@ DEFAULT_SPIN_PRIORITY=['scope','site','S']
 class SID(namedtuple('SID',['S'])):
     '''
     Internal spin ID.
-    Attributes:
-        S: integer or half integer
-            The total spin.
+
+    Attributes
+    ----------
+    S : integer or half integer
+        The total spin.
     '''
 
     @property
@@ -33,15 +35,21 @@ class SID(namedtuple('SID',['S'])):
 class Spin(Internal):
     '''
     This class defines the internal spin degrees of freedom in a single point.
-    Attributes:
-        S: integer or half integer
-            The total spin.
+
+    Attributes
+    ----------
+    S : integer or half integer
+        The total spin.
     '''
+
     def __init__(self,S):
         '''
         Constructor.
-            S: integer or half integer
-                The total spin.
+
+        Parameters
+        ----------
+        S : integer or half integer
+            The total spin.
         '''
         if S is not None and abs(2*S-int(2*S))>10**-6:
             raise ValueError('Spin construction error: S(%s) is not an integer or half integer.')
@@ -62,12 +70,17 @@ class Spin(Internal):
     def indices(self,pid,mask=[]):
         '''
         Return a list of all the masked indices within this internal degrees of freedom combined with an extra spatial part.
-        Parameters:
-            pid: PID
-                The extra spatial part of the indices.
-            mask: list of string, optional
-                The attributes that will be masked to None.
-        Returns: list of Index
+
+        Parameters
+        ----------
+        pid : PID
+            The extra spatial part of the indices.
+        mask : list of string, optional
+            The attributes that will be masked to None.
+
+        Returns
+        -------
+        list of Index
             The indices.
         '''
         pid=pid._replace(**{key:None for key in set(mask)&set(PID._fields)})
@@ -76,27 +89,32 @@ class Spin(Internal):
 class SpinMatrix(ndarray):
     '''
     The matrix representation of spin operators.
-    Attributes:
-        id: 2-tuple
-            id[0]: integer or half integer
-                The total spin.
-            id[1]: any hashable object
-                The tag of the matrix.
+
+    Attributes
+    ----------
+    id : 2-tuple
+        * id[0]: integer or half integer
+            The total spin.
+        * id[1]: any hashable object
+            The tag of the matrix.
     '''
+
     def __new__(cls,id,dtype=complex128,matrix=None,**kargs):
         '''
         Constructor.
-        Parameters:
-            id: 2-tuple
-                id[0]: integer or half integer
-                    The total spin.
-                id[1]: 'X','x','Y','y','Z','z','+','-', and any other hashable object
-                    This parameter specifies the matrix.
-            dtype: float64 or complex128, optional
-                The data type of the matirx.
-            matrix: 2D ndarray, optional
-                This parameter only takes effect when id[1] is not in ('X','x','Y','y','Z','z','+','-').
-                It is then used as the matrix of this SpinMatrix.
+
+        Parameters
+        ----------
+        id : 2-tuple
+            * id[0]: integer or half integer
+                The total spin.
+            * id[1]: 'X','x','Y','y','Z','z','+','-', and any other hashable object
+                This parameter specifies the matrix.
+        dtype : float64 or complex128, optional
+            The data type of the matirx.
+        matrix : 2d ndarray, optional
+            This parameter only takes effect when ``id[1]`` is not in ('X','x','Y','y','Z','z','+','-').
+            It is then used as the matrix of this SpinMatrix.
         '''
         if isinstance(id,tuple):
             delta=lambda i,j: 1 if i==j else 0
@@ -164,27 +182,35 @@ class SpinMatrix(ndarray):
 class SpinPack(IndexPack):
     '''
     The pack of spin degrees of freedom.
-    Attributes:
-        pack: tuple of characters
-            Each character specifies a SpinMatrix.
-            Each character must be in ('x','X','y','Y','z','Z','+','-')
+
+    Attributes
+    ----------
+    pack : tuple of characters or tuple of tuples
+        * When tuple of characters:
+            Each character specifies a SpinMatrix, which must be in ('x','X','y','Y','z','Z','+','-')
+        * When tuple of tuples, for each tuple,
+            * pack[.][0]: any hashable object
+                The second part of the id of a SpinMatrix.
+            * pack[.][1]: 2d ndarray
+                The matrix of a SpinMatrix.
     '''
 
     def __init__(self,value,pack):
         '''
         Constructor.
-        Parameters:
-            value: float64 or complex128
-                The overall coefficient of the spin pack.
-            pack: tuple of characters or tuple of tuples
-                when it is tuple of characters:
-                    Each character specifies a SpinMatrix.
-                    Each character must be in ('x','X','y','Y','z','Z','+','-')
-                when it is tuple of tuples, for each tuple:
-                    pack[.][0]: any hashable object
-                        The second part of the id of a SpinMatrix.
-                    pack[.][1]: 2D ndarray
-                        The matrix of a SpinMatrix.
+
+        Parameters
+        ----------
+        value : float64 or complex128
+            The overall coefficient of the spin pack.
+        pack : tuple of characters or tuple of tuples
+            * When it is tuple of characters:
+                Each character specifies a SpinMatrix, which must be in ('x','X','y','Y','z','Z','+','-')
+            * When it is tuple of tuples, for each tuple:
+                * pack[.][0]: any hashable object
+                    The second part of the id of a SpinMatrix.
+                * pack[.][1]: 2D ndarray
+                    The matrix of a SpinMatrix.
         '''
         super(SpinPack,self).__init__(value)
         self.pack=pack
@@ -225,12 +251,17 @@ def Ising(id):
 def S(id,matrix=None):
     '''
     Single spin packs.
-    Parameters:
-        id: 'x','X','y','Y','z','Z', or any other hashable object.
-            It specifies the single spin pack.
-        matrix: 2D ndarray, optional
-            It specifies the matrix of the spin pack and takes effect only when id is not in ('x','X','y','Y','z','Z').
-    Returns: IndexPackList
+
+    Parameters
+    ----------
+    id : 'x','X','y','Y','z','Z', or any other hashable object.
+        It specifies the single spin pack.
+    matrix : 2d ndarray, optional
+        It specifies the matrix of the spin pack and takes effect only when id is not in ('x','X','y','Y','z','Z').
+
+    Returns
+    -------
+    IndexPackList
         The single spin pack.
     '''
     result=IndexPackList()

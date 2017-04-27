@@ -13,38 +13,42 @@ from collections import OrderedDict
 class Generator(object):
     '''
     This class provides methods to generate and update operators according to terms, bonds and configuration of degrees of freedom.
-    Attributes:
-        bonds: list of Bond
-            The bonds of the model.
-        config: Configuration
-            The configuration of degrees of freedom.
-        table: Table
-            The index-sequence table of the system
-        parameters: dict
-            It contains all model parameters, divided into two groups, the constant ones and the alterable ones.
-        terms: dict
-            It contains all terms contained in the model, divided into two groups, the constant ones and the alterable ones.
-        cache: dict
-            The working space used to handle the generation and update of the operators.
-        dtype: float64 or complex128
-            The data type of the coefficients of the operators.
+
+    Attributes
+    ---------
+    bonds : list of Bond
+        The bonds of the model.
+    config : IDFConfig
+        The configuration of the internal degrees of freedom.
+    table : Table
+        The index-sequence table of the system
+    parameters : dict
+        It contains all model parameters, divided into two groups, the constant ones and the alterable ones.
+    terms : dict
+        It contains all terms contained in the model, divided into two groups, the constant ones and the alterable ones.
+    cache : dict
+        The working space used to handle the generation and update of the operators.
+    dtype : float64 or complex128
+        The data type of the coefficients of the operators.
     '''
 
     def __init__(self,bonds,config,table=None,terms=None,dtype=complex128):
         '''
         Constructor.
-        Parameter:
-            bonds: list of Bond
-                The bonds.
-            config: IDFConfig
-                The configuration of the internal degrees of freedom.
-            table: Table, optional
-                The index-sequence table.
-            terms: list of Term, optional
-                The terms whose corresponding operators are to be generated and updated.
-                Those terms having the attribute modulate will go into self.terms['alter'] and the others will go into self.terms['const'].
-            dtype: numpy.float64, numpy.complex128
-                The data type of the coefficients of the generated operators.
+
+        Parameters
+        ----------
+        bonds : list of Bond
+            The bonds.
+        config : IDFConfig
+            The configuration of the internal degrees of freedom.
+        table : Table, optional
+            The index-sequence table.
+        terms : list of Term, optional
+            The terms whose corresponding operators are to be generated and updated.
+            Those terms having the attribute modulate will go into self.terms['alter'] and the others will go into self.terms['const'].
+        dtype : numpy.float64, numpy.complex128
+            The data type of the coefficients of the generated operators.
         '''
         self.bonds=bonds
         self.config=config
@@ -56,17 +60,19 @@ class Generator(object):
     def reset(self,bonds=None,config=None,table=None,terms=None,dtype=None):
         '''
         Refresh the generator.
-        Parameters:
-            bonds: list of Bond, optional
-                The new bonds.
-            config: IDFConfig, optional
-                The new configuration of the internal degrees of freedom.
-            table: Table, optional
-                The new index-sequence table.
-            terms: list of Term, optional
-                The new terms whose corresponding operators are to be generated and updated.
-            dtype: numpy.float64, numpy.complex128
-                The new data type of the coefficients of the generated operators.
+
+        Parameters
+        ----------
+        bonds : list of Bond, optional
+            The new bonds.
+        config : IDFConfig, optional
+            The new configuration of the internal degrees of freedom.
+        table : Table, optional
+            The new index-sequence table.
+        terms : list of Term, optional
+            The new terms whose corresponding operators are to be generated and updated.
+        dtype : numpy.float64, numpy.complex128
+            The new data type of the coefficients of the generated operators.
         '''
         if bonds is not None: self.bonds=bonds
         if config is not None: self.config=config

@@ -1,6 +1,6 @@
 '''
 Degrees of freedom in a lattice, including:
-1) classes: Status,Table, Index, Internal, IDFConfig, DegFreTree, IndexPack, IndexPackList
+    * classes: Status,Table, Index, Internal, IDFConfig, DegFreTree, IndexPack, IndexPackList
 '''
 
 __all__=['Status','Table','Index','Internal','IDFConfig','IndexPack','IndexPackList']
@@ -15,30 +15,34 @@ from collections import OrderedDict
 class Status(object):
     '''
     This class provides an object with a stauts.
-    Attributes:
-        name: any hashable object
-            The name of the object.
-        info: any object
-            Additional information of the object.
-        data: OrderedDict
-            The data of the object.
-            In current version, these are the parameters of the object.
-        _const_: OrderedDict
-            The constant parameters of the object.
-        _alter_: OrderedDict
-            The alterable parameters of the object.
+
+    Attributes
+    ----------
+    name : any hashable object
+        The name of the object.
+    info : any object
+        Additional information of the object.
+    data : OrderedDict
+        The data of the object.
+        In current version, these are the parameters of the object.
+    _const_ : OrderedDict
+        The constant parameters of the object.
+    _alter_ : OrderedDict
+        The alterable parameters of the object.
     '''
 
     def __init__(self,name='',info='',const=None,alter=None):
         '''
         Constructor.
-        Parameters:
-            name: any hashable object
-                The name of the object.
-            info: any object
-                Additional information of the object.
-            const,alter: OrderedDict, optional
-                The constant/alterable parameters of the object.
+
+        Parameters
+        ----------
+        name : any hashable object
+            The name of the object.
+        info : any object
+            Additional information of the object.
+        const,alter : OrderedDict, optional
+            The constant/alterable parameters of the object.
         '''
         self.name=name
         self.info=info
@@ -62,9 +66,11 @@ class Status(object):
     def update(self,const=None,alter=None):
         '''
         Update the parameters of the object.
-        Parameters:
-            const, alter: dict, optional
-                The new parameters.
+
+        Parameters
+        ----------
+        const,alter : dict, optional
+            The new parameters.
         '''
         if const is not None:
             self._const_.update(const)
@@ -104,7 +110,7 @@ class Status(object):
     def __le__(self,other):
         '''
         Overloaded operator(<=).
-        If self.data is a subset of other.data, return True. Otherwise False.
+        If ``self.data`` is a subset of ``other.data``, return True. Otherwise False.
         '''
         try:
             for key,value in self.data.iteritems():
@@ -118,7 +124,7 @@ class Status(object):
     def __ge__(self,other):
         '''
         Overloaded operator(>=).
-        If other.data is a subset of self.data, return True. Otherwise False.
+        If ``other.data`` is a subset of ``self.data``, return True. Otherwise False.
         '''
         return other.__le__(self)
 
@@ -130,12 +136,17 @@ class Table(dict):
     def __init__(self,indices=[],key=None):
         '''
         Constructor.
-        Parameters:
-            indices: list of any hashable object
-                The indices that need to be mapped to sequences.
-            key: function, optional
-                The function used to sort the indices.
-            NOTE: The final order of the index in indices will be used as its sequence number.
+
+        Parameters
+        ----------
+        indices : list of any hashable object
+            The indices that need to be mapped to sequences.
+        key : function, optional
+            The function used to sort the indices.
+
+        Notes
+        -----
+        The final order of the index in `indices` will be used as its sequence number.
         '''
         for i,v in enumerate(indices if key is None else sorted(indices,key=key)):
             self[v]=i
@@ -144,13 +155,18 @@ class Table(dict):
     def union(tables,key=None):
         '''
         This function returns the union of index-sequence tables.
-        Parameters:
-            tables: list of Table
-                The tables to be unioned.
-            key: callable, optional
-                The function used to compare different indices in tables.
-                When it is None, the sequence of an index will be naturally ordered by the its sequence in the input tables.
-        Returns: Table
+
+        Parameters
+        ----------
+        tables : list of Table
+            The tables to be unioned.
+        key : callable, optional
+            The function used to compare different indices in tables.
+            When it is None, the sequence of an index will be naturally ordered by the its sequence in the input tables.
+
+        Returns
+        -------
+        Table
             The union of the input tables.
         '''
         result=Table()
@@ -173,12 +189,17 @@ class Table(dict):
     def subset(self,select):
         '''
         This function returns a certain subset of an index-sequence table according to the select function.
-        Parameters:
-            select: callable
-                The select function whose argument is the index of the mother table.
-                When its returned value is True, the index will be included in the subset.
-                The sequence is naturally determined by its order in the mother table.
-        Returns:
+
+        Parameters
+        ----------
+        select : callable
+            The select function whose argument is the index of the mother table.
+            When its returned value is True, the index will be included in the subset.
+            The sequence is naturally determined by its order in the mother table.
+
+        Returns
+        -------
+        Table
             The subset table.
         '''
         result=Table()
@@ -195,7 +216,10 @@ class Table(dict):
     def reversed_table(self):
         '''
         This function returns the sequence-index table for a reversed lookup.
-        Returns: Table
+
+        Returns
+        -------
+        Table
             The reversed table whose key is the sequence and value the index.
         '''
         result=Table()
@@ -206,21 +230,25 @@ class Table(dict):
 class Index(tuple):
     '''
     This class provides an index for a microscopic degree of freedom, including the spatial part and interanl part.
-    Attributes:
-        names: tuple of string
-            The names of the microscopic degrees of freedom.
-        icls: Class
-            The class of the interanl part of the index.
+
+    Attributes
+    ----------
+    names : tuple of string
+        The names of the microscopic degrees of freedom.
+    icls : Class
+        The class of the interanl part of the index.
     '''
 
     def __new__(cls,pid,iid):
         '''
         Constructor.
-        Parameters:
-            pid: PID
-                The point index, i.e. the spatial part in a lattice of the index
-            iid: namedtuple
-                The internal index, i.e. the internal part in a point of the index.
+
+        Parameters
+        ----------
+        pid : PID
+            The point index, i.e. the spatial part in a lattice of the index
+        iid : namedtuple
+            The internal index, i.e. the internal part in a point of the index.
         '''
 
         self=super(Index,cls).__new__(cls,pid+iid)
@@ -283,10 +311,15 @@ class Index(tuple):
     def mask(self,*arg):
         '''
         Mask some attributes of the index to None and return the new one.
-        Parameters:
-            arg: list of string
-                The attributes to be masked.
-        Returns: Index
+
+        Parameters
+        ----------
+        arg : list of string
+            The attributes to be masked.
+
+        Returns
+        -------
+        Index
             The masked index.
         '''
         return self.replace(**{key:None for key in arg})
@@ -294,10 +327,15 @@ class Index(tuple):
     def select(self,*arg):
         '''
         Select some attributes of the index, mask the others to None and return the new one.
-        Parameters:
-            arg: list of string
-                The attributes to be selected.
-        Returns: Index
+
+        Parameters
+        ----------
+        arg : list of string
+            The attributes to be selected.
+
+        Returns
+        -------
+        Index
             The selected index.
         '''
         return self.mask(*[key for key in self.names if key not in arg])
@@ -305,11 +343,16 @@ class Index(tuple):
     def to_tuple(self,priority):
         '''
         Convert an instance to tuple according to the parameter priority.
-        Parameters:
-            priority: list of string
-                Every element of this list should correspond to a name of an attribute of self.
-                The elements should have no duplicates and its length should be equal to the number of self's attributes.
-        Returns: tuple
+
+        Parameters
+        ----------
+        priority : list of string
+            Every element of this list should correspond to a name of an attribute of self.
+            The elements should have no duplicates and its length should be equal to the number of self's attributes.
+
+        Returns
+        -------
+        tuple
             The elements of the returned tuple are equal to the attributes of self. 
             Their orders are determined by the orders they appear in priority.
         '''
@@ -327,54 +370,64 @@ class Internal(object):
     def indices(self,pid,mask=[]):
         '''
         Return a list of all the masked indices within this internal degrees of freedom combined with an extra spatial part.
-        Parameters:
-            pid: PID
-                The extra spatial part of the indices.
-            mask: list of string, optional
-                The attributes that will be masked to None.
-        Returns: list of Index
+
+        Parameters
+        ----------
+        pid : PID
+            The extra spatial part of the indices.
+        mask : list of string, optional
+            The attributes that will be masked to None.
+
+        Returns
+        -------
+        list of Index
             The indices.
         '''
         raise NotImplementedError("%s indices error: it is not implemented."%self.__class__.__name__)
 
 class IDFConfig(dict):
     '''
-    Configuration of the internal degrees of freedom in a lattice.
-    For each of its (key,value) pairs,
-        key: PID
+    Configuration of the internal degrees of freedom in a lattice. For each of its (key,value) pairs,
+        * key: PID
             The pid of the lattice point where the interanl degrees of freedom live.
-        value: subclasses of Internal
+        * value: subclasses of Internal
             The internal degrees of freedom on the corresponding point.
-    Attributes:
-        priority: list of string 
-            The sequence priority of the allowed indices that can be defined on a lattice.
-        map: function
-            This function maps the pid of a lattice point to the interanl degrees of freedom on it.
+
+    Attributes
+    ----------
+    priority : list of string 
+        The sequence priority of the allowed indices that can be defined on a lattice.
+    map : function
+        This function maps the pid of a lattice point to the interanl degrees of freedom on it.
     '''
 
     def __init__(self,priority,pids=[],map=None):
         '''
         Constructor.
-        Parameters:
-            priority: list of string
-                The sequence priority of the allowed indices that can be defined on the lattice.
-            pids: list of PID, optional
-                The pids of the lattice points where the interanl degrees of freedom live.
-            map: function, optional
-                This function maps the pid of a lattice point to the interanl degrees of freedom on it.
+
+        Parameters
+        ----------
+        priority : list of string
+            The sequence priority of the allowed indices that can be defined on the lattice.
+        pids : list of PID, optional
+            The pids of the lattice points where the interanl degrees of freedom live.
+        map : function, optional
+            This function maps the pid of a lattice point to the interanl degrees of freedom on it.
         '''
         self.reset(priority=priority,pids=pids,map=map)
 
     def reset(self,priority=None,pids=[],map=None):
         '''
         Reset the idfconfig.
-        Parameters:
-            pids: list of PID, optional
-                The pids of the lattice points where the interanl degrees of freedom live.
-            map: function, optional
-                This function maps the pid of a lattice point to the interanl degrees of freedom on it.
-            priority: list of string, optional
-                The sequence priority of the allowed indices that can be defined on the lattice.
+
+        Parameters
+        ----------
+        pids : list of PID, optional
+            The pids of the lattice points where the interanl degrees of freedom live.
+        map : function, optional
+            This function maps the pid of a lattice point to the interanl degrees of freedom on it.
+        priority : list of string, optional
+            The sequence priority of the allowed indices that can be defined on the lattice.
         '''
         self.clear()
         self.priority=getattr(self,'priority',None) if priority is None else priority
@@ -385,11 +438,13 @@ class IDFConfig(dict):
     def __setitem__(self,key,value):
         '''
         Set the value of an item.
-        Parameters:
-            key: FID
-                The pid of the lattice point where the internal degrees of freedom live.
-            value: subclasses of Internal
-                The internal degrees of freedom on the corresponding point.
+
+        Parameters
+        ----------
+        key : FID
+            The pid of the lattice point where the internal degrees of freedom live.
+        value : subclasses of Internal
+            The internal degrees of freedom on the corresponding point.
         '''
         assert isinstance(key,PID)
         assert isinstance(value,Internal)
@@ -398,11 +453,16 @@ class IDFConfig(dict):
     def subset(self,select):
         '''
         This function returns a certain subset of an IDFConfig according to the select function.
-        Parameters:
-            select: callable
-                The select function whose argument is the pid of the mother IDFConfig.
-                When its returned value is True, the pid will be included in the subset.
-         Returns:
+
+        Parameters
+        ----------
+        select : callable
+            The select function whose argument is the pid of the mother IDFConfig.
+            When its returned value is True, the pid will be included in the subset.
+
+        Returns
+        -------
+        IDFConfig
             The subset IDFConfig.
         '''
         result=IDFConfig(priority=self.priority,map=self.map)
@@ -419,17 +479,21 @@ class IDFConfig(dict):
 class IndexPack(object):
     '''
     This class packs several degrees of freedom as a whole for convenience.
-    Attributes:
-        value: float64 or complex128
-            The overall coefficient of the IndexPack.
+
+    Attributes
+    ----------
+    value : float64 or complex128
+        The overall coefficient of the IndexPack.
     '''
 
     def __init__(self,value):
         '''
         Constructor.
-        Parameters:
-            value: float64/complex128
-                The overall coefficient of the IndexPack.
+
+        Parameters
+        ----------
+        value: float64/complex128
+            The overall coefficient of the IndexPack.
         '''
         self.value=value
 

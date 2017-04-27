@@ -1,7 +1,7 @@
 '''
 Geometry, including
-1) functions: azimuthd, azimuth, polard, polar, volume, isparallel, issubordinate, reciprocals, translation, rotation, tiling, intralinks, interlinks
-2) classes: PID, Point, Bond, Link, Lattice, SuperLattice
+    * functions: azimuthd, azimuth, polard, polar, volume, isparallel, issubordinate, reciprocals, translation, rotation, tiling, intralinks, interlinks
+    * classes: PID, Point, Bond, Link, Lattice, SuperLattice
 '''
 
 __all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'isparallel', 'issubordinate', 'reciprocals', 'translation', 'rotation', 'tiling', 'intralinks', 'interlinks', 'PID', 'Point', 'Bond', 'Link', 'Lattice', 'SuperLattice']
@@ -65,12 +65,18 @@ def volume(O1,O2,O3):
 def isparallel(O1,O2):
     '''
     Judge whether two array-like vectors are parallel to each other.
-    Parameters:
-        O1,O2: 1d array-like
-    Returns: int
-         0: not parallel,
-         1: parallel, and 
-        -1: anti-parallel.
+
+    Parameters
+    ----------
+    O1,O2 : 1d array-like
+        The input vectors.
+
+    Returns
+    -------
+    int
+        *  0: not parallel
+        *  1: parallel
+        * -1: anti-parallel
     '''
     norm1=nl.norm(O1)
     norm2=nl.norm(O2)
@@ -90,14 +96,22 @@ def isparallel(O1,O2):
 def issubordinate(rcoord,vectors):
     '''
     Judge whether or not a coordinate belongs to a lattice defined by vectors.
-    Parameters:
-        rcoord: 1d array-like
-            The coordinate.
-        vectors: list of 1d array-like
-            The translation vectors of the lattice.
-    Returns: logical
+
+    Parameters
+    ----------
+    rcoord : 1d array-like
+        The coordinate.
+    vectors : list of 1d array-like
+        The translation vectors of the lattice.
+
+    Returns
+    -------
+    logical
         True for yes False for no.
-    NOTE: only 1,2 and 3 dimensional coordinates are supported.
+
+    Notes
+    -----
+    Only 1,2 and 3 dimensional coordinates are supported.
     '''
     nvectors=len(vectors)
     ndim=len(vectors[0])
@@ -131,9 +145,15 @@ def issubordinate(rcoord,vectors):
 def reciprocals(vectors):
     '''
     Return the corresponding reciprocals dual to the input vectors.
-    Parameters:
-        vectors: 2D array-like
-    Returns: 2D array-like
+
+    Parameters
+    ----------
+    vectors : 2d array-like
+        The input vectors.
+
+    Returns
+    -------
+    2d array-like
         The reciprocals.
     '''
     result=[]
@@ -163,12 +183,17 @@ def reciprocals(vectors):
 def translation(cluster,vector):
     '''
     This function returns the translated cluster.
-    Parameters:
-        cluster: list of 1d array-like
-            The original cluster.
-        vector: 1d array-like
-            The translation vector.
-    Returns: list of 1d ndarray
+
+    Parameters
+    ----------
+    cluster : list of 1d array-like
+        The original cluster.
+    vector : 1d array-like
+        The translation vector.
+
+    Returns
+    -------
+    list of 1d ndarray
         The translated cluster.
     '''
     return [np.asarray(coord)+np.asarray(vector) for coord in cluster]
@@ -176,17 +201,21 @@ def translation(cluster,vector):
 def rotation(cluster,angle=0,axis=None,center=None):
     '''
     This function returns the rotated cluster.
-    Parameters:
-        cluster: list of 1d array-like
-            The original cluster.
-        angle: float
-            The rotated angle
-        axis: 1d array-like, optional
-            The rotation axis. Default the z-axis.
-            Not supported yet.
-        center: 1d array-like, optional
-            The center of the axis. Defualt the origin.
-    Returns: list of 1d ndarray
+
+    Parameters
+    ----------
+    cluster : list of 1d array-like
+        The original cluster.
+    angle : float
+        The rotated angle
+    axis : 1d array-like, optional
+        The rotation axis. Default the z-axis. *Not supported yet*.
+    center : 1d array-like, optional
+        The center of the axis. Defualt the origin.
+
+    Returns
+    -------
+    list of 1d ndarray
         The rotated coords.
     '''
     if center is None: center=0
@@ -197,16 +226,20 @@ def rotation(cluster,angle=0,axis=None,center=None):
 def tiling(cluster,vectors=[],translations=[]):
     '''
     Tile a supercluster by translations of the input cluster.
-    Parameters:
-        cluster: list of 1d ndarray
-            The original cluster.
-        vectors: list of 1d ndarray, optional
-            The translation vectors.
-        translations: iterator of tuple, optional
-            The translations of the cluster.
-    Returns:
-        supercluster: list of 1d ndarray
-            The supercluster tiled from the translations of the input cluster.
+
+    Parameters
+    ----------
+    cluster : list of 1d ndarray
+        The original cluster.
+    vectors : list of 1d ndarray, optional
+        The translation vectors.
+    translations : iterator of tuple, optional
+        The translations of the cluster.
+
+    Returns
+    -------
+    list of 1d ndarray
+        The supercluster tiled from the translations of the input cluster.
     '''
     supercluster=[]
     if len(vectors)==0: vectors,translations=0,(0,)
@@ -219,12 +252,14 @@ def tiling(cluster,vectors=[],translations=[]):
 class PID(namedtuple('PID',['scope','site'])):
     '''
     The ID of a point.
-    Attributes:
-        scope: string
-            The scope in which the point lives.
-            Usually, it is same to the name of the cluster/sublattice/lattice the point belongs to.
-        site: integer
-            The site index of the point.
+
+    Attributes
+    ----------
+    scope : string
+        The scope in which the point lives.
+        Usually, it is same to the name of the cluster/sublattice/lattice the point belongs to.
+    site : integer
+        The site index of the point.
     '''
 
 PID.__new__.__defaults__=(None,)*len(PID._fields)
@@ -232,25 +267,27 @@ PID.__new__.__defaults__=(None,)*len(PID._fields)
 class Point(np.ndarray):
     '''
     Point, which is a 2d ndarray with a shape of (2,N), with N being the dimension of the coordinates, and
-        Point[0,:]:
-            The rcoord part of the Point.
-        Point[1,:]:
-            The icoord part of the Point.
-    Attributes:
-        pid: PID
-            The specific ID of a point.
+        * Point[0,:]: The rcoord part of the Point.
+        * Point[1,:]: The icoord part of the Point.
+
+    Attributes
+    ----------
+    pid : PID
+        The specific ID of a point.
     '''
 
     def __new__(cls,pid,rcoord=None,icoord=None):
         '''
         Constructor.
-        Parameters:
-            pid: PID
-                The specific ID of a point
-            rcoord: 1D array-like
-                The coordinate in real space.
-            icoord: 1D array-like,optional
-                The coordinate in lattice space.
+
+        Parameters
+        ----------
+        pid : PID
+            The specific ID of a point
+        rcoord : 1d array-like
+            The coordinate in real space.
+        icoord : 1d array-like,optional
+            The coordinate in lattice space.
         '''
         assert isinstance(pid,PID)
         result=np.asarray([[] if rcoord is None else rcoord, [] if icoord is None else icoord]).view(cls)
@@ -331,25 +368,29 @@ class Point(np.ndarray):
 class Bond(object):
     '''
     This class describes a bond in a lattice.
-    Attributes:
-        neighbour: integer
-            The rank of the neighbour of the bond.
-        spoint: Point
-            The start point of the bond.
-        epoint: Point
-            The end point of the bond.
+
+    Attributes
+    ----------
+    neighbour : integer
+        The rank of the neighbour of the bond.
+    spoint : Point
+        The start point of the bond.
+    epoint : Point
+        The end point of the bond.
     '''
 
     def __init__(self,neighbour,spoint,epoint):
         '''
         Constructor.
-        Parameters:
-            neighbour: integer
-                The rank of the neighbour of the bond.
-            spoint: Point
-                The start point of the bond.
-            epoint: Point
-                The end point of the bond.
+
+        Parameters
+        ----------
+        neighbour : integer
+            The rank of the neighbour of the bond.
+        spoint : Point
+            The start point of the bond.
+        epoint : Point
+            The end point of the bond.
         '''
         self.neighbour=neighbour
         self.spoint=spoint
@@ -394,29 +435,33 @@ class Bond(object):
 class Link(object):
     '''
     This class describes a link in a lattice.
-    Attributes:
-        neighbour: integer
-            The rank of the neighbour of the link.
-        sindex: integer
-            The start index of the link in the lattice.
-        eindex: integer
-            The end index of the link in the lattice.
-        disp: 1d ndarray
-            The displacement of the link.
+
+    Attributes
+    ----------
+    neighbour : integer
+        The rank of the neighbour of the link.
+    sindex : integer
+        The start index of the link in the lattice.
+    eindex : integer
+        The end index of the link in the lattice.
+    disp : 1d ndarray
+        The displacement of the link.
     '''
 
     def __init__(self,neighbour,sindex,eindex,disp):
         '''
         Constructor.
-        Parameters:
-            neighbour: integer
-                The rank of the neighbour of the link.
-            sindex: integer
-                The start index of the link in the lattice.
-            eindex: integer
-                The end index of the link in the lattice.
-            disp: 1d ndarray
-                The displacement of the link.
+
+        Parameters
+        ----------
+        neighbour : integer
+            The rank of the neighbour of the link.
+        sindex : integer
+            The start index of the link in the lattice.
+        eindex : integer
+            The end index of the link in the lattice.
+        disp : 1d ndarray
+            The displacement of the link.
         '''
         self.neighbour=neighbour
         self.sindex=sindex
@@ -432,43 +477,48 @@ class Link(object):
 def intralinks(mode='nb',cluster=[],indices=None,vectors=[],**options):
     '''
     This function searches the wanted links intra a cluster.
-    Parameters:
-        mode: 'nb', 'dt' or 'bt'
-            When 'nb', the function searches the links within a certain order of nearest neighbour;
-            When 'dt', the function searches the links within a certain distance.
-        cluster: list of 1d ndarray
-            The cluster where the links are searched.
-        vectors: list of 1d ndarray, optional
-            The translation vectors of the cluster.
-            When NOT empty, periodic boundary condition is assumed so the links across the boundaries of the cluster are also searched.
-        indices: list of integer, optional
-            The indices of the points of the cluster.
-        options: dict
-            The extra controlling parameters.
-            When mode is 'nb', it contains:
-                'nneighbour': integer, optional, default 1
-                    The highest order of neighbour to be searched.
-                'max_coordinate_number': integer, optional, default 8
-                    The max coordinate number for every neighbour.
-                'return_mindists': logical, optional, default False
-                    When it is True, the nneighbour minimum distances will alse be returned.
-            When mode is 'dt', it contains:
-                'r': float64, optional, default 1.0
-                    The distance upper bound within which the links are searched.
-                'max_translations': tuple, optional
-                    The maximum translations of the original cluster.
-                    It will be omitted if len(vectors)==0.
-                    The default value is tuple([int(np.ceil(options.get('r',1.0)/nl.norm(vector))) for vector in vectors]).
-                'mindists': list of float64, optional, default empty list
-                    The distances of the lowest orders of nearest neighbours.
-                    If it doesn't contain the distance of the returned link, the attribute 'neighbour' of the latter will be set to be inf.
-    Returns:
-        result: list of Link
-            The calculated links.
-            <NOTE> The zero-th neighbour links i.e. links with distances equal to zero are also included.
-        mindists: list of float64, optional
-            The nneighbour-th minimum distances within the cluster.
-            It will be returned only when mode=='nb' and options['return_mindists']==True.
+
+    Parameters
+    ----------
+    mode : 'nb' or 'dt'
+        * When 'nb', the function searches the links within a certain order of nearest neighbour;
+        * When 'dt', the function searches the links within a certain distance.
+    cluster : list of 1d ndarray
+        The cluster where the links are searched.
+    vectors : list of 1d ndarray, optional
+        The translation vectors of the cluster.
+    indices : list of integer, optional
+        The indices of the points of the cluster.
+    options : dict
+        When mode is 'nb', it contains:
+            * `nneighbour`: integer, optional, default 1
+                The highest order of neighbour to be searched.
+            * `max_coordinate_number`: integer, optional, default 8
+                The max coordinate number for every neighbour.
+            * `return_mindists`: logical, optional, default False
+                When True, the nneighbour minimum distances will alse be returned.
+        When mode is 'dt', it contains:
+            * `r`: float64, optional, default 1.0
+                The distance upper bound within which the links are searched.
+            * `max_translations`: tuple, optional
+                The maximum translations of the original cluster, which will be omitted if ``len(vectors)==0``.
+                When `r` is properly set, its default value can make sure that all the required links will be searched and returned.
+            * `mindists`: list of float64, optional, default empty list
+                The distances of the lowest orders of nearest neighbours.
+                If it doesn't contain the distance of the returned link, the attribute `neighbour` of the latter will be set to be inf.
+
+    Returns
+    -------
+    result: list of Link
+        The calculated links.
+    mindists: list of float64, optional
+        The `nneighbour`-th minimum distances within the cluster.
+        It will be returned only when ``mode=='nb' and options['return_mindists']==True``.
+
+    Notes
+    -----
+        * The zero-th neighbour links i.e. links with distances equal to zero are also included in `result`.
+        * When `vectors` **NOT** empty, periodic boundary condition is assumed and the links across the boundaries of the cluster are also searched.
     '''
     assert mode in ('nb','dt')
     if mode=='nb':
@@ -559,16 +609,21 @@ def __links_dt__(cluster,indices,vectors,r,max_translations,mindists):
 def interlinks(cluster1,cluster2,maxdist,indices1=None,indices2=None,mindists=[]):
     '''
     This function searches the links between two clusters with the distances less than a certain value.
-    Parameters:
-        cluster1,cluster2: list of 1d ndarray
-            The clusters.
-        maxdist: float64
-            The maximum distance.
-        indices1,indices2: list of integer, optional
-            The indices of the points of the clusters.
-        mindists: list of float64, optional
-            The values of the distances between minimum neighbours.
-    Returns: list of Link
+
+    Parameters
+    ----------
+    cluster1, cluster2 : list of 1d ndarray
+        The clusters.
+    maxdist : float64
+        The maximum distance.
+    indices1, indices2 : list of integer, optional
+        The indices of the points of the clusters.
+    mindists : list of float64, optional
+        The values of the distances between minimum neighbours.
+
+    Returns
+    -------
+    list of Link
         The wanted links.
     '''
     result=[]
@@ -590,43 +645,47 @@ def interlinks(cluster1,cluster2,maxdist,indices1=None,indices2=None,mindists=[]
 class Lattice(object):
     '''
     This class provides a unified description of 1d, quasi 1d, 2D, quasi 2D and 3D lattice systems.
-    Attributes:
-        name: string
-            The lattice's name.
-        points: list of Point
-            The points of the lattice.
-        vectors: list of 1d ndarray
-            The translation vectors.
-        reciprocals: list of 1d ndarray
-            The dual translation vectors.
-        nneighbour: integer
-            The highest order of neighbours;
-        links: list of Link
-            The links of the lattice system.
-        mindists: list of float
-            The minimum distances within this lattice.
-        max_coordinate_number: int
-            The max coordinate number for every neighbour.
-            This attribute is used in the search for links.
+
+    Attributes
+    ----------
+    name : string
+        The lattice's name.
+    points : list of Point
+        The points of the lattice.
+    vectors : list of 1d ndarray
+        The translation vectors.
+    reciprocals : list of 1d ndarray
+        The dual translation vectors.
+    nneighbour : integer
+        The highest order of neighbours;
+    links : list of Link
+        The links of the lattice system.
+    mindists : list of float
+        The minimum distances within this lattice.
+    max_coordinate_number : int
+        The max coordinate number for every neighbour.
+        This attribute is used in the search for links.
     '''
     max_coordinate_number=8
 
     def __init__(self,name=None,rcoords=[],icoords=None,vectors=[],nneighbour=1,max_coordinate_number=8):
         '''
         Construct a lattice directly from its coordinates.
-        Parameters:
-            name: string
-                The name of the lattice.
-            rcoords: list of 1d ndarray, optional
-                The rcoords of the lattice.
-            icoords: list of 1d ndarray, optional
-                The icoords of the lattice.
-            vectors: list of 1d ndarray, optional
-                The translation vectors of the lattice.
-            nneighbour: integer, optional
-                The highest order of neighbours.
-            max_coordinate_number: int, optional 
-                The max coordinate number for every neighbour.
+
+        Parameters
+        ----------
+        name : string
+            The name of the lattice.
+        rcoords : list of 1d ndarray, optional
+            The rcoords of the lattice.
+        icoords : list of 1d ndarray, optional
+            The icoords of the lattice.
+        vectors : list of 1d ndarray, optional
+            The translation vectors of the lattice.
+        nneighbour : integer, optional
+            The highest order of neighbours.
+        max_coordinate_number : int, optional 
+            The max coordinate number for every neighbour.
         '''
         assert icoords is None or len(icoords)==len(rcoords)
         Lattice.max_coordinate_number=max_coordinate_number
@@ -645,17 +704,19 @@ class Lattice(object):
     def compose(cls,name=None,points=[],vectors=[],nneighbour=1,max_coordinate_number=8):
         '''
         Construct a lattice from its contained points.
-        Parameters:
-            name: string
-                The name of the lattice.
-            points: list of Point, optional
-                The lattice points.
-            vectors: list of 1d ndarray, optional
-                The translation vectors of the lattice.
-            nneighbour: integer, optional
-                The highest order of neighbours.
-            max_coordinate_number: int, optional
-                The max coordinate number for every neighbour.
+
+        Parameters
+        ----------
+        name : string
+            The name of the lattice.
+        points : list of Point, optional
+            The lattice points.
+        vectors : list of 1d ndarray, optional
+            The translation vectors of the lattice.
+        nneighbour : integer, optional
+            The highest order of neighbours.
+        max_coordinate_number : int, optional
+            The max coordinate number for every neighbour.
         '''
         Lattice.max_coordinate_number=max_coordinate_number
         result=object.__new__(cls)
@@ -718,10 +779,15 @@ class Lattice(object):
     def rcoord(self,pid):
         '''
         Return the rcoord of a point.
-        Parameters:
-            pid: PID
-                The pid of the point.
-        Returns: 1d ndarray
+
+        Parameters
+        ----------
+        pid : PID
+            The pid of the point.
+
+        Returns
+        -------
+        1d ndarray
             The rcoord of the point.
         '''
         return self.points[self.pids.index(pid)].rcoord
@@ -729,10 +795,15 @@ class Lattice(object):
     def icoord(self,pid):
         '''
         Return the icoord of a point.
-        Parameters:
-            pid: PID
-                The pid of the point.
-        Returns: 1d ndarray
+
+        Parameters
+        ----------
+        pid : PID
+            The pid of the point.
+
+        Returns
+        -------
+        1d ndarray
             The icoord of the point.
         '''
         return self.points[self.pids.index(pid)].icoord
@@ -740,9 +811,11 @@ class Lattice(object):
     def translate(self,vector):
         '''
         Translate the whole lattice by a vector.
-        Parameters:
-            vector: 1d ndarray
-                The translation vector.
+
+        Parameters
+        ----------
+        vector : 1d ndarray
+            The translation vector.
         '''
         for point in self.points:
             point.rcoord+=vector
@@ -786,37 +859,41 @@ class Lattice(object):
 class SuperLattice(Lattice):
     '''
     This class is the union of sublattices.
-    Attributes:
-        sublattices: list of Lattice
-            The sublattices of the superlattice.
-        _merge_: list of string
-            The names of sublattices that are merged to form new links.
-        _union_: list of 2-tuple
-            The pairs of names of sublattices that are united to form new links.
+
+    Attributes
+    ---------
+    sublattices : list of Lattice
+        The sublattices of the superlattice.
+    _merge_ : list of string
+        The names of sublattices that are merged to form new links.
+    _union_ : list of 2-tuple
+        The pairs of names of sublattices that are united to form new links.
     '''
 
     def __init__(self,name,sublattices,vectors=[],nneighbour=1,merge=None,union=None,mindists=None,maxdist=None,max_coordinate_number=8):
         '''
         Constructor.
-        Parameters:
-            name: string
-                The name of the superlattice.
-            sublattices: list of Lattice
-                The sublattices of the superlattice.
-            vectors: list of 1d ndarray, optional
-                The translation vectors of the superlattice.
-            nneighbour: integer, optional
-                The highest order of neighbours.
-            merge: list of integer, optional
-                The indices of the sublattices that are merged to form new links.
-            union: list of 2-tuple of integer, optional
-                The pairs of indices of the sublattices that are united to form new links.
-            mindists: list of float64, optional
-                The values of the distances between minimum neighbours.
-            maxdist: float64, optional
-                The maximum distance.
-            max_coordinate_number: int, optional
-                The max coordinate number for every neighbour.
+
+        Parameters
+        ----------
+        name : string
+            The name of the superlattice.
+        sublattices : list of Lattice
+            The sublattices of the superlattice.
+        vectors : list of 1d ndarray, optional
+            The translation vectors of the superlattice.
+        nneighbour : integer, optional
+            The highest order of neighbours.
+        merge : list of integer, optional
+            The indices of the sublattices that are merged to form new links.
+        union : list of 2-tuple of integer, optional
+            The pairs of indices of the sublattices that are united to form new links.
+        mindists : list of float64, optional
+            The values of the distances between minimum neighbours.
+        maxdist : float64, optional
+            The maximum distance.
+        max_coordinate_number : int, optional
+            The max coordinate number for every neighbour.
         '''
         Lattice.max_coordinate_number=max_coordinate_number
         self.name=name

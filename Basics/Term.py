@@ -10,15 +10,17 @@ from copy import copy
 class Term(object):
     '''
     This class is the base class for all kinds of terms contained in a Hamiltonian.
-    Attributes:
-        id: string
-            The specific id of the term.
-        mode: string
-            The type of the term.
-        value: scalar of 1D array-like of float, complex
-            The overall coefficient(s) of the term.
-        modulate: function
-            A function used to alter the value of the term.
+
+    Attributes
+    ----------
+    id : string
+        The specific id of the term.
+    mode : string
+        The type of the term.
+    value : scalar of 1D array-like of float, complex
+        The overall coefficient(s) of the term.
+    modulate : function
+        A function used to alter the value of the term.
     '''
 
     def __init__(self,id,mode,value,modulate=None):
@@ -113,18 +115,25 @@ class TermList(list):
     def operators(self,bond,config,table=None,dtype=complex128):
         '''
         This method returns all the desired operators which are described those terms in self.
-        Parameters:
-            bond: Bond
-                The bond on which the terms are defined.
-            config: Configuration
-                The configuration of degrees of freedom.
-            table: Table, optional
-                The index-sequence table.
-            dtype: dtype,optional
-                The data type of the coefficient of the returned operators.
-        Returns:
-            result: OperatorCollection
-                All the desired operators with non-zero coeffcients.
-        Note: To use this method, the subclass must override it.
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond on which the terms are defined.
+        config : IDFConfig
+            The configuration of degrees of freedom.
+        table : Table, optional
+            The index-sequence table.
+        dtype : dtype,optional
+            The data type of the coefficient of the returned operators.
+
+        Returns
+        -------
+        OperatorCollection
+            All the desired operators with non-zero coeffcients.
+
+        Notes
+        -----
+        To use this method, the subclass must override it.
         '''
         raise ValueError('%s operators error: it is not implemented.'%self.__class__.__name__)

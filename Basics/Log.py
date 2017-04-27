@@ -1,6 +1,6 @@
 '''
 Log for code executing, including:
-1) classes: Timer,Timers,Info,Log
+    * classes: Timer,Timers,Info,Log
 '''
 
 from ..Misc import Tree
@@ -14,11 +14,13 @@ __all__=['Timer','Timers','Info','Log']
 class Timer(object):
     '''
     Timer.
-    Attributes:
-        _time_,_begin_,_end_,_last_: np.float64
-            The auxiliary variables of the timer.
-        records: list of float64
-            The accumulative times between records.
+
+    Attributes
+    ----------
+    _time_,_begin_,_end_,_last_ : np.float64
+        The auxiliary variables of the timer.
+    records : list of float64
+        The accumulative times between records.
     '''
 
     def __init__(self):
@@ -102,11 +104,10 @@ class Timer(object):
 
 class Timers(Tree):
     '''
-    Timers for code executing.
-    For each of its (key,value) pairs,
-        key: string
+    Timers for code executing. For each of its (key,value) pairs,
+        * key: string
             The name of the timer.
-        value: Timer
+        * value: Timer
             The corresponding timer.
     '''
     ALL=0
@@ -114,9 +115,11 @@ class Timers(Tree):
     def __init__(self,*keys):
         '''
         Constructor.
-        Parameters:
-            keys: list of string
-                The names of the timers.
+
+        Parameters
+        ----------
+        keys : list of string
+            The names of the timers.
         '''
         super(Timers,self).__init__(root='Total',data=Timer())
         for key in keys:
@@ -132,12 +135,14 @@ class Timers(Tree):
     def tostr(self,keys=ALL,form='c'):
         '''
         Get the string representation of the timers.
-        Parameters:
-            keys: list of string, optional
-                The names of the timers to be included in the representation.
-            form: 's' or 'c', optional
-                When 's', only the last record of each timer will be included in the representation;
-                When 'c', the cumulative time will also be included in the representation.
+
+        Parameters
+        ----------
+        keys : list of string, optional
+            The names of the timers to be included in the representation.
+        form : 's' or 'c', optional
+            * When 's', only the last record of each timer will be included in the representation;
+            * When 'c', the cumulative time will also be included in the representation.
         '''
         if keys==Timers.ALL:
             keys=list(self.expand(mode=Tree.DEPTH,return_form=Tree.NODE))
@@ -157,12 +162,14 @@ class Timers(Tree):
     def graph(self,parents=None,form='c'):
         '''
         Get the pie chart representation of the timers.
-        Parameters:
-            parents: list of string, optional
-                The names of the parent timers to be converted to a pie chart.
-            form: 's' or 'c', optional
-                When 's', only the last record of each timer will be included in the representation;
-                When 'c', the cumulative time will also be included in the representation.
+
+        Parameters
+        ----------
+        parents : list of string, optional
+            The names of the parent timers to be converted to a pie chart.
+        form : 's' or 'c', optional
+            * When 's', only the last record of each timer will be included in the representation;
+            * When 'c', the cumulative time will also be included in the representation.
         '''
         def update(piechart,fractions):
             fractions=np.asarray(fractions)
@@ -212,11 +219,13 @@ class Timers(Tree):
     def add(self,parent=None,name=None):
         '''
         Add a timer.
-        Parameters:
-            parent: string
-                The parent timer of the added timer.
-            name: string
-                The name of the added timer.
+
+        Parameters
+        ----------
+        parent : string
+            The parent timer of the added timer.
+        name : string
+            The name of the added timer.
         '''
         parent=self.root if parent is None else parent
         self.add_leaf(parent,name,Timer())
@@ -238,34 +247,40 @@ class Timers(Tree):
     def time(self,key):
         '''
         The cumulative time of the timer.
-        Parameters:
-            key: string
-                The timer whose cumulative time is queried.
+
+        Parameters
+        ----------
+        key : string
+            The timer whose cumulative time is queried.
         '''
         return self[key].time
 
 class Info(object):
     '''
     Information for code executing.
-    Attributes:
-        entry: string
-            The name for the entries of Info.
-        content: string
-            The name for the contents of Info.
-        entries: list of string
-            The entries of the info.
-        contents: list of any object
-            The contents of the info.
-        formats: list of string
-            The output formats of the contents.
+
+    Attributes
+    ----------
+    entry : string
+        The name for the entries of Info.
+    content : string
+        The name for the contents of Info.
+    entries : list of string
+        The entries of the info.
+    contents : list of any object
+        The contents of the info.
+    formats : list of string
+        The output formats of the contents.
     '''
 
     def __init__(self,*entries,**karg):
         '''
         Constructor.
-        Parameters:
-            entries: list of string, optional
-                The entries of the info.
+
+        Parameters
+        ----------
+        entries : list of string, optional
+            The entries of the info.
         '''
         self.entries=entries
         self.entry=karg.get('entry','Entry')
@@ -324,25 +339,35 @@ class Info(object):
 class Log(object):
     '''
     The log for code executing.
-    Attributes:
-        name: string
-            The name of the log file.
-            NOTE: when the log file is the stdout, this attribute is set to be None.
-        mode: 'w','w+','a+'
-            The mode of the log file.
-        fout: file
-            The log file.
+
+    Attributes
+    ----------
+    name : string
+        The name of the log file.
+    mode : 'w','w+','a+'
+        The mode of the log file.
+    fout : file
+        The log file.
+
+    Notes
+    -----
+    When the log file is the stdout, the attribute `name` is set to be None.
     '''
 
     def __init__(self,name=None,mode='a+'):
         '''
         Constructor.
-        Parameters:
-            name: string
-                The name of the log file.
-                NOTE: when the log file is the stdout, this attribute is set to be None.
-            mode: 'w','w+','a+'
-                The mode of the log file.
+
+        Parameters
+        ----------
+        name : string
+            The name of the log file.
+        mode : 'w','w+','a+'
+            The mode of the log file.
+
+        Notes
+        -----
+        When the log file is the stdout, the parameter `name` is set to be None.
         '''
         self.name=name
         self.mode=mode
@@ -377,9 +402,11 @@ class Log(object):
     def __lshift__(self,info):
         '''
         Write info to self.fout.
-        Parameters:
-            info: string
-                The information to be written.
+
+        Parameters
+        ----------
+        info : string
+            The information to be written.
         '''
         self.open()
         self.fout.write(str(info))

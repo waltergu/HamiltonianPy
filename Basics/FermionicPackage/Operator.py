@@ -1,7 +1,7 @@
 '''
 Fermionic Operator, including:
-1) classes: OperatorF
-2) functions: F_Linear, F_Quadratic, F_Hubbard, fspoperators
+    * classes: OperatorF
+    * functions: F_Linear, F_Quadratic, F_Hubbard, fspoperators
 '''
 
 __all__=['OperatorF','F_Linear','F_Quadratic','F_Hubbard','fspoperators']
@@ -13,36 +13,51 @@ from ..Operator import *
 class OperatorF(Operator):
     '''
     This class gives a unified description of fermionic operators with different ranks.
-    Attributes:
-        mode: string
-            The tag used to distinguish operators with different types or ranks.
-        indices: tuple of Index
-            The associated indices of the operator, whose length should be equal to the operator's rank.
-        rcoords: tuple of 1D ndarray
-            The associated real coordinates of the operator.
-        icoords: tuple of 1D ndarray
-            The associated lattice coordinates of the operator.
-        seqs: tuple of integer, optional
-            The associated sequences of the operator, whose length should be equal to the operator's rank.
-    Note:
-    1) The lengths of rcoords and icoords are not forced to be equal to the operator's rank because:
-        (1) some of its rank-1 terms may share the same rcoord or icoord, and 
-        (2) the rcoords and icoords is the whole operator's property instead of each of its rank-1 component.
-       However, for a set of operators with the same attribute mode, the lengths of their rcoords and icoords should be fixed and equal to each other respectively.
-    2) Current supported modes include:
-        (1) 'f_linear':
-            rank==1 fermionic operators.
-        (2) 'f_quadratic':
-            rank==2 fermionic operators.
-            For this mode, only one rcoord and one icoord are needed which are identical to the bond's rcoord and icoord where the quadratic operator is defined.
-        (3) 'f_hubbard':
-            rank==4 fermionic operators.
-            For this mode, only one rcoord and icoord is needed because Hubbard operators are always on-site ones.
+
+    Attributes
+    ----------
+    mode : string
+        The tag used to distinguish operators with different types or ranks.
+    indices : tuple of Index
+        The associated indices of the operator, whose length should be equal to the operator's rank.
+    rcoords : tuple of 1D ndarray
+        The associated real coordinates of the operator.
+    icoords : tuple of 1D ndarray
+        The associated lattice coordinates of the operator.
+    seqs : tuple of integer, optional
+         The associated sequences of the operator, whose length should be equal to the operator's rank.
+
+    Notes
+    -----
+        * The lengths of `rcoords` and `icoords` are not forced to be equal to the operator's rank because:
+            * Some of its rank-1 terms may share the same `rcoord` or `icoord`;
+            * The `rcoords` and `icoords` is the whole operator's property instead of each of its rank-1 component.
+            However, for operators with the same attribute `mode`, the lengths of their `rcoords` and `icoords` should be fixed and equal to each other.
+        * Current supported modes include:
+            * 'f_linear': rank==1 fermionic operators
+                The single particle operators.
+            * 'f_quadratic': rank==2 fermionic operators
+                Only one rcoord and one icoord are needed which are identical to the bond's rcoord and icoord where the quadratic operator is defined.
+            * 'f_hubbard': rank==4 fermionic operators
+                Only one rcoord and icoord is needed because Hubbard operators are always on-site ones.
     '''
 
     def __init__(self,mode,value,indices,rcoords,icoords,seqs=None):
         '''
         Constructor.
+
+        Parameters
+        ----------
+        mode : string
+            The tag used to distinguish operators with different types or ranks.
+        indices : tuple of Index
+            The associated indices of the operator, whose length should be equal to the operator's rank.
+        rcoords : tuple of 1D ndarray
+            The associated real coordinates of the operator.
+        icoords : tuple of 1D ndarray
+            The associated lattice coordinates of the operator.
+        seqs : tuple of integer, optional
+             The associated sequences of the operator, whose length should be equal to the operator's rank.
         '''
         super(OperatorF,self).__init__(value)
         self.mode=mode
@@ -124,12 +139,17 @@ def F_Hubbard(value,indices,rcoords,icoords,seqs=None):
 def fspoperators(table,lattice):
     '''
     Generate the fermionic single particle operators corresponding to a table.
-    Parameters:
-        table: Table
-            The index-sequence table of the fermionic single particle operators.
-        lattice: Lattice
-            The lattice on which the fermionic single particle operators are defined.
-    Returns: list of OperatorF
+
+    Parameters
+    ----------
+    table : Table
+        The index-sequence table of the fermionic single particle operators.
+    lattice : Lattice
+        The lattice on which the fermionic single particle operators are defined.
+
+    Returns
+    -------
+    list of OperatorF
         The fermionic single particle operators corresponding to the table.
     '''
     result=[]

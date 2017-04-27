@@ -10,12 +10,14 @@ from copy import copy
 class Operator(object):
     '''
     This class is the base class of all types of operators.
-    Attributes:
-        id: anyhashable object
-            The unique id this operator has.
-            Two operators with the same id can be combined.
-        value: number
-            The overall factor of the operator.
+
+    Attributes
+    ----------
+    id : anyhashable object
+        The unique id this operator has.
+        Two operators with the same id can be combined.
+    value : number
+        The overall factor of the operator.
     '''
 
     def __init__(self,value):
@@ -27,7 +29,10 @@ class Operator(object):
     def set_id(self):
         '''
         Set the unique id of this operator.
-        Note: this method must be overridden by its child class if it is to be used.
+
+        Notes
+        -----
+        This method must be overridden by its child class if it is to be used.
         '''
         raise ValueError("%s set_id error: it is not implemented."%self.__class__.__name__)
 
@@ -80,11 +85,10 @@ class Operator(object):
 
 class OperatorCollection(dict):
     '''
-    This class packs several operators as a whole for convenience.
-    For each of its (key,value) pairs:
-        key: any hashable object
+    This class packs several operators as a whole for convenience. For each of its (key,value) pairs:
+        * key: any hashable object
             The id of an operator.
-        value: Operator
+        * value: Operator
             The corresponding operator.
     '''
     

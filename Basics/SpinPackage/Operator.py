@@ -1,6 +1,6 @@
 '''
 Spin Operator, including:
-1) classes: OperatorS
+    * classes: OperatorS
 '''
 
 __all__=['OperatorS']
@@ -11,17 +11,19 @@ from ..Operator import *
 class OperatorS(Operator):
     '''
     This class gives a unified description of spin operators.
-    Attributes:
-        indices: tuple of Index
-            The associated indices of the operator, whose length should be equal to the operator's rank.
-        spins: list of SpinMatrix
-            The associated spin matrix of the operator, whose length should be equal to the operator's rank.
-        rcoords: tuple of 1D ndarray, optional
-            The associated real coordinates of the operator.
-        icoords: tuple of 1D ndarray, optional
-            The associated lattice coordinates of the operator.
-        seqs: tuple of integer, optional
-            The associated sequences of the operator, whose length should be equal to the operator's rank.
+
+    Attributes
+    ----------
+    indices : tuple of Index
+        The associated indices of the operator, whose length should be equal to the operator's rank.
+    spins : list of SpinMatrix
+        The associated spin matrix of the operator, whose length should be equal to the operator's rank.
+    rcoords : tuple of 1D ndarray, optional
+        The associated real coordinates of the operator.
+    icoords : tuple of 1D ndarray, optional
+        The associated lattice coordinates of the operator.
+    seqs : tuple of integer, optional
+        The associated sequences of the operator, whose length should be equal to the operator's rank.
     '''
     def __init__(self,value,indices,spins,rcoords=None,icoords=None,seqs=None):
         '''

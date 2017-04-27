@@ -1,8 +1,8 @@
 '''
 Fermionic degree of freedom package, including:
-1) constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY
-2) classes: FID, Fermi, FermiPack
-3) functions: sigma0, sigmax, sigmay, sigmaz
+    * constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY
+    * classes: FID, Fermi, FermiPack
+    * functions: sigma0, sigmax, sigmay, sigmaz
 '''
 
 __all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','FermiPack','sigma0','sigmax','sigmay','sigmaz']
@@ -21,13 +21,15 @@ DEFAULT_FERMIONIC_PRIORITY=['scope','nambu','spin','site','orbital']
 class FID(namedtuple('FID',['orbital','spin','nambu'])):
     '''
     Internal fermionic ID.
-    Attributes:
-        orbital: integer
-            The orbital index, start with 0, default value 0. 
-        spin: integer
-            The spin index, start with 0, default value 0.
-        nambu: integer
-            '0' for ANNIHILATION and '1' for CREATION, default value ANNIHILATION.
+
+    Attributes
+    ----------
+    orbital : integer
+        The orbital index, start with 0, default value 0. 
+    spin : integer
+        The spin index, start with 0, default value 0.
+    nambu : integer
+        '0' for ANNIHILATION and '1' for CREATION, default value ANNIHILATION.
     '''
 
     @property
@@ -42,30 +44,35 @@ FID.__new__.__defaults__=(0,0,ANNIHILATION)
 class Fermi(Internal):
     '''
     This class defines the internal fermionic degrees of freedom in a single point.
-    Attributes:
-        atom: integer, default value 0
-            The atom species on this point.
-        norbital: integer, default value 1
-            Number of orbitals.
-        nspin: integer, default value 2
-            Number of spins.
-        nnambu: integer, default value 1.
-            An integer to indicate whether or not using the Nambu space.
-            1 means no and 2 means yes.
+
+    Attributes
+    ----------
+    atom : integer, default value 0
+        The atom species on this point.
+    norbital : integer, default value 1
+        Number of orbitals.
+    nspin : integer, default value 2
+        Number of spins.
+    nnambu : integer, default value 1.
+        An integer to indicate whether or not using the Nambu space.
+        1 means no and 2 means yes.
     '''
 
     def __init__(self,atom=0,norbital=1,nspin=2,nnambu=1):
         '''
         Constructor.
-            atom: integer, optional
-                The atom species.
-            norbital: integer, optional
-                Number of orbitals.
-            nspin: integer, optional
-                Number of spins.
-            nnambu: integer, optional.
-                A number to indicate whether or not the Nambu space is used.
-                1 means no and 2 means yes.
+
+        Parameters
+        ----------
+        atom : integer, optional
+            The atom species.
+        norbital : integer, optional
+            Number of orbitals.
+        nspin : integer, optional
+            Number of spins.
+        nnambu : integer, optional.
+            A number to indicate whether or not the Nambu space is used.
+            1 means no and 2 means yes.
         '''
         self.atom=atom
         self.norbital=norbital
@@ -87,12 +94,17 @@ class Fermi(Internal):
     def indices(self,pid,mask=[]):
         '''
         Return a list of all the masked indices within this internal degrees of freedom combined with an extra spatial part.
-        Parameters:
-            pid: PID
-                The extra spatial part of the indices.
-            mask: list of string, optional
-                The attributes that will be masked to None.
-        Returns: list of Index
+
+        Parameters
+        ----------
+        pid : PID
+            The extra spatial part of the indices.
+        mask : list of string, optional
+            The attributes that will be masked to None.
+
+        Returns
+        -------
+        list of Index
             The indices.
         '''
         result=[]
@@ -106,7 +118,10 @@ class Fermi(Internal):
     def seq_state(self,fid):
         '''
         This methods is the oversimplified version of returning the sequence of a input state with orbital, spin and nambu index assigned.
-        Note: the priority to generate the sequence cannot be modified by the users and is always "NSO".
+
+        Notes
+        -----
+        The priority to generate the sequence cannot be modified by the users and is always "NSO".
         '''
         if fid.nambu in (0,1):
             return fid.orbital+fid.spin*self.norbital+fid.nambu*self.norbital*self.nspin
@@ -115,13 +130,21 @@ class Fermi(Internal):
 
     def state_index(self,seq_state):
         '''
-        This methods returns an instance of FID that contains the orbital, spin and nambu index of a state whose sequence equals the input seq_state.
-        Parameters:
-            seq_state: integer
-                The sequence of the state.
-        Returns: FID
+        This methods returns an instance of FID that contains the orbital, spin and nambu index of a state whose sequence equals the input `seq_state`.
+
+        Parameters
+        ----------
+        seq_state : integer
+            The sequence of the state.
+
+        Returns
+        -------
+        FID
             The corresponding FID.
-        Note: This method should be used in pairs with the method seq_state to ensure the correct sequence-index correspondence.
+
+        Notes
+        -----
+        This method should be used in pairs with the method `seq_state` to ensure the correct sequence-index correspondence.
         '''
         spin=seq_state%(self.norbital*self.nspin)/self.norbital
         orbital=seq_state%(self.norbital*self.nspin)%self.norbital
@@ -131,36 +154,39 @@ class Fermi(Internal):
 class FermiPack(IndexPack):
     '''
     This class assumes part of a systematic description of a general fermionic quadratic term.
-    Attributes:
-        atoms: tuple of integers with len==2
-            The atom indices for the quadratic term.
-        orbitals: tuple of integers with len==2
-            The orbital indices for the quadratic term.
-        spins: tuple of integers with len==2
+
+    Attributes
+    ----------
+    atoms : tuple of integers with len==2
+        The atom indices for the quadratic term.
+    orbitals : tuple of integers with len==2
+        The orbital indices for the quadratic term.
+    spins : tuple of integers with len==2
             The spin indices for the quadratic term.
     '''
     
     def __init__(self,value,atom1=None,atom2=None,orbital1=None,orbital2=None,spin1=None,spin2=None,atoms=None,orbitals=None,spins=None):
         '''
-        Constructor. 
-        It can be used in two different ways:
-        1) FermiPack(value,atom1=...,atom2=...,orbital1=...,orbital2=...,spin1=...,spin2=...)
-        2) FermiPack(value,atoms=...,orbitals=...,spins=...)
-        Parameters:
-            value: float or complex
-                The overall coefficient of the Fermi pack
-            atom1,atom2: integer,optional
-                The atom indices.
-            orbital1,orbital2: integer,optional
-                The orbital indices.
-            spin1,spin2: integer, optional
-                The spin indices.
-            atoms: 1D array-like of integers with len==1,2,optional
-                The atom indices.
-            orbitals: 1D array-like of integers with len==1,2,optional
-                The orbital indices.
-            spins: 1D array-like of integers with len==1,2,optional
-                The spin indices.
+        Constructor, which can be used in two different ways:
+            * FermiPack(value,atom1=...,atom2=...,orbital1=...,orbital2=...,spin1=...,spin2=...)
+            * FermiPack(value,atoms=...,orbitals=...,spins=...)
+
+        Parameters
+        ----------
+        value : float or complex
+            The overall coefficient of the Fermi pack
+        atom1,atom2 : integer, optional
+            The atom indices.
+        orbital1,orbital2 : integer, optional
+            The orbital indices.
+        spin1,spin2 : integer, optional
+            The spin indices.
+        atoms : 1d array-like of integers with len==1,2, optional
+            The atom indices.
+        orbitals : 1d array-like of integers with len==1,2, optional
+            The orbital indices.
+        spins : 1d array-like of integers with len==1,2, optional
+            The spin indices.
         '''
         super(FermiPack,self).__init__(value)
         if atom1 is not None and atom2 is not None: self.atoms=(atom1,atom2)

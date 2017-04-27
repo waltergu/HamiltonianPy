@@ -1,6 +1,6 @@
 '''
 Spin operator representation, including:
-1) functions: s_opt_rep
+    * functions: s_opt_rep
 '''
 
 __all__=['s_opt_rep']

@@ -1,7 +1,7 @@
 '''
 Basis of fermionic systems in the occupation number representation, including:
-1) classes: BasisF
-2) function: sequence
+    * classes: BasisF
+    * function: sequence
 '''
 
 __all__=['BasisF','sequence']
@@ -13,54 +13,57 @@ from numba import jit
 
 class BasisF(object):
     '''
-    Basis of fermionic systems in the occupation number representation. 
-    It provides a unified description of the three often-encountered cases:
-    1) particle-non-conserved systems,
-    2) particle-conserved systems and 
-    3) spin-conserved systems.
-    Attributes:
-        mode: string
-            A flag to tag the type of the three kinds of fore-mentioned systems:
-                'FG': particle-non-conserved systems
-                'FP': particle-conserved systems
-                'FS': spin-conserved systems
-        nstate: 1D ndarray of integers
-            An array containing the numbers of states.
-        nparticle: 1D ndarray of integers
-            An array containing the numbers of particles.
-        table: 1d ndarray of integers
-            The table of allowed binary basis of the Hilbert space.
-        nbasis: integer 
-            The dimension of the Hilbert space.
+    Basis of fermionic systems in the occupation number representation. It provides a unified description of the three often-encountered cases:
+        * particle-non-conserved systems
+        * particle-conserved systems
+        * spin-conserved systems
+
+    Attributes
+    ----------
+    mode : string
+        A flag to tag the type of the three kinds of fore-mentioned systems:
+            * 'FG': particle-non-conserved systems
+            * 'FP': particle-conserved systems
+            * 'FS': spin-conserved systems
+    nstate : 1d ndarray of integers
+        An array containing the numbers of states.
+    nparticle : 1d ndarray of integers
+        An array containing the numbers of particles.
+    table : 1d ndarray of integers
+        The table of allowed binary basis of the Hilbert space.
+    nbasis : integer 
+        The dimension of the Hilbert space.
     '''
     
     def __init__(self,tuple=(),up=(),down=(),nstate=0,dtype=int64):
         '''
-        Constructor.
-        It can be used in three different ways:
-        1) BasisF(nstate=...,dtype=...)
-        2) BasisF((...,...),dtype=...)
-        3) BasisF(up=(...,...),down=(...,...),dtype=...)
-        Which generates a particle-non-conserved basis, a particle-conserved basis and a spin-conserved basis respectively.
-        Parameters:
-            tuple: 2-tuple, optional
-                This tuple contains the information to generate a particle-conserved basis:
-                    tuple[0]: integer
-                        The number of generalized orbitals.
-                    tuple[1]: integer
-                        The number of total electrons.
-            up,down: 2-tuple, optional
-                These two tuples contain the information to generate a spin-conserved basis:
-                    up[0]/down[0]: integer
-                        The number of spin-up/spin-down orbitals.
-                    up[1]/down[1]: intger
-                        The number of spin-up/spin-down electrons.
-            nstate: integer,optional
-                The number of states which is used to generate a particle-non-conserved basis.
-            dtype: dtype
-                The data type of the basis table.
-        Note: 
-            If more than needed parameters to generate a certain kind a basis are assigned, this method obeys the following priority to create the instance: "FP" > "FS" > "FG".
+        Constructor. It can be used in three different ways:
+            * ``BasisF(nstate=...,dtype=...)``, which generates a a particle-non-conserved basis.
+            * ``BasisF((...,...),dtype=...)``, which generates a a particle-non-conserved basis
+            * ``BasisF(up=(...,...),down=(...,...),dtype=...)``, which generates a a particle-non-conserved basis
+
+        Parameters
+        ----------
+        tuple : 2-tuple, optional
+            This tuple contains the information to generate a particle-conserved basis:
+                * tuple[0]: integer
+                    The number of generalized orbitals.
+                * tuple[1]: integer
+                    The number of total electrons.
+        up,down : 2-tuple, optional
+            These two tuples contain the information to generate a spin-conserved basis:
+                * up[0]/down[0]: integer
+                    The number of spin-up/spin-down orbitals.
+                * up[1]/down[1]: intger
+                    The number of spin-up/spin-down electrons.
+        nstate : integer,optional
+            The number of states which is used to generate a particle-non-conserved basis.
+        dtype : dtype
+            The data type of the basis table.
+
+        Notes
+        -----
+        If more parameters than needed to generate a certain kind a basis are assigned, this method obeys the following priority to create the instance: "FP" > "FS" > "FG".
         '''
         if len(tuple)==2:
             self.mode="FP"
@@ -134,12 +137,17 @@ def table_es(up,down,dtype=int64):
 def sequence(rep,table):
     '''
     This function returns the sequence of a basis in the basis table.
-    Parameters:
-        rep: integer
-            The binary representation of a basis.
-        table: 1d ndarray of integers
-            The basis table.
-    Returns: integer
+
+    Parameters
+    ----------
+    rep : integer
+        The binary representation of a basis.
+    table : 1d ndarray of integers
+        The basis table.
+
+    Returns
+    -------
+    integer
         The corresponding sequence of the basis.
     '''
     if len(table)==0 :

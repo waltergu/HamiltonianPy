@@ -1,7 +1,7 @@
 '''
 BaseSpace, including
-1) classes: BaseSpace
-2) functions: KSpace, line_bz, rectangle_gxm, rectangle_gym, rectangle_bz, square_gxm, square_gym, square_bz, hexagon_gkm, hexagon_bz, TSpace.
+    * classes: BaseSpace
+    * functions: KSpace, line_bz, rectangle_gxm, rectangle_gym, rectangle_bz, square_gxm, square_gym, square_bz, hexagon_gkm, hexagon_bz, TSpace.
 '''
 
 __all__=['BaseSpace', 'KSpace', 'line_bz', 'rectangle_gxm', 'rectangle_gym', 'rectangle_bz', 'square_gxm', 'square_gym', 'square_bz', 'hexagon_gkm', 'hexagon_bz', 'TSpace']
@@ -16,34 +16,38 @@ import itertools
 class BaseSpace(object):
     '''
     This class provides a unified description of all kinds of parameter spaces.
-    Attibutes:
-        mesh: OrderedDict in the form (key,value), with
-            key: any hashable object
-                When len(mesh)==1, the name of the parameter space;
-                When len(mesh)>1, the tags of the axes of the parameter space.
-            value: ndarray
-                When len(mesh)==1, the data mesh of the parameter space;
-                When len(mesh)>1, the data mesh of each axis of the parameter space.
-        volume: OrderedDict in the form (key,value), with
-            key: any hashable object
-               The same as the keys of mesh.
-            value: float64
-                When len(volume)==1, the volume of the parameter space;
-                When len(volume)>1, the volume of each axis of the parameter space.
-            This attribute is not always initialized or used.
+
+    Attributes
+    ----------
+    mesh : OrderedDict in the form (key,value), with
+        * key: any hashable object
+            * When len(mesh)==1, the name of the parameter space;
+            * When len(mesh)>1, the tags of the axes of the parameter space.
+        * value: ndarray
+            * When len(mesh)==1, the data mesh of the parameter space;
+            * When len(mesh)>1, the data mesh of each axis of the parameter space.
+    volume : OrderedDict in the form (key,value), with
+        * key: any hashable object
+           The same as the keys of mesh.
+        * value: float64
+            * When len(volume)==1, the volume of the parameter space;
+            * When len(volume)>1, the volume of each axis of the parameter space.
+        This attribute is not always initialized or used.
     '''
+
     def __init__(self,*paras):
         '''
         Constructor.
-        Parameters:
-            paras: list of dicts
-                Every dict contains the following entries:
-                    Entry 'tag': any hashable object
-                        It specifies the key used in the attributes mesh and volume.
-                    Entry 'mesh': ndarray, optional
-                        The corresponding mesh.
-                    Entry 'volume': float, optional
-                        The corresponding volume.
+
+        Parameters
+        ----------
+        paras : list of dicts, each of which contains the following entries
+            * `tag`: any hashable object
+                It specifies the key used in the attributes mesh and volume.
+            * `mesh`: ndarray, optional
+                The corresponding mesh.
+            * `volume`: float, optional
+                The corresponding volume.
         '''
         self.mesh=OrderedDict()
         self.volume=OrderedDict()
@@ -60,14 +64,19 @@ class BaseSpace(object):
     def __call__(self,mode="*"):
         '''
         Returns a generator which iterates over the whole base space.
-        Parameters:
-            mode: string,optional
-                A flag to indicate how to construct the generator.
-                "+": direct sum
+
+        Parameters
+        ----------
+        mode : string,optional
+
+            A flag to indicate how to construct the generator.
+                * "+": direct sum
                      In this case, all the meshes must have the same rank.
-                "*": direct product
-        Returns:
-            yield a dict in the form {key1:value1,key2:value2,...}
+                * "*": direct product
+
+        Yields
+        ------
+            A dict in the form {key1:value1,key2:value2,...}
         '''
         keys=self.mesh.keys()
         if mode=="*":
@@ -86,8 +95,7 @@ class BaseSpace(object):
 
     def plot(self,show=True,suspend=False,save=False,name='BaseSpace'):
         '''
-        Plot the points contained in its mesh. 
-        Only two dimensional base spaces are supported.
+        Plot the points contained in its mesh. Only two dimensional base spaces are supported.
         '''
         plt.axis('equal')
         for key,mesh in self.mesh.iteritems():
@@ -103,18 +111,20 @@ def KSpace(reciprocals=None,nk=100,mesh=None,volume=0.0):
     '''
     This function returns a BaseSpace instance that represents the whole Broullouin zone(BZ), a path in the BZ, or just some isolated points in the BZ.
     It can be used in the following ways:
-        1) KSpace(reciprocals=...,nk=...)
-        2) KSpace(mesh=...,volume=...)
-    Parameters:
-        reciprocals: list of 1D ndarrays, optional
-            The unit translation vectors of the BZ.
-        nk: integer,optional
-            The number of mesh points along each unit translation vector.
-        mesh: ndarray, optional
-            The mesh of the BZ
-        volume: float, optional
-            The volume of the BZ.
-            When the parameter reciprocals is not None, it is omitted since the volume of the BZ will be calculated by the reciprocals.
+        * ``KSpace(reciprocals=...,nk=...)``
+        * ``KSpace(mesh=...,volume=...)``
+
+    Parameters
+    ----------
+    reciprocals : list of 1d ndarrays, optional
+        The unit translation vectors of the BZ.
+    nk : integer,optional
+        The number of mesh points along each unit translation vector.
+    mesh : ndarray, optional
+        The mesh of the BZ
+    volume : float, optional
+        The volume of the BZ.
+        When the parameter reciprocals is not None, it is omitted since the volume of the BZ will be calculated by the reciprocals.
     '''
     result=BaseSpace({'tag':'k','mesh':mesh,'volume':volume})
     if reciprocals is not None:

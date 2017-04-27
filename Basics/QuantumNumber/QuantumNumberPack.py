@@ -1,7 +1,7 @@
 '''
 Quantum number pack, including:
-1) classes: SQN, PQN, SPQN, Z2QN
-2) functions: SQNS, PQNS, SPQNS, Z2QNS
+    * classes: SQN, PQN, SPQN, Z2QN
+    * functions: SQNS, PQNS, SPQNS, Z2QNS
 '''
 
 import numpy as np
@@ -13,11 +13,13 @@ __all__=['SQN','SQNS','PQN','PQNS','SPQN','SPQNS','Z2QN','Z2QNS']
 class SQN(QuantumNumber):
     '''
     The quantum number for a spin state with the z component Sz.
-    Attributes:
-        names: ('Sz',)
-            The names of the quantum number.
-        periods: (None,)
-            The periods of the quantum number.
+
+    Attributes
+    ----------
+    names : ('Sz',)
+        The names of the quantum number.
+    periods : (None,)
+        The periods of the quantum number.
     '''
     names=('Sz',)
     periods=(None,)
@@ -25,10 +27,15 @@ class SQN(QuantumNumber):
 def SQNS(S):
     '''
     The collection of quantum numbers for a single spin S.
-    Parameters:
-        S: integer / half integer
-            The value of the spin.
-    Returns: QuantumNumbers
+
+    Parameters
+    ----------
+    S : integer / half integer
+        The value of the spin.
+
+    Returns
+    -------
+    QuantumNumbers
         The corresponding collection of quantum numbers.
     '''
     return QuantumNumbers('C',([SQN(sz) for sz in np.arange(-S,S+1)],range(int(2*S)+2)),protocal=QuantumNumbers.INDPTR)
@@ -36,11 +43,13 @@ def SQNS(S):
 class PQN(QuantumNumber):
     '''
     The quantum number for a spinless particle state with the particle number N.
-    Attributes:
-        names: ('N')
-            The names of the quantum number.
-        periods: (None)
-            The periods of the quantum number.
+
+    Attributes
+    ----------
+    names : ('N',)
+        The names of the quantum number.
+    periods : (None,)
+        The periods of the quantum number.
     '''
     names=('N',)
     periods=(None,)
@@ -48,10 +57,15 @@ class PQN(QuantumNumber):
 def PQNS(N):
     '''
     The collection of quantum numbers for a single site occupied with maximum N spinless particle.
-    Parameters:
-        N: integer
-            The maximum number of the particle number.
-    Returns: QuantumNumbers
+
+    Parameters
+    ----------
+    N: integer
+        The maximum number of the particle number.
+
+    Returns
+    -------
+    QuantumNumbers
         The corresponding collection of quantum numbers.
     '''
     return QuantumNumbers('C',([PQN(n) for n in xrange(N+1)],range(N+2)),protocal=QuantumNumbers.INDPTR)
@@ -59,11 +73,13 @@ def PQNS(N):
 class SPQN(QuantumNumber):
     '''
     The quantum number for a spinful particle state with particle number N and spin-z-component Sz.
-    Attributes:
-        names: ('N','Sz')
-            The names of the quantum number.
-        periods: (None,None)
-            The periods of the quantum number.
+
+    Attributes
+    ----------
+    names : ('N','Sz')
+        The names of the quantum number.
+    periods : (None,None)
+        The periods of the quantum number.
     '''
     names=('N','Sz')
     periods=(None,None)
@@ -71,10 +87,15 @@ class SPQN(QuantumNumber):
 def SPQNS(S):
     '''
     The collection of quantum numbers for a single site occupied with maximum one spin-S particle.
-    Parameters:
-        S: integer / half integer
-            The value of the particle's spin.
-    Returns: QuantumNumbers
+
+    Parameters
+    ----------
+    S : integer / half integer
+        The value of the particle's spin.
+
+    Returns
+    -------
+    QuantumNumbers
         The corresponding collection of quantum numbers.
     '''
     qns,spins=[SPQN((0,0.0))],[SQN(sz) for sz in np.arange(-S,S+1)]
@@ -87,11 +108,13 @@ def SPQNS(S):
 class Z2QN(QuantumNumber):
     '''
     The Z2-typed quantum number.
-    Attributes:
-        names: ('Z2',)
-            The names of the quantum number.
-        periods: (2,)
-            The periods of the quantum number.
+
+    Attributes
+    ----------
+    names : ('Z2',)
+        The names of the quantum number.
+    periods : (2,)
+        The periods of the quantum number.
     '''
     names=('Z2',)
     periods=(2,)
@@ -99,7 +122,10 @@ class Z2QN(QuantumNumber):
 def Z2QNS():
     '''
     The collection of Z2 quantum numbers.
-    Returns: QuantumNumbers
+
+    Returns
+    -------
+    QuantumNumbers
         As above.
     '''
     return QuantumNumbers('C',([Z2QN(0.0),Z2QN(1.0)],range(3)),protocal=QuantumNumbers.INDPTR)

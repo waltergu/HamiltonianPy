@@ -1,6 +1,6 @@
 '''
 Spin terms, including:
-1) classes: SpinTerm, SpinTermList
+    * classes: SpinTerm, SpinTermList
 '''
 
 __all__=['SpinTerm','SpinTermList']
@@ -16,32 +16,36 @@ from Operator import *
 class SpinTerm(Term):
     '''
     This class provides a complete and unified description for spin terms.
-    Attributes:
-        neighbour: integer
-            The order of neighbour of this spin term.
-        indexpacks: IndexPackList or function which returns IndexPackList
-            The indexpacks of the spin term.
-            When it is a function, it can return bond dependent indexpacks as needed.
-        amplitude: function which returns float or complex
-            This function can return bond dependent coefficient as needed.
+
+    Attributes
+    ----------
+    neighbour : integer
+        The order of neighbour of this spin term.
+    indexpacks : IndexPackList or function which returns IndexPackList
+        The indexpacks of the spin term.
+        When it is a function, it can return bond dependent indexpacks as needed.
+    amplitude : function which returns float or complex
+        This function can return bond dependent coefficient as needed.
     '''
 
     def __init__(self,id,value,neighbour,indexpacks,amplitude=None,modulate=None):
         '''
         Constructor.
-        Parameters:
-            id: string
-                The specific id of the term.
-            value: float or complex
-                The overall coefficient of the term.
-            neighbour: integer
-                The order of neighbour of the term.
-            indexpacks: IndexPackList or function
-                When it is a function, it must return an instance of IndexPackList and take an instance of Bond as its only argument.
-            amplitude: function, optional
-                It must return a float or complex and take an instance of Bond as its only argument.
-            modulate: function, optional
-                It must return a float or complex and its arguments are unlimited.
+
+        Parameters
+        ----------
+        id : string
+            The specific id of the term.
+        value : float or complex
+            The overall coefficient of the term.
+        neighbour : integer
+            The order of neighbour of the term.
+        indexpacks : IndexPackList or function
+            When it is a function, it must return an instance of IndexPackList and take an instance of Bond as its only argument.
+        amplitude : function, optional
+            It must return a float or complex and take an instance of Bond as its only argument.
+        modulate : function, optional
+            It must return a float or complex and its arguments are unlimited.
         '''
         super(SpinTerm,self).__init__(id=id,mode='sp',value=value,modulate=modulate)
         self.neighbour=neighbour
@@ -88,18 +92,22 @@ class SpinTerm(Term):
     def operators(self,bond,config,table=None,dtype=complex128):
         '''
         This method returns all the spin operators defined on the input bond with non-zero coefficients.
-        Parameters:
-            bond: Bond
-                The bond on which the spin terms are defined.
-            config: Configuration
-                The configuration of spin degrees of freedom.
-            table: Table, optional
-                The index-sequence table.
-            dtype: dtype,optional
-                The data type of the coefficient of the returned operators.
-        Returns:
-            result: OperatorCollection
-                All the spin operators with non-zero coeffcients.
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond on which the spin terms are defined.
+        config : IDFConfig
+            The configuration of spin degrees of freedom.
+        table: Table, optional
+            The index-sequence table.
+        dtype: dtype,optional
+            The data type of the coefficient of the returned operators.
+
+        Returns
+        -------
+        OperatorCollection
+            All the spin operators with non-zero coeffcients.
         '''
         result=OperatorCollection()
         eS=config[bond.epoint.pid].S
@@ -151,18 +159,22 @@ class SpinTermList(TermList):
     def operators(self,bond,config,table,dtype=complex128):
         '''
         This method returns all the spin operators defined on the input bond with non-zero coefficients.
-        Parameters:
-            bond: Bond
-                The bond on which the spin terms are defined.
-            config: Configuration
-                The configuration of spin degrees of freedom.
-            table: Table, optional
-                The index-sequence table.
-            dtype: dtype,optional
-                The data type of the coefficient of the returned operators.
-        Returns:
-            result: OperatorCollection
-                All the spin operators with non-zero coeffcients.
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond on which the spin terms are defined.
+        config : Configuration
+            The configuration of spin degrees of freedom.
+        table : Table, optional
+            The index-sequence table.
+        dtype : dtype,optional
+            The data type of the coefficient of the returned operators.
+
+        Returns
+        -------
+        OperatorCollection
+            All the spin operators with non-zero coeffcients.
         '''
         result=OperatorCollection()
         for spinterm in self:

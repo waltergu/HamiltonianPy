@@ -1,7 +1,7 @@
 '''
 Fermionic terms, including:
-1) classes: Quadratic, QuadracticList, Hubbard, HubbardList
-2) functions: Hopping, Onsite, Pairing
+    * classes: Quadratic, QuadracticList, Hubbard, HubbardList
+    * functions: Hopping, Onsite, Pairing
 '''
 
 __all__=['Quadratic','QuadraticList','Hopping','Onsite','Pairing','Hubbard','HubbardList']
@@ -17,41 +17,48 @@ from Operator import *
 class Quadratic(Term):
     '''
     This class provides a complete and unified description for fermionic quadratic terms, i.e. hopping terms, onsite terms and pairing terms.
-    Attributes:
-        neighbour: integer
-            The order of neighbour of this quadratic term.
-        indexpacks: IndexPackList or function which returns IndexPackList
-            The indexpacks of the quadratic term.
-            When it is a function, it can return bond dependent indexpacks as needed.
-        amplitude: function which returns float or complex
+
+    Attributes
+    ----------
+    neighbour : integer
+        The order of neighbour of this quadratic term.
+    indexpacks : IndexPackList or function which returns IndexPackList
+        The indexpacks of the quadratic term.
+        When it is a function, it can return bond dependent indexpacks as needed.
+    amplitude : function which returns float or complex
             This function can return bond dependent coefficient as needed.
-    Note: The final coefficient comes from three parts, the value of itself, the value of the indexpacakge, and the value amplitude returns.
+
+    Notes
+    -----
+    The final coefficient comes from three parts, the value of itself, the value of the indexpacakge, and the value amplitude returns.
     '''
     
     def __init__(self,id,mode,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpacks=None,amplitude=None,modulate=None):
         '''
         Constructor.
-        Parameters:
-            id: string
-                The specific id of the term.
-            mode: string
-                The type of the term.
-            value: float or complex
-                The overall coefficient of the term.
-            neighbour: integer, optional
-                The order of neighbour of the term.
-            atoms,orbitals,spins: list of integer, optional
-                The atom, orbital and spin index used to construct a wanted instance of FermiPack.
-                When the parameter indexpacks is a function, these parameters will be omitted.
-            indexpacks: IndexPackList or function, optional
-                1) IndexPackList:
-                    It will be multiplied by an instance of FermiPack constructed from atoms, orbitals and spins as the final indexpacks. 
-                2) function:
-                    It must return an instance of IndexPackList and take an instance of Bond as its only argument.
-            amplitude: function, optional
-                It must return a float or complex and take an instance of Bond as its only argument.
-            modulate: function, optional
-                It must return a float or complex and its arguments are unlimited.
+
+        Parameters
+        ----------
+        id : string
+            The specific id of the term.
+        mode : string
+            The type of the term.
+        value : float or complex
+            The overall coefficient of the term.
+        neighbour : integer, optional
+            The order of neighbour of the term.
+        atoms,orbitals,spins : list of integer, optional
+            The atom, orbital and spin index used to construct a wanted instance of FermiPack.
+            When the parameter indexpacks is a function, these parameters will be omitted.
+        indexpacks : IndexPackList or function, optional
+            * IndexPackList:
+                It will be multiplied by an instance of FermiPack constructed from atoms, orbitals and spins as the final indexpacks. 
+            * function:
+                It must return an instance of IndexPackList and take an instance of Bond as its only argument.
+        amplitude: function, optional
+            It must return a float or complex and take an instance of Bond as its only argument.
+        modulate: function, optional
+            It must return a float or complex and its arguments are unlimited.
         '''
         super(Quadratic,self).__init__(id=id,mode=mode,value=value,modulate=modulate)
         self.neighbour=neighbour
@@ -107,14 +114,19 @@ class Quadratic(Term):
     def mesh(self,bond,config,dtype=complex128):
         '''
         This method returns the mesh of a quadratic term defined on a bond.
-        Parameters:
-            bond: Bond
-                The bond on which the quadratic term is defined.
-            config: Configuration
-                The configuration of degrees of freedom.
-            dtype: complex128,complex64,float64,float32, optional
-                The data type of the returned mesh.
-        Returns: 2D ndarray
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond on which the quadratic term is defined.
+        config : IDFConfig
+            The configuration of the internal degrees of freedom.
+        dtype : complex128,complex64,float64,float32, optional
+            The data type of the returned mesh.
+
+        Returns
+        -------
+        2D ndarray
             The mesh.
         '''
         edgr=config[bond.epoint.pid]
@@ -201,17 +213,22 @@ class QuadraticList(TermList):
     def mesh(self,bond,config,select=None,dtype=complex128):
         '''
         This method returns the mesh of all quadratic terms defined on a bond.
-        Parameters:
-            bond: Bond
-                The bond on which the quadratic terms are defined.
-            config: Configuration
-                The configuration of degrees of freedom.
-            select: callable
-                A function used to pick the quadratic terms whose only argument is an instance of Quadratic. 
-                If the returned value if True, the selected quadratic term is included.
-            dtype: complex128,complex64,float128,float64, optional
-                The data type of the returned mesh.
-        Returns: 2D ndarray
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond on which the quadratic terms are defined.
+        config : IDFConfig
+            The configuration of degrees of freedom.
+        select : callable
+            A function used to pick the quadratic terms whose only argument is an instance of Quadratic. 
+            If the returned value if True, the selected quadratic term is included.
+        dtype : complex128, complex64, float128, float64, optional
+            The data type of the returned mesh.
+
+        Returns
+        -------
+        2d ndarray
             The mesh.
         '''
         edgr,sdgr=config[bond.epoint.pid],config[bond.spoint.pid]
@@ -227,23 +244,30 @@ class QuadraticList(TermList):
     def operators(self,bond,config,table=None,dtype=complex128):
         '''
         This method returns all the desired quadratic operators defined on the input bond with non-zero coefficients.
-        Parameters:
-            bond: Bond
-                The bond where the quadratic operators are defined.
-            config: Configuration
-                The configuration of degrees of freedom.
-            table: Table, optional
-                The index-sequence table.
-                When it not None, only those operators with indices in it will be returned.
-            dtype: dtype, optional
-                The data type of the coefficient of the returned operators.
-        Returns:
-            result: OperatorCollection
-                The quadratic operators with non-zero coefficients.
-        Note: only one "half" of the operators are returned, which means
-                1) the Hermitian conjugate of non-Hermitian operators is not included;
-                2) the coefficient of the self-Hermitian operators is divided by a factor 2;
-                3) the BdG case, only the electron part of the hopping terms and onsite terms are contained, and for the electron part, Rule 1) and 2) also applies.
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond where the quadratic operators are defined.
+        config : IDFConfig
+            The configuration of degrees of freedom.
+        table : Table, optional
+            The index-sequence table.
+            When it not None, only those operators with indices in it will be returned.
+        dtype : dtype, optional
+            The data type of the coefficient of the returned operators.
+
+        Returns
+        -------
+        OperatorCollection
+            The quadratic operators with non-zero coefficients.
+
+        Notes
+        -----
+        Only one *half* of the operators are returned, which means
+            * The Hermitian conjugate of non-Hermitian operators is not included;
+            * The coefficient of the self-Hermitian operators is divided by a factor 2;
+            * The BdG case, only the electron part of the hopping terms and onsite terms are contained, and for the electron part, the above rules also apply.
         '''
         result=to_operators(self.mesh(bond,config,dtype=dtype),bond,config,table)
         if bond.neighbour!=0:
@@ -270,16 +294,20 @@ def to_operators(mesh,bond,config,table=None):
 class Hubbard(Term):
     '''
     This class provides a complete description of single orbital and multi orbital Hubbard interactions.
-    Attributes:
-        value: float or 1D array-like, inherited from Term
-            float: single-orbital Hubbard interaction.
-            1D array-like: multi-orbital Hubbard interaction and the length must be 4.
-                value[0]: intra-orbital interaction
-                value[1]: inter-orbital interaction
-                value[2]: spin-flip interaction
-                value[3]: pair-hopping interaction
-        atom: integer 
-            The atom index of the point where the Hubbard interactions are defined.
+
+    Attributes
+    ----------
+    value : float or 1D array-like, inherited from Term
+        * float:
+            Single-orbital Hubbard interaction.
+        * 1d array-like:
+            Multi-orbital Hubbard interaction and the length must be 4.
+                * value[0]: intra-orbital interaction
+                * value[1]: inter-orbital interaction
+                * value[2]: spin-flip interaction
+                * value[3]: pair-hopping interaction
+    atom : integer
+        The atom index of the point where the Hubbard interactions are defined.
     '''
 
     def __init__(self,id,value,atom=None,modulate=None):
@@ -325,14 +353,19 @@ class Hubbard(Term):
     def mesh(self,bond,config,dtype=float64):
         '''
         This method returns the mesh of Hubbard terms.
-        Parameters:
-            bond: Bond
-                The bond on which the Hubbard term is defined.
-            config: Configuration
-                The configuration of degrees of freedom.
-            dtype: complex128,complex64,float128,float64, optional
-                The data type of the returned mesh.
-        Returns: 4D ndarray
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond on which the Hubbard term is defined.
+        config : IDFConfig
+            The configuration of internal degrees of freedom.
+        dtype : complex128,complex64,float128,float64, optional
+            The data type of the returned mesh.
+
+        Returns
+        -------
+        4d ndarray
             The mesh.
         '''
         dgr=config[bond.epoint.pid]
@@ -395,14 +428,19 @@ class HubbardList(TermList):
     def mesh(self,bond,config,dtype=float64):
         '''
         This method returns the mesh of all Hubbard terms defined on a bond.
-        Parameters:
-            bond: Bond
-                The bond on which the Hubbard term is defined.
-            config: Configuration
-                The configuration of degrees of freedom.
-            dtype: complex128,complex64,float128,float64, optional
-                The data type of the returned mesh.
-        Returns: 4D ndarray
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond on which the Hubbard term is defined.
+        config : Configuration
+            The configuration of degrees of freedom.
+        dtype : complex128,complex64,float128,float64, optional
+            The data type of the returned mesh.
+
+        Returns
+        -------
+        4d ndarray
             The mesh.
         '''
         if bond.neighbour==0:
@@ -421,22 +459,28 @@ class HubbardList(TermList):
     def operators(self,bond,config,table=None,dtype=float64):
         '''
         This method returns all the Hubbard operators defined on the input bond with non-zero coefficients.
-        Parameters:
-            bond: Bond
-                The bond on which the Hubbard terms are defined.
-            config: Configuration
-                The configuration of degrees of freedom.
-            table: Table, optional
-                The index-sequence table.
-                Since Hubbard terms are quartic, it never uses the Nambu space.
-            dtype: dtype,optional
-                The data type of the coefficient of the returned operators.
-        Returns:
-            result: OperatorCollection
-                All the Hubbard operators with non-zero coeffcients.
-        Note: only one "half" of the operators are returned, which means
-                1) the Hermitian conjugate of non-Hermitian operators is not included;
-                2) the coefficient of the self-Hermitian operators is divided by a factor 2.
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond on which the Hubbard terms are defined.
+        config: IDFConfig
+            The configuration of internal degrees of freedom.
+        table: Table, optional
+            The index-sequence table. Since Hubbard terms are quartic, it never uses the Nambu space.
+        dtype: dtype,optional
+            The data type of the coefficient of the returned operators.
+ 
+        Returns
+        -------
+        OperatorCollection
+            All the Hubbard operators with non-zero coeffcients.
+
+        Notes
+        -----
+        Only one "half" of the operators are returned, which means
+            * The Hermitian conjugate of non-Hermitian operators is not included;
+            * The coefficient of the self-Hermitian operators is divided by a factor 2.
         '''
         result=OperatorCollection()
         dgr=config[bond.epoint.pid]
