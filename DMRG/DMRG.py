@@ -747,8 +747,10 @@ class TSS(App):
         The length of the DMRG's mps.
     protocal : 0,1
         Before sweeps, the core of the dmrg will be recovered from exsiting data files.
+
             * When protocal==0, no real sweep will be taken when the recovered mps perfectly matches the recovering rule;
             * When protocal==1, the sweep will be taken at least once even if the recovered mps perfectly matches the recovering rule.
+
     BS : BaseSpace
         The basespace of the DMRG's parametes for the sweeps.
     nmaxs : list of integer
