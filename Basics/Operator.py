@@ -1,5 +1,10 @@
 '''
-Operator and OperatorCollection.
+=========================
+Descriptions of operators
+=========================
+
+This modulate defines the way to describe an operator and a set of operators, including
+    * classes: Operator, OperatorCollection.
 '''
 
 __all__=['Operator','OperatorCollection']

@@ -1,7 +1,11 @@
 '''
+====================================
+Density matrix renormalization group
+====================================
+
 DMRG, including:
-1) classes: Cylinder,DMRG,TSG,TSS
-2) function: pattern,DMRGTSG,DMRGTSS
+    * classes: Cylinder, DMRG, TSG, TSS
+    * function: pattern, DMRGTSG, DMRGTSS
 '''
 
 __all__=['pattern','Cylinder','DMRG','TSG','DMRGTSG','TSS','DMRGTSS']
@@ -22,17 +26,23 @@ from copy import copy,deepcopy
 def pattern(status,target,layer,nsite,mode='re'):
     '''
     Return the pattern of data files for match.
-    Parameters:
-        status: Status
-            The status of the DMRG.
-        target: QuantumNumber
-            The target of the DMRG.
-        layer: integer
-            The layer of the DMRG.
-        nsite: integer
-            The number of sites of the DMRG.
-        mode: 're','py'
-    Returns: string
+
+    Parameters
+    ----------
+    status : Status
+        The status of the DMRG.
+    target : QuantumNumber
+        The target of the DMRG.
+    layer : integer
+        The layer of the DMRG.
+    nsite : integer
+        The number of sites of the DMRG.
+    mode : 're','py'
+        're' for regular and 'py' for python.
+
+    Returns
+    -------
+    string
         The pattern.
     '''
     assert mode in ('re','py')
@@ -47,21 +57,25 @@ def pattern(status,target,layer,nsite,mode='re'):
 class Cylinder(Lattice):
     '''
     The cylinder geometry of a lattice.
-    Attributes:
-        block: list of 1d ndarray
-            The building block of the cylinder.
-        translation: 1d ndarray
-            The translation vector of the building block to construct the cylinder.
+
+    Attributes
+    ----------
+    block : list of 1d ndarray
+        The building block of the cylinder.
+    translation : 1d ndarray
+        The translation vector of the building block to construct the cylinder.
     '''
 
     def __init__(self,block,translation,**karg):
         '''
         Constructor.
-        Parameters:
-            block: list of 1d ndarray
-                The building block of the cylinder.
-            translation: 1d ndarray
-                The translation vector of the building block to construct the cylinder.
+
+        Parameters
+        ----------
+        block : list of 1d ndarray
+            The building block of the cylinder.
+        translation : 1d ndarray
+            The translation vector of the building block to construct the cylinder.
         '''
         super(Cylinder,self).__init__(**karg)
         self.block=block
@@ -70,9 +84,11 @@ class Cylinder(Lattice):
     def insert(self,A,B):
         '''
         Insert two blocks into the center of the cylinder.
-        Parameters:
-            A,B: any hashable object
-                The scopes of the insert block points.
+
+        Parameters
+        ----------
+        A,B : any hashable object
+            The scopes of the insert block points.
         '''
         if len(self)==0:
             aps=[Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
@@ -100,10 +116,15 @@ class Cylinder(Lattice):
     def lattice(self,scopes):
         '''
         Construct a cylinder with the assigned scopes.
-        Parameters:
-            scopes: list of hashable object
-                The scopes of the cylinder.
-        Returns: Lattice
+
+        Parameters
+        ----------
+        scopes : list of hashable object
+            The scopes of the cylinder.
+
+        Returns
+        -------
+        Lattice
             The constructed cylinder.
         '''
         points,num=[],len(scopes)
@@ -113,68 +134,72 @@ class Cylinder(Lattice):
 
 class DMRG(Engine):
     '''
-   Density matrix renormalization group method.
-    Attributes:
-        mps: MPS
-            The matrix product state of the DMRG.
-        lattice: Cylinder/Lattice
-            The lattice of the DMRG.
-        terms: list of Term
-            The terms of the DMRG.
-        config: IDFConfig
-            The configuration of the internal degrees of freedom on the lattice.
-        degfres: DegFreTree
-            The physical degrees of freedom tree.
-        layer: integer
-            The layer on which the DMRG works.
-        mask: [] or ['nambu']
-            [] for spin systems and ['nambu'] for fermionic systems.
-        target: QuantumNumber
-            The target space of the DMRG.
-        dtype: np.float64, np.complex128
-            The data type.
-        generator: Generator
-            The generator of the Hamiltonian.
-        operators: OperatorCollection
-            The operators of the Hamiltonian.
-        mpo: MPO
-            The MPO-formed Hamiltonian.
-        _Hs_: dict
-            entry 'L': list of 3d Tensor
-                The contraction of mpo and mps from the left.
-            entry 'R': list of 3d Tensor
-                The contraction of mpo and mps from the right.
-        timers: Timers
-            The timers of the dmrg processes.
-        info: Info
-            The info of the dmrg processes.
-        cache: dict
-            entry 'osvs': 1d ndarray
-                The old singular values of the DMRG.
+    Density matrix renormalization group method.
+
+    Attributes
+    ----------
+    mps : MPS
+        The matrix product state of the DMRG.
+    lattice : Cylinder/Lattice
+        The lattice of the DMRG.
+    terms : list of Term
+        The terms of the DMRG.
+    config : IDFConfig
+        The configuration of the internal degrees of freedom on the lattice.
+    degfres : DegFreTree
+        The physical degrees of freedom tree.
+    layer : integer
+        The layer on which the DMRG works.
+    mask : [] or ['nambu']
+        [] for spin systems and ['nambu'] for fermionic systems.
+    target : QuantumNumber
+        The target space of the DMRG.
+    dtype : np.float64, np.complex128
+        The data type.
+    generator : Generator
+        The generator of the Hamiltonian.
+    operators : OperatorCollection
+        The operators of the Hamiltonian.
+    mpo : MPO
+        The MPO-formed Hamiltonian.
+    _Hs_ : dict
+        * entry 'L': list of 3d Tensor
+            The contraction of mpo and mps from the left.
+        * entry 'R': list of 3d Tensor
+            The contraction of mpo and mps from the right.
+    timers : Timers
+        The timers of the dmrg processes.
+    info : Info
+        The info of the dmrg processes.
+    cache : dict
+        * entry 'osvs': 1d ndarray
+            The old singular values of the DMRG.
     '''
 
     def __init__(self,mps,lattice,terms,config,degfres,layer=0,mask=[],target=None,dtype=np.complex128,**karg):
         '''
         Constructor.
-        Parameters:
-            mps: MPS
-                The matrix product state of the DMRG.
-            lattice: Lattice
-                The lattice of the DMRG.
-            terms: list of Term
-                The terms of the DMRG.
-            config: IDFConfig
-                The configuration of the internal degrees of freedom on the lattice.
-            degfres: DegFreTree
-                The physical degrees of freedom tree.
-            layer: integer
-                The layer on which the DMRG works.
-            mask: [] or ['nambu']
-                [] for spin systems and ['nambu'] for fermionic systems.
-            target: QuantumNumber
-                The target space of the DMRG.
-            dtype: np.float64,np.complex128, optional
-                The data type.
+
+        Parameters
+        ----------
+        mps : MPS
+            The matrix product state of the DMRG.
+        lattice : Lattice
+            The lattice of the DMRG.
+        terms : list of Term
+            The terms of the DMRG.
+        config : IDFConfig
+            The configuration of the internal degrees of freedom on the lattice.
+        degfres : DegFreTree
+            The physical degrees of freedom tree.
+        layer : integer
+            The layer on which the DMRG works.
+        mask : [] or ['nambu']
+            [] for spin systems and ['nambu'] for fermionic systems.
+        target : QuantumNumber
+            The target space of the DMRG.
+        dtype : np.float64,np.complex128, optional
+            The data type.
         '''
         self.mps=mps
         self.lattice=lattice
@@ -244,11 +269,13 @@ class DMRG(Engine):
     def set_HL_(self,pos,tol=hm.TOL):
         '''
         Set a certain left block Hamiltonian.
-        Parameters:
-            pos: integer
-                The position of the left block Hamiltonian.
-            tol: np.float64, optional
-                The tolerance of the non-zeros.
+
+        Parameters
+        ----------
+        pos : integer
+            The position of the left block Hamiltonian.
+        tol : np.float64, optional
+            The tolerance of the non-zeros.
         '''
         if pos==-1:
             self._Hs_['L'][0]=Tensor([[[1.0]]],labels=[self.mps[+0].labels[MPS.L].prime,self.mpo[+0].labels[MPO.L],self.mps[+0].labels[MPS.L]])
@@ -264,11 +291,13 @@ class DMRG(Engine):
     def set_HR_(self,pos,tol=hm.TOL):
         '''
         Set a certain right block Hamiltonian.
-        Parameters:
-            pos: integer
-                The position of the right block Hamiltonian.
-            tol: np.float64, optional
-                The tolerance of the non-zeros.
+
+        Parameters
+        ----------
+        pos : integer
+            The position of the right block Hamiltonian.
+        tol : np.float64, optional
+            The tolerance of the non-zeros.
         '''
         if pos==self.mps.nsite:
             self._Hs_['R'][0]=Tensor([[[1.0]]],labels=[self.mps[-1].labels[MPS.R].prime,self.mpo[-1].labels[MPO.R],self.mps[-1].labels[MPS.R]])
@@ -284,13 +313,15 @@ class DMRG(Engine):
     def set_Hs_(self,L=None,R=None,tol=hm.TOL):
         '''
         Set the Hamiltonians of blocks.
-        Parameters:
-            L: integer, optional
-                The maximum position of the left Hamiltonians to be set.
-            R: integer, optional
-                The maximum position of the right Hamiltonians to be set.
-            tol: np.float64, optional
-                The tolerance of the zeros.
+
+        Parameters
+        ----------
+        L : integer, optional
+            The maximum position of the left Hamiltonians to be set.
+        R : integer, optional
+            The maximum position of the right Hamiltonians to be set.
+        tol : np.float64, optional
+            The tolerance of the zeros.
         '''
         self._Hs_={'L':[None]*(self.mps.nsite+1),'R':[None]*(self.mps.nsite+1)}
         if self.mps.cut is not None:
@@ -304,13 +335,15 @@ class DMRG(Engine):
     def reset(self,layer,lattice,mps):
         '''
         Reset the core of the dmrg.
-        Parameters:
-            layer: integer
-                The new layer of the dmrg.
-            lattice: Lattice
-                The new lattice of the dmrg.
-            mps: MPS
-                The new mps of the dmrg.
+
+        Parameters
+        ----------
+        layer : integer
+            The new layer of the dmrg.
+        lattice : Lattice
+            The new lattice of the dmrg.
+        mps : MPS
+            The new mps of the dmrg.
         '''
         self.layer=layer
         self.lattice=lattice
@@ -327,17 +360,19 @@ class DMRG(Engine):
     def iterate(self,info='',sp=True,nmax=200,tol=hm.TOL,piechart=True):
         '''
         The two site dmrg step.
-        Parameters:
-            info: str, optional
-                The infomation string passed to self.log.
-            sp: logical, optional
-                True for state prediction False for not.
-            nmax: integer, optional
-                The maximum singular values to be kept.
-            tol: np.float64, optional
-                The tolerance of the singular values.
-            piechart: logical, optional
-                True for showing the piechart of self.timers while False for not.
+
+        Parameters
+        ----------
+        info : str, optional
+            The infomation string passed to self.log.
+        sp : logical, optional
+            True for state prediction False for not.
+        nmax : integer, optional
+            The maximum singular values to be kept.
+        tol : np.float64, optional
+            The tolerance of the singular values.
+        piechart : logical, optional
+            True for showing the piechart of self.timers while False for not.
         '''
         self.log<<'%s%s\n%s\n'%(self.state,info,self.graph)
         with self.timers.get('Preparation'):
@@ -412,13 +447,15 @@ class DMRG(Engine):
     def insert(self,A,B,target=None,mps0=None):
         '''
         Insert two blocks of points into the center of the lattice.
-        Parameters:
-            A,B: any hashable object
-                The scopes of the insert block points.
-            target: QuantumNumber, optional
-                The new target of the DMRG.
-            mps0: MPS, optional
-                The initial mps.
+
+        Parameters
+        ----------
+        A,B : any hashable object
+            The scopes of the insert block points.
+        target : QuantumNumber, optional
+            The new target of the DMRG.
+        mps0 : MPS, optional
+            The initial mps.
         '''
         self.lattice.insert(A,B)
         self.config.reset(pids=self.lattice.pids)
@@ -498,13 +535,16 @@ class DMRG(Engine):
 
     def sweep(self,info='',path=None,**karg):
         '''
-        Parameters:
-            info: str, optional
-                The info passed to self.log.
-            path: list of str, optional
-                The path along which the sweep is performed.
-            karg: 'nmax','tol','piechart'
-                See DMRG.iterate for details.
+        Perform a sweep over the mps of the dmrg under the guidance of `path`.
+
+        Parameters
+        ----------
+        info : str, optional
+            The info passed to self.log.
+        path : list of str, optional
+            The path along which the sweep is performed.
+        karg : 'nmax','tol','piechart'
+            See DMRG.iterate for details.
         '''
         for move in it.chain(['<<']*(self.mps.cut-1),['>>']*(self.mps.nsite-2),['<<']*(self.mps.nsite-self.mps.cut-1)) if path is None else path:
             self.mps<<=1 if '<<' in move else -1
@@ -513,17 +553,19 @@ class DMRG(Engine):
     def relayer(self,layer,nsweep=1,cut=0,nmax=None,tol=None):
         '''
         Change the layer of the physical degrees of freedom.
-        Parameters:
-            layer: integer/tuple-of-string
-                The new layer.
-            nsweep: integer, optional
-                The number of sweeps to compress the new mps and mpo.
-            cut: integer, optional
-                The position of the connecting bond of the new mps.
-            nmax: integer, optional
-                The maximum number of singular values to be kept.
-            tol: np.float64, optional
-                The tolerance of the singular values.
+
+        Parameters
+        ----------
+        layer : integer/tuple-of-string
+            The new layer.
+        nsweep : integer, optional
+            The number of sweeps to compress the new mps and mpo.
+        cut : integer, optional
+            The position of the connecting bond of the new mps.
+        nmax : integer, optional
+            The maximum number of singular values to be kept.
+        tol : np.float64, optional
+            The tolerance of the singular values.
         '''
         self.layer=layer if type(layer) in (int,long) else self.degfres.layers.index(layer)
         self.set_operators_mpo()
@@ -554,14 +596,19 @@ class DMRG(Engine):
     def coreload(din,pattern,nmax):
         '''
         Use pickle to laod the core of the dmrg from existing data files.
-        Parameters:
-            din: string
-                The directory where the data files are searched.
-            pattern: string
-                The matching pattern of the data files.
-            nmax: integer
-                The maximum number of singular values kept in the mps.
-        Returns: dict
+
+        Parameters
+        ----------
+        din : string
+            The directory where the data files are searched.
+        pattern : string
+            The matching pattern of the data files.
+        nmax : integer
+            The maximum number of singular values kept in the mps.
+
+        Returns
+        -------
+        dict
             The loaded core of the dmrg.
         '''
         candidates={}
@@ -580,49 +627,53 @@ class DMRG(Engine):
 class TSG(App):
     '''
     Two site growth of a DMRG.
-    Attributes:
-        scopes: list of hashable objects
-            The scopes of the blocks to be added two-by-two into the lattice of the DMRG.
-        targets: sequence of QuantumNumber
-            The target space at each growth of the DMRG.
-        mps0: MPS
-            The initial mps.
-        layer: integer
-            The layer of the DMRG's mps.
-        ns: integer
-            The number of sites per block of the dmrg.
-        nmax: integer
-            The maximum singular values to be kept.
-        tol: float64
-            The tolerance of the singular values.
-        heatbaths: list of integer
-            The maximum bond dimensions for the heat bath processes.
-        sweeps: list of integer
-            The maximum bond dimensions for the sweep processes.
+
+    Attributes
+    ----------
+    scopes : list of hashable objects
+        The scopes of the blocks to be added two-by-two into the lattice of the DMRG.
+    targets : sequence of QuantumNumber
+        The target space at each growth of the DMRG.
+    mps0 : MPS
+        The initial mps.
+    layer : integer
+        The layer of the DMRG's mps.
+    ns : integer
+        The number of sites per block of the dmrg.
+    nmax : integer
+        The maximum singular values to be kept.
+    tol : float64
+        The tolerance of the singular values.
+    heatbaths : list of integer
+        The maximum bond dimensions for the heat bath processes.
+    sweeps : list of integer
+        The maximum bond dimensions for the sweep processes.
     '''
 
     def __init__(self,scopes,targets,mps0=None,layer=0,ns=1,nmax=200,tol=hm.TOL,heatbaths=None,sweeps=None,**karg):
         '''
         Constructor.
-        Parameters:
-            scopes: list of hashable objects
-                The scopes of the blocks to be added two-by-two into the lattice of the DMRG.
-            targets: sequence of QuantumNumber
-                The target space at each growth of the DMRG.
-            mps0: MPS, optional
-                The initial mps.
-            layer: integer, optional
-                The layer of the DMRG's mps.
-            ns: integer, optional
-                The number of sites per block of the dmrg.
-            nmax: integer, optional
-                The maximum number of singular values to be kept.
-            tol: float64, optional
-                The tolerance of the singular values.
-            heatbaths: list of integer, optional
-                The maximum bond dimensions for the heat bath processes.
-            sweeps: list of integer, optional
-                The maximum bond dimensions for the sweep processes.
+
+        Parameters
+        ----------
+        scopes : list of hashable objects
+            The scopes of the blocks to be added two-by-two into the lattice of the DMRG.
+        targets : sequence of QuantumNumber
+            The target space at each growth of the DMRG.
+        mps0 : MPS, optional
+            The initial mps.
+        layer : integer, optional
+            The layer of the DMRG's mps.
+        ns : integer, optional
+            The number of sites per block of the dmrg.
+        nmax : integer, optional
+            The maximum number of singular values to be kept.
+        tol : float64, optional
+            The tolerance of the singular values.
+        heatbaths : list of integer, optional
+            The maximum bond dimensions for the heat bath processes.
+        sweeps : list of integer, optional
+            The maximum bond dimensions for the sweep processes.
         '''
         assert len(scopes)==len(targets)*2
         self.scopes=scopes
@@ -638,10 +689,15 @@ class TSG(App):
     def recover(self,engine):
         '''
         Recover the core of a dmrg engine.
-        Parameters:
-            engine: DMRG
-                The dmrg engine whose core is to be recovered.
-        Returns: integer
+
+        Parameters
+        ----------
+        engine : DMRG
+            The dmrg engine whose core is to be recovered.
+
+        Returns
+        -------
+        integer
             The recover code.
         '''
         for i,target in enumerate(reversed(self.targets)):
@@ -680,47 +736,51 @@ def DMRGTSG(engine,app):
 class TSS(App):
     '''
     Two site sweep of a DMRG.
-    Attributes:
-        target: QuantumNumber
-            The target of the DMRG's mps.
-        layer: integer
-            The layer of the DMRG's mps.
-        nsite: integer
-            The length of the DMRG's mps.
-        protocal: 0,1
-            Before sweeps, the core of the dmrg will be recovered from exsiting data files.
-            When protocal==0, no real sweep will be taken when the recovered mps perfectly matches the recovering rule;
-            When protocal==1, the sweep will be taken at least once even if the recovered mps perfectly matches the recovering rule.
-        BS: BaseSpace
-            The basespace of the DMRG's parametes for the sweeps.
-        nmaxs: list of integer
-            The maximum numbers of singular values to be kept for the sweeps.
-        paths: list of list of '<<' or '>>'
-            The paths along which the sweeps are performed.
-        tol: np.float64
-            The tolerance of the singular values.
+
+    Attributes
+    ----------
+    target : QuantumNumber
+        The target of the DMRG's mps.
+    layer : integer
+        The layer of the DMRG's mps.
+    nsite : integer
+        The length of the DMRG's mps.
+    protocal : 0,1
+        Before sweeps, the core of the dmrg will be recovered from exsiting data files.
+            * When protocal==0, no real sweep will be taken when the recovered mps perfectly matches the recovering rule;
+            * When protocal==1, the sweep will be taken at least once even if the recovered mps perfectly matches the recovering rule.
+    BS : BaseSpace
+        The basespace of the DMRG's parametes for the sweeps.
+    nmaxs : list of integer
+        The maximum numbers of singular values to be kept for the sweeps.
+    paths : list of list of '<<' or '>>'
+        The paths along which the sweeps are performed.
+    tol : np.float64
+        The tolerance of the singular values.
     '''
 
     def __init__(self,target,layer,nsite,nmaxs,protocal=0,BS=None,paths=None,tol=hm.TOL,**karg):
         '''
         Constructor.
-        Parameters:
-            target: QuantumNumber
-                The target of the DMRG's mps.
-            layer: integer
-                The layer of the DMRG's mps.
-            nsite: integer
-                The length of the DMRG's mps.
-            nmaxs: list of integer
-                The maximum numbers of singular values to be kept for each sweep.
-            protocal: 0, 1
-                The protocal of the app to carry out the sweep.
-            BS: list of dict, optional
-                The parameters of the DMRG for each sweep.
-            paths: list of list of '<<' or '>>', optional
-                The paths along which the sweeps are performed.
-            tol: np.float64, optional
-                The tolerance of the singular values.
+
+        Parameters
+        ----------
+        target : QuantumNumber
+            The target of the DMRG's mps.
+        layer : integer
+            The layer of the DMRG's mps.
+        nsite : integer
+            The length of the DMRG's mps.
+        nmaxs : list of integer
+            The maximum numbers of singular values to be kept for each sweep.
+        protocal : 0,1
+            The protocal of the app to carry out the sweep.
+        BS : list of dict, optional
+            The parameters of the DMRG for each sweep.
+        paths : list of list of '<<' or '>>', optional
+            The paths along which the sweeps are performed.
+        tol : np.float64, optional
+            The tolerance of the singular values.
         '''
         self.target=target
         self.layer=layer
@@ -735,10 +795,15 @@ class TSS(App):
     def recover(self,engine):
         '''
         Recover the core of a dmrg engine.
-        Parameters:
-            engine: DMRG
-                The dmrg engine whose core is to be recovered.
-        Returns: integer
+
+        Parameters
+        ----------
+        engine : DMRG
+            The dmrg engine whose core is to be recovered.
+
+        Returns
+        -------
+        integer
             The recover code.
         '''
         status=deepcopy(engine.status)

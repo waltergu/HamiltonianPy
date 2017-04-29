@@ -1,5 +1,9 @@
 '''
-Basis of fermionic systems in the occupation number representation, including:
+-----------------------
+Occupation number basis
+-----------------------
+
+The basis of fermionic systems in the occupation number representation, including:
     * classes: BasisF
     * function: sequence
 '''

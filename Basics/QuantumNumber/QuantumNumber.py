@@ -1,4 +1,8 @@
 '''
+-------------------
+Good quantum number
+-------------------
+
 Quantum number, including:
     * classes: QuantumNumber, QuantumNumbers
 '''

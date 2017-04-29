@@ -1,5 +1,9 @@
 '''
-Spin Operator, including:
+-------------
+Spin operator
+-------------
+
+Spin operator, including:
     * classes: OperatorS
 '''
 

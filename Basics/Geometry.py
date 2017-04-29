@@ -1,5 +1,9 @@
 '''
-Geometry, including
+====================
+Lattice construction
+====================
+
+This module provides enormous functions and classes to construct a lattice, including
     * functions: azimuthd, azimuth, polard, polar, volume, isparallel, issubordinate, reciprocals, translation, rotation, tiling, intralinks, interlinks
     * classes: PID, Point, Bond, Link, Lattice, SuperLattice
 '''

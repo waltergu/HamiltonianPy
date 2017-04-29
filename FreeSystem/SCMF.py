@@ -1,6 +1,10 @@
 '''
+=================================
+Self-consistent mean field theory
+=================================
+
 Self-consistent mean field theory for fermionic systems, including:
-1) classes: OP, SCMF
+    * classes: OP, SCMF
 '''
 
 __all__=['OP','SCMF']
@@ -17,25 +21,29 @@ import time
 class OP(object):
     '''
     Order parameter.
-    Attributes:
-        value: number
-            The value of the order parameter.
-        matrix: 2d ndarray
-            The matrix representation on the TBA basis of the order parameter.
-        dtype: float64, complex128
-            The data type of the value of the order parameter.
+
+    Attributes
+    -----------
+    value : number
+        The value of the order parameter.
+    matrix : 2d ndarray
+        The matrix representation on the TBA basis of the order parameter.
+    dtype : float64, complex128
+        The data type of the value of the order parameter.
     '''
 
     def __init__(self,value,matrix,dtype=float64):
         '''
         Constructor.
-        Parameters:
-            value: number
-                The value of the order parameter.
-            matrix: 2d ndarray
-                The matrix representation on the TBA basis of the order parameter.
-            dtype: float64, complex128, optional
-                The data type of the value of the order parameter.
+
+        Parameters
+        ----------
+        value : number
+            The value of the order parameter.
+        matrix : 2d ndarray
+            The matrix representation on the TBA basis of the order parameter.
+        dtype : float64, complex128, optional
+            The data type of the value of the order parameter.
         '''
         self.value=value
         self.matrix=matrix
@@ -44,42 +52,46 @@ class OP(object):
 class SCMF(TBA):
     '''
     Self-consistent mean field theory for fermionic systems.
-    Attributes:
-        filling: float64
-            The filling factor of the system.
-        mu: float64
-            The chemical potential of the system.
-        temperature: float64
-            The temperature of the system.
-        orders: list of Term
-            The terms representing the order parameters of the system.
-        ops: OrderedDict in the form (key,value)
-            key: string
-                The name of the term representing an order parameter of the system.
-            value: OP
-                The corresponding order parameter of the system.
-        timers: Timers
-            The timer to record the consumed time of the iteration.
+
+    Attributes
+    ----------
+    filling : float64
+        The filling factor of the system.
+    mu : float64
+        The chemical potential of the system.
+    temperature : float64
+        The temperature of the system.
+    orders : list of Term
+        The terms representing the order parameters of the system.
+    ops : OrderedDict in the form (key,value)
+        * key: string
+            The name of the term representing an order parameter of the system.
+        * value: OP
+            The corresponding order parameter of the system.
+    timers : Timers
+        The timer to record the consumed time of the iteration.
     '''
 
     def __init__(self,filling=0.5,temperature=0,lattice=None,config=None,terms=None,orders=None,mask=['nambu'],**karg):
         '''
         Constructor.
-        Parameters:
-            filling: float, optional
-                The filling factor of the system.
-            temperature: float64, optional
-                The temperature of the system.
-            lattice: Lattice, optional
-                The lattice of the system.
-            config: IDFConfig, optional
-                The configuration of degrees of freedom.
-            terms: list of Term, optional
-                The terms of the system.
-            orders: list of Term, optional
-                The terms representing the order parameters of the system.
-            mask: ['nambu'] or [], optional
-                ['nambu'] for not using the nambu space and [] for using the nambu space.
+
+        Parameters
+        ----------
+        filling : float, optional
+            The filling factor of the system.
+        temperature : float64, optional
+            The temperature of the system.
+        lattice : Lattice, optional
+            The lattice of the system.
+        config : IDFConfig, optional
+            The configuration of degrees of freedom.
+        terms : list of Term, optional
+            The terms of the system.
+        orders : list of Term, optional
+            The terms representing the order parameters of the system.
+        mask : ['nambu'] or [], optional
+            ['nambu'] for not using the nambu space and [] for using the nambu space.
         '''
         self.filling=filling
         self.temperature=temperature
@@ -107,9 +119,11 @@ class SCMF(TBA):
     def update_ops(self,kspace=None):
         '''
         Update the order parameters of the system.
-        Parameters:
-            kspace: BaseSpace, optional
-                The Brillouin zone of the system.
+
+        Parameters
+        ----------
+        kspace : BaseSpace, optional
+            The Brillouin zone of the system.
         '''
         self.generator.update(**{name:order.value for name,order in self.ops.iteritems()})
         self.status.update(alter=self.generator.parameters['alter'])
@@ -129,13 +143,15 @@ class SCMF(TBA):
     def iterate(self,kspace=None,tol=10**-6,maxiter=200):
         '''
         Iterate the SCMF to get converged order parameters.
-        Parameters:
-            kspace: BaseSpace, optional
-                The Brillouin zone of the system.
-            tol: float64, optional
-                The tolerance of the order parameter.
-            n: integer, optional
-                The maximum times of the iteration.
+
+        Parameters
+        ----------
+        kspace : BaseSpace, optional
+            The Brillouin zone of the system.
+        tol : float64, optional
+            The tolerance of the order parameter.
+        n : integer, optional
+            The maximum times of the iteration.
         '''
         def gx(values):
             for op,value in zip(self.ops.values(),values):

@@ -1,4 +1,8 @@
 '''
+----------------------------
+Spin operator representation
+----------------------------
+
 Spin operator representation, including:
     * functions: s_opt_rep
 '''

@@ -1,4 +1,8 @@
 '''
+----------------------------
+Fermionic degrees of freedom
+----------------------------
+
 Fermionic degree of freedom package, including:
     * constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY
     * classes: FID, Fermi, FermiPack

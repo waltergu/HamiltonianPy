@@ -1,6 +1,10 @@
 '''
+=======================
+Matrix product operator
+=======================
+
 Matrix product operator, including:
-1) classes: OptStr, MPO
+    * classes: OptStr, MPO
 '''
 
 __all__=['OptStr','MPO']
@@ -16,19 +20,24 @@ from copy import copy
 
 class OptStr(list):
     '''
-    Operator string, a special kind of matrix product operator, with the virtual legs of the matrices always one dimensional and thus omitted.
-        For each of its elements: 2d Tensor
-            The matrices of the mpo.
+    Operator string, a special kind of matrix product operator, with each of its elements a 2d `Tensor`.
+
+    Notes
+    -----
+        * The virtual legs of the matrices are always one dimensional and thus omitted.
+        * The two legs of the tensors are physical ones.
     '''
 
     def __init__(self,ms,sites=None):
         '''
         Constructor.
-        Parameters:
-            ms: 2d ndarray/Tensor
-                The matrices of the mpo.
-            sites: list of Label, optional
-                The site labels of the mpo.
+
+        Parameters
+        ----------
+        ms : 2d ndarray/Tensor
+            The matrices of the mpo.
+        sites : list of Label, optional
+            The site labels of the mpo.
         '''
         if sites is None:
             for m in ms:
@@ -50,14 +59,19 @@ class OptStr(list):
     def from_operator(operator,degfres,layer):
         '''
         Constructor, which converts an operator to an optstr.
-        Parameters:
-            operator: OperatorS, OperatorF
-                The operator to be converted to an optstr.
-            degfres: DegFreTree
-                The degfretree of the system.
-            layer: integer or tuple of string
-                The layer where the converted optstr lives.
-        Returns: OptStr
+
+        Parameters
+        ----------
+        operator : OperatorS, OperatorF
+            The operator to be converted to an optstr.
+        degfres : DegFreTree
+            The degfretree of the system.
+        layer : integer or tuple of string
+            The layer where the converted optstr lives.
+
+        Returns
+        -------
+        OptStr
             The corresponding OptStr.
         '''
         assert type(operator) in (OperatorS,OperatorF)
@@ -136,12 +150,20 @@ class OptStr(list):
     def overlap(self,mps1,mps2):
         '''
         The overlap of an optstr between two mpses.
-        Parameters:
-            mps1,mps2: MPS
-                The two matrix product states between which the overlap of an optstr is calculated.
-                Both mpses should be kets because the complex conjugate of the first mps is always taken to calculate the overlap in this function.
-        Returns: number
+
+        Parameters
+        ----------
+        mps1,mps2 : MPS
+            The two matrix product states between which the overlap of an optstr is calculated.
+
+        Returns
+        -------
+        number
             The overlap.
+
+        Notes
+        -----
+        Both mpses should be kets since in this function the complex conjugate of the first mps is always taken during the calculation.
         '''
         reset_and_protect=lambda mps,start: mps._merge_ABL_('R') if mps.cut==start else mps._merge_ABL_('L')
         poses={m.labels[1]:mps1.table[m.labels[1]] for m in self}
@@ -190,10 +212,15 @@ class OptStr(list):
     def to_mpo(self,degfres):
         '''
         Convert an optstr to the full-formated mpo.
-        Parameters:
-            degfres: DegFreTree
-                The tree of the site degrees of freedom.
-        Returns: MPO
+
+        Parameters
+        ----------
+        degfres : DegFreTree
+            The tree of the site degrees of freedom.
+
+        Returns
+        -------
+        MPO
             The corresponding MPO.
         '''
         dtype=next(iter(self)).dtype
@@ -220,12 +247,17 @@ class OptStr(list):
     def relayer(self,degfres,layer):
         '''
         Construt a new optstr with the site labels living on a specific layer of degfres.
-        Parameters:
-            degfres: DegFreTree
-                The tree of the site degrees of freedom.
-            layer: integer/tuple-of-string
-                The layer where the site labels live.
-        Returns: OptStr
+
+        Parameters
+        ----------
+        degfres : DegFreTree
+            The tree of the site degrees of freedom.
+        layer : integer/tuple-of-string
+            The layer where the site labels live.
+
+        Returns
+        -------
+        OptStr
             The new optstr.
         '''
         new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
@@ -259,22 +291,22 @@ class OptStr(list):
 
 class MPO(list):
     '''
-    Matrix product operator.
-        For each of its elements: 2d Tensor
-            The matrices of the mpo.
+    Matrix product operator, with each of its elements a 4d `Tensor`.
     '''
     L,U,D,R=0,1,2,3
 
     def __init__(self,ms,sites=None,bonds=None):
         '''
         Constructor.
-        Parameters:
-            ms: list of 4d ndarray/Tensor
-                The matrices of the mpo.
-            sites: list of Label, optional
-                The site labels of the mpo.
-            bonds: list of Label, optional
-                The bond labels of the mpo.
+
+        Parameters
+        ----------
+        ms : list of 4d ndarray/Tensor
+            The matrices of the mpo.
+        sites : list of Label, optional
+            The site labels of the mpo.
+        bonds : list of Label, optional
+            The bond labels of the mpo.
         '''
         assert (sites is None)==(bonds is None)
         if sites is None:
@@ -338,10 +370,15 @@ class MPO(list):
     def _mul_mpo_(self,other):
         '''
         The multiplication of two mpos.
-        Parameters:
-            other: MPO
-                The other mpo.
-        Returns: MPO
+
+        Parameters
+        ----------
+        other : MPO
+            The other mpo.
+
+        Returns
+        -------
+        MPO
             The product.
         '''
         assert self.nsite==other.nsite
@@ -364,10 +401,15 @@ class MPO(list):
     def _mul_mps_(self,other):
         '''
         The multiplication of an mpo and an mps.
-        Parameters:
-            other: MPS
-                The mps.
-        Returns: MPS
+
+        Parameters
+        ----------
+        other : MPS
+            The mps.
+
+        Returns
+        -------
+        MPS
             The product.
         '''
         assert self.nsite==other.nsite
@@ -466,12 +508,20 @@ class MPO(list):
     def overlap(self,mps1,mps2):
         '''
         The overlap of an mpo between two mpses.
-        Parameters:
-            mps1, mps2: MPS
-                The two matrix product states between which the overlap of an mpo is calculated.
-                Both mpses should be kets because the complex conjugate of the first mps is always taken to calculate the overlap in this function.
-        Returns: number
+
+        Parameters
+        ----------
+        mps1,mps2 : MPS
+            The two matrix product states between which the overlap of an mpo is calculated.
+
+        Returns
+        -------
+        number
             The overlap.
+
+        Notes
+        -----
+        Both mpses should be kets because in this function the complex conjugate of the first mps is always taken during the calculation.
         '''
         assert self.nsite==mps1.nsite and self.nsite==mps2.nsite
         if mps1 is mps2:
@@ -505,14 +555,19 @@ class MPO(list):
     def compress(self,nsweep=1,method='dpl',options={}):
         '''
         Compress the mpo.
-        Parameters:
-            nsweep: integer, optional
-                The number of sweeps to compress the mpo.
-            method: 'svd', 'dpl' or 'dln'
-                The method used to compress the mpo.
-            options: dict, optional
-                The options used to compress the mpo.
-        Returns: MPO
+
+        Parameters
+        ----------
+        nsweep : integer, optional
+            The number of sweeps to compress the mpo.
+        method : 'svd', 'dpl' or 'dln'
+            The method used to compress the mpo.
+        options : dict, optional
+            The options used to compress the mpo.
+
+        Returns
+        -------
+        MPO
             The compressed mpo.
         '''
         assert method in ('svd','dpl','dln')
@@ -563,16 +618,21 @@ class MPO(list):
     def relayer(self,degfres,layer,nmax=None,tol=None):
         '''
         Construt a new mpo with the site labels living on a specific layer of degfres.
-        Parameters:
-            degfres: DegFreTree
-                The tree of the site degrees of freedom.
-            layer: integer/tuple-of-string
-                The layer where the site labels live.
-            nmax: integer, optional
-                The maximum number of singular values to be kept.
-            tol: np.float64, optional
-                The tolerance of the singular values.
-        Returns: MPO
+
+        Parameters
+        ----------
+        degfres : DegFreTree
+            The tree of the site degrees of freedom.
+        layer : integer/tuple-of-string
+            The layer where the site labels live.
+        nmax : integer, optional
+            The maximum number of singular values to be kept.
+        tol : np.float64, optional
+            The tolerance of the singular values.
+
+        Returns
+        -------
+        MPO
             The new mpo.
         '''
         new=layer if type(layer) in (int,long) else degfres.layers.index(layer)

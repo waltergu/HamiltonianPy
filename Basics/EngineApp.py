@@ -1,5 +1,9 @@
 '''
-Engine and App, including:
+==============
+Engine and app
+==============
+
+This module defines the general framework to apply algrithms to tasks, including:
     * classes: Engine, App
 '''
 

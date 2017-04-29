@@ -11,9 +11,9 @@ def test_misc(arg):
     if arg in ('tree','misc','all'):
         from HamiltonianPy.Misc.test import test_tree
         test_tree()
-    if arg in ('lanczos','linalg','misc','all'):
-        from HamiltonianPy.Misc.Linalg.test import test_lanczos
+    if arg in ('lanczos','misc','all'):
+        from HamiltonianPy.Misc.test import test_lanczos
         test_lanczos()
-    if arg in ('kron','linalg','misc','all'):
-        from HamiltonianPy.Misc.Linalg.test import test_kron
-        test_kron()
+    if arg in ('linalg','misc','all'):
+        from HamiltonianPy.Misc.test import test_linalg
+        test_linalg

@@ -1,4 +1,8 @@
 '''
+----------------------------
+Common classes and functions
+----------------------------
+
 Quantum number pack, including:
     * classes: SQN, PQN, SPQN, Z2QN
     * functions: SQNS, PQNS, SPQNS, Z2QNS

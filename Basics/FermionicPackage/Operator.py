@@ -1,5 +1,9 @@
 '''
-Fermionic Operator, including:
+------------------
+Fermionic operator
+------------------
+
+Fermionic operator, including:
     * classes: OperatorF
     * functions: F_Linear, F_Quadratic, F_Hubbard, fspoperators
 '''

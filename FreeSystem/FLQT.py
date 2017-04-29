@@ -1,7 +1,11 @@
 '''
+=======
+Floquet
+=======
+
 Floquet algorithm, including:
-1) classes: FLQT, QEB
-2) functions: FLQTQEB
+    * classes: FLQT, QEB
+    * functions: FLQTQEB
 '''
 
 __all__=['FLQT','QEB','FLQTQEB']
@@ -14,23 +18,31 @@ import HamiltonianPy as HP
 
 class FLQT(TBA):
     '''
-    This class deals with floquet problems.
-    All its attributes are inherited from TBA.
-    Supported methods include:
-    1) FLQTQEB: calculate the quasi-energy bands.
+    This class deals with floquet problems. All its attributes are inherited from TBA.
+
+    Supported methods:
+        =========     ================================
+        METHODS       DESCRIPTION
+        =========     ================================
+        `FLQTQEB`     calculate the quasi-energy bands
+        =========     ================================
     '''
 
     def evolution(self,t=[],**karg):
         '''
         This method returns the matrix representation of the time evolution operator.
-        Parameters:
-            t: 1D array-like
-                The time mesh.
-            karg: dict, optional
-                Other parameters.
-        Returns:
-            result: 2D ndarray
-                The matrix representation of the time evolution operator.
+
+        Parameters
+        ----------
+        t : 1d array-like
+            The time mesh.
+        karg : dict, optional
+            Other parameters.
+
+        Returns
+        -------
+        2d ndarray
+            The matrix representation of the time evolution operator.
         '''
         result=eye(self.nmatrix,dtype=complex128)
         nt=len(t)
@@ -42,17 +54,21 @@ class FLQT(TBA):
 class QEB(HP.EB):
     '''
     Floquet quasi-energy bands.
-    Attributes:
-        ts: BaseSpace
-            The time domain of the Floquet process.
+
+    Attributes
+    ----------
+    ts : BaseSpace
+        The time domain of the Floquet process.
     '''
 
     def __init__(self,ts,**karg):
         '''
         Constructor.
-        Parameters:
-            ts: BaseSpace
-                The time domain of the Floquet process.
+
+        Parameters
+        ----------
+        ts : BaseSpace
+            The time domain of the Floquet process.
         '''
         super(QEB,self).__init__(**karg)
         self.ts=ts

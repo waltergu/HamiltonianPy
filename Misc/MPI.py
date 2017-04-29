@@ -1,6 +1,7 @@
 '''
-Wrapper for the parallel running of functions using the mpi4p, including:
-1) functions: mpirun
+==========================
+A simple wrapper for mpi4y
+==========================
 '''
 
 from mpi4py import MPI
@@ -10,15 +11,20 @@ __all__=['mpirun']
 def mpirun(f,arguments,bcast=True):
     '''
     Wrapper for the parallel running of f using the mpi4py.
-    Parameters:
-        f: callable
-            The function to be parallelly runned using the mpi4py.
-        arguments: list of tuple
-            The list of arguments passed to the function f.
-        bcast: True or False
-            When True, broadcast the result for all processes;
-            Otherwise only the rank 0 process hold the result.
-    Returns: list
+
+    Parameters
+    ----------
+    f : callable
+        The function to be parallelly runned using the mpi4py.
+    arguments : list of tuple
+        The list of arguments passed to the function f.
+    bcast : True or False
+        When True, broadcast the result for all processes;
+        Otherwise only the rank 0 process hold the result.
+
+    Returns
+    -------
+    list
         The returned values of f with respect to the arguments.
     '''
     comm=MPI.COMM_WORLD

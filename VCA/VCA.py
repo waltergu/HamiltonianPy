@@ -1,7 +1,11 @@
 '''
-Variational cluster approach, including:
-1) classes: VCA, EB, GPM, CPFF, OP
-2) functions: VCAEB, VCADOS, VCAFS, VCABC, VCATEB, VCAGP, VCAGPM, VCACPFF, VCAOP
+============================================================
+Cluster perturbation theory and variational cluster approach
+============================================================
+
+CPT and VCA, including:
+    * classes: VCA, EB, GPM, CPFF, OP
+    * functions: VCAEB, VCADOS, VCAFS, VCABC, VCATEB, VCAGP, VCAGPM, VCACPFF, VCAOP
 '''
 
 __all__=['VCA','EB','VCAEB','VCADOS','VCAFS','VCABC','VCATEB','VCAGP','GPM','VCAGPM','CPFF','VCACPFF','OP','VCAOP']
@@ -24,14 +28,19 @@ import os
 def _gf_contract_(k,mgf,seqs,coords):
     '''
     Python wrapper for gf_contract_4 and gf_contract_8.
-    Parameters:
-        k: 1d ndarray
-            The k point.
-        mgf: 2d ndarray
-            The cluster single-particle Green's functions in the mixed representation.
-        seqs, coords: 2d ndarray, 3d ndarray
-            Auxiliary arrays.
-    Returns: 2d ndarray
+
+    Parameters
+    ----------
+    k : 1d ndarray
+        The k point.
+    mgf : 2d ndarray
+        The cluster single-particle Green's functions in the mixed representation.
+    seqs,coords : 2d ndarray, 3d ndarray
+        Auxiliary arrays.
+
+    Returns
+    -------
+    2d ndarray
         The VCA single-particle Green's functions.
     '''
     if mgf.dtype==np.complex64:
@@ -44,79 +53,89 @@ def _gf_contract_(k,mgf,seqs,coords):
 class VCA(ED.ED):
     '''
     This class implements the algorithm of the variational cluster approach of an electron system.
-    Attributes:
-        preloads: 2 list
-            preloads[0]: HP.ED.GF
-                The cluster Green's function.
-            preloads[1]: HP.GF
-                The VCA Green's function.
-        basis: BasisF
-            The occupation number basis of the system.
-        cell: Lattice
-            The unit cell of the system.
-        lattice: Lattice
-            The cluster the system uses.
-        config: IDFConfig
-            The configuration of the internal degrees of freedom on the lattice.
-        terms: list of Term
-            The terms of the system.
-            The weiss terms are not included in this list.
-        weiss: list of Term
-            The Weiss terms of the system.
-        dtype: np.float32, np.float64, np.complex64, np.complex128
-            The data type of the matrix representation of the Hamiltonian.
-        generator: Generator
-            The generator for the cluster Hamiltonian, including the Weiss terms.
-        pthgenerator: Generator
-            The generator for the perturbation coming from the inter-cluster single-particle terms.
-        ptwgenerator: Generator
-            The generator for the perturbation cominig from the Weiss terms.
-        operators: OperatorCollection
-            The 'half' of the operators for the cluster Hamiltonian, including the Weiss terms.
-        pthoperators: OperatorCollection
-            The 'half' of the operators for the perturbation, not including Weiss terms.
-        ptwoperators: OperatorCollection
-            The 'half' of the operators for the perturbation of Weiss terms.
-        periodization: dict
-            It contains two entries, the necessary information to restore the translation symmetry broken by the explicit tiling of the original lattice:
-            1) 'seqs': 2d ndarray of integers
-            2) 'coords': 3d ndarray of floats
-        matrix: csr_matrix
-            The sparse matrix representation of the cluster Hamiltonian.
-        cache: dict
-            The cache during the process of calculation, usually to store some meshes.
-    Supported methods include:
-        1) VCAEB: calculates the single particle spectrum along a path in Brillouin zone.
-        2) VCADOS: calculates the single particle density of states.
-        3) VCAFS: calculates the single particle spectrum at the Fermi surface.
-        4) VCABC: calculates the Berry curvature and Chern number based on the so-called topological Hamiltonian (PRX 2, 031008 (2012)).
-        5) VCATEB: calculates the topological Hamiltonian's spectrum.
-        6) VCAGP: calculates the grand potential.
-        7) VCAGPM: minimizes the grand potential.
-        8) VCACPFF: calculates the chemical potential or filling factor.
-        9) VCAOP: calculates the order parameter.
+
+    Attributes
+    ----------
+    preloads : 2 list
+        * preloads[0]: HP.ED.GF
+            The cluster Green's function.
+        * preloads[1]: HP.GF
+            The VCA Green's function.
+    basis : BasisF
+        The occupation number basis of the system.
+    cell : Lattice
+        The unit cell of the system.
+    lattice : Lattice
+        The cluster the system uses.
+    config : IDFConfig
+        The configuration of the internal degrees of freedom on the lattice.
+    terms : list of Term
+        The terms of the system.
+        The weiss terms are not included in this list.
+    weiss : list of Term
+        The Weiss terms of the system.
+    dtype : np.float32, np.float64, np.complex64, np.complex128
+        The data type of the matrix representation of the Hamiltonian.
+    generator : Generator
+        The generator for the cluster Hamiltonian, including the Weiss terms.
+    pthgenerator : Generator
+        The generator for the perturbation coming from the inter-cluster single-particle terms.
+    ptwgenerator : Generator
+        The generator for the perturbation cominig from the Weiss terms.
+    operators : OperatorCollection
+        The 'half' of the operators for the cluster Hamiltonian, including the Weiss terms.
+    pthoperators : OperatorCollection
+        The 'half' of the operators for the perturbation, not including Weiss terms.
+    ptwoperators : OperatorCollection
+        The 'half' of the operators for the perturbation of Weiss terms.
+    periodization : dict
+        It contains two entries, the necessary information to restore the translation symmetry broken by the explicit tiling of the original lattice:
+        1) 'seqs': 2d ndarray of integers
+        2) 'coords': 3d ndarray of floats
+    matrix : csr_matrix
+        The sparse matrix representation of the cluster Hamiltonian.
+    cache : dict
+        The cache during the process of calculation, usually to store some meshes.
+
+
+    Supported methods:
+        =========   ======================================================================================================================
+        METHODS     DESCRIPTION
+        =========   ======================================================================================================================
+        `VCAEB`     calculates the single particle spectrum along a path in Brillouin zone
+        `VCADOS`    calculates the single particle density of states
+        `VCAFS`     calculates the single particle spectrum at the Fermi surface
+        `VCABC`     calculates the Berry curvature and Chern number based on the so-called topological Hamiltonian (PRX 2, 031008 (2012))
+        `VCATEB`    calculates the topological Hamiltonian's spectrum
+        `VCAGP`     calculates the grand potential
+        `VCAGPM`    minimizes the grand potential
+        `VCACPFF`   calculates the chemical potential or filling factor
+        `VCAOP`     calculates the order parameter
+        =========   ======================================================================================================================
     '''
 
     def __init__(self,cgf,basis=None,cell=None,lattice=None,config=None,terms=[],weiss=[],dtype=np.complex128,**karg):
         '''
         Constructor.
-        Parameters:
-            cgf: HP.ED.GF
-                The cluster Green's function.
-            basis: BasisF, optional
-                The occupation number basis of the system.
-            cell: Lattice, optional
-                The unit cell of the system.
-            lattice: Lattice, optional
-                The lattice of the system.
-            config: IDFConfig, optional
-                The configuration of the internal degrees of freedom on the lattice.
-            terms: list of Term, optional
-                The terms of the system.
-            weiss: lsit of Term, optional
-                The Weiss terms of the system.
-            dtype: np.float32, np.float64, np.complex64, np.complex128
-                The data type of the matrix representation of the Hamiltonian.
+
+        Parameters
+        ----------
+        cgf : HP.ED.GF
+            The cluster Green's function.
+        basis : BasisF, optional
+            The occupation number basis of the system.
+        cell : Lattice, optional
+            The unit cell of the system.
+        lattice : Lattice, optional
+            The lattice of the system.
+        config : IDFConfig, optional
+            The configuration of the internal degrees of freedom on the lattice.
+        terms : list of Term, optional
+            The terms of the system.
+        weiss : lsit of Term, optional
+            The Weiss terms of the system.
+        dtype : np.float32, np.float64, np.complex64, np.complex128
+            The data type of the matrix representation of the Hamiltonian.
         '''
         nspin,mask,cellconfig=cgf.nspin,cgf.mask,HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map)
         self.preloads.extend([cgf,HP.GF(operators=HP.fspoperators(cellconfig.table().subset(select=ED.GF.select(nspin)),cell),dtype=cgf.dtype)])
@@ -205,10 +224,15 @@ class VCA(ED.ED):
     def cgf(self,omega=None):
         '''
         Return the cluster Green's function.
-        Parameter:
-            omega: np.complex128/np.complex64, optional
-                The frequency of the cluster Green's function.
-        Returns: 2d ndarray
+
+        Parameters
+        ----------
+        omega : np.complex128/np.complex64, optional
+            The frequency of the cluster Green's function.
+
+        Returns
+        -------
+        2d ndarray
             The cluster Green's function.
         '''
         app=self.preloads[0]
@@ -220,10 +244,15 @@ class VCA(ED.ED):
     def pt(self,k=[]):
         '''
         Returns the matrix form of the inter-cluster perturbations.
-        Parameter:
-            k: 1d ndarray like, optional
-                The momentum of the inter-cluster perturbations.
-        Returns: 2d ndarray
+
+        Parameters
+        ----------
+        k : 1d ndarray like, optional
+            The momentum of the inter-cluster perturbations.
+
+        Returns
+        -------
+        2d ndarray
             The matrix form of the inter-cluster perturbations.
         '''
         result=np.zeros((self.ncopt,self.ncopt),dtype=np.complex128)
@@ -236,11 +265,16 @@ class VCA(ED.ED):
     def pt_kmesh(self,kmesh):
         '''
         Returns the mesh of the inter-cluster perturbations.
-        Parameters:
-            kmesh: (n+1)d ndarray like
-                The kmesh of the inter-cluster perturbations.
-                And n is the spatial dimension of the system.
-        Returns: 3d ndarray
+
+        Parameters
+        ----------
+        kmesh : (n+1)d ndarray like
+            The kmesh of the inter-cluster perturbations.
+            And n is the spatial dimension of the system.
+
+        Returns
+        -------
+        3d ndarray
             The pt mesh.
         '''
         if 'pt_kmesh' in self.cache:
@@ -255,12 +289,17 @@ class VCA(ED.ED):
     def mgf(self,omega=None,k=[]):
         '''
         Returns the Green's function in the mixed representation.
-        Parameters:
-            omega: np.complex128/np.complex64, optional
-                The frequency of the mixed Green's function.
-            k: 1d ndarray like, optional
-                The momentum of the mixed Green's function.
-        Returns: 2d ndarray
+
+        Parameters
+        ----------
+        omega : np.complex128/np.complex64, optional
+            The frequency of the mixed Green's function.
+        k : 1d ndarray like, optional
+            The momentum of the mixed Green's function.
+
+        Returns
+        -------
+        2d ndarray
             The mixed Green's function.
         '''
         cgf=self.cgf(omega)
@@ -269,13 +308,18 @@ class VCA(ED.ED):
     def mgf_kmesh(self,omega,kmesh):
         '''
         Returns the mesh of the Green's functions in the mixed representation with respect to momentums.
-        Parameters:
-            omega: np.complex128/np.complex64
-                The frequency of the mixed Green's functions.
-            kmesh: (n+1)d ndarray like
-                The kmesh of the mixed Green's functions.
-                And n is the spatial dimension of the system.
-        Returns: 3d ndarray
+
+        Parameters
+        ----------
+        omega : np.complex128/np.complex64
+            The frequency of the mixed Green's functions.
+        kmesh : (n+1)d ndarray like
+            The kmesh of the mixed Green's functions.
+            And n is the spatial dimension of the system.
+
+        Returns
+        -------
+        3d ndarray
             The mesh of the mixed Green's functions.
         '''
         cgf=self.cgf(omega)
@@ -284,12 +328,17 @@ class VCA(ED.ED):
     def gf(self,omega=None,k=[]):
         '''
         Returns the VCA Green's function.
-        Parameters:
-            omega: np.complex128/np.complex64, optional
-                The frequency of the VCA Green's function.
-            k: 1d ndarray like, optional
-                The momentum of the VCA Green's function.
-        Returns: 2d ndarray
+
+        Parameters
+        ----------
+        omega : np.complex128/np.complex64, optional
+            The frequency of the VCA Green's function.
+        k : 1d ndarray like, optional
+            The momentum of the VCA Green's function.
+
+        Returns
+        -------
+        2d ndarray
             The VCA Green's function.
         '''
         return _gf_contract_(k=k,mgf=self.mgf(omega,k),seqs=self.periodization['seqs'],coords=self.periodization['coords'])/(self.ncopt/self.nopt)
@@ -297,13 +346,18 @@ class VCA(ED.ED):
     def gf_kmesh(self,omega,kmesh):
         '''
         Returns the mesh of the VCA Green's functions with respect to momentums.
-        Parameters:
-            omega: np.complex128/np.complex64
-                The frequency of the VCA Green's functions.
-            kmesh: (n+1)d ndarray like
-                The kmesh of the VCA Green's functions.
-                And n is the spatial dimension of the system.
-        Returns: 3d ndarray
+
+        Parameters
+        ----------
+        omega : np.complex128/np.complex64
+            The frequency of the VCA Green's functions.
+        kmesh : (n+1)d ndarray like
+            The kmesh of the VCA Green's functions.
+            And n is the spatial dimension of the system.
+
+        Returns
+        -------
+        3d ndarray
             The mesh of the VCA Green's functions.
         '''
         mgf_kmesh=self.mgf_kmesh(omega,kmesh)
@@ -315,25 +369,29 @@ class VCA(ED.ED):
 class EB(HP.EB):
     '''
     Single particle spectrum along a path in the Brillouin zone.
-    Attributes:
-        emin,emax: np.float64
-            The energy range of the single particle spectrum.
-        ne: integer
-            The number of sample points in the energy range.
-        eta: np.float64
-            The damping factor.
+
+    Attributes
+    ----------
+    emin,emax : np.float64
+        The energy range of the single particle spectrum.
+    ne : integer
+        The number of sample points in the energy range.
+    eta : np.float64
+        The damping factor.
     '''
 
     def __init__(self,emin=-10.0,emax=10.0,ne=401,eta=0.05,**karg):
         '''
         Constructor.
-        Parameters:
-            emin,emax: np.float64
-                The energy range of the single particle spectrum.
-            ne: integer
-                The number of sample points in the energy range.
-            eta: np.float64
-                The damping factor.
+
+        Parameters
+        ----------
+        emin,emax : np.float64
+            The energy range of the single particle spectrum.
+        ne : integer
+            The number of sample points in the energy range.
+        eta : np.float64
+            The damping factor.
         '''
         super(EB,self).__init__(**karg)
         self.emin=emin
@@ -473,34 +531,43 @@ def VCAGP(engine,app):
 class GPM(HP.App):
     '''
     Grand potential minimization.
-    Attributes:
-        BS: BaseSpace or dict
-            When BaseSpace, it is the basespace on which the grand potential is to be computed;
-            When dict, it is the initial guess of the minimum point in the basespace.
-        extras: dict, optional
-            It exists only when BS is a dict.
-            entry 'fout': string
-                The output file that contains the results.
-            entry 'method', entry 'options':
-                Please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
-        bsm: dict
-            The minimum point in the base space.
-        gpm: np.float64
-            The minimum value of the grand potential.
+
+    Attributes
+    ----------
+    BS : BaseSpace or dict
+        * When BaseSpace, it is the basespace on which the grand potential is to be computed;
+        * When dict, it is the initial guess of the minimum point in the basespace.
+    extras : dict, optional
+        It exists only when BS is a dict.
+
+        * entry 'fout': string
+            The output file that contains the results.
+        * entry 'method', entry 'options':
+            Please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
+
+    bsm : dict
+        The minimum point in the base space.
+    gpm : np.float64
+        The minimum value of the grand potential.
     '''
 
     def __init__(self,BS,fout=None,method=None,options=None,**karg):
         '''
         Constructor.
-        Parameters:
-            BS: BaseSpace or dict
-                When BaseSpace, it is the basespace on which the grand potential is to be computed;
-                When dict, it is the initial guess of the minimum point in the basespace.
-            fout: string, optional
-                The output file that contains the results.
-            method, options:
-                Please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
-            NOTE: fout, method and options will be omitted if BS is an instance of BaseSpace.
+
+        Parameters
+        ----------
+        BS : BaseSpace or dict
+            * When BaseSpace, it is the basespace on which the grand potential is to be computed;
+            * When dict, it is the initial guess of the minimum point in the basespace.
+        fout : string, optional
+            The output file that contains the results.
+        method, options:
+            Please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
+
+        Notes
+        -----
+        `fout`, `method` and `options` will be omitted if `BS` is an instance of `BaseSpace`.
         '''
         self.BS=BS
         if isinstance(BS,dict): self.extras={'fout':fout,'method':method,'options':options}
@@ -560,23 +627,26 @@ def VCAGPM(engine,app):
 class CPFF(HP.CPFF):
     '''
     Chemical potential or filling factor.
-    Attributes:
-        p: np.float64
-            A tunale parameter used in the calculation.
-            For details, please refer arXiv:0806.2690.
-        tol: np.float64
-            The tolerance of the result.
+
+    Attributes
+    ----------
+    p : np.float64
+        A tunale parameter used in the calculation.
+        For details, please refer arXiv:0806.2690.
+    tol : np.float64
+        The tolerance of the result.
     '''
 
     def __init__(self,p=1.0,tol=10**-6,**karg):
         '''
         Constructor.
-        Parameters:
-            p: np.float64
-                A tunale parameter used in the calculation.
-                For details, please refer arXiv:0806.2690.
-            tol: np.float64
-                The tolerance of the result.
+
+        Parameters
+        -----------
+        p : np.float64
+            A tunale parameter used in the calculation.
+        tol : np.float64
+            The tolerance of the result.
         '''
         super(CPFF,self).__init__(**karg)
         self.p=p
@@ -602,37 +672,40 @@ def VCACPFF(engine,app):
 class OP(HP.App):
     '''
     Order parameter.
-    Attributes:
-        terms: list of Term
-            The terms representing the orders.
-        BZ: BaseSpace
-            The first Brillouin zone.
-        mu: np.float64
-            The Fermi level.
-        p: np.float64
-            A tunale parameter used in the calculation.
-            For details, please refer arXiv:0806.2690.
-        dtypes: list of np.float32/np.float64/np.complex64,np.complex128, optional
-            The data types of the order parameters.
-        ops: list of number
-            The values of the order parameters.
+
+    Attributes
+    ----------
+    terms : list of Term
+        The terms representing the orders.
+    BZ : BaseSpace
+        The first Brillouin zone.
+    mu : np.float64
+        The Fermi level.
+    p : np.float64
+        A tunale parameter used in the calculation.
+        For details, please refer arXiv:0806.2690.
+    dtypes : list of np.float32/np.float64/np.complex64,np.complex128, optional
+        The data types of the order parameters.
+    ops : list of number
+        The values of the order parameters.
     '''
 
     def __init__(self,terms,BZ=None,mu=0.0,p=1.0,dtypes=None,**karg):
         '''
         Constructor.
-        Parameters:
-            term: list of Term
-                The terms representing the orders.
-            BZ: BaseSpace, optional
-                The first Brillouin zone.
-            mu: np.float64, optional
-                The Fermi level.
-            p: float, optional
-                A tunale parameter used in the calculation.
-                For details, please refer arXiv:0806.2690.
-            dtypes: list of np.float32/np.float64/np.complex64,np.complex128, optional
-                The data types of the order parameters.
+
+        Parameters
+        ----------
+        term : list of Term
+            The terms representing the orders.
+        BZ : BaseSpace, optional
+            The first Brillouin zone.
+        mu : np.float64, optional
+            The Fermi level.
+        p : float, optional
+            A tunale parameter used in the calculation.
+        dtypes : list of np.float32/np.float64/np.complex64,np.complex128, optional
+            The data types of the order parameters.
         '''
         self.terms=terms
         self.BZ=BZ

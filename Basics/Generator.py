@@ -1,5 +1,9 @@
 '''
-Generator.
+======================
+Generator of operators
+======================
+
+This module defines the core class of the `Basics` subpackage: `Generator`.
 '''
 
 __all__=['Generator']

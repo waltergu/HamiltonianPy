@@ -1,7 +1,11 @@
 '''
+===========
+TBA and BdG
+===========
+
 Tight Binding Approximation for fermionic systems, including:
-1) classes: TBA
-2) functions: TBAEB, TBADOS, TBABC
+    * classes: TBA
+    * functions: TBAEB, TBADOS, TBABC
 '''
 
 __all__=['TBA','TBAEB','TBADOS','TBABC']
@@ -13,37 +17,46 @@ import matplotlib.pyplot as plt
 
 class TBA(Engine):
     '''
-    Tight-binding approximation for fermionic systems.
-    Also support BdG systems (phenomenological superconducting systems at the mean-field level).
-    Attributes:
-        lattice: Lattice
-            The lattice of the system.
-        config: IDFConfig
-            The configuration of degrees of freedom.
-        terms: list of Term
-            The terms of the system.
-        mask: ['nambu'] or []
-            ['nambu'] for not using the nambu space and [] for using the nambu space.
-        generator: Generator
-            The operator generator for the Hamiltonian.
-    Supported methods include:
-        1) TBAEB: calculate the energy bands.
-        2) TBADOS: calculate the density of states.
-        3) TBABC: calculate the Berry curvature and Chern number.
+    Tight-binding approximation for fermionic systems. Also support BdG systems (phenomenological superconducting systems at the mean-field level).
+
+    Attributes
+    ----------
+    lattice : Lattice
+        The lattice of the system.
+    config : IDFConfig
+        The configuration of the internal degrees of freedom.
+    terms : list of Term
+        The terms of the system.
+    mask : ['nambu'] or []
+        ['nambu'] for not using the nambu space and [] for using the nambu space.
+    generator : Generator
+        The operator generator for the Hamiltonian.
+
+
+    Supported methods:
+        ========    ==============================================
+        METHODS     DESCRIPTION
+        ========    ==============================================
+        `TBAEB`     calculate the energy bands
+        `TBADOS`    calculate the density of states
+        `TBABC`     calculate the Berry curvature and Chern number
+        ========    ==============================================
     '''
 
     def __init__(self,lattice=None,config=None,terms=None,mask=['nambu'],**karg):
         '''
         Constructor.
-        Parameters:
-            lattice: Lattice, optional
-                The lattice of the system.
-            config: Configuration, optional
-                The configuration of degrees of freedom.
-            terms: list of Term, optional
-                The terms of the system.
-            mask: ['nambu'] or [], optional
-                ['nambu'] for not using the nambu space and [] for using the nambu space.
+
+        Parameters
+        ----------
+        lattice : Lattice, optional
+            The lattice of the system.
+        config : IDFConfig, optional
+            The configuration of the internal degrees of freedom.
+        terms : list of Term, optional
+            The terms of the system.
+        mask : ['nambu'] or [], optional
+            ['nambu'] for not using the nambu space and [] for using the nambu space.
         '''
         self.lattice=lattice
         self.config=config
@@ -69,14 +82,18 @@ class TBA(Engine):
     def matrix(self,k=[],**karg):
         '''
         This method returns the matrix representation of the Hamiltonian.
-        Parameters:
-            k: 1D array-like, optional
-                The coords of a point in K-space.
-            karg: dict, optional
-                Other parameters.
-        Returns:
-            result: 2D ndarray
-                The matrix representation of the Hamiltonian.
+
+        Parameters
+        ----------
+        k : 1D array-like, optional
+            The coords of a point in K-space.
+        karg : dict, optional
+            Other parameters.
+
+        Returns
+        -------
+        2d ndarray
+            The matrix representation of the Hamiltonian.
         '''
         self.update(**karg)
         nmatrix=self.nmatrix
@@ -93,13 +110,17 @@ class TBA(Engine):
     def matrices(self,basespace=None,mode='*'):
         '''
         This method returns a generator iterating over the matrix representations of the Hamiltonian defined on the input basespace.
-        Parameters:
-            basespace: BaseSpace,optional
-                The base space on which the Hamiltonian is defined.
-            mode: string,optional
-                The mode to iterate over the base space.
-        Returns:
-            yield a 2D ndarray.
+
+        Parameters
+        ----------
+        basespace : BaseSpace, optional
+            The base space on which the Hamiltonian is defined.
+        mode : string, optional
+            The mode to iterate over the base space.
+
+        Yields
+        ------
+        2d ndarray
         '''
         if basespace is None:
             yield self.matrix()
@@ -110,14 +131,18 @@ class TBA(Engine):
     def eigvals(self,basespace=None,mode='*'):
         '''
         This method returns all the eigenvalues of the Hamiltonian.
-        Parameters:
-            basespace: BaseSpace, optional
-                The base space on which the Hamiltonian is defined.
-            mode: string,optional
-                The mode to iterate over the base space.
-        Returns:
-            result: 1D ndarray
-                All the eigenvalues.
+
+        Parameters
+        ----------
+        basespace : BaseSpace, optional
+            The base space on which the Hamiltonian is defined.
+        mode : string,optional
+            The mode to iterate over the base space.
+
+        Returns
+        -------
+        1d ndarray
+            All the eigenvalues.
         '''
         nmatrix=self.nmatrix
         result=zeros(nmatrix*(1 if basespace==None else product(basespace.rank.values())))
@@ -131,12 +156,17 @@ class TBA(Engine):
     def mu(self,filling,kspace=None):
         '''
         Return the chemical potential of the system.
-        Parameters:
-            filling: float64
-                The filling factor of the system.
-            kspace: BaseSpace, optional
-                The first Brillouin zone.
-        Returns: float64
+
+        Parameters
+        ----------
+        filling : float64
+            The filling factor of the system.
+        kspace : BaseSpace, optional
+            The first Brillouin zone.
+
+        Returns
+        -------
+        float64
             The chemical potential of the system.
         '''
         nelectron,eigvals=int(round(filling*(1 if kspace is None else kspace.rank['k'])*self.nmatrix)),sort(self.eigvals(kspace))
@@ -145,12 +175,17 @@ class TBA(Engine):
     def gse(self,filling,kspace=None):
         '''
         Return the ground state energy of the system.
-        Parameters:
-            filling: float64
-                The filling factor of the system.
-            kspace: BaseSpace, optional
-                The first Brillouin zone.
-        Returns: float64
+
+        Parameters
+        ----------
+        filling : float64
+            The filling factor of the system.
+        kspace : BaseSpace, optional
+            The first Brillouin zone.
+
+        Returns
+        -------
+        float64
             The ground state energy of the system.
         '''
         return sort(self.eigvals(kspace))[0:int(round(filling*(1 if kspace is None else kspace.rank['k'])*self.nmatrix))].sum()

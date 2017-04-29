@@ -1,5 +1,7 @@
 '''
-The parity of a permutation.
+===========================
+The parity of a permutation
+===========================
 '''
 
 __all__=['parity']
@@ -9,12 +11,17 @@ from copy import copy
 def parity(permutation):
     '''
     Determine the parity of a permutation.
-    Parameters:
-        permutation: list of integer
-            A permutation of integers from 0 to N-1.
-    Returns: -1 or +1
-        -1 for odd permutation, and
-        +1 for even permutation.
+
+    Parameters
+    ----------
+    permutation : list of integer
+        A permutation of integers from 0 to N-1.
+
+    Returns
+    -------
+    -1 or +1
+        * -1 for odd permutation
+        * +1 for even permutation
     '''
     permutation=copy(permutation)
     result=1

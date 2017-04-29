@@ -1,6 +1,10 @@
 '''
+=================
+Hexagonal lattice
+=================
+
 Hexagonal lattice data base, including:
-1) classes: HexagonDataBase
+    * classes: HexagonDataBase
 '''
 
 __all__=['HexagonDataBase']
@@ -11,21 +15,25 @@ from ..Basics.Geometry import *
 class HexagonDataBase(object):
     '''
     Hexagonal lattice data base.
-    Attributes:
-        name: string
-            The name of the cluster.
-        rcoords: 2d ndarray
-            The rcoords of the cluster.
-        vectors: 2d ndarray
-            The tanslation vectors of the cluster.
+
+    Attributes
+    ----------
+    name : string
+        The name of the cluster.
+    rcoords : 2d ndarray
+        The rcoords of the cluster.
+    vectors : 2d ndarray
+        The tanslation vectors of the cluster.
     '''
 
     def __init__(self,name):
         '''
         Constructor.
-        Parameters:
-            name: 'H2','H4','H6','H8O','H8P','H10'
-                The name of the cluster wanted to be constructed.
+
+        Parameters
+        ----------
+        name : 'H2','H4','H6','H8O','H8P','H10'
+            The name of the cluster wanted to be constructed.
         '''
         if name not in ['H2','H4','H6','H8O','H8P','H10']:
             raise ValueError('HexagonDataBase construction error: unexpected name(%s).'%name)

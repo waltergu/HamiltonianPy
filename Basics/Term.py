@@ -1,5 +1,10 @@
 '''
-Term and TermList
+=================
+Term descriptions
+=================
+
+This module defines the way to desribe a term and a set of terms of the Hamiltonian, including:
+    * classes: Term and TermList
 '''
 
 __all__=['Term','TermList']

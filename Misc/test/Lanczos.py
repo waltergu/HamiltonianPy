@@ -7,7 +7,7 @@ __all__=['test_lanczos']
 from numpy import *
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
-from HamiltonianPy.Misc.Linalg import Lanczos
+from HamiltonianPy.Misc.Lanczos import Lanczos
 
 def test_lanczos():
     print 'test_lanczos'

@@ -1,4 +1,8 @@
 '''
+---------------
+Fermionic terms
+---------------
+
 Fermionic terms, including:
     * classes: Quadratic, QuadracticList, Hubbard, HubbardList
     * functions: Hopping, Onsite, Pairing

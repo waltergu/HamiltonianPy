@@ -1,7 +1,11 @@
 '''
+===================================
+Tree of internal degrees of freedom
+===================================
+
 The tree of physical degrees of freedom, including:
-1) constants: DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS,DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
-2) classes: DegFreTree
+    * constants: DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS,DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
+    * classes: DegFreTree
 '''
 
 __all__=['DEGFRE_FERMIONIC_PRIORITY','DEGFRE_SPIN_PRIORITY','DEGFRE_FERMIONIC_LAYERS','DEGFRE_SPIN_LAYERS','DegFreTree']
@@ -21,47 +25,53 @@ class DegFreTree(Tree):
     '''
     The tree of the layered degrees of freedom.
     For each (node,data) pair of the tree,
-        node: Index
+        * node: Index
             The selected index which can represent a couple of indices.
-        data: integer of QuantumNumbers
+        * data: integer of QuantumNumbers
             When an integer, it is the number of degrees of freedom that the index represents;
             When a QuantumNumbers, it is the quantum number collection that the index is associated with.
-    Attributes:
-        mode: 'QN' or 'NB'
-            The mode of the DegFreTree.
-        layers: list of tuples of string
-            The tag of each layer of indices.
-        priority: lsit of string
-            The sequence priority of the allowed indices.
-        map: function
-            This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
-        cache: dict
-            The cache of the degfretree.
+
+    Attributes
+    ----------
+    mode : 'QN' or 'NB'
+        The mode of the DegFreTree.
+    layers : list of tuples of string
+        The tag of each layer of indices.
+    priority : lsit of string
+        The sequence priority of the allowed indices.
+    map : function
+        This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
+    cache : dict
+        The cache of the degfretree.
     '''
 
     def __init__(self,mode,layers,priority,leaves=[],map=None):
         '''
         Constructor.
-        Parameters:
-            mode: 'QN' or 'NB'
-                The mode of the DegFreTree.
-            layers: list of tuples of string
-                The tag of each layer of indices.
-            priority: lsit of string
-                The sequence priority of the allowed indices.
-            leaves: list of Index, optional
-                The leaves (bottom indices) of the DegFreTree.
-            map: function, optional
-                This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
+
+        Parameters
+        ----------
+        mode : 'QN' or 'NB'
+            The mode of the DegFreTree.
+        layers : list of tuples of string
+            The tag of each layer of indices.
+        priority : lsit of string
+            The sequence priority of the allowed indices.
+        leaves : list of Index, optional
+            The leaves (bottom indices) of the DegFreTree.
+        map : function, optional
+            This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
         '''
         self.reset(mode=mode,layers=layers,priority=priority,leaves=leaves,map=map)
 
     def reset(self,mode=None,layers=None,priority=None,leaves=[],map=None):
         '''
         Reset the DegFreTree.
-        Parameters:
-            mode,layers,priority,leaves,map: optional
-                Please see DegFreTree.__init__ for details.
+
+        Parameters
+        ----------
+        mode,layers,priority,leaves,map :
+            Please see DegFreTree.__init__ for details.
         '''
         self.clear()
         Tree.__init__(self)
@@ -97,10 +107,15 @@ class DegFreTree(Tree):
     def ndegfre(self,index):
         '''
         The number of degrees of freedom represented by index.
-        Parameters:
-            index: Index
-                The index of the degrees of freedom.
-        Returns: integer
+
+        Parameters
+        ----------
+        index : Index
+            The index of the degrees of freedom.
+
+        Returns
+        -------
+        integer
             The number of degrees of freedom.
         '''
         if self.mode=='NB':
@@ -111,10 +126,15 @@ class DegFreTree(Tree):
     def indices(self,layer):
         '''
         The indices in a layer.
-        Parameters:
-            layer: tuple of string
-                The layer where the indices are restricted.
-        Returns: list of Index
+
+        Parameters
+        ----------
+        layer : tuple of string
+            The layer where the indices are restricted.
+
+        Returns
+        -------
+        list of Index
             The indices in the requested layer.
         '''
         return self.cache[('indices',layer)]
@@ -122,10 +142,15 @@ class DegFreTree(Tree):
     def table(self,layer):
         '''
         Return a index-sequence table with the index restricted on a specific layer.
-        Parameters:
-            layer: tuple of string
-                The layer where the indices are restricted.
-        Returns: Table
+
+        Parameters
+        ----------
+        layer : tuple of string
+            The layer where the indices are restricted.
+
+        Returns
+        -------
+        Table
             The index-sequence table.
         '''
         return self.cache[('table',layer)]
@@ -133,15 +158,20 @@ class DegFreTree(Tree):
     def labels(self,layer,mode):
         '''
         Return the inquired labels.
-        Parameters:
-            layer: tuple of string
-                The layer information of the inquired labels.
-            mode: 'B','S','O'
-                'B' for bond labels of an mps;
-                'S' for site labels of an mps or an mpo;
-                'O' for bond labels of an mpo.
-        Returns: list of Label
-                The inquired labels.
+
+        Parameters
+        ----------
+        layer : tuple of string
+            The layer information of the inquired labels.
+        mode : 'B','S','O'
+            * 'B' for bond labels of an mps;
+            * 'S' for site labels of an mps or an mpo;
+            * 'O' for bond labels of an mpo.
+
+        Returns
+        -------
+        list of Label
+            The inquired labels.
         '''
         mode=mode.upper()
         assert mode in ('B','S','O')

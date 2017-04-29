@@ -1,5 +1,9 @@
 '''
-Degrees of freedom in a lattice, including:
+============================================================
+Descriptions of the interanl degrees of freedom on a lattice
+============================================================
+
+This modulate defines several classes to define the way to describe the interanl degrees of freedom on a lattice, including
     * classes: Status,Table, Index, Internal, IDFConfig, DegFreTree, IndexPack, IndexPackList
 '''
 

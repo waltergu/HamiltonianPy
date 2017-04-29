@@ -1,4 +1,8 @@
 '''
+----------
+Spin terms
+----------
+
 Spin terms, including:
     * classes: SpinTerm, SpinTermList
 '''

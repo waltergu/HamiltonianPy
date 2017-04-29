@@ -1,5 +1,3 @@
-Engine and app
-==============
 .. automodule:: HamiltonianPy.Basics.EngineApp
    :members:
 

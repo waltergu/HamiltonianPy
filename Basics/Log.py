@@ -1,6 +1,10 @@
 '''
+-----------------------------------------------------------
+Time statistics, information record and log file management
+-----------------------------------------------------------
+
 Log for code executing, including:
-    * classes: Timer,Timers,Info,Log
+    * classes: Timer, Timers, Info, Log
 '''
 
 from ..Misc import Tree

@@ -1,6 +1,7 @@
 '''
-Lanczos method, including
-1) classes: Lanczos
+-----------------
+Lanczos algorithm
+-----------------
 '''
 
 __all__=['Lanczos']
@@ -13,36 +14,40 @@ from copy import copy
 class Lanczos(object):
     '''
     The Lanczos algorithm to deal with csr-formed sparse Hermitian matrices.
-    Attributes:
-        matrix: csr_matrix
-            The csr-formed sparse Hermitian matrix.
-        zero: float
-            The precision used to cut off the Lanczos iterations.
-        new,old: 1D ndarray
-            The new and old vectors updated in the Lanczos iterations.
-        a,b: 1D list of floats
-            The coefficients calculated in the Lanczos iterations.
-        cut: logical
-            A flag to tag whether the iteration has been cut off.
+
+    Attributes
+    ----------
+    matrix : csr_matrix
+        The csr-formed sparse Hermitian matrix.
+    zero : float
+        The precision used to cut off the Lanczos iterations.
+    new,old : 1d ndarray
+        The new and old vectors updated in the Lanczos iterations.
+    a,b : 1d list of floats
+        The coefficients calculated in the Lanczos iterations.
+    cut : logical
+        A flag to tag whether the iteration has been cut off.
     '''
+
     def __init__(self,matrix,v0=None,check_normalization=True,vtype='rd',zero=10**-10,dtype=np.complex128):
         '''
         Constructor.
-        Parameters:
-            matrix: csr_matrix
-                The csr-formed sparse Hermitian matrix.
-            v0: 1D ndarray,optional
-                The initial vector to begin with the Lanczos iterations. 
-                It must be normalized already.
-            check_nomalization: logical, optional
-                When it is True, the input v0 will be check to see whether it is normalized.
-            vtype: string,optional
-                A flag to tell what type of initial vectors to use when the parameter vector is None.
-                'rd' means a random vector while 'sy' means a symmetric vector.
-            zero: float,optional
-                The precision used to cut off the Lanczos iterations.
-            dtype: dtype,optional
-                The data type of the iterated vectors.
+
+        Parameters
+        ----------
+        matrix : csr_matrix
+            The csr-formed sparse Hermitian matrix.
+        v0 : 1d ndarray, optional
+            The initial vector to begin with the Lanczos iterations. It must be normalized already.
+        check_nomalization : logical, optional
+            When it is True, the input v0 will be check to see whether it is normalized.
+        vtype : string, optional
+            A flag to tell what type of initial vectors to use when the parameter vector is None.
+            'rd' means a random vector while 'sy' means a symmetric vector.
+        zero : float, optional
+            The precision used to cut off the Lanczos iterations.
+        dtype : dtype, optional
+            The data type of the iterated vectors.
         '''
         self.matrix=matrix
         self.zero=zero
@@ -89,9 +94,11 @@ class Lanczos(object):
     def tridiagnoal(self):
         '''
         This method returns the tridiagnoal matrix representation of the original sparse Hermitian matrix.
-        Returns:
-            result: 2D ndarray
-                The tridiagnoal matrix representation of the original sparse Hermitian matrix.
+
+        Returns
+        -------
+        2d ndarray
+            The tridiagnoal matrix representation of the original sparse Hermitian matrix.
         '''
         nmatrix=len(self.a)
         result=np.zeros((nmatrix,nmatrix))
@@ -105,17 +112,21 @@ class Lanczos(object):
     def eig(self,job='n',precision=10**-10):
         '''
         This method returns the ground state energy and optionally the ground state of the original sparse Hermitian matrix.
-        Parameters:
-            job: string
-                A flag to tag what jobs the method does.
-                'n' means ground state energy only and 'v' means ground state energy and ground state both.
-            precision: float
-                The precision of the calculated ground state energy which is used to terminate the Lanczos iteration.
-        Returns:
-            gse: float
-                the ground state energy.
-            gs: 1D ndarray,optional
-                The ground state. Present when the parameter job is set to be 'V' or 'v'.
+
+        Parameters
+        ----------
+        job : string
+            A flag to tag what jobs the method does.
+            'n' means ground state energy only and 'v' means ground state energy and ground state both.
+        precision : float
+            The precision of the calculated ground state energy which is used to terminate the Lanczos iteration.
+
+        Returns
+        -------
+        gse : float
+            the ground state energy.
+        gs : 1d ndarray, optional
+            The ground state. Present when the parameter job is set to be 'V' or 'v'.
         '''
         if job in ('V','v'):gs=copy(self.new)
         delta=1.0;buff=np.inf

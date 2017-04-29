@@ -1,4 +1,8 @@
 '''
+---------------------------------
+Fermionic operator representation
+---------------------------------
+
 Fermionic operator representation, including:
     * functions: f_opt_rep
 '''

@@ -1,19 +1,19 @@
-Basics of the HamiltonianPy
-===========================
-
-This part contains all the necessary components to generate the operators of a lattice model.
+******
+Basics
+******
 
 .. toctree::
-   :numbered:
    :maxdepth: 2
 
+   Introduction
    Geometry
    DegreeOfFreedom
    Term
    Operator
    Generator
    EngineApp
-   FermionicPackage
-   SpinPackage
-   QuantumNumbers
-   Others
+   BaseSpace
+   Log
+   FermionicPackage/index
+   SpinPackage/index
+   QuantumNumber/index

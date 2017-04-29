@@ -1,6 +1,10 @@
 '''
-Matrix product state, including:
-1) classes: MPS, Vidal
+====================
+Matrix product state
+====================
+
+Matrix product states, including:
+    * classes: MPS, Vidal
 '''
 
 __all__=['MPS','Vidal']
@@ -17,38 +21,43 @@ from collections import OrderedDict
 
 class MPS(list):
     '''
-    The general matrix product state.
-        For each of its elements: Tensor
-            The matrices of the mps.
-    Attributes:
-        mode: 'NB' or 'QN'
-            'NB' for not using good quantum number;
-            'QN' for using good quantum number.
-        Lambda: Tensor
-            The Lambda matrix (singular values) on the connecting link.
-        cut: integer
-            The index of the connecting link.
-    Note the left-canonical MPS, right-canonical MPS and mixed-canonical MPS are considered as special cases of this form.
+    The general matrix product state, with each of its elements being a 3d `Tensor`.
+
+    Attributes
+    ----------
+    mode : 'NB' or 'QN'
+        'NB' for not using good quantum number;
+        'QN' for using good quantum number.
+    Lambda : Tensor
+        The Lambda matrix (singular values) on the connecting link.
+    cut : integer
+        The index of the connecting link.
+
+    Notes
+    -----
+    The left-canonical MPS, right-canonical MPS and mixed-canonical MPS are considered as special cases of this form.
     '''
     L,S,R=0,1,2
 
     def __init__(self,mode='NB',ms=[],Lambda=None,cut=None,sites=None,bonds=None):
         '''
         Constructor.
-        Parameters:
-            mode: 'NB' or 'QN', optional
-                'NB' for not using good quantum number;
-                'QN' for using good quantum number.
-            ms: list of 3d Tensor/ndarray, optional
-                The matrices.
-            Lambda: 1d ndarray/Tensor, optional
-                The Lambda matrix (singular values) on the connecting bond.
-            cut: integer, optional
-                The position of the connecting bond.
-            sites: list of Label, optional
-                The labels for the physical legs.
-            bonds: list of Label, optional
-                The labels for the virtual legs.
+
+        Parameters
+        ----------
+        mode : 'NB' or 'QN', optional
+            'NB' for not using good quantum number;
+            'QN' for using good quantum number.
+        ms : list of 3d Tensor/ndarray, optional
+            The matrices.
+        Lambda : 1d ndarray/Tensor, optional
+            The Lambda matrix (singular values) on the connecting bond.
+        cut : integer, optional
+            The position of the connecting bond.
+        sites : list of Label, optional
+            The labels for the physical legs.
+        bonds : list of Label, optional
+            The labels for the virtual legs.
         '''
         assert mode in ('QN','NB') and (Lambda is None)==(cut is None) and (sites is None)==(bonds is None)
         self.mode=mode
@@ -78,20 +87,25 @@ class MPS(list):
     def from_state(state,sites,bonds,cut=0,nmax=None,tol=None):
         '''
         Convert the normal representation of a state to the matrix product representation.
-        Parameters:
-            state: 1d ndarray
-                The normal representation of a state.
-            sites: list of Label
-                The labels for the physical legs.
-            bonds: list of Label
-                The labels for the virtual legs.
-            cut: integer, optional
-                The index of the connecting link.
-            namx: integer, optional
-                The maximum number of singular values to be kept.
-            tol: float64, optional
-                The tolerance of the singular values.
-        Returns: MPS
+
+        Parameters
+        ----------
+        state : 1d ndarray
+            The normal representation of a state.
+        sites : list of Label
+            The labels for the physical legs.
+        bonds : list of Label
+            The labels for the virtual legs.
+        cut : integer, optional
+            The index of the connecting link.
+        namx : integer, optional
+            The maximum number of singular values to be kept.
+        tol : float64, optional
+            The tolerance of the singular values.
+
+        Returns
+        -------
+        MPS
             The corresponding mixed-canonical mps.
         '''
         assert state.ndim==1 and len(sites)+1==len(bonds)
@@ -116,13 +130,12 @@ class MPS(list):
     def state(self):
         '''
         Convert to the normal representation.
-        Returns: two cases,
-            1) 1d ndarray
-                The MPS is a pure state.
-                Its norm is omitted.
-            2) 2d ndarray 
-                The MPS is a mixed state with the rows being the contained pure states.
-                The singular value for each pure state is omitted.
+
+        Returns
+        -------
+        result : ndarray
+            * When `self` is a pure state, `result` is 1d and the norm of the mps is omitted.
+            * When `self` is a mixed state, `result` is 2d with the rows being the pure states and the singular value for each pure state is omitted.
         '''
         table=self.table
         if self.cut is None:
@@ -151,24 +164,29 @@ class MPS(list):
     def random(sites,bonds,cut=None,nmax=None,tol=None,dtype=np.float64):
         '''
         Generate a random mps.
-        Parameters:
-            sites: list of Label/integer/QuantumNumbers
-                The labels/number-of-degrees-of-freedom/quantum-numbers of the physical legs.
-            bonds:
-                1) list of Label
-                    The labels of the virtual legs.
-                2) list of None/1/QuantumNumber
-                    The number-of-degrees-of-freedom/quantum-numbers of the virtual legs.
-                    The positions of the non-None values are the breakpoints of the random mps, where the bond dimension are forced to be 1.
-            cut: integer, optional
-                The index of the connecting link.
-            namx: integer, optional
-                The maximum number of singular values to be kept.
-            tol: float64, optional
-                The tolerance of the singular values.
-            dtype: np.float32, np.float64, np.complex64, np.complex128, optional
-                The data type of the random mps.
-        Returns: MPS
+
+        Parameters
+        ----------
+        sites : list of Label/integer/QuantumNumbers
+            The labels/number-of-degrees-of-freedom/quantum-numbers of the physical legs.
+        bonds :
+            * list of Label
+                The labels of the virtual legs.
+            * list of None/1/QuantumNumber
+                The number-of-degrees-of-freedom/quantum-numbers of the virtual legs.
+                The positions of the non-None values are the breakpoints of the random mps, where the bond dimension are forced to be 1.
+        cut : integer, optional
+            The index of the connecting link.
+        namx : integer, optional
+            The maximum number of singular values to be kept.
+        tol : float64, optional
+            The tolerance of the singular values.
+        dtype : np.float32, np.float64, np.complex64, np.complex128, optional
+            The data type of the random mps.
+
+        Returns
+        -------
+        MPS
             The random mixed-canonical mps.
         '''
         assert len(bonds)==len(sites)+1
@@ -200,15 +218,19 @@ class MPS(list):
     def concatenate(mpses,mode=None,cut=None):
         '''
         Concatenate several mpses into one.
-        Parameters:
-            mpses: list of MPS
-                The mpses to be concatenated.
-            mode: 'QN' or 'NB', optional
-                The mode of the result.
-                Only when len(mpses)==0 will it be considered.
-            cut: integer, optional
-                The position of the connecting bond after the canonicalization.
-        Returns: MPS
+
+        Parameters
+        ----------
+        mpses : list of MPS
+            The mpses to be concatenated.
+        mode : 'QN' or 'NB', optional
+            The mode of the result. Only when ``len(mpses)==0`` will it be considered.
+        cut : integer, optional
+            The position of the connecting bond after the canonicalization.
+
+        Returns
+        -------
+        MPS
             The result.
         '''
         modes=np.array([mps.mode=='QN' for mps in mpses])
@@ -237,11 +259,14 @@ class MPS(list):
     def table(self):
         '''
         The table of the mps.
-        Returns: dict
+
+        Returns
+        -------
+        dict
             For each of its (key,value) pair,
-                key: Label
+                * key: Label
                     The site label of each matrix in the mps.
-                value: integer
+                * value: integer
                     The index of the corresponding matrix in the mps.
         '''
         return {m.labels[MPS.S]:i for i,m in enumerate(self)}
@@ -307,11 +332,13 @@ class MPS(list):
     def relabel(self,sites,bonds):
         '''
         Change the labels of the mps.
-        Parameters:
-            sites: list of Label
-                The new site labels of the mps.
-            bonds: list of Label
-                The new bond labels of the mps.
+
+        Parameters
+        ----------
+        sites : list of Label
+            The new site labels of the mps.
+        bonds : list of Label
+            The new bond labels of the mps.
         '''
         assert len(sites)==self.nsite and len(bonds)==self.nsite+1
         for m,L,S,R in zip(self,bonds[:-1],sites,bonds[1:]):
@@ -322,11 +349,16 @@ class MPS(list):
     def copy(self,copy_data=False):
         '''
         Make a copy of the mps.
-        Parameters:
-            copy_data: logical, optional
-                When True, both the labels and data of each tensor in this mps will be copied;
-                When False, only the labels of each tensor in this mps will be copied.
-        Returns: MPS
+
+        Parameters
+        ----------
+        copy_data : logical, optional
+            * When True, both the labels and data of each tensor in this mps will be copied;
+            * When False, only the labels of each tensor in this mps will be copied.
+
+        Returns
+        -------
+        MPS
             The copy of self.
         '''
         ms=[m.copy(copy_data=copy_data) for m in self]
@@ -352,14 +384,19 @@ class MPS(list):
     def canonicalization(self,cut=0,nmax=None,tol=None):
         '''
         Canonicalize an mps by svd.
-        Parameters:
-            cut: integer, optional
-                The position of the connecting bond after the canonicalization.
-            namx: integer, optional
-                The maximum number of singular values to be kept.
-            tol: float64, optional
-                The tolerance of the singular values.
-        Returns: MPS
+
+        Parameters
+        ----------
+        cut : integer, optional
+            The position of the connecting bond after the canonicalization.
+        namx : integer, optional
+            The maximum number of singular values to be kept.
+        tol : float64, optional
+            The tolerance of the singular values.
+
+        Returns
+        -------
+        MPS
             The mixed canonical MPS.
         '''
         if cut<=self.nsite/2:
@@ -375,15 +412,17 @@ class MPS(list):
     def compress(self,nsweep=1,cut=0,nmax=None,tol=None):
         '''
         Compress an mps by svd.
-        Parameters:
-            nsweep: integer, optional
-                The number of sweeps to compress the mps.
-            cut: integer, optional
-                The position of the connecting bond after the compression.
-            namx: integer, optional
-                The maximum number of singular values to be kept.
-            tol: float64, optional
-                The tolerance of the singular values.
+
+        Parameters
+        ----------
+        nsweep : integer, optional
+            The number of sweeps to compress the mps.
+        cut : integer, optional
+            The position of the connecting bond after the compression.
+        namx : integer, optional
+            The maximum number of singular values to be kept.
+        tol : float64, optional
+            The tolerance of the singular values.
         '''
         for sweep in xrange(nsweep):
             self.canonicalization(cut=cut,nmax=nmax,tol=tol)
@@ -391,9 +430,11 @@ class MPS(list):
     def reset(self,cut=None):
         '''
         Reset the position of the connecting bond of the mps.
-        Parameters:
-            cut: None or integer, optional
-                The position of the new connecting bond.
+
+        Parameters
+        ----------
+        cut : None or integer, optional
+            The position of the new connecting bond.
         '''
         self._merge_ABL_()
         if cut is not None:
@@ -406,17 +447,24 @@ class MPS(list):
     def _merge_ABL_(self,merge='R'):
         '''
         Merge the Lambda matrix on the connecting bond to its left or right neighbouring matrix.
-        Parameters:
-            merge: 'L','R', optional
-                When 'L', self.Lambda will be merged into its left neighbouring matrix;
-                When 'R', self.Lambda will be merged into its right neighbouring matrix.
-        Retruns:
-            m: 3d Tensor
-                The original left/right neighbouring matrix.
-            Lambda: 1d Tensor
-                The original Lambda matrix.
-        NOTE: When self.cut==0, the Lambda matrix will be merged with self[0] no matter what merge is, and
-              When self.cut==self.nsite, the Lambda matrix will be merged with self[-1] no matter what merge is.
+
+        Parameters
+        ----------
+        merge : 'L','R', optional
+            * When 'L', self.Lambda will be merged into its left neighbouring matrix;
+            * When 'R', self.Lambda will be merged into its right neighbouring matrix.
+
+        Returns
+        -------
+        m : 3d Tensor
+            The original left/right neighbouring matrix.
+        Lambda : 1d Tensor
+            The original Lambda matrix.
+
+        Notes
+        -----
+        * When ``self.cut==0``, the `Lambda` matrix will be merged with `self[0]` no matter what merge is, and
+        * When ``self.cut==self.nsite``, the `Lambda` matrix will be merged with `self[-1]` no matter what merge is.
         '''
         if self.cut is not None:
             assert merge.upper() in ('L','R')
@@ -436,11 +484,13 @@ class MPS(list):
     def _set_ABL_(self,m,Lambda):
         '''
         Set the matrix at a certain position and the Lambda of an mps.
-        Parameters:
-            m: Tensor
-                The matrix at a certain position of the mps.
-            Lambda: Tensor
-                The singular values at the connecting link of the mps.
+
+        Parameters
+        ----------
+        m : Tensor
+            The matrix at a certain position of the mps.
+        Lambda : Tensor
+            The singular values at the connecting link of the mps.
         '''
         if isinstance(m,Tensor) and isinstance(Lambda,Tensor):
             assert m.ndim==3 and Lambda.ndim==1
@@ -458,13 +508,15 @@ class MPS(list):
     def _set_B_and_lmove_(self,M,nmax=None,tol=None):
         '''
         Set the B matrix at self.cut and move leftward.
-        Parameters:
-            M: Tensor
-                The tensor used to set the B matrix.
-            nmax: integer, optional
-                The maximum number of singular values to be kept. 
-            tol: float64, optional
-                The truncation tolerance.
+
+        Parameters
+        ----------
+        M : Tensor
+            The tensor used to set the B matrix.
+        nmax : integer, optional
+            The maximum number of singular values to be kept. 
+        tol : float64, optional
+            The truncation tolerance.
         '''
         if self.cut==0: raise ValueError('MPS _set_B_and_lmove_ error: the cut is already zero.')
         L,S,R=M.labels[MPS.L],M.labels[MPS.S],M.labels[MPS.R]
@@ -483,13 +535,15 @@ class MPS(list):
     def _set_A_and_rmove_(self,M,nmax=None,tol=None):
         '''
         Set the A matrix at self.cut and move rightward.
-        Parameters:
-            M: Tensor
-                The tensor used to set the A matrix.
-            nmax: integer, optional
-                The maximum number of singular values to be kept. 
-            tol: float64, optional
-                The truncation tolerance.
+
+        Parameters
+        ----------
+        M : Tensor
+            The tensor used to set the A matrix.
+        nmax : integer, optional
+            The maximum number of singular values to be kept. 
+        tol : float64, optional
+            The truncation tolerance.
         '''
         if self.cut==self.nsite:
             raise ValueError('MPS _set_A_and_rmove_ error: the cut is already maximum.')
@@ -509,17 +563,19 @@ class MPS(list):
     def __ilshift__(self,other):
         '''
         Operator "<<=", which shift the connecting link leftward by a non-negative integer.
-        Parameters:
-            other: two cases,
-                1) integer
-                    The number of times that self.cut will move leftward.
-                2) 3-tuple
-                    tuple[0]: integer
-                        The number of times that self.cut will move leftward.
-                    tuple[1]: integer
-                        The maximum number of singular values to be kept.
-                    tuple[2]: float64
-                        The truncation tolerance.
+
+        Parameters
+        ----------
+        other : internal or 3-tuple
+            * integer
+                The number of times that `self.cut` will move leftward.
+            * 3-tuple in the form (k,nmax,tol)
+                * k: integer
+                    The number of times that `self.cut` will move leftward.
+                * nmax: integer
+                    The maximum number of singular values to be kept.
+                * tol: float64
+                    The truncation tolerance.
         '''
         nmax,tol=None,None
         if isinstance(other,tuple):
@@ -537,35 +593,41 @@ class MPS(list):
     def __lshift__(self,other):
         '''
         Operator "<<".
-        Parameters:
-            other: integer or 3-tuple.
-                Please see MPS.__ilshift__ for details.
+
+        Parameters
+        ----------
+        other : integer or 3-tuple.
+            Please see MPS.__ilshift__ for details.
         '''
         return copy(self).__ilshift__(other)
 
     def __irshift__(self,other):
         '''
         Operator ">>=", which shift the connecting link rightward by a non-negative integer.
-        Parameters:
-            other: two cases,
-                1) integer
+
+        Parameters
+        ----------
+        other: integer or 3-tuple
+            * integer
+                The number of times that self.cut will move rightward.
+            * 3-tuple in the form (k,nmax,tol)
+                * k: integer
                     The number of times that self.cut will move rightward.
-                2) 3-tuple
-                    tuple[0]: integer
-                        The number of times that self.cut will move rightward.
-                    tuple[1]: integer
-                        The maximum number of singular values to be kept.
-                    tuple[2]: float64
-                        The truncation tolerance.
+                * nmax: integer
+                    The maximum number of singular values to be kept.
+                * tol: float64
+                    The truncation tolerance.
         '''
         return self.__ilshift__((-other[0],other[1],other[2]) if isinstance(other,tuple) else -other)
 
     def __rshift__(self,other):
         '''
         Operator ">>".
-        Parameters:
-            other: integer or 3-tuple.
-                Please see MPS.__irshift__ for details.
+
+        Parameters
+        ----------
+        other : integer or 3-tuple.
+            Please see MPS.__irshift__ for details.
         '''
         return copy(self).__irshift__(other)
 
@@ -653,10 +715,15 @@ class MPS(list):
     def overlap(mps1,mps2):
         '''
         The overlap between two mps.
-        Parameters:
-            mps1,mps2: MPS
-                The MPS between which the overlap is calculated.
-        Returns: number
+
+        Parameters
+        ----------
+        mps1,mps2 : MPS
+            The MPS between which the overlap is calculated.
+
+        Returns
+        -------
+        number
             The overlap.
         '''
         if mps1 is mps2:
@@ -689,16 +756,21 @@ class MPS(list):
     def relayer(self,degfres,layer,nmax=None,tol=None):
         '''
         Construt a new mps with the physical indices confined on a specific layer of degfres.
-        Parameters:
-            degfres: DegFreTree
-                The tree of the physical degrees of freedom.
-            layer: integer/tuple-of-string
-                The layer where the physical indices are confined.
-            nmax: integer, optional
-                The maximum number of singular values to be kept.
-            tol: np.float64, optional
-                The tolerance of the singular values.
-        Returns: MPS
+
+        Parameters
+        ----------
+        degfres : DegFreTree
+            The tree of the physical degrees of freedom.
+        layer : integer/tuple-of-string
+            The layer where the physical indices are confined.
+        nmax : integer, optional
+            The maximum number of singular values to be kept.
+        tol : np.float64, optional
+            The tolerance of the singular values.
+
+        Returns
+        -------
+        MPS
             The new mps.
         '''
         new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
@@ -738,26 +810,30 @@ class MPS(list):
 class Vidal(object):
     '''
     The Vidal canonical matrix product state.
-    Attributes:
-        Gammas: list of Tensor
-            The Gamma matrices on the site.
-        Lambdas: list of Tensor
-            The Lambda matrices (singular values) on the link.
+
+    Attributes
+    ----------
+    Gammas : list of Tensor
+        The Gamma matrices on the site.
+    Lambdas : list of Tensor
+        The Lambda matrices (singular values) on the link.
     '''
     L,S,R=0,1,2
 
     def __init__(self,Gammas,Lambdas,sites=None,bonds=None):
         '''
         Constructor.
-        Parameters:
-            Gammas: list of 3d ndarray/Tensor
-                The Gamma matrices on the site.
-            Lamdas: list of 1d ndarray/Tensor
-                The Lambda matrices (singular values) on the link.
-            sites: list of Label, optional
-                The labels for the physical legs.
-            bonds: list of Label, optional
-                The labels for the virtual legs.
+
+        Parameters
+        ----------
+        Gammas : list of 3d ndarray/Tensor
+            The Gamma matrices on the site.
+        Lamdas : list of 1d ndarray/Tensor
+            The Lambda matrices (singular values) on the link.
+        sites : list of Label, optional
+            The labels for the physical legs.
+        bonds : list of Label, optional
+            The labels for the virtual legs.
         '''
         assert len(Gammas)==len(Lambdas)+1 and (sites is None)==(bonds is None)
         self.Gammas=[]
@@ -802,7 +878,10 @@ class Vidal(object):
     def state(self):
         '''
         Convert to the normal representation.
-        Returns: 1d ndarray
+
+        Returns
+        -------
+        1d ndarray
             The corresponding normal representation of the state.
         '''
         result=None
@@ -816,10 +895,15 @@ class Vidal(object):
     def to_mixed(self,cut):
         '''
         Convert to the mixed MPS representation.
-        Parameters:
-            cut: integer
-                The index of the connecting link.
-        Retruns: MPS
+
+        Parameters
+        ----------
+        cut : integer
+            The index of the connecting link.
+
+        Returns
+        -------
+        MPS
             The corresponding mixed MPS.
         '''
         ms,Lambda=[],None

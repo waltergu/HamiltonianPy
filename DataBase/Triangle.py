@@ -1,6 +1,10 @@
 '''
+==================
+Triangular lattice
+==================
+
 Triangular lattice data base, including:
-1) classes: TriangleDataBase
+    * classes: TriangleDataBase
 '''
 
 __all__=['TriangleDataBase']
@@ -11,21 +15,25 @@ from ..Basics.Geometry import *
 class TriangleDataBase(object):
     '''
     Triangular lattice data base.
-    Attributes:
-        name: string
-            The name of the cluster.
-        rcoords: 2d ndarray
-            The rcoords of the cluster.
-        vectors: 2d ndarray
-            The tanslation vectors of the cluster.
+
+    Attributes
+    ----------
+    name : string
+        The name of the cluster.
+    rcoords : 2d ndarray
+        The rcoords of the cluster.
+    vectors : 2d ndarray
+        The tanslation vectors of the cluster.
     '''
 
     def __init__(self,name):
         '''
         Constructor.
-        Parameters:
-            name: 'T1','T12'
-                The name of the cluster wanted to be constructed.
+
+        Parameters
+        ----------
+        name : 'T1','T12'
+            The name of the cluster wanted to be constructed.
         '''
         if name not in ['T1','T12']:
             raise ValueError('TriangleDataBase construction error: unexpected name(%s).'%name)

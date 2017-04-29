@@ -1,7 +1,11 @@
 '''
-VCA concatenate, including:
-1) classes: VCACCT
-2) functions: VCACCTGFP, VCACCTGF
+=====================================
+CPT and VCA with concatenated lattice
+=====================================
+
+CPT and VCA with concatenated lattice, including:
+    * classes: VCACCT
+    * functions: VCACCTGFP, VCACCTGF
 '''
 
 __all__=['VCACCT','VCACCTGFP','VCACCTGF']
@@ -15,31 +19,35 @@ import HamiltonianPy.ED as ED
 class VCACCT(VCA):
     '''
     This class implements the algorithm of the variational cluster approach of an electron system composed of several subsystems.
-    Attributes:
-        preloads,cell,lattice,config,terms,weiss,dtype,pthgenerator,ptwgenerator,pthoperators,ptwoperators,periodization,matrix,cache:
-            Inherited from VCA. See VCA for details.
-        groups: list of hashable object
-            The groups of the components of the system.
-        subsystems: dict in the form (key,value)
-            key: any hashable object
-                The group of the subsystems.
-            value: ED.ED
-                A representative subsystem of the same group.
+
+    Attributes
+    ----------
+    preloads,cell,lattice,config,terms,weiss,dtype,pthgenerator,ptwgenerator,pthoperators,ptwoperators,periodization,matrix,cache :
+        Inherited from VCA. See VCA for details.
+    groups : list of hashable object
+        The groups of the components of the system.
+    subsystems : dict in the form (key,value)
+        * key: any hashable object
+            The group of the subsystems.
+        * value: ED.ED
+            A representative subsystem of the same group.
     '''
 
     def __init__(self,cgf,cell=None,lattice=None,config=None,terms=[],weiss=[],subsystems=None,dtype=np.complex128,**karg):
         '''
         Constructor.
-        Parameters:
-            cgf,cell,lattice,config,terms,weiss:
-                See VCA.__init__ for details.
-            subsystem: dict
-                entry 'basis': BasisF
-                    The occupation number basis of the subsystem.
-                entry 'lattice': Lattice
-                    The lattice of the subsystem.
-                entry 'group': any hashable object, optional
-                    The group of the subsystem.
+
+        Parameters
+        ----------
+        cgf,cell,lattice,config,terms,weiss :
+            See VCA.__init__ for details.
+        subsystem: dict
+            * entry 'basis': BasisF
+                The occupation number basis of the subsystem.
+            * entry 'lattice': Lattice
+                The lattice of the subsystem.
+            * entry 'group': any hashable object, optional
+                The group of the subsystem.
         '''
         nspin,mask,cellconfig=cgf.nspin,cgf.mask,HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map)
         self.preloads.extend([cgf,HP.GF(operators=HP.fspoperators(cellconfig.table().subset(select=ED.GF.select(nspin)),cell),dtype=cgf.dtype)])

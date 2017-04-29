@@ -1,7 +1,11 @@
 '''
-Exat diagonalization, including:
-1) classes: ED, EL, GF
-2) functions: EDEL, EDGFP, EDGF, EDDOS
+====================
+Exat diagonalization
+====================
+
+Exact diagonalization for fermionic systems, including:
+    * classes: ED, EL, GF
+    * functions: EDEL, EDGFP, EDGF, EDDOS
 '''
 
 __all__=['ED','EL','EDEL','GF','EDGFP','EDGF','EDDOS']
@@ -20,43 +24,53 @@ import os.path,sys,time
 class ED(HP.Engine):
     '''
     Exact diagonalization for an electron system, based on the sparse matrix representation of the Hamiltonian on the occupation number basis.
-    Attributes:
-        basis: BasisF
-            The occupation number basis of the system.
-        lattice: Lattice
-            The lattice of the system.
-        config: IDFConfig
-            The configuration of the internal degrees of freedom on the lattice.
-        terms: list of Term
-            The terms of the system.
-        dtype: np.float32, np.float64, np.complex64, np.complex128
-            The data type of the matrix representation of the Hamiltonian.
-        generator: Generator
-            The generator for the Hamiltonian.
-        operators: OperatorCollection
-            The 'half' of the operators for the Hamiltonian.
-        matrix: csr_matrix
-            The sparse matrix representation of the cluster Hamiltonian.
-    Supported methods include:
-        1) EDEL: calculates the energy spectrum.
-        2) EDGF: calculates the single-particle Green's function.
-        3) EDDOS: calculates the density of states.
+
+    Attributes
+    ----------
+    basis : BasisF
+        The occupation number basis of the system.
+    lattice : Lattice
+        The lattice of the system.
+    config : IDFConfig
+        The configuration of the internal degrees of freedom on the lattice.
+    terms : list of Term
+        The terms of the system.
+    dtype : np.float32, np.float64, np.complex64, np.complex128
+        The data type of the matrix representation of the Hamiltonian.
+    generator : Generator
+        The generator for the Hamiltonian.
+    operators : OperatorCollection
+        The 'half' of the operators for the Hamiltonian.
+    matrix : csr_matrix
+        The sparse matrix representation of the cluster Hamiltonian.
+
+
+    Supported methods:
+        =======     ===============================================
+        METHODS     DESCRIPTION
+        =======     ===============================================
+        `EDEL`      calculates the energy spectrum
+        `EDGF`      calculates the single-particle Green's function
+        `EDDOS`     calculates the density of states
+        =======     ===============================================
     '''
 
     def __init__(self,basis=None,lattice=None,config=None,terms=None,dtype=np.complex128,**karg):
         '''
         Constructor.
-        Parameters:
-            basis: BasisF, optional
-                The occupation number basis of the system.
-            lattice: Lattice, optional
-                The lattice of the system.
-            config: IDFConfig, optional
-                The configuration of the internal degrees of freedom on the lattice.
-            terms: list of Term, optional
-                The terms of the system.
-            dtype: np.float32, np.float64, np.complex64, np.complex128
-                The data type of the matrix representation of the Hamiltonian.
+
+        Parameters
+        ----------
+        basis : BasisF, optional
+            The occupation number basis of the system.
+        lattice : Lattice, optional
+            The lattice of the system.
+        config : IDFConfig, optional
+            The configuration of the internal degrees of freedom on the lattice.
+        terms : list of Term, optional
+            The terms of the system.
+        dtype : np.float32, np.float64, np.complex64, np.complex128
+            The data type of the matrix representation of the Hamiltonian.
         '''
         self.basis=basis
         self.lattice=lattice
@@ -89,12 +103,17 @@ class ED(HP.Engine):
     def __replace_basis__(self,nambu,spin):
         '''
         Return a new ED instance with the basis replaced.
-        Parameters:
-            nambu: CREATION or ANNIHILATION
-                CREATION for adding one electron and ANNIHILATION for subtracting one electron.
-            spin: 0 or 1
-                0 for spin down and 1 for spin up.
-        Returns: ED
+
+        Parameters
+        ----------
+        nambu : CREATION or ANNIHILATION
+            CREATION for adding one electron and ANNIHILATION for subtracting one electron.
+        spin : 0 or 1
+            0 for spin down and 1 for spin up.
+
+        Returns
+        -------
+        ED
             The new ED instance with the wanted new basis.
         '''
         if self.basis.mode=='FG':
@@ -125,17 +144,21 @@ class ED(HP.Engine):
 class EL(HP.EB):
     '''
     Energy level.
-    Attributes:
-        ns: integer
-            The number of energy levels.
+
+    Attributes
+    ----------
+    ns : integer
+        The number of energy levels.
     '''
     
     def __init__(self,ns=6,**karg):
         '''
         Constructor.
-        Parameters:
-            ns: integer, optional
-                The number of energy levels.
+
+        Parameters
+        ----------
+        ns : integer, optional
+            The number of energy levels.
         '''
         super(EL,self).__init__(**karg)
         self.ns=ns
@@ -167,49 +190,53 @@ def EDEL(engine,app):
 class GF(HP.GF):
     '''
     The single-particle zero-temperature Green's function.
-    Attributes:
-        mask: ['nambu'] or []
-            When ['nambu'], the anomalous Green's functions are not computed;
-            When [], the anomalous Green's functions are also computed.
-        nspin: 1 or 2
-            When 1, sometimes(engine.basis.mode=='FS') only spin-down parts of the Green's function is computed;
-            When 2, both spin-up and spin-down parts of the Green's function is computed.
-        v0: 1D ndarray
-            The initial guess of the groundstate.
-        nstep: integer
-            The max number of steps for the Lanczos iteration.
-        method: 'user', 'python' or 'dense'
-            It specifies the method the engine uses to compute the ground state.
-            'user' for HamiltonianPy.Math.Lanczos.eig, 'python' for scipy.sparse.linalg.eigsh, and 'dense' for scipy.linalg.eigh.
-        vtype: 'rd' or 'sy'
-            When v0 is None, it specifies the type of the default initial guess of the groundstate.
-            It only makes sense when method is 'user'. Then 'rd' means random ones and 'sy' for symmetric ones.
-        tol: float
-            The tolerance used to terminate the iteration.
-        gse: float64
-            The ground state energy of the system.
-        coeff,hs: 4d ndarray
-            The auxiliary data for the computing of GF.
+
+    Attributes
+    ----------
+    mask : ['nambu'] or []
+        * When ['nambu'], the anomalous Green's functions are not computed;
+        * When [], the anomalous Green's functions are also computed.
+    nspin : 1 or 2
+        * When 1, sometimes(engine.basis.mode=='FS') only spin-down parts of the Green's function is computed;
+        * When 2, both spin-up and spin-down parts of the Green's function is computed.
+    v0 : 1D ndarray
+        The initial guess of the groundstate.
+    nstep : integer
+        The max number of steps for the Lanczos iteration.
+    method : 'user', 'python' or 'dense'
+        It specifies the method the engine uses to compute the ground state.
+        'user' for HamiltonianPy.Math.Lanczos.eig, 'python' for scipy.sparse.linalg.eigsh, and 'dense' for scipy.linalg.eigh.
+    vtype : 'rd' or 'sy'
+        When v0 is None, it specifies the type of the default initial guess of the groundstate.
+        It only makes sense when method is 'user'. Then 'rd' means random ones and 'sy' for symmetric ones.
+    tol : float
+        The tolerance used to terminate the iteration.
+    gse : float64
+        The ground state energy of the system.
+    coeff,hs : 4d ndarray
+        The auxiliary data for the computing of GF.
     '''
 
     def __init__(self,mask=['nambu'],nspin=2,v0=None,nstep=200,method='python',vtype='rd',tol=0,**karg):
         '''
         Constructor.
-        Parameters:
-            mask: ['nambu'] or [], optional
-                The flag to tell whether or not to compute the anomalous Green's function.
-            nspin: 1 or 2, optional
-                The flag to tell whether or not to compute only spin-down component.
-            v0: 1D ndarray, optional
-                The initial guess of the groundstate.
-            nstep: integer, optional
-                The max number of steps for the Lanczos iteration.
-            method: 'user', 'python' or 'dense', optional
-                The method the engine uses to compute the ground state.
-            vtype: 'rd' or 'sy', optional
-                When v0 is None, it specifies the type of the default initial guess of the groundstate.
-            tol: float, optional
-                The tol used to terminate the iteration.
+
+        Parameters
+        ----------
+        mask : ['nambu'] or [], optional
+            The flag to tell whether or not to compute the anomalous Green's function.
+        nspin : 1 or 2, optional
+            The flag to tell whether or not to compute only spin-down component.
+        v0 : 1D ndarray, optional
+            The initial guess of the groundstate.
+        nstep : integer, optional
+            The max number of steps for the Lanczos iteration.
+        method : 'user', 'python' or 'dense', optional
+            The method the engine uses to compute the ground state.
+        vtype : 'rd' or 'sy', optional
+            When v0 is None, it specifies the type of the default initial guess of the groundstate.
+        tol : float, optional
+            The tol used to terminate the iteration.
         '''
         super(GF,self).__init__(**karg)
         self.mask=mask

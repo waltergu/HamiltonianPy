@@ -1,5 +1,10 @@
+========================
 Fermionic system support
 ========================
+
+.. automodule:: HamiltonianPy.Basics.FermionicPackage.__init__
+   :members:
+
 .. automodule:: HamiltonianPy.Basics.FermionicPackage.BasisF
    :members:
 

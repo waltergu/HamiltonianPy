@@ -1,4 +1,8 @@
 '''
+----------------------
+Spin degree of freedom
+----------------------
+
 Spin degree of freedom package, including:
     * constants: DEFAULT_SPIN_PRIORITY
     * classes: SID, Spin, SpinMatrix, SpinPack
