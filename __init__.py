@@ -24,7 +24,7 @@ Subpackages
 ###########
 
 ===============   =====================================================================
-MODULES           DESCRIPTION
+SUBPACKAGE        DESCRIPTION
 ===============   =====================================================================
 `Basics`          The general framework of the Hamiltonian-based algorithms
 `Misc`            Miscellaneous functions and classes as supports to the algorithms
@@ -35,6 +35,23 @@ MODULES           DESCRIPTION
 `TensorNetwork`   Tensor, MPS and MPO
 `DMRG`            Density matrix renormalization group for electron and spin systems
 ===============   =====================================================================
+
+#################
+Contents
+#################
+
+.. toctree::
+   :numbered:
+   :maxdepth: 4
+
+   Basics/index
+   DataBase/index
+   Misc/index
+   FreeSystem/index
+   ED/index
+   VCA/index
+   TensorNetwork/index
+   DMRG/index
 '''
 
 from Basics import *
