@@ -245,7 +245,7 @@ class MPS(list):
                 m,Lambda=mps._merge_ABL_()
                 result.extend(mps)
                 mps._set_ABL_(m,Lambda)
-            if cut is not None: result.canonicalization(cut=cut)
+            if cut is not None: result.canonicalize(cut=cut)
         return result
 
     @property
@@ -381,7 +381,7 @@ class MPS(list):
             result.append((abs(buff-np.identity(M.shape[MPS.R if i<self.cut else MPS.L]))<TOL).all())
         return result
 
-    def canonicalization(self,cut=0,nmax=None,tol=None):
+    def canonicalize(self,cut=0,nmax=None,tol=None):
         '''
         Canonicalize an mps by svd.
 
@@ -393,11 +393,6 @@ class MPS(list):
             The maximum number of singular values to be kept.
         tol : float64, optional
             The tolerance of the singular values.
-
-        Returns
-        -------
-        MPS
-            The mixed canonical MPS.
         '''
         if cut<=self.nsite/2:
             self.reset(cut=self.nsite)
@@ -407,7 +402,6 @@ class MPS(list):
             self.reset(cut=0)
             self>>=(self.nsite,nmax,tol)
             self<<=(self.nsite-cut,nmax,tol)
-        return self
 
     def compress(self,nsweep=1,cut=0,nmax=None,tol=None):
         '''
@@ -425,7 +419,7 @@ class MPS(list):
             The tolerance of the singular values.
         '''
         for sweep in xrange(nsweep):
-            self.canonicalization(cut=cut,nmax=nmax,tol=tol)
+            self.canonicalize(cut=cut,nmax=nmax,tol=tol)
 
     def reset(self,cut=None):
         '''

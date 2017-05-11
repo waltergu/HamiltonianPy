@@ -31,7 +31,7 @@ def test_mps_ordinary():
         mps=MPS.from_state(state,sites,bonds,cut=cut)
         print 'mps.cut,mps.is_canonical,diff: %s, %s, %s.'%(mps.cut,mps.is_canonical(),norm(state-mps.state))
     for cut in xrange(N+1):
-        mps.canonicalization(cut)
+        mps.canonicalize(cut)
         print 'mps.cut, mps.is_canonical: %s, %s.'%(mps.cut,mps.is_canonical())
     print
 
@@ -69,7 +69,7 @@ def test_mps_algebra():
 def test_mps_relayer():
     print 'test_mps_relayer'
     Nsite,Nscope,S=2,2,1.0
-    priority,layers=['scope','site','S'],[('scope',),('site','S')]
+    priority,layers=['scope','site','orbital','S'],[('scope',),('site','orbital','S')]
     config=IDFConfig(priority=priority)
     for scope in xrange(Nscope):
         for site in xrange(Nsite):

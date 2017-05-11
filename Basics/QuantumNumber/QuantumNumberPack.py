@@ -5,14 +5,14 @@ Common classes and functions
 
 Quantum number pack, including:
     * classes: SQN, PQN, SPQN, Z2QN
-    * functions: SQNS, PQNS, SPQNS, Z2QNS
+    * functions: SQNS, PQNS, SzPQNS, SPQNS, Z2QNS
 '''
 
 import numpy as np
 import itertools as it
 from QuantumNumber import *
 
-__all__=['SQN','SQNS','PQN','PQNS','SPQN','SPQNS','Z2QN','Z2QNS']
+__all__=['SQN','SQNS','PQN','PQNS','SPQN','SzPQNS','SPQNS','Z2QN','Z2QNS']
 
 class SQN(QuantumNumber):
     '''
@@ -46,7 +46,7 @@ def SQNS(S):
 
 class PQN(QuantumNumber):
     '''
-    The quantum number for a spinless particle state with the particle number N.
+    The quantum number for a single particle state with the particle number N.
 
     Attributes
     ----------
@@ -60,7 +60,7 @@ class PQN(QuantumNumber):
 
 def PQNS(N):
     '''
-    The collection of quantum numbers for a single site occupied with maximum N spinless particle.
+    The collection of quantum numbers for a single site occupied with maximum N identical particles.
 
     Parameters
     ----------
@@ -76,7 +76,7 @@ def PQNS(N):
 
 class SPQN(QuantumNumber):
     '''
-    The quantum number for a spinful particle state with particle number N and spin-z-component Sz.
+    The quantum number for a single particle state with particle number N and spin-z-component Sz.
 
     Attributes
     ----------
@@ -88,9 +88,25 @@ class SPQN(QuantumNumber):
     names=('N','Sz')
     periods=(None,None)
 
+def SzPQNS(Sz):
+    '''
+    The collection of quantum numbers for a spin-z-component Sz single particle state occupied with zero or one particle.
+
+    Parameters
+    ----------
+    Sz : integer / half integer
+        The value of the particle's spin.
+
+    Returns
+    -------
+    QuantumNumbers
+        The corresponding collection of quantum numbers.
+    '''
+    return QuantumNumbers('C',([SPQN((0.0,0.0)),SPQN((1.0,Sz))],[1,1]))
+
 def SPQNS(S):
     '''
-    The collection of quantum numbers for a single site occupied with maximum one spin-S particle.
+    The collection of quantum numbers for a spin-S site occupied with any available number of particles.
 
     Parameters
     ----------
@@ -125,7 +141,7 @@ class Z2QN(QuantumNumber):
 
 def Z2QNS():
     '''
-    The collection of Z2 quantum numbers.
+    The collection of Z2 quantum numbers for a single site.
 
     Returns
     -------

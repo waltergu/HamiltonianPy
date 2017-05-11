@@ -4,18 +4,18 @@ Occupation number basis
 -----------------------
 
 The basis of fermionic systems in the occupation number representation, including:
-    * classes: BasisF
+    * classes: FBasis
     * function: sequence
 '''
 
-__all__=['BasisF','sequence']
+__all__=['FBasis','sequence']
 
 from numpy import *
 from math import factorial
 from itertools import combinations
 from numba import jit
 
-class BasisF(object):
+class FBasis(object):
     '''
     Basis of fermionic systems in the occupation number representation. It provides a unified description of the three often-encountered cases:
         * particle-non-conserved systems
@@ -42,9 +42,9 @@ class BasisF(object):
     def __init__(self,tuple=(),up=(),down=(),nstate=0,dtype=int64):
         '''
         Constructor. It can be used in three different ways:
-            * ``BasisF(nstate=...,dtype=...)``, which generates a a particle-non-conserved basis.
-            * ``BasisF((...,...),dtype=...)``, which generates a a particle-non-conserved basis
-            * ``BasisF(up=(...,...),down=(...,...),dtype=...)``, which generates a a particle-non-conserved basis
+            * ``FBasis(nstate=...,dtype=...)``, which generates a a particle-non-conserved basis.
+            * ``FBasis((...,...),dtype=...)``, which generates a a particle-non-conserved basis
+            * ``FBasis(up=(...,...),down=(...,...),dtype=...)``, which generates a a particle-non-conserved basis
 
         Parameters
         ----------

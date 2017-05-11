@@ -1,18 +1,18 @@
 '''
-OperatorF test.
+FOperator test.
 '''
 
-__all__=['test_operatorf']
+__all__=['test_foperator']
 
 from HamiltonianPy.Basics.Geometry import *
 from HamiltonianPy.Basics.DegreeOfFreedom import *
 from HamiltonianPy.Basics.Operator import *
 from HamiltonianPy.Basics.FermionicPackage import *
 
-def test_operatorf():
-    print 'test_operatorf'
-    a=OperatorF(
-        mode=       'f_quadratic',
+def test_foperator():
+    print 'test_foperator'
+    a=FOperator(
+        mode=       'fquadratic',
         value=      1.0j,
         indices=    [   Index(PID(site=1),FID(orbital=0,spin=0,nambu=CREATION)),
                         Index(PID(site=1),FID(orbital=0,spin=0))
@@ -21,8 +21,8 @@ def test_operatorf():
         icoords=    [[0.0,0.0]],
         seqs=       [1,1]
         )
-    b=OperatorF(
-        mode=       'f_quadratic',
+    b=FOperator(
+        mode=       'fquadratic',
         value=      2.0,
         indices=    [   Index(PID(site=0),FID(orbital=0,spin=0)),
                         Index(PID(site=0),FID(orbital=0,spin=0,nambu=CREATION))
@@ -36,8 +36,8 @@ def test_operatorf():
     print 'b: %s'%b
     print 'a.is_Hermitian: %s'%a.is_Hermitian()
     print 'a.is_normal_ordered, a.dagger.is_normal_ordered: %s, %s'%(a.is_normal_ordered(),a.dagger.is_normal_ordered())
-    c=OperatorF(
-        mode=       'f_quadratic',
+    c=FOperator(
+        mode=       'fquadratic',
         value=      1.0j,
         indices=    [   Index(PID(site=1),FID(orbital=0,spin=0)),
                         Index(PID(site=1),FID(orbital=0,spin=0,nambu=CREATION))
@@ -46,8 +46,8 @@ def test_operatorf():
         icoords=    [[0.0,0.0]],
         seqs=       [1,1]
         )
-    d=OperatorF(
-        mode=       'f_quadratic',
+    d=FOperator(
+        mode=       'fquadratic',
         value=      2.0,
         indices=    [   Index(PID(site=1),FID(orbital=0,spin=0)),
                         Index(PID(site=1),FID(orbital=0,spin=0,nambu=CREATION))
@@ -64,7 +64,7 @@ def test_operatorf():
     print 'c+(d+2*c):\n%s'%(c+(d+2*c))
     print '(c+d)*2:\n%s'%((c+d)*2)
     print '2*(c+d):\n%s'%(2*(c+d))
-    f=OperatorCollection()
+    f=Operators()
     f+=c
     f+=c
     f+=d

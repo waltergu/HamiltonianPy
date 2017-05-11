@@ -19,7 +19,7 @@ def test_ed():
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1))
     a=ED(
             name=       name,
-            basis=      BasisF(up=(m*n,m*n/2),down=(m*n,m*n/2)),
+            basis=      FBasis(up=(m*n,m*n/2),down=(m*n,m*n/2)),
             lattice=    lattice,
             config=     config,
             terms=[     Hopping('t',t,neighbour=1),

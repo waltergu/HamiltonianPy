@@ -7,7 +7,7 @@ __all__=['EB','DOS','GF','FS','BC','GP','CPFF']
 
 import numpy as np
 from EngineApp import App
-from FermionicPackage import F_Linear
+from FermionicPackage import FLinear
 from ..Misc import berry_curvature
 
 class EB(App):

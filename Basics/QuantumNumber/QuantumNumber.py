@@ -110,7 +110,7 @@ class QuantumNumber(np.ndarray):
     __str__=__repr__
 
     @classmethod
-    def zeros(cls):
+    def zero(cls):
         '''
         Return a new quantum number with all the values equal to zero.
         '''

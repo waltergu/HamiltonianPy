@@ -5,7 +5,7 @@ Fermionic system support
 .. automodule:: HamiltonianPy.Basics.FermionicPackage.__init__
    :members:
 
-.. automodule:: HamiltonianPy.Basics.FermionicPackage.BasisF
+.. automodule:: HamiltonianPy.Basics.FermionicPackage.Basis
    :members:
 
 .. automodule:: HamiltonianPy.Basics.FermionicPackage.DegreeOfFreedom

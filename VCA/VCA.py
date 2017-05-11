@@ -61,7 +61,7 @@ class VCA(ED.ED):
             The cluster Green's function.
         * preloads[1]: HP.GF
             The VCA Green's function.
-    basis : BasisF
+    basis : FBasis
         The occupation number basis of the system.
     cell : Lattice
         The unit cell of the system.
@@ -82,11 +82,11 @@ class VCA(ED.ED):
         The generator for the perturbation coming from the inter-cluster single-particle terms.
     ptwgenerator : Generator
         The generator for the perturbation cominig from the Weiss terms.
-    operators : OperatorCollection
+    operators : Operators
         The 'half' of the operators for the cluster Hamiltonian, including the Weiss terms.
-    pthoperators : OperatorCollection
+    pthoperators : Operators
         The 'half' of the operators for the perturbation, not including Weiss terms.
-    ptwoperators : OperatorCollection
+    ptwoperators : Operators
         The 'half' of the operators for the perturbation of Weiss terms.
     periodization : dict
         It contains two entries, the necessary information to restore the translation symmetry broken by the explicit tiling of the original lattice:
@@ -122,7 +122,7 @@ class VCA(ED.ED):
         ----------
         cgf : HP.ED.GF
             The cluster Green's function.
-        basis : BasisF, optional
+        basis : FBasis, optional
             The occupation number basis of the system.
         cell : Lattice, optional
             The unit cell of the system.

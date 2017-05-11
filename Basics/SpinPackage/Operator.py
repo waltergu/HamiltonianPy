@@ -4,15 +4,15 @@ Spin operator
 -------------
 
 Spin operator, including:
-    * classes: OperatorS
+    * classes: SOperator
 '''
 
-__all__=['OperatorS']
+__all__=['SOperator']
 
 from numpy import *
 from ..Operator import *
 
-class OperatorS(Operator):
+class SOperator(Operator):
     '''
     This class gives a unified description of spin operators.
 
@@ -29,24 +29,24 @@ class OperatorS(Operator):
     seqs : tuple of integer, optional
         The associated sequences of the operator, whose length should be equal to the operator's rank.
     '''
+
     def __init__(self,value,indices,spins,rcoords=None,icoords=None,seqs=None):
         '''
         Constructor.
         '''
-        super(OperatorS,self).__init__(value)
+        super(SOperator,self).__init__(value)
         self.indices=tuple(indices)
         self.spins=tuple(spins)
         if rcoords is not None: self.rcoords=tuple(rcoords)
         if icoords is not None: self.icoords=tuple(icoords)
         if seqs is not None: self.seqs=tuple(seqs)
-        self.set_id()
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
         result=[]
-        result.append('OperatorS(')
+        result.append('SOperator(')
         result.append('value=%s'%self.value)
         result.append(', indices=%s'%(self.indices,))
         result.append(', spins=%s'%(self.spins,))
@@ -56,14 +56,15 @@ class OperatorS(Operator):
         result.append(')')
         return ''.join(result)
 
-    def set_id(self):
+    @property
+    def id(self):
         '''
-        Set the unique id of this operator.
+        The unique id of this operator.
         '''
         if hasattr(self,'rcoords'):
-            self.id=tuple(list(self.indices)+[spin.id for spin in self.spins]+['%f'%i for i in concatenate(self.rcoords)])
+            return tuple(list(self.indices)+[spin.tag for spin in self.spins]+['%f'%i for i in concatenate(self.rcoords)])
         else:
-            self.id=tuple(list(self.indices)+[spin.id for spin in self.spins])
+            return tuple(list(self.indices)+[spin.tag for spin in self.spins])
 
     @property
     def rank(self):

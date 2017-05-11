@@ -1,16 +1,16 @@
 '''
-BasisF test.
+FBasis test.
 '''
-__all__=['test_basisf']
+__all__=['test_fbasis']
 
-from HamiltonianPy.Basics.FermionicPackage.BasisF import *
+from HamiltonianPy.Basics.FermionicPackage.Basis import *
 from numba import jit
 import time
 
-def test_basisf():
-    print 'test_basisf'
+def test_fbasis():
+    print 'test_fbasis'
     m,n,nloop=12,6,10
-    a=BasisF(up=(m,n),down=(m,n))
+    a=FBasis(up=(m,n),down=(m,n))
     stime=time.time()
     for j in xrange(nloop):
         loop(a.table,a.nbasis)

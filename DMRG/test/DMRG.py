@@ -15,8 +15,8 @@ def test_dmrg():
     print 'test_dmrg'
     mkl.set_num_threads(1)
     Engine.DEBUG=True
-    test_dmrg_spin()
-    test_dmrg_spinless_fermion()
+    #test_dmrg_spin()
+    #test_dmrg_spinless_fermion()
     test_dmrg_spinful_fermion()
 
 def test_dmrg_spin():
@@ -27,9 +27,12 @@ def test_dmrg_spin():
         log=        Log('spin-%s.log'%(spin),mode='a+'),
         name=       'spin-%s'%(spin),
         mps=        MPS(mode='QN') if qn_on else MPS(mode='NB'),
-        lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
-        terms=      [SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())],
-        #terms=     [SpinTerm('J',J,neighbour=1,indexpacks=IndexPackList(SpinPack(0.5,('+','-')),SpinPack(0.5,('-','+'))))]
+        lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0]),nneighbour=2),
+        #terms=      [SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())],
+        terms=[     SpinTerm('J',J,neighbour=1,indexpacks=IndexPacks(SpinPack(0.5,('+','-')),SpinPack(0.5,('-','+')))),
+                    SpinTerm('J2',J*0.1,neighbour=2,indexpacks=IndexPacks(SpinPack(0.5,('+','-')),SpinPack(0.5,('-','+')))),
+                    SpinTerm('h',J*0.01,neighbour=0,indexpacks=S('z'))
+                    ],
         config=     IDFConfig(priority=priority,map=lambda pid: Spin(S=spin)),
         degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SQNS(S=spin)) if qn_on else
                     DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: int(spin*2+1)),
@@ -42,10 +45,10 @@ def test_dmrg_spin():
             targets=    [SQN(0.0)]*(N/2) if qn_on else [None]*(N/2),
             nmax=       20,
             save_data=  False,
-            plot=       False,
+            plot=       True,
             run=DMRGTSG
             )
-    dmrg.register(TSS(name='SWEEP',target=SQN(0.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=False,save_fig=True,run=DMRGTSS))
+    dmrg.register(TSS(name='SWEEP',target=SQN(0.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS))
     dmrg.summary()
     print
 
@@ -81,9 +84,8 @@ def test_dmrg_spinless_fermion():
 
 def test_dmrg_spinful_fermion():
     print 'test_dmrg_spinful_fermion'
-    N,t,U,qn_on=20,-1.0,1.0,True
+    N,t,U,qn_on=20,-0.1,0.1,True
     priority,layers=('scope','site','orbital','spin','nambu'),[('scope','site','orbital'),('spin',)]
-    degfres_map=lambda index: QuantumNumbers('C',([SPQN((0.0,0.0)),SPQN((1.0,0.5 if index.spin==1 else -0.5))],[1,1]),protocal=QuantumNumbers.COUNTS)
     dmrg=DMRG(
         log=        Log('fermin-spin-0.5.log',mode='a+'),
         name=       'fermion-spin-0.5',
@@ -91,7 +93,7 @@ def test_dmrg_spinful_fermion():
         lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
         terms=      [Hopping('t',t,neighbour=1),Hubbard('U',U)],
         config=     IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1)),
-        degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=degfres_map) if qn_on else
+        degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SzPQNS(index.spin-0.5)) if qn_on else
                     DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: 2),
         layer=      0,
         mask=       ['nambu'],

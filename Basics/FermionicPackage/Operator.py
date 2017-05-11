@@ -4,17 +4,17 @@ Fermionic operator
 ------------------
 
 Fermionic operator, including:
-    * classes: OperatorF
-    * functions: F_Linear, F_Quadratic, F_Hubbard, fspoperators
+    * classes: FOperator
+    * functions: FLinear, FQuadratic, FHubbard
 '''
 
-__all__=['OperatorF','F_Linear','F_Quadratic','F_Hubbard','fspoperators']
+__all__=['FOperator','FLinear','FQuadratic','FHubbard']
 
 from numpy import *
 from DegreeOfFreedom import ANNIHILATION,CREATION
 from ..Operator import *
 
-class OperatorF(Operator):
+class FOperator(Operator):
     '''
     This class gives a unified description of fermionic operators with different ranks.
 
@@ -38,11 +38,11 @@ class OperatorF(Operator):
             * The `rcoords` and `icoords` is the whole operator's property instead of each of its rank-1 component.
             However, for operators with the same attribute `mode`, the lengths of their `rcoords` and `icoords` should be fixed and equal to each other.
         * Current supported modes include:
-            * 'f_linear': rank==1 fermionic operators
+            * 'flinear': rank==1 fermionic operators
                 The single particle operators.
-            * 'f_quadratic': rank==2 fermionic operators
+            * 'fquadratic': rank==2 fermionic operators
                 Only one rcoord and one icoord are needed which are identical to the bond's rcoord and icoord where the quadratic operator is defined.
-            * 'f_hubbard': rank==4 fermionic operators
+            * 'fhubbard': rank==4 fermionic operators
                 Only one rcoord and icoord is needed because Hubbard operators are always on-site ones.
     '''
 
@@ -63,20 +63,19 @@ class OperatorF(Operator):
         seqs : tuple of integer, optional
              The associated sequences of the operator, whose length should be equal to the operator's rank.
         '''
-        super(OperatorF,self).__init__(value)
+        super(FOperator,self).__init__(value)
         self.mode=mode
         self.indices=tuple(indices)
         self.rcoords=tuple([array(obj) for obj in rcoords])
         self.icoords=tuple([array(obj) for obj in icoords])
         if seqs is not None: self.seqs=tuple(seqs)
-        self.set_id()
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
         result=[]
-        result.append('OperatorF(')
+        result.append('FOperator(')
         result.append('mode=%s'%self.mode)
         result.append(', value=%s'%self.value)
         result.append(', indices=%s'%(self.indices,))
@@ -86,18 +85,26 @@ class OperatorF(Operator):
         result.append(')')
         return ''.join(result)
 
-    def set_id(self):
+    @property
+    def id(self):
         '''
-        Set the unique id of this operator.
+        The unique id of this operator.
         '''
-        self.id=self.indices+tuple(['%f'%i for i in concatenate(self.rcoords)])
+        return self.indices+tuple(['%f'%rcoord for rcoord in concatenate(self.rcoords)])
 
     @property
     def dagger(self):
         '''
         The dagger, i.e. the Hermitian conjugate of an operator.
         '''
-        return OperatorF(mode=self.mode,value=conjugate(self.value),indices=reversed([obj.replace(nambu=1-obj.nambu) for obj in self.indices]),rcoords=reversed(list(self.rcoords)),icoords=reversed(list(self.icoords)),seqs=reversed(list(self.seqs)) if hasattr(self,'seqs') else None)
+        return FOperator(
+                mode=           self.mode,
+                value=          conjugate(self.value),
+                indices=        reversed([obj.replace(nambu=1-obj.nambu) for obj in self.indices]),
+                rcoords=        reversed(list(self.rcoords)),
+                icoords=        reversed(list(self.icoords)),
+                seqs=           reversed(list(self.seqs)) if hasattr(self,'seqs') else None
+                )
 
     @property
     def rank(self):
@@ -122,41 +129,20 @@ class OperatorF(Operator):
         '''
         return self==self.dagger
 
-def F_Linear(value,indices,rcoords,icoords,seqs=None):
+def FLinear(value,indices,rcoords,icoords,seqs=None):
     '''
-    A specialized constructor to create an Operator instance with mode='f_linear'.
+    A specialized constructor to create an Operator instance with mode='flinear'.
     '''
-    return OperatorF('f_linear',value,indices,rcoords,icoords,seqs)
+    return FOperator('flinear',value,indices,rcoords,icoords,seqs)
 
-def F_Quadratic(value,indices,rcoords,icoords,seqs=None):
+def FQuadratic(value,indices,rcoords,icoords,seqs=None):
     '''
-    A specialized constructor to create an Operator instance with mode='f_quadratic'.
+    A specialized constructor to create an Operator instance with mode='fquadratic'.
     '''
-    return OperatorF('f_quadratic',value,indices,rcoords,icoords,seqs)
+    return FOperator('fquadratic',value,indices,rcoords,icoords,seqs)
 
-def F_Hubbard(value,indices,rcoords,icoords,seqs=None):
+def FHubbard(value,indices,rcoords,icoords,seqs=None):
     '''
-    A specialized constructor to create an Operator instance with mode='f_hubbard'.
+    A specialized constructor to create an Operator instance with mode='fhubbard'.
     '''
-    return OperatorF('f_hubbard',value,indices,rcoords,icoords,seqs)
-
-def fspoperators(table,lattice):
-    '''
-    Generate the fermionic single particle operators corresponding to a table.
-
-    Parameters
-    ----------
-    table : Table
-        The index-sequence table of the fermionic single particle operators.
-    lattice : Lattice
-        The lattice on which the fermionic single particle operators are defined.
-
-    Returns
-    -------
-    list of OperatorF
-        The fermionic single particle operators corresponding to the table.
-    '''
-    result=[]
-    for ndx in sorted(table,key=table.get):
-        result.append(F_Linear(1,indices=[ndx],rcoords=[lattice.rcoord(ndx.pid)],icoords=[lattice.icoord(ndx.pid)],seqs=[table[ndx]]))
-    return result
+    return FOperator('fhubbard',value,indices,rcoords,icoords,seqs)

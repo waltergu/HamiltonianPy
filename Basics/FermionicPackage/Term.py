@@ -4,11 +4,11 @@ Fermionic terms
 ---------------
 
 Fermionic terms, including:
-    * classes: Quadratic, QuadracticList, Hubbard, HubbardList
+    * classes: Quadratic, Quadratics, Hubbard, Hubbards
     * functions: Hopping, Onsite, Pairing
 '''
 
-__all__=['Quadratic','QuadraticList','Hopping','Onsite','Pairing','Hubbard','HubbardList']
+__all__=['Quadratic','Quadratics','Hopping','Onsite','Pairing','Hubbard','Hubbards']
 
 from numpy import *
 from ..Constant import *
@@ -26,7 +26,7 @@ class Quadratic(Term):
     ----------
     neighbour : integer
         The order of neighbour of this quadratic term.
-    indexpacks : IndexPackList or function which returns IndexPackList
+    indexpacks : IndexPacks or function which returns IndexPacks
         The indexpacks of the quadratic term.
         When it is a function, it can return bond dependent indexpacks as needed.
     amplitude : function which returns float or complex
@@ -54,11 +54,11 @@ class Quadratic(Term):
         atoms,orbitals,spins : list of integer, optional
             The atom, orbital and spin index used to construct a wanted instance of FermiPack.
             When the parameter indexpacks is a function, these parameters will be omitted.
-        indexpacks : IndexPackList or function, optional
-            * IndexPackList:
+        indexpacks : IndexPacks or function, optional
+            * IndexPacks:
                 It will be multiplied by an instance of FermiPack constructed from atoms, orbitals and spins as the final indexpacks. 
             * function:
-                It must return an instance of IndexPackList and take an instance of Bond as its only argument.
+                It must return an instance of IndexPacks and take an instance of Bond as its only argument.
         amplitude: function, optional
             It must return a float or complex and take an instance of Bond as its only argument.
         modulate: function, optional
@@ -67,14 +67,14 @@ class Quadratic(Term):
         super(Quadratic,self).__init__(id=id,mode=mode,value=value,modulate=modulate)
         self.neighbour=neighbour
         if indexpacks is not None:
-            if isinstance(indexpacks,IndexPackList):
+            if isinstance(indexpacks,IndexPacks):
                 self.indexpacks=FermiPack(1,atoms=atoms,orbitals=orbitals,spins=spins)*indexpacks
             elif callable(indexpacks):
                 self.indexpacks=indexpacks
             else:
-                raise ValueError('Quadratic init error: the input indexpacks should be an instance of IndexPackList or a function.')
+                raise ValueError('Quadratic init error: the input indexpacks should be an instance of IndexPacks or a function.')
         else:
-            self.indexpacks=IndexPackList(FermiPack(1,atoms=atoms,orbitals=orbitals,spins=spins))
+            self.indexpacks=IndexPacks(FermiPack(1,atoms=atoms,orbitals=orbitals,spins=spins))
         self.amplitude=amplitude
 
     def __repr__(self):
@@ -95,23 +95,23 @@ class Quadratic(Term):
 
     def __add__(self,other):
         '''
-        Overloaded operator(+), which supports the addition of a Quadratic instance with a Quadratic/QuadraticList instance.
+        Overloaded operator(+), which supports the addition of a Quadratic instance with a Quadratic/Quadratics instance.
         '''
-        result=QuadraticList()
+        result=Quadratics()
         result.append(self)
         if isinstance(other,Quadratic):
             result.append(other)
-        elif isinstance(other,QuadraticList):
+        elif isinstance(other,Quadratics):
             result.extend(other)
         else:
-            raise ValueError('Quadratic "+" error: the other parameter must be an instance of Quadratic or QuadraticList.')
+            raise ValueError('Quadratic "+" error: the other parameter must be an instance of Quadratic or Quadratics.')
         return result
 
     def __pos__(self):
         '''
         Overloaded operator(+), i.e. +self.
         '''
-        result=QuadraticList()
+        result=Quadratics()
         result.append(self)
         return result
 
@@ -209,7 +209,7 @@ def Pairing(id,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpacks=None,a
     '''
     return Quadratic(id,'pr',value,neighbour,atoms,orbitals,spins,indexpacks,amplitude,modulate)
 
-class QuadraticList(TermList):
+class Quadratics(Terms):
     '''
     This class packs several Quadratic instances as a whole for convenience.
     '''
@@ -263,7 +263,7 @@ class QuadraticList(TermList):
 
         Returns
         -------
-        OperatorCollection
+        Operators
             The quadratic operators with non-zero coefficients.
 
         Notes
@@ -279,20 +279,20 @@ class QuadraticList(TermList):
         return result
 
 def to_operators(mesh,bond,config,table=None):
-    result=OperatorCollection()
+    result=Operators()
     indices=argwhere(abs(mesh)>RZERO)
     for (i,j) in indices:
         eindex=Index(bond.epoint.pid,config[bond.epoint.pid].state_index(i))
         sindex=Index(bond.spoint.pid,config[bond.spoint.pid].state_index(j))
         if table is None:
-            result+=F_Quadratic(mesh[i,j],indices=(eindex.replace(nambu=1-eindex.nambu),sindex),rcoords=[bond.rcoord],icoords=[bond.icoord],seqs=None)
+            result+=FQuadratic(mesh[i,j],indices=(eindex.replace(nambu=1-eindex.nambu),sindex),rcoords=[bond.rcoord],icoords=[bond.icoord],seqs=None)
         elif eindex in table and sindex in table:
-            result+=F_Quadratic(mesh[i,j],indices=(eindex.replace(nambu=1-eindex.nambu),sindex),rcoords=[bond.rcoord],icoords=[bond.icoord],seqs=(table[eindex],table[sindex]))
+            result+=FQuadratic(mesh[i,j],indices=(eindex.replace(nambu=1-eindex.nambu),sindex),rcoords=[bond.rcoord],icoords=[bond.icoord],seqs=(table[eindex],table[sindex]))
         else:
             etemp=eindex.replace(nambu=None)
             stemp=sindex.replace(nambu=None)
             if stemp in table and etemp in table:
-                result+=F_Quadratic(mesh[i,j],indices=(eindex.replace(nambu=1-eindex.nambu),sindex),rcoords=[bond.rcoord],icoords=[bond.icoord],seqs=(table[etemp],table[stemp]))
+                result+=FQuadratic(mesh[i,j],indices=(eindex.replace(nambu=1-eindex.nambu),sindex),rcoords=[bond.rcoord],icoords=[bond.icoord],seqs=(table[etemp],table[stemp]))
     return result
 
 class Hubbard(Term):
@@ -334,23 +334,23 @@ class Hubbard(Term):
 
     def __add__(self,other):
         '''
-        Overloaded operator(+), which supports the addition of a Hubbard instance with a Hubbard/HubbardList instance.
+        Overloaded operator(+), which supports the addition of a Hubbard instance with a Hubbard/Hubbards instance.
         '''
-        result=HubbardList()
+        result=Hubbards()
         result.append(self)
         if isinstance(other,Hubbard):
             result.append(other)
-        elif isinstance(other,HubbardList):
+        elif isinstance(other,Hubbards):
             result.extend(other)
         else:
-            raise ValueError('Hubbard "+" error: the other parameter must be an instance of Hubbard or HubbardList')
+            raise ValueError('Hubbard "+" error: the other parameter must be an instance of Hubbard or Hubbards')
         return result
 
     def __pos__(self):
         '''
         Overloaded operator(+), i.e. +self.
         '''
-        result=HubbardList()
+        result=Hubbards()
         result.append(self)
         return result
 
@@ -424,7 +424,7 @@ class Hubbard(Term):
                         result[i,j,k,l]=self.value[3]
         return result
 
-class HubbardList(TermList):
+class Hubbards(Terms):
     '''
     This class pack several Hubbard instances as a whole for convenience.
     '''
@@ -437,7 +437,7 @@ class HubbardList(TermList):
         ----------
         bond : Bond
             The bond on which the Hubbard term is defined.
-        config : Configuration
+        config : IDFConfig
             The configuration of degrees of freedom.
         dtype : complex128,complex64,float128,float64, optional
             The data type of the returned mesh.
@@ -456,7 +456,7 @@ class HubbardList(TermList):
                     result+=obj.mesh(bond,config,dtype=dtype)
                 return result
             else:
-                raise ValueError('HubbardList mesh error: the input bond must be onsite ones nspin=2.')
+                raise ValueError('Hubbards mesh error: the input bond must be onsite ones nspin=2.')
         else:
             return 0
 
@@ -477,7 +477,7 @@ class HubbardList(TermList):
  
         Returns
         -------
-        OperatorCollection
+        Operators
             All the Hubbard operators with non-zero coeffcients.
 
         Notes
@@ -486,7 +486,7 @@ class HubbardList(TermList):
             * The Hermitian conjugate of non-Hermitian operators is not included;
             * The coefficient of the self-Hermitian operators is divided by a factor 2.
         '''
-        result=OperatorCollection()
+        result=Operators()
         dgr=config[bond.epoint.pid]
         mesh=self.mesh(bond,config,dtype=dtype)
         indices=argwhere(abs(mesh)>RZERO)
@@ -501,7 +501,7 @@ class HubbardList(TermList):
                 seqs=(table[index1],table[index2],table[index3],table[index4])
             else:
                 seqs=(table[index1.mask('nambu')],table[index2.mask('nambu')],table[index3.mask('nambu')],table[index4.mask('nambu')])
-            result+=F_Hubbard(
+            result+=FHubbard(
                 value=      mesh[i,j,k,l],
                 indices=    (index1.replace(nambu=CREATION),index2.replace(nambu=CREATION),index3,index4),
                 rcoords=    [bond.epoint.rcoord],

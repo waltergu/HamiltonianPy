@@ -27,7 +27,7 @@ class ED(HP.Engine):
 
     Attributes
     ----------
-    basis : BasisF
+    basis : FBasis
         The occupation number basis of the system.
     lattice : Lattice
         The lattice of the system.
@@ -39,7 +39,7 @@ class ED(HP.Engine):
         The data type of the matrix representation of the Hamiltonian.
     generator : Generator
         The generator for the Hamiltonian.
-    operators : OperatorCollection
+    operators : Operators
         The 'half' of the operators for the Hamiltonian.
     matrix : csr_matrix
         The sparse matrix representation of the cluster Hamiltonian.
@@ -61,7 +61,7 @@ class ED(HP.Engine):
 
         Parameters
         ----------
-        basis : BasisF, optional
+        basis : FBasis, optional
             The occupation number basis of the system.
         lattice : Lattice, optional
             The lattice of the system.
@@ -96,7 +96,7 @@ class ED(HP.Engine):
         '''
         self.matrix=csr_matrix((self.basis.nbasis,self.basis.nbasis),dtype=self.dtype)
         for operator in self.operators.itervalues():
-            self.matrix+=HP.f_opt_rep(operator,self.basis,transpose=False)
+            self.matrix+=HP.foptrep(operator,self.basis,transpose=False)
         self.matrix+=self.matrix.T.conjugate()
         self.matrix=self.matrix.T
 
@@ -121,22 +121,22 @@ class ED(HP.Engine):
         elif self.basis.mode=='FP':
             result=deepcopy(self)
             if nambu==HP.CREATION:
-                result.basis=HP.BasisF((self.basis.nstate,self.basis.nparticle+1))
+                result.basis=HP.FBasis((self.basis.nstate,self.basis.nparticle+1))
             else:
-                result.basis=HP.BasisF((self.basis.nstate,self.basis.nparticle-1))
+                result.basis=HP.FBasis((self.basis.nstate,self.basis.nparticle-1))
             result.matrix=csr_matrix((result.basis.nbasis,result.basis.nbasis),dtype=self.dtype)
             result.set_matrix()
             return result
         else:
             result=deepcopy(self)
             if nambu==HP.CREATION and spin==0:
-                result.basis=HP.BasisF(up=(self.basis.nstate[0],self.basis.nparticle[0]),down=(self.basis.nstate[1],self.basis.nparticle[1]+1))
+                result.basis=HP.FBasis(up=(self.basis.nstate[0],self.basis.nparticle[0]),down=(self.basis.nstate[1],self.basis.nparticle[1]+1))
             elif nambu==HP.ANNIHILATION and spin==0:
-                result.basis=HP.BasisF(up=(self.basis.nstate[0],self.basis.nparticle[0]),down=(self.basis.nstate[1],self.basis.nparticle[1]-1))
+                result.basis=HP.FBasis(up=(self.basis.nstate[0],self.basis.nparticle[0]),down=(self.basis.nstate[1],self.basis.nparticle[1]-1))
             elif nambu==HP.CREATION and spin==1:
-                result.basis=HP.BasisF(up=(self.basis.nstate[0],self.basis.nparticle[0]+1),down=(self.basis.nstate[1],self.basis.nparticle[1]))
+                result.basis=HP.FBasis(up=(self.basis.nstate[0],self.basis.nparticle[0]+1),down=(self.basis.nstate[1],self.basis.nparticle[1]))
             else:
-                result.basis=HP.BasisF(up=(self.basis.nstate[0],self.basis.nparticle[0]-1),down=(self.basis.nstate[1],self.basis.nparticle[1]))
+                result.basis=HP.FBasis(up=(self.basis.nstate[0],self.basis.nparticle[0]-1),down=(self.basis.nstate[1],self.basis.nparticle[1]))
             result.matrix=csr_matrix((result.basis.nbasis,result.basis.nbasis),dtype=self.dtype)
             result.set_matrix()
             return result
@@ -300,7 +300,7 @@ def EDGFP(engine,app):
                         ed=engine.__replace_basis__(nambu=1-h,spin=0)
                     if i==app.nopt/2 and app.nspin==2 and engine.basis.mode=='FS':
                         ed=engine.__replace_basis__(nambu=1-h,spin=1)
-                    mat=HP.f_opt_rep(opt.dagger if h==0 else opt,basis=[engine.basis,ed.basis],transpose=True)
+                    mat=HP.foptrep(opt.dagger if h==0 else opt,basis=[engine.basis,ed.basis],transpose=True)
                     state=mat.dot(app.v0)
                     states.append(state)
                     temp=norm(state)

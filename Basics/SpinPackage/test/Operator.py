@@ -1,8 +1,8 @@
 '''
-OperatorS test.
+SOperator test.
 '''
 
-__all__=['test_operators']
+__all__=['test_soperator']
 
 from numpy import *
 from HamiltonianPy.Basics.Geometry import *
@@ -10,36 +10,33 @@ from HamiltonianPy.Basics.DegreeOfFreedom import *
 from HamiltonianPy.Basics.Operator import *
 from HamiltonianPy.Basics.SpinPackage import *
 
-def test_operators():
-    print 'test_operators'
+def test_soperator():
+    print 'test_soperator'
     J,N=1.0,2
     a1=array([1.0,0.0])
     rcoords=tiling([array([0.0,0.0])],vectors=[a1],translations=xrange(N))
-    l=Lattice(name='WG',rcoords=rcoords,vectors=[a1*N],nneighbour=1)
+    lattice=Lattice(name='WG',rcoords=rcoords,vectors=[a1*N],nneighbour=1)
 
-    config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY)
-    for pid in l.pids:
-        config[pid]=Spin(S=0.5)
-    opts=OperatorCollection()
-    table=config.table()
+    config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY,pids=lattice.pids,map=lambda pid: Spin(S=0.5))
+    opts,table=Operators(),config.table()
 
-    for bond in l.bonds:
+    for bond in lattice.bonds:
         if bond.neighbour==1:
             spid,epid=bond.spoint.pid,bond.epoint.pid
             sS,eS=config[spid].S,config[epid].S
             sindex,eindex=Index(pid=spid,iid=SID(S=sS)),Index(pid=epid,iid=SID(S=eS))
-            opts+=OperatorS(
+            opts+=SOperator(
                 value=      J/2,
                 indices=    [sindex,eindex],
-                spins=      [SpinMatrix(id=(sS,'+'),dtype=float64),SpinMatrix(id=(eS,'-'),dtype=float64)],
+                spins=      [SpinMatrix(sS,'+',dtype=float64),SpinMatrix(eS,'-',dtype=float64)],
                 rcoords=     [bond.spoint.rcoord,bond.epoint.rcoord],
                 icoords=     [bond.spoint.icoord,bond.epoint.icoord],
                 seqs=       (table[sindex],table[eindex])
             )
-            opts+=OperatorS(
+            opts+=SOperator(
                 value=      J/2,
                 indices=    [sindex,eindex],
-                spins=      [SpinMatrix(id=(sS,'z'),dtype=float64),SpinMatrix(id=(eS,'z'),dtype=float64)],
+                spins=      [SpinMatrix(sS,'z',dtype=float64),SpinMatrix(eS,'z',dtype=float64)],
                 rcoords=    [bond.spoint.rcoord,bond.epoint.rcoord],
                 icoords=    [bond.spoint.icoord,bond.epoint.icoord],
                 seqs=       (table[sindex],table[eindex])

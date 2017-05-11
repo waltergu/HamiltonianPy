@@ -17,16 +17,18 @@ from numpy import *
 from collections import namedtuple
 import copy
 
-DEFAULT_SPIN_PRIORITY=['scope','site','S']
+DEFAULT_SPIN_PRIORITY=['scope','site','orbital','S']
 
-class SID(namedtuple('SID',['S'])):
+class SID(namedtuple('SID',['orbital','S'])):
     '''
     Internal spin ID.
 
     Attributes
     ----------
+    orbital : integer
+        The orbital index, start with 0, default value 0.
     S : integer or half integer
-        The total spin.
+        The total spin, default value 0.5.
     '''
 
     @property
@@ -36,40 +38,47 @@ class SID(namedtuple('SID',['S'])):
         '''
         return self
 
+SID.__new__.__defaults__=(0,0.5)
+
 class Spin(Internal):
     '''
     This class defines the internal spin degrees of freedom in a single point.
 
     Attributes
     ----------
+    norbital : integer
+        The number of orbitals.
     S : integer or half integer
         The total spin.
     '''
 
-    def __init__(self,S):
+    def __init__(self,norbital=1,S=0.5):
         '''
         Constructor.
 
         Parameters
         ----------
-        S : integer or half integer
+        norbital : integer, optional
+            The number of orbitals.
+        S : integer or half integer, optional
             The total spin.
         '''
         if S is not None and abs(2*S-int(2*S))>10**-6:
             raise ValueError('Spin construction error: S(%s) is not an integer or half integer.')
+        self.norbital=norbital
         self.S=S
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return 'Spin(S=%s)'%(self.S)
+        return 'Spin(norbital=%s,S=%s)'%(self.norbital,self.S)
 
     def __eq__(self,other):
         '''
         Overloaded operator(==).
         '''
-        return self.S==other.S
+        return self.norbital==other.norbital and self.S==other.S
 
     def indices(self,pid,mask=[]):
         '''
@@ -88,7 +97,10 @@ class Spin(Internal):
             The indices.
         '''
         pid=pid._replace(**{key:None for key in set(mask)&set(PID._fields)})
-        return [Index(pid=pid,iid=SID(None))] if 'S' in mask else [Index(pid=pid,iid=SID(S=self.S))]
+        result=[]
+        for orbital in (None,) if 'orbital' in mask else xrange(self.norbital):
+            result.append(Index(pid=pid,iid=SID(orbital=orbital,S=None if 'S' in mask else self.S)))
+        return result
 
 class SpinMatrix(ndarray):
     '''
@@ -96,56 +108,52 @@ class SpinMatrix(ndarray):
 
     Attributes
     ----------
-    id : 2-tuple
-        * id[0]: integer or half integer
-            The total spin.
-        * id[1]: any hashable object
-            The tag of the matrix.
+    S : integer or half integer
+        The total spin.
+    tag : any hashable object
+        The tag of the matrix.
     '''
 
-    def __new__(cls,id,dtype=complex128,matrix=None,**kargs):
+    def __new__(cls,S,tag,matrix=None,dtype=complex128,**kargs):
         '''
         Constructor.
 
         Parameters
         ----------
-        id : 2-tuple
-            * id[0]: integer or half integer
-                The total spin.
-            * id[1]: 'X','x','Y','y','Z','z','+','-', and any other hashable object
-                This parameter specifies the matrix.
+        S : integer or half integer
+            The total spin.
+        tag : 'I','i','X','x','Y','y','Z','z','+','-', and any other hashable object
+            The tag of the matrix.
+        matrix : 2d ndarray, optional
+            The matrix of the SpinMatrix beyond the predefined set, which will be omitted when ``tag`` is in ('I','i','X','x','Y','y','Z','z','+','-').
         dtype : float64 or complex128, optional
             The data type of the matirx.
-        matrix : 2d ndarray, optional
-            This parameter only takes effect when ``id[1]`` is not in ('X','x','Y','y','Z','z','+','-').
-            It is then used as the matrix of this SpinMatrix.
         '''
-        if isinstance(id,tuple):
-            delta=lambda i,j: 1 if i==j else 0
-            temp=(id[0])*(id[0]+1)
-            result=zeros((int(id[0]*2)+1,int(id[0]*2)+1),dtype=dtype).view(cls)
-            if id[1] in ('X','x','Y','y','Z','z','+','-'):
-                for i in xrange(int(id[0]*2)+1):
-                    row,m=int(id[0]*2)-i,id[0]-i
-                    for j in xrange(int(id[0]*2)+1):
-                        col,n=int(id[0]*2)-j,id[0]-j
-                        if id[1] in ('X','x'):
-                            result[row,col]=(delta(i+1,j)+delta(i,j+1))*sqrt(temp-m*n)/2
-                        elif id[1] in ('Y','y'):
-                            result[row,col]=(delta(i+1,j)-delta(i,j+1))*sqrt(temp-m*n)/(2j)
-                        elif id[1] in ('Z','z'):
-                            result[row,col]=delta(i,j)*m
-                        elif id[1] in ('+'):
-                            result[row,col]=delta(i+1,j)*sqrt(temp-m*n)
-                        elif id[1] in ('-'):
-                            result[row,col]=delta(i,j+1)*sqrt(temp-m*n)
-            elif matrix is not None:
-                if matrix.shape!=result.shape:
-                    raise ValueError("SpinMatrix construction error: id[0](%s) and the matrix's shape(%s) do not match."%(id[0],matrix.shape))
-                result[...]=matrix[...]
-            result.id=id
-        else:
-            raise ValueError('SpinMatrix construction error: id must be a tuple.')
+        delta=lambda i,j: 1 if i==j else 0
+        result=zeros((int(S*2)+1,int(S*2)+1),dtype=dtype).view(cls)
+        if tag in ('I','i','X','x','Y','y','Z','z','+','-'):
+            tag=tag.lower()
+            for i in xrange(int(S*2)+1):
+                row,m=int(S*2)-i,S-i
+                for j in xrange(int(S*2)+1):
+                    col,n=int(S*2)-j,S-j
+                    if tag in ('I','i'):
+                        result[row,col]=delta(i,j)
+                    elif tag in ('X','x'):
+                        result[row,col]=(delta(i+1,j)+delta(i,j+1))*sqrt(S*(S+1)-m*n)/2
+                    elif tag in ('Y','y'):
+                        result[row,col]=(delta(i+1,j)-delta(i,j+1))*sqrt(S*(S+1)-m*n)/(2j)
+                    elif tag in ('Z','z'):
+                        result[row,col]=delta(i,j)*m
+                    elif tag in ('+'):
+                        result[row,col]=delta(i+1,j)*sqrt(S*(S+1)-m*n)
+                    elif tag in ('-'):
+                        result[row,col]=delta(i,j+1)*sqrt(S*(S+1)-m*n)
+        elif matrix is not None:
+            assert matrix.shape==result.shape
+            result[...]=matrix[...]
+        result.S=S
+        result.tag=tag
         return result
 
     def __array_finalize__(self,obj):
@@ -155,33 +163,34 @@ class SpinMatrix(ndarray):
         if obj is None:
             return
         else:
-            self.pid=getattr(obj,'id',None)
+            self.S=getattr(obj,'S',None)
+            self.tag=getattr(obj,'tag',None)
 
     def __reduce__(self):
         '''
         numpy.ndarray uses __reduce__ to pickle. Therefore this mehtod needs overriding for subclasses.
         '''
         pickle=super(SpinMatrix,self).__reduce__()
-        return (pickle[0],pickle[1],pickle[2]+(self.pid,))
+        return (pickle[0],pickle[1],pickle[2]+(self.S,self.tag))
 
     def __setstate__(self,state):
         '''
         Set the state of the SpinMatrix for pickle and copy.
         '''
-        self.pid=state[-1]
+        self.S,self.tag=state[-2:]
         super(SpinMatrix,self).__setstate__(state[0:-1])
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
-        return "SpinMatrix(id=%s,\nmatrix=\n%s\n)"%(self.id,super(SpinMatrix,self).__str__())
+        return "SpinMatrix(S=%s,tag=%s,\nmatrix=\n%s\n)"%(self.S,self.tag,super(SpinMatrix,self).__str__())
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return "SpinMatrix(%s\n%s\n)"%(self.id,super(SpinMatrix,self).__str__())
+        return "SpinMatrix(%s,%s,\n%s\n)"%(self.S,self.tag,super(SpinMatrix,self).__str__())
 
 class SpinPack(IndexPack):
     '''
@@ -189,17 +198,15 @@ class SpinPack(IndexPack):
 
     Attributes
     ----------
-    pack : tuple of characters or tuple of tuples
-        * When tuple of characters:
-            Each character specifies a SpinMatrix, which must be in ('x','X','y','Y','z','Z','+','-')
-        * When tuple of tuples, for each tuple,
-            * pack[.][0]: any hashable object
-                The second part of the id of a SpinMatrix.
-            * pack[.][1]: 2d ndarray
-                The matrix of a SpinMatrix.
+    tags : tuple of characters
+        Each element is the tag of a SpinMatrix.
+    matrices : tuple of 2d ndarray/None
+        Each element is the matrix of a SpinMatrix, which should be None when the corresponding tag is in ('I','i','X','x','Y','y','Z','z','+','-').
+    orbitals : tuple of integers
+        The orbital indices for the spin term.
     '''
 
-    def __init__(self,value,pack):
+    def __init__(self,value,tags,matrices=None,orbitals=None):
         '''
         Constructor.
 
@@ -207,23 +214,25 @@ class SpinPack(IndexPack):
         ----------
         value : float64 or complex128
             The overall coefficient of the spin pack.
-        pack : tuple of characters or tuple of tuples
-            * When it is tuple of characters:
-                Each character specifies a SpinMatrix, which must be in ('x','X','y','Y','z','Z','+','-')
-            * When it is tuple of tuples, for each tuple:
-                * pack[.][0]: any hashable object
-                    The second part of the id of a SpinMatrix.
-                * pack[.][1]: 2D ndarray
-                    The matrix of a SpinMatrix.
+        tags : tuple of characters
+            Each element is the tag of a SpinMatrix.
+        matrices : tuple of 2d ndarray/None, optional
+            Each element is the matrix of a SpinMatrix, which should be None when the corresponding tag is in ('I','i','X','x','Y','y','Z','z','+','-').
+        orbitals : tuple of integers, optional
+            The orbital indices for the spin term.
         '''
+        if matrices is not None: assert len(tags)==len(matrices)
+        if orbitals is not None: assert len(tags)==len(orbitals)
         super(SpinPack,self).__init__(value)
-        self.pack=pack
+        self.tags=tuple(tags)
+        self.matrices=(None,)*len(tags) if matrices is None else matrices
+        self.orbitals=(None,)*len(tags) if orbitals is None else orbitals
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return ''.join(['SpinPack(','value=%s, ','pack=%s',')'])%(self.value,self.pack)
+        return ''.join(['SpinPack(','value=%s, ','tags=%s','matrices=%s','orbitals=%s',')'])%(self.value,self.tags,self.matrices,self.orbitals)
 
     def __mul__(self,other):
         '''
@@ -233,44 +242,43 @@ class SpinPack(IndexPack):
         result.value*=other
         return result
 
-def Heisenberg():
+def Heisenberg(orbitals=None):
     '''
     The Heisenberg spin packs.
     '''
-    result=IndexPackList()
-    result.append(SpinPack(0.5,('+','-')))
-    result.append(SpinPack(0.5,('-','+')))
-    result.append(SpinPack(1.0,('z','z')))
+    result=IndexPacks()
+    result.append(SpinPack(0.5,('+','-'),orbitals=orbitals))
+    result.append(SpinPack(0.5,('-','+'),orbitals=orbitals))
+    result.append(SpinPack(1.0,('z','z'),orbitals=orbitals))
     return result
 
-def Ising(id):
+def Ising(tag,orbitals=None):
     '''
     The Ising spin packs.
     '''
-    assert id in ('x','y','z','X','Y','Z')
-    result=IndexPackList()
-    result.append(SpinPack(1.0,(id,id)))
+    assert tag in ('x','y','z','X','Y','Z')
+    result=IndexPacks()
+    result.append(SpinPack(1.0,(tag,tag),orbitals=orbitals))
     return result
 
-def S(id,matrix=None):
+def S(tag,matrix=None,orbital=None):
     '''
     Single spin packs.
 
     Parameters
     ----------
-    id : 'x','X','y','Y','z','Z', or any other hashable object.
-        It specifies the single spin pack.
+    tag : 'x','X','y','Y','z','Z', or any other hashable object.
+        The tag of a SpinMatrix.
     matrix : 2d ndarray, optional
-        It specifies the matrix of the spin pack and takes effect only when id is not in ('x','X','y','Y','z','Z').
+        The matrix of a SpinMatrix, which should be None when `tag` is in ('x','X','y','Y','z','Z').
+    orbital : integer, optional
+        The orbital index of the spin term.
 
     Returns
     -------
-    IndexPackList
+    IndexPacks
         The single spin pack.
     '''
-    result=IndexPackList()
-    if id in ('x','X','y','Y','z','Z'):
-        result.append(SpinPack(1.0,(id,)))
-    else:
-        result.append(SpinPack(1.0,((id,matrix),)))
+    result=IndexPacks()
+    result.append(SpinPack(1.0,(tag,),matrices=None if matrix is None else (matrix,),orbitals=None if orbital is None else (orbital,)))
     return result

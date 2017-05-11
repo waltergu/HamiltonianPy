@@ -4,10 +4,10 @@ Term descriptions
 =================
 
 This module defines the way to desribe a term and a set of terms of the Hamiltonian, including:
-    * classes: Term and TermList
+    * classes: Term and Terms
 '''
 
-__all__=['Term','TermList']
+__all__=['Term','Terms']
 
 from numpy import complex128
 from copy import copy
@@ -54,7 +54,7 @@ class Term(object):
         '''
         return self.__mul__(other)
 
-class TermList(list):
+class Terms(list):
     '''
     This class packs several instances of Term's subclasses as a whole for convenience.
     '''
@@ -85,20 +85,20 @@ class TermList(list):
 
     def __add__(self,other):
         '''
-        Overloaded operator(+), which supports the left addition of a TermList instance with a Term/TermList instance.
+        Overloaded operator(+), which supports the left addition of a Terms instance with a Term/Terms instance.
         '''
         result=copy(self)
         if issubclass(other.__class__,Term):
             result.append(other)
-        elif issubclass(other.__class__,TermList):
+        elif issubclass(other.__class__,Terms):
             result.extend(other)
         else:
-            raise ValueError("%s '+' error: the other parameter must be an instance of Term's or TermList's subclasses."%self.__class__.__name__)
+            raise ValueError("%s '+' error: the other parameter must be an instance of Term's or Terms's subclasses."%self.__class__.__name__)
         return result
 
     def __radd__(self,other):
         '''
-        Overloaded operator(+), which supports the right addition of a TermList instance with a Term/TermList instance.
+        Overloaded operator(+), which supports the right addition of a Terms instance with a Term/Terms instance.
         '''
         return self.__add__(other)
 
@@ -134,7 +134,7 @@ class TermList(list):
 
         Returns
         -------
-        OperatorCollection
+        Operators
             All the desired operators with non-zero coeffcients.
 
         Notes

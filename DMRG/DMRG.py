@@ -158,7 +158,7 @@ class DMRG(Engine):
         The data type.
     generator : Generator
         The generator of the Hamiltonian.
-    operators : OperatorCollection
+    operators : Operators
         The operators of the Hamiltonian.
     mpo : MPO
         The MPO-formed Hamiltonian.
@@ -253,16 +253,13 @@ class DMRG(Engine):
         '''
         Set the generators, operators and optstrs of the DMRG.
         '''
-        self.operators=self.generator.operators
+        self.operators,self.mpo=self.generator.operators,0
         if self.mask==['nambu']:
             for operator in self.operators.values()[:]:
                 self.operators+=operator.dagger
         for i,opt in enumerate(self.operators.itervalues()):
             optstr=OptStr.from_operator(opt,self.degfres,self.degfres.layers[-1] if self.mask==['nambu'] else self.layer).relayer(self.degfres,self.layer)
-            if i==0:
-                self.mpo=optstr.to_mpo(self.degfres)
-            else:
-                self.mpo+=optstr.to_mpo(self.degfres)
+            self.mpo+=optstr.to_mpo(self.degfres)
             if i%20==0 or i==len(self.operators)-1:
                 self.mpo.compress(nsweep=1,method='dpl',options=dict(tol=hm.TOL))
 
@@ -386,9 +383,9 @@ class DMRG(Engine):
                 sysqns,syspt=QuantumNumbers.kron([La.qns,Sa.qns],signs='++').sort(history=True)
                 envqns,envpt=QuantumNumbers.kron([Sb.qns,Rb.qns],signs='-+').sort(history=True)
                 sysantipt,envantipt=np.argsort(syspt),np.argsort(envpt)
-                subslice=QuantumNumbers.kron([sysqns,envqns],signs='+-').subslice(targets=(self.target.zeros(),))
+                subslice=QuantumNumbers.kron([sysqns,envqns],signs='+-').subslice(targets=(self.target.zero(),))
                 rcs=subslice
-                qns=QuantumNumbers.mono(self.target.zeros(),count=len(subslice))
+                qns=QuantumNumbers.mono(self.target.zero(),count=len(subslice))
                 self.info['nslice']=len(subslice)
             else:
                 sysqns,syspt=np.product([La.qns,Sa.qns]),None
@@ -472,7 +469,7 @@ class DMRG(Engine):
             ob,nb=(len(obonds)+1)/2 if self.mps.nsite>0 else 1,(len(bonds)+1)/2
             L,LS,RS,R=bonds[:ob],bonds[ob:nb],bonds[nb:-ob],bonds[-ob:]
             if self.mps.cut==0:
-                L[+0]=L[+0].replace(qns=QuantumNumbers.mono(target.zeros(),count=1) if self.mps.mode=='QN' else 1)
+                L[+0]=L[+0].replace(qns=QuantumNumbers.mono(target.zero(),count=1) if self.mps.mode=='QN' else 1)
                 R[-1]=R[-1].replace(qns=QuantumNumbers.mono(target,count=1) if self.mps.mode=='QN' else 1)
             for i,(bond,obond) in enumerate(zip(L,obonds[:ob])):
                 L[i]=bond.replace(qns=obond.qns)

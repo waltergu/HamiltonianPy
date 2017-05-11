@@ -18,8 +18,8 @@ from collections import OrderedDict
 
 DEGFRE_FERMIONIC_PRIORITY=('scope','site','orbital','spin','nambu')
 DEGFRE_FERMIONIC_LAYERS=[('scope','site','orbital'),('spin',)]
-DEGFRE_SPIN_PRIORITY=['scope','site','S']
-DEGFRE_SPIN_LAYERS=[('scope','site','S')]
+DEGFRE_SPIN_PRIORITY=['scope','site','orbital','S']
+DEGFRE_SPIN_LAYERS=[('scope','site','orbital','S')]
 
 class DegFreTree(Tree):
     '''

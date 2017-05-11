@@ -30,8 +30,8 @@ def test_vcacct():
         terms=[         Hopping('t1',t1),
                         Hubbard('U',U)
                         ],
-        subsystems=[    {'basis':BasisF(up=(4,2),down=(4,2)),'lattice':LA},
-                        {'basis':BasisF(up=(4,2),down=(4,2)),'lattice':LB}
+        subsystems=[    {'basis':FBasis(up=(4,2),down=(4,2)),'lattice':LA},
+                        {'basis':FBasis(up=(4,2),down=(4,2)),'lattice':LB}
                         ],
         )
     vcacct.register(EB(name='EB',path=hexagon_gkm(nk=100),mu=U/2,emax=6.0,emin=-6.0,eta=0.05,ne=400,save_data=False,plot=True,show=True,run=VCAEB))

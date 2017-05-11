@@ -31,7 +31,7 @@ def test_mpo_spin():
     terms=[SpinTerm('J',1.0,neighbour=1,indexpacks=Heisenberg())]
 
     # set the degfres
-    S,priority,layers=1.0,['scope','site','S'],[('scope',),('site','S')]
+    S,priority,layers=1.0,['scope','site','orbital','S'],[('scope',),('site','orbital','S')]
     config=IDFConfig(priority=priority)
     for pid in lattice.pids:
         config[pid]=Spin(S=S)
@@ -51,7 +51,7 @@ def test_mpo_spin():
     mps1,mps2=MPS.random(sites,bonds,cut=cut),MPS.random(sites,bonds,cut=cut)
 
     # set the reference of test
-    mopts=[s_opt_rep(opt,table) for opt in opts]
+    mopts=[soptrep(opt,table) for opt in opts]
     overlaps=[hm.overlap(mps1.state,mopt,mps2.state) for mopt in mopts]
 
     # test optstr
@@ -106,7 +106,7 @@ def test_mpo_fermi():
 #    mps1,mps2=MPS.random(sites,bonds,cut=cut),MPS.random(sites,bonds,cut=cut)
 
 #    # set the reference of test
-#    mopts=[f_opt_rep(opt,basis=BasisF(nstate=Nscope*Nsite),transpose=True,dtype=np.complex128) for opt in opts]
+#    mopts=[foptrep(opt,basis=FBasis(nstate=Nscope*Nsite),transpose=True,dtype=np.complex128) for opt in opts]
 #    overlaps=[hm.overlap(mps1.state,mopt,mps2.state) for mopt in mopts]
 
 #    # test optstr

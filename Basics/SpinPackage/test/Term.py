@@ -24,6 +24,6 @@ def test_spin_term():
     generator=Generator(lattice.bonds,config,terms=terms,dtype=float64)
     matrix=0
     for opt in generator.operators.values():
-        matrix+=s_opt_rep(opt,table)
+        matrix+=soptrep(opt,table)
     print matrix.todense()
     print

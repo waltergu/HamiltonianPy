@@ -161,11 +161,11 @@ class FermiPack(IndexPack):
 
     Attributes
     ----------
-    atoms : tuple of integers with len==2
+    atoms : tuple of integers with len==2, optional
         The atom indices for the quadratic term.
-    orbitals : tuple of integers with len==2
+    orbitals : tuple of integers with len==2, optional
         The orbital indices for the quadratic term.
-    spins : tuple of integers with len==2
+    spins : tuple of integers with len==2, optional
             The spin indices for the quadratic term.
     '''
     
@@ -255,24 +255,24 @@ class FermiPack(IndexPack):
 
     def __mul__(self,other):
         '''
-        Overloaded operator(*), which supports the multiplication of an FermiPack instance with an FermiPack/IndexPackList instance or a scalar.
+        Overloaded operator(*), which supports the multiplication of an FermiPack instance with an FermiPack/IndexPacks instance or a scalar.
         '''
         if isinstance(other,FermiPack) or type(other)==int or type(other)==long or type(other)==float or type(other)==complex:
             result=self._mul_(other)
-        elif isinstance(other,IndexPackList):
-            result=IndexPackList()
+        elif isinstance(other,IndexPacks):
+            result=IndexPacks()
             for fpack in other:
                 temp=self._mul_(fpack)
                 if norm(temp.value)>RZERO: result.append(temp)
         else:
-            raise ValueError("FermiPack '*' error: the 'other' parameter must be of class FermiPack or IndexPackList, or a number.")
+            raise ValueError("FermiPack '*' error: the 'other' parameter must be of class FermiPack or IndexPacks, or a number.")
         return result
 
 def sigma0(mode):
     '''
     The 2-dimensional identity matrix, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
     '''
-    result=IndexPackList()
+    result=IndexPacks()
     if mode.lower()=='sp':
         result.append(FermiPack(1.0,spin1=0,spin2=0))
         result.append(FermiPack(1.0,spin1=1,spin2=1))
@@ -290,7 +290,7 @@ def sigmax(mode):
     '''
     The Pauli matrix sigmax, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
     '''
-    result=IndexPackList()
+    result=IndexPacks()
     if mode.lower()=='sp':
         result.append(FermiPack(1.0,spin1=0,spin2=1))
         result.append(FermiPack(1.0,spin1=1,spin2=0))
@@ -308,7 +308,7 @@ def sigmay(mode):
     '''
     The Pauli matrix sigmay, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
     '''
-    result=IndexPackList()
+    result=IndexPacks()
     if mode.lower()=='sp':
         result.append(FermiPack(1.0j,spin1=0,spin2=1))
         result.append(FermiPack(-1.0j,spin1=1,spin2=0))
@@ -326,7 +326,7 @@ def sigmaz(mode):
     '''
     The Pauli matrix sigmaz, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
     '''
-    result=IndexPackList()
+    result=IndexPacks()
     if mode.lower()=='sp':
         result.append(FermiPack(-1.0,spin1=0,spin2=0))
         result.append(FermiPack(1.0,spin1=1,spin2=1))

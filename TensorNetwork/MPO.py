@@ -4,56 +4,169 @@ Matrix product operator
 =======================
 
 Matrix product operator, including:
-    * classes: OptStr, MPO
+    * classes: Opt, OptStr, OptMPO, MPO
 '''
 
-__all__=['OptStr','MPO']
+__all__=['Opt','OptStr','OptMPO','MPO']
 
 import numpy as np
 import HamiltonianPy.Misc as hm
+import itertools as it
 from numpy.linalg import norm
 from collections import OrderedDict
-from HamiltonianPy import QuantumNumbers,OperatorF,OperatorS,CREATION
+from HamiltonianPy import QuantumNumbers,Operator,FOperator,SOperator,JWBosonization
 from Tensor import Tensor,Label,contract
 from MPS import MPS
-from copy import copy
+from copy import copy,deepcopy
 
-class OptStr(list):
+class Opt(Operator.Operator):
     '''
-    Operator string, a special kind of matrix product operator, with each of its elements a 2d `Tensor`.
+    A single site operator.
 
-    Notes
-    -----
-        * The virtual legs of the matrices are always one dimensional and thus omitted.
-        * The two legs of the tensors are physical ones.
+    Attributes
+    ----------
+    site : Label
+        The site label of the single site operator.
+    tag : any hashable object
+        The tag of the single site operator.
+    matrix : 2d ndarray
+        The matrix of the single site operator.
     '''
 
-    def __init__(self,ms,sites=None):
+    def __init__(self,value,site,tag,matrix):
         '''
         Constructor.
 
         Parameters
         ----------
-        ms : 2d ndarray/Tensor
-            The matrices of the mpo.
-        sites : list of Label, optional
-            The site labels of the mpo.
+        value : number
+            The overall coefficient of the single site operator.
+        site : Label
+            The site label of the single site operator.
+        tag : any hashable object
+            The tag of the single operator.
+        matrix : 2d ndarray
+            The matrix of the single site operator.
         '''
-        if sites is None:
-            for m in ms:
-                assert m.ndim==2 and m.labels[0]==m.labels[1].prime
-                self.append(m)
-        else:
-            assert len(ms)==len(sites)
-            for m,site in zip(ms,sites):
-                assert m.ndim==2
-                self.append(Tensor(m,labels=[site.prime,site]))
+        assert matrix.ndim==2
+        dtype=np.find_common_type([np.asarray(value).dtype,np.asarray(matrix).dtype],[])
+        self.value=np.array(value,dtype=dtype)
+        self.site=site
+        self.tag=tag
+        self.matrix=np.asarray(matrix,dtype=dtype)
+
+    @staticmethod
+    def identity(site,dtype=np.float64):
+        '''
+        Construt an identity single site operator.
+
+        Parameters
+        ----------
+        site : Label
+            The site label.
+        dtype : np.float64, np.complex128, etc, optional
+            The data type of the identity.
+
+        Returns
+        -------
+        Opt
+            The identity single site operator.
+        '''
+        return Opt(1.0,site,'i',np.identity(site.dim,dtype=dtype))
+
+    @staticmethod
+    def zero(site,dtype=np.float64):
+        '''
+        Construt a zero single site operator.
+
+        Parameters
+        ----------
+        site : Label
+            The site label.
+        dtype : np.float64, np.complex128, etc, optional
+            The data type of the zero.
+
+        Returns
+        -------
+        Opt
+            The zero single site operator.
+        '''
+        return Opt(1.0,site,'0',np.zeros((site.dim,site.dim),dtype=dtype))
+
+    @property
+    def tensor(self):
+        '''
+        The tensor representation of the single site operator.
+        '''
+        return Tensor(self.value*self.matrix,labels=[self.site.prime,self.site])
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
-        return '\n'.join(str(m) for m in self)
+        return 'Opt(value=%s,site=%s,tag=%s,matrix=\n%s)'%(self.value,self.site,self.tag,self.matrix)
+
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return "%s(%s)"%(self.value,self.tag) if norm(self.value-1.0)>0 else str(self.tag)
+
+    def __iadd__(self,other):
+        '''
+        Overloaded self addition(+) operator, which supports the self addition by an instance of Opt.
+        '''
+        assert other.site==self.site
+        if self.tag=='0':
+            return other
+        elif other.tag=='0':
+            return self
+        else:
+            if self.tag==other.tag:
+                self.value+=other.value
+            else:
+                self.value=np.array(1.0,dtype=np.find_common_type([self.value.dtype,other.value.dtype],[]))
+                self.tag='%s(%s)+%s(%s)'%(self.value,self.tag,other.value,other.tag)
+                self.matrix*=self.value
+                self.matrix+=other.value*other.matrix
+            return self
+
+    def __add__(self,other):
+        '''
+        Overloaded left addition(+) operator, which supports the left addition by an instance of Opt.
+        '''
+        assert other.site==self.site
+        if other.tag=='0':
+            return self
+        elif self.tag=='0':
+            return other
+        else:
+            if self.tag==other.tag:
+                return Opt(self.value+other.value,self.site,self.tag,self.matrix)
+            else:
+                return Opt(1.0,self.site,'%s(%s)+%s(%s)'%(self.value,self.tag,other.value,other.tag,self.value*self.matrix+other.value*other.matrix))
+
+class OptStr(list):
+    '''
+    Operator string, a list of single site operators.
+    '''
+
+    def __init__(self,opts):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        opts : list of Opt
+            The single site operators of the optstr.
+        '''
+        self.extend(opts)
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return '\n'.join(str(opt) for opt in self)
 
     @staticmethod
     def from_operator(operator,degfres,layer):
@@ -62,7 +175,7 @@ class OptStr(list):
 
         Parameters
         ----------
-        operator : OperatorS, OperatorF
+        operator : SOperator, FOperator
             The operator to be converted to an optstr.
         degfres : DegFreTree
             The degfretree of the system.
@@ -74,45 +187,28 @@ class OptStr(list):
         OptStr
             The corresponding OptStr.
         '''
-        assert type(operator) in (OperatorS,OperatorF)
-        dtype=np.array(operator.value).dtype
-        layer=degfres.layers[layer] if type(layer) in (int,long) else layer
-        if type(operator) is OperatorS:
-            ms=[]
-            table,sites=degfres.table(degfres.layers[-1]),degfres.labels(degfres.layers[-1],'S')
-            for i,(index,matrix) in enumerate(zip(operator.indices,operator.spins)):
-                pos=table[index]
-                ms.append(Tensor(matrix*operator.value if i==0 else matrix,labels=[sites[pos].prime,sites[pos]]))
-            return OptStr(sorted(ms,key=lambda m:table[m.labels[1].identifier])).relayer(degfres,layer)
-        else:
-            length=len(operator.indices)
-            assert length%2==0
-            table=degfres.table(degfres.layers[-1])
-            permutation=sorted(range(length),key=lambda k:table[operator.indices[k].replace(nambu=None)])
-            groups,counts=OrderedDict(),[]
-            for k in permutation:
-                leaf=table[operator.indices[k].replace(nambu=None)]
-                m=np.array([[0.0,0.0],[1.0,0.0]],dtype=dtype) if operator.indices[k].nambu==CREATION else np.array([[0.0,1.0],[0.0,0.0]],dtype=dtype)
-                if leaf in groups:
-                    counts[-1]+=1
-                    groups[leaf]=groups[leaf].dot(m)
-                else:
-                    counts.append(1)
-                    groups[leaf]=m
-            ms=[]
-            keys=groups.keys()
-            sites=degfres.labels(degfres.layers[-1],'S')
-            zmatrix=np.array([[1.0,0.0],[0.0,-1.0]],dtype=dtype)
-            for leaf in xrange(keys[0],keys[-1]+1):
-                labels=[sites[leaf].prime,sites[leaf]]
-                if leaf in groups:
-                    assert counts[0] in (1,2)
-                    length-=counts.pop(0)
-                    ms.append(Tensor(groups[leaf] if length%2==0 else groups[leaf].dot(zmatrix),labels=labels))
-                elif length%2!=0:
-                    ms.append(Tensor(zmatrix,labels=labels))
-            ms[0]=ms[0]*operator.value*hm.parity(permutation)
-            return OptStr(ms=sorted(ms,key=lambda m: m.labels[1].identifier)).relayer(degfres,layer)
+        assert type(operator) in (SOperator,FOperator)
+        dtype,layer=np.array(operator.value).dtype,degfres.layers[layer] if type(layer) in (int,long) else layer
+        table,sites=degfres.table(degfres.layers[-1]),degfres.labels(degfres.layers[-1],'S')
+        operator=operator if type(operator) is SOperator else JWBosonization(operator,table)
+        opts=[]
+        permutation=sorted(range(len(operator.indices)),key=lambda k: table[operator.indices[k]])
+        for i,k in enumerate(permutation):
+            index,matrix=operator.indices[k],operator.spins[k]
+            opts.append(Opt(operator.value if i==0 else 1.0,sites[table[index]],matrix.tag,matrix))
+        return OptStr(opts).relayer(degfres,layer)
+
+    def __pos__(self):
+        '''
+        Overloaded positive(+) operator.
+        '''
+        return self
+
+    def __neg__(self):
+        '''
+        Overloaded negative(-) operator.
+        '''
+        return self*(-1)
 
     def __imul__(self,other):
         '''
@@ -166,8 +262,8 @@ class OptStr(list):
         Both mpses should be kets since in this function the complex conjugate of the first mps is always taken during the calculation.
         '''
         reset_and_protect=lambda mps,start: mps._merge_ABL_('R') if mps.cut==start else mps._merge_ABL_('L')
-        poses={m.labels[1]:mps1.table[m.labels[1]] for m in self}
-        ms=sorted(self,key=lambda m:poses[m.labels[1]])
+        poses={opt.site:mps1.table[opt.site] for opt in self}
+        ms=sorted([opt.tensor for opt in self],key=lambda m:poses[m.labels[1]])
         if mps1 is mps2:
             start,stop,count=poses[ms[0].labels[1]],poses[ms[-1].labels[1]]+1,0
             if mps1.cut<start or mps1.cut>stop:
@@ -223,26 +319,44 @@ class OptStr(list):
         MPO
             The corresponding MPO.
         '''
-        dtype=next(iter(self)).dtype
-        type=degfres[next(iter(next(iter(self)).labels)).identifier].type if degfres.mode=='QN' else None
-        layer=degfres.layers[degfres.level(next(iter(self)).labels[1].identifier)-1]
+        dtype,index=self[0].value.dtype,self[0].site.identifier
+        type,layer=degfres[index].type if degfres.mode=='QN' else None,degfres.layers[degfres.level(index)-1]
         table,sites,bonds=degfres.table(layer),degfres.labels(layer,'S'),degfres.labels(layer,'O')
-        poses=set(table[m.labels[1].identifier] for m in self)
+        poses=set(table[opt.site.identifier] for opt in self)
         ms,count=[],0
         for pos in xrange(len(sites)):
             L,U,D,R=copy(bonds[pos]),sites[pos].prime,sites[pos],copy(bonds[pos+1])
             ndegfre=degfres.ndegfre(U.identifier)
             if degfres.mode=='QN':
                 U,D=U.replace(qns=None),D.replace(qns=None)
-                lqns,sqns=QuantumNumbers.mono(type.zeros()) if pos==0 else ms[-1].labels[MPO.R].qns,sites[pos].qns
+                lqns,sqns=QuantumNumbers.mono(type.zero()) if pos==0 else ms[-1].labels[MPO.R].qns,sites[pos].qns
             if pos in poses:
-                ms.append(Tensor(np.asarray(self[count]).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
+                ms.append(Tensor((self[count].matrix*self[count].value).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
                 count+=1
             else:
                 ms.append(Tensor(np.identity(sites[pos].dim,dtype=dtype).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
             if degfres.mode=='QN':
                 ms[-1].qng(axes=[MPO.L,MPO.U,MPO.D],qnses=[lqns,sqns,sqns],signs='++-')
         return MPO(ms)
+
+    def connect(self,degfres):
+        '''
+        Connect the start and the end of an optstr by inserting identities in between them.
+
+        Parameters
+        ----------
+        degfres : DegFreTree
+            The tree of the site degrees of freedom.
+        '''
+        dtype=self[0].value.dtype
+        layer=degfres.layers[degfres.level(self[0].site.identifier)-1]
+        table,sites=degfres.table(layer),degfres.labels(layer,'S')
+        count,poses=0,[table[opt.site.identifier] for opt in self]
+        for start,stop in zip(poses[:-1],poses[1:]):
+            count+=1
+            for pos in xrange(start+1,stop):
+                self.insert(count,Opt.identity(sites[pos],dtype=dtype))
+                count+=1
 
     def relayer(self,degfres,layer):
         '''
@@ -261,33 +375,138 @@ class OptStr(list):
             The new optstr.
         '''
         new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
-        old=degfres.level(next(iter(next(iter(self)).labels)).identifier)-1
+        old=degfres.level(self[0].site.identifier)-1
         assert new>=0 and new<len(degfres.layers) and old>=new
         if old==new:
             return copy(self)
         else:
             poses={}
-            for pos,m in enumerate(self):
-                index=m.labels[1].identifier
+            for pos,opt in enumerate(self):
+                index=opt.site.identifier
                 ancestor=degfres.ancestor(index,generation=old-new)
                 if ancestor in poses:
                     poses[ancestor][index]=pos
                 else:
                     poses[ancestor]={index:pos}
-            ms=[]
+            opts=[]
             olayer,nlayer=degfres.layers[old],degfres.layers[new]
             otable,ntable=degfres.table(olayer),degfres.table(nlayer)
             sites=degfres.labels(nlayer,'S')
             for ancestor in sorted(poses.keys(),key=ntable.get):
-                m=1.0
+                value,tag,m=1.0,(),1.0
                 for index in degfres.descendants(ancestor,old-new):
                     if index in poses[ancestor]:
-                        m=np.kron(m,np.asarray(self[poses[ancestor][index]]))
+                        opt=self[poses[ancestor][index]]
+                        value*=opt.value
+                        tag+=(opt.tag,)
+                        m=np.kron(m,opt.matrix)
                     else:
+                        tag+=('i',)
                         m=np.kron(m,np.identity(degfres.ndegfre(index)))
-                pos=ntable[ancestor]
-                ms.append(Tensor(m,labels=[sites[pos].prime,sites[pos]]))
-            return OptStr(ms)
+                opts.append(Opt(value,sites[ntable[ancestor]],','.join(tag),m))
+            return OptStr(opts)
+
+class OptMPO(list):
+    '''
+    Matrix product operator in the form of single site operators.
+
+    Attributes
+    ----------
+    sites : list of Label
+        The site labels of the mpo.
+    bonds : list of Label
+        The bond labels of the mpo.
+    '''
+
+    def __init__(self,optstrs,degfres):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        optstrs : list of OptStr
+            The optstrs contained in the mpo.
+        degfres : DegFreTree
+            The tree of the site degrees of freedom.
+        '''
+        dtype,layer=optstrs[0][0].value.dtype,degfres.layers[degfres.level(optstrs[0][0].site.identifier)-1]
+        table,sites,bonds=degfres.table(layer),degfres.labels(layer,'S'),degfres.labels(layer,'O')
+        for optstr in optstrs: optstr.connect(degfres)
+        optstrs.sort(key=lambda optstr: (len(optstr),table[optstr[0].site.identifier],tuple(opt.tag for opt in optstr)))
+        rows,cols=[],[]
+        for i,site in enumerate(sites):
+            zero,identity=Opt.zero(site,dtype),Opt.identity(site,dtype)
+            self.append(np.array([[zero,identity]] if i==0 else ([[identity],[zero]] if i==len(sites)-1 else [[identity,zero],[zero,identity]])))
+            rows.append(1 if i==0 else 2)
+            cols.append(1 if i==len(sites)-1 else 2)
+        for optstr in optstrs:
+            if len(optstr)==1:
+                self[table[optstr[0].site.identifier]][-1,0]+=optstr[0]
+            else:
+                for i,opt in enumerate(optstr):
+                    pos=table[opt.site.identifier]
+                    if i==0:
+                        col=[Opt.zero(opt.site,dtype)]*rows[pos]
+                        col[-1]=opt
+                        self[pos]=np.insert(self[pos],-1,col,axis=1)
+                        cols[pos]+=1
+                    elif i<len(optstr)-1:
+                        row=[Opt.zero(opt.site,dtype)]*cols[pos]
+                        self[pos]=np.insert(self[pos],-1,row,axis=0)
+                        rows[pos]+=1
+                        col=[Opt.zero(opt.site,dtype)]*rows[pos]
+                        col[-2]=opt
+                        self[pos]=np.insert(self[pos],-1,col,axis=1)
+                        cols[pos]+=1
+                    else:
+                        row=[Opt.zero(opt.site,dtype)]*cols[pos]
+                        row[0]=opt
+                        self[pos]=np.insert(self[pos],-1,row,axis=0)
+                        rows[pos]+=1
+        self.sites=sites
+        self.bonds=bonds
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        result=[]
+        np.set_printoptions(formatter={'all': lambda element: element})
+        for m in self:
+            M,lengths=np.zeros(m.shape,dtype=object),np.zeros(m.shape,dtype=np.int64)
+            for i,j in it.product(xrange(m.shape[0]),xrange(m.shape[1])):
+                M[i,j]=repr(m[i,j])
+                lengths[i,j]=len(M[i,j])
+            lengths=lengths.max(axis=0)
+            for i,j in it.product(xrange(m.shape[0]),xrange(m.shape[1])):
+                M[i,j]=M[i,j].center(lengths[j])
+            result.append(str(M))
+        np.set_printoptions()
+        return '\n'.join(result)
+
+    def to_mpo(self):
+        '''
+        Convert to the tensor-formated mpo.
+
+        Returns
+        -------
+        MPO
+            The corresponding tensor-formated MPO.
+        '''
+        Ms=[]
+        dtype,type=self[0][0,0].value.dtype,self[0][0,0].site.qns.type if isinstance(self[0][0,0].site.qns,QuantumNumbers) else None
+        for pos,m in enumerate(self):
+            L,U,D,R=copy(self.bonds[pos]),self.sites[pos].prime,self.sites[pos],copy(self.bonds[pos+1])
+            dim=U.dim
+            if type is not None:
+                U,D=U.replace(qns=None),D.replace(qns=None)
+                lqns,sqns=QuantumNumbers.mono(type.zero()) if pos==0 else Ms[-1].labels[MPO.R].qns,self.sites[pos].qns
+            Ms.append(Tensor(np.zeros((m.shape[0],dim,dim,m.shape[1]),dtype=dtype),labels=[L,U,D,R]))
+            for i,j in it.product(xrange(m.shape[0]),xrange(m.shape[1])):
+                Ms[-1][i,:,:,j]=m[i,j].value*m[i,j].matrix
+            if type is not None:
+                Ms[-1].qng(axes=[MPO.L,MPO.U,MPO.D],qnses=[lqns,sqns,sqns],signs='++-')
+        return MPO(Ms)
 
 class MPO(list):
     '''
@@ -437,14 +656,24 @@ class MPO(list):
         '''
         Overloaded addition(+) operator, which supports the addition of two mpos.
         '''
-        assert self.nsite==other.nsite
-        ms=[]
-        for i,(m1,m2) in enumerate(zip(self,other)):
-            assert m1.labels==m2.labels
-            labels=[label.replace(qns=None) for label in m1.labels]
-            axes=[MPO.L,MPO.U,MPO.D] if i==0 else ([MPO.U,MPO.D,MPO.R] if i==self.nsite-1 else [MPO.U,MPO.D])
-            ms.append(Tensor.directsum([m1,m2],labels=labels,axes=axes))
-        return MPO(ms)
+        if isinstance(other,MPO):
+            assert self.nsite==other.nsite
+            ms=[]
+            for i,(m1,m2) in enumerate(zip(self,other)):
+                assert m1.labels==m2.labels
+                labels=[label.replace(qns=None) for label in m1.labels]
+                axes=[MPO.L,MPO.U,MPO.D] if i==0 else ([MPO.U,MPO.D,MPO.R] if i==self.nsite-1 else [MPO.U,MPO.D])
+                ms.append(Tensor.directsum([m1,m2],labels=labels,axes=axes))
+            return MPO(ms)
+        else:
+            assert abs(other)==0
+            return self
+
+    def __radd__(self,other):
+        '''
+        Overloaded addition(+) operator, which supports the addition of two mpos.
+        '''
+        return self+other
 
     def __pos__(self):
         '''

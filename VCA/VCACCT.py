@@ -42,7 +42,7 @@ class VCACCT(VCA):
         cgf,cell,lattice,config,terms,weiss :
             See VCA.__init__ for details.
         subsystem: dict
-            * entry 'basis': BasisF
+            * entry 'basis': FBasis
                 The occupation number basis of the subsystem.
             * entry 'lattice': Lattice
                 The lattice of the subsystem.

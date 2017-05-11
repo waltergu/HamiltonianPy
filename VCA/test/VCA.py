@@ -24,7 +24,7 @@ def test_vca():
     vca=VCA.VCA(
             name=       name,
             cgf=        cgf,
-            basis=      BasisF(up=(m*n,m*n/2),down=(m*n,m*n/2)),
+            basis=      FBasis(up=(m*n,m*n/2),down=(m*n,m*n/2)),
             cell=       cell,
             lattice=    lattice,
             config=     config,

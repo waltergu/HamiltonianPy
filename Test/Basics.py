@@ -26,27 +26,27 @@ def test_basics(arg):
     if arg in ('fdegfre','fermionic','basics','all'):
         from HamiltonianPy.Basics.FermionicPackage.test.DegreeOfFreedom import test_fermionic_deg_fre
         test_fermionic_deg_fre()
-    if arg in ('operatorf','fermionic','basics','all'):
-        from HamiltonianPy.Basics.FermionicPackage.test.Operator import test_operatorf
-        test_operatorf()
+    if arg in ('foperator','fermionic','basics','all'):
+        from HamiltonianPy.Basics.FermionicPackage.test.Operator import test_foperator
+        test_foperator()
     if arg in ('fterm','fermionic','basics','all'):
         from HamiltonianPy.Basics.FermionicPackage.test.Term import test_fermionic_term
         test_fermionic_term()
-    if arg in ('basisf','fermionic','basics','all'):
-        from HamiltonianPy.Basics.FermionicPackage.test.BasisF import test_basisf
-        test_basisf()
+    if arg in ('fbasis','fermionic','basics','all'):
+        from HamiltonianPy.Basics.FermionicPackage.test.Basis import test_fbasis
+        test_fbasis()
     if arg in ('foptrep','fermionic','basics','all'):
-        from HamiltonianPy.Basics.FermionicPackage.test.OperatorRepresentation import test_f_opt_rep
-        test_f_opt_rep()
+        from HamiltonianPy.Basics.FermionicPackage.test.OperatorRepresentation import test_foptrep
+        test_foptrep()
     if arg in ('sdegfre','spin','basics','all'):
         from HamiltonianPy.Basics.SpinPackage.test.DegreeOfFreedom import test_spin_deg_fre
         test_spin_deg_fre()
-    if arg in ('operators','spin','basics','all'):
-        from HamiltonianPy.Basics.SpinPackage.test.Operator import test_operators
-        test_operators()
+    if arg in ('soperator','spin','basics','all'):
+        from HamiltonianPy.Basics.SpinPackage.test.Operator import test_soperator
+        test_soperator()
     if arg in ('soptrep','spin','basics','all'):
-        from HamiltonianPy.Basics.SpinPackage.test.OperatorRepresentation import test_s_opt_rep
-        test_s_opt_rep()
+        from HamiltonianPy.Basics.SpinPackage.test.OperatorRepresentation import test_soptrep
+        test_soptrep()
     if arg in ('sterm','spin','basics','all'):
         from HamiltonianPy.Basics.SpinPackage.test.Term import test_spin_term
         test_spin_term()

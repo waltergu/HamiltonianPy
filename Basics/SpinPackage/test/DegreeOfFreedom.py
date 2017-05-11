@@ -30,22 +30,22 @@ def test_spin():
 def test_spin_matrix():
     print 'test_spin_matrix'
     N=1
-    print SpinMatrix((N,'x'),dtype=float64)
-    print SpinMatrix((N,'y'),dtype=complex128)
-    print SpinMatrix((N,'z'),dtype=float64)
-    print SpinMatrix((N,'+'),dtype=float64)
-    print SpinMatrix((N,'-'),dtype=float64)
-    print SpinMatrix((N,'WG'),matrix=random.random((2*N+1,2*N+1)),dtype=float64)
+    print SpinMatrix(N,'x',dtype=float64)
+    print SpinMatrix(N,'y',dtype=complex128)
+    print SpinMatrix(N,'z',dtype=float64)
+    print SpinMatrix(N,'+',dtype=float64)
+    print SpinMatrix(N,'-',dtype=float64)
+    print SpinMatrix(N,'WG',matrix=random.random((2*N+1,2*N+1)),dtype=float64)
     print
 
 def test_spin_pack():
     print 'test_spin_pack'
-    a=SpinPack(1.0,pack=('x','x'))
+    a=SpinPack(1.0,('x','x'))
     print 'a: %s'%a
     print 'a*2: %s'%(a*2)
     print '2*a: %s'%(2*a)
     print 'Heisenberg*2: %s'%(2*Heisenberg())
-    b=SpinPack(1.0,pack=(('WG',random.random((2,2))),))
+    b=SpinPack(1.0,('WG',),(random.random((2,2)),))
     print 'b: %s'%b
     print 'b*2: %s'%(b*2)
     print '2*b: %s'%(2*b)

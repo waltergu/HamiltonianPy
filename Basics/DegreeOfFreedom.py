@@ -4,10 +4,10 @@ Descriptions of the interanl degrees of freedom on a lattice
 ============================================================
 
 This modulate defines several classes to define the way to describe the interanl degrees of freedom on a lattice, including
-    * classes: Status,Table, Index, Internal, IDFConfig, DegFreTree, IndexPack, IndexPackList
+    * classes: Status,Table, Index, Internal, IDFConfig, DegFreTree, IndexPack, IndexPacks
 '''
 
-__all__=['Status','Table','Index','Internal','IDFConfig','IndexPack','IndexPackList']
+__all__=['Status','Table','Index','Internal','IDFConfig','IndexPack','IndexPacks']
 
 import numpy as np
 from numpy.linalg import norm
@@ -503,16 +503,16 @@ class IndexPack(object):
 
     def __add__(self,other):
         '''
-        Overloaded operator(+), which supports the addition of an IndexPack instance with an IndexPack/IndexPackList instance.
+        Overloaded operator(+), which supports the addition of an IndexPack instance with an IndexPack/IndexPacks instance.
         '''
-        result=IndexPackList()
+        result=IndexPacks()
         result.append(self)
         if issubclass(other.__class__,IndexPack):
             result.append(other)
-        elif isinstance(other,IndexPackList):
+        elif isinstance(other,IndexPacks):
             result.extend(other)
         else:
-            raise ValueError("IndexPack '+' error: the 'other' parameter must be of class IndexPack or IndexPackList.")
+            raise ValueError("IndexPack '+' error: the 'other' parameter must be of class IndexPack or IndexPacks.")
         return result
 
     def __rmul__(self,other):
@@ -521,7 +521,7 @@ class IndexPack(object):
         '''
         return self.__mul__(other)
 
-class IndexPackList(list):
+class IndexPacks(list):
     '''
     This class packs several IndexPack as a whole for convenience.
     '''
@@ -531,25 +531,25 @@ class IndexPackList(list):
             if issubclass(buff.__class__,IndexPack):
                 self.append(buff)
             else:
-                raise ValueError("IndexPackList init error: the input parameters must be of IndexPack's subclasses.")
+                raise ValueError("IndexPacks init error: the input parameters must be of IndexPack's subclasses.")
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
-        return 'IndexPackList('+', '.join([str(obj) for obj in self])
+        return 'IndexPacks('+', '.join([str(obj) for obj in self])
 
     def __add__(self,other):
         '''
-        Overloaded operator(+), which supports the addition of an IndexPackList instance with an IndexPack/IndexPackList instance.
+        Overloaded operator(+), which supports the addition of an IndexPacks instance with an IndexPack/IndexPacks instance.
         '''
-        result=IndexPackList(*self)
+        result=IndexPacks(*self)
         if isinstance(other,IndexPack):
             result.append(other)
-        elif isinstance(other,IndexPackList):
+        elif isinstance(other,IndexPacks):
             result.extend(other)
         else:
-            raise ValueError("IndexPackList '+' error: the 'other' parameter must be of class IndexPack or IndexPackList.")
+            raise ValueError("IndexPacks '+' error: the 'other' parameter must be of class IndexPack or IndexPacks.")
         return result
 
     def __radd__(self,other):
@@ -562,15 +562,15 @@ class IndexPackList(list):
         '''
         Overloaded operator(*).
         '''
-        result=IndexPackList()
+        result=IndexPacks()
         for buff in self:
             temp=buff*other
-            if isinstance(temp,IndexPackList):
+            if isinstance(temp,IndexPacks):
                 result.extend(temp)
             elif issubclass(temp.__class__,IndexPack):
                 result.append(temp)
             else:
-                raise ValueError("IndexPackList *' error: the element(%s) in self multiplied by other is not of IndexPack/IndexPackList."%(buff))
+                raise ValueError("IndexPacks *' error: the element(%s) in self multiplied by other is not of IndexPack/IndexPacks."%(buff))
         return result
 
     def __rmul__(self,other):
