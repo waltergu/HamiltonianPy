@@ -15,101 +15,101 @@ def test_dmrg():
     print 'test_dmrg'
     mkl.set_num_threads(1)
     Engine.DEBUG=True
-    #test_dmrg_spin()
-    #test_dmrg_spinless_fermion()
-    test_dmrg_spinful_fermion()
+    test_idmrg()
+    test_fdmrg()
 
-def test_dmrg_spin():
-    print 'test_dmrg_spin'
-    N,J,spin,qn_on=20,1.0,1.0,True
+def test_idmrg():
+    print 'test_idmrg'
+    dmrg_spin('idmrg',spin=1.0,N=200,J=1.0,qnon=True)
+    dmrg_spinless_fermion('idmrg',N=200,t=-0.5,qnon=True)
+    dmrg_spinful_fermion('idmrg',N=200,t=-1.0,U=1.0,qnon=True)
+    print
+
+def test_fdmrg():
+    print 'test_fdmrg'
+    dmrg_spin('fdmrg',spin=1.0,N=20,J=1.0,qnon=True)
+    dmrg_spinless_fermion('fdmrg',N=20,t=-0.5,qnon=True)
+    dmrg_spinful_fermion('fdmrg',N=20,t=-1.0,U=1.0,qnon=True)
+    print
+
+def dmrg_spin(mode,spin,N,J,qnon=True):
+    print '%s_spin'%mode
     priority,layers=DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
     dmrg=DMRG(
         log=        Log('spin-%s.log'%(spin),mode='a+'),
         name=       'spin-%s'%(spin),
-        mps=        MPS(mode='QN') if qn_on else MPS(mode='NB'),
-        lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0]),nneighbour=2),
-        #terms=      [SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())],
-        terms=[     SpinTerm('J',J,neighbour=1,indexpacks=IndexPacks(SpinPack(0.5,('+','-')),SpinPack(0.5,('-','+')))),
-                    SpinTerm('J2',J*0.1,neighbour=2,indexpacks=IndexPacks(SpinPack(0.5,('+','-')),SpinPack(0.5,('-','+')))),
-                    SpinTerm('h',J*0.01,neighbour=0,indexpacks=S('z'))
-                    ],
+        mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
+        lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0]),nneighbour=1),
+        terms=      [SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())],
         config=     IDFConfig(priority=priority,map=lambda pid: Spin(S=spin)),
-        degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SQNS(S=spin)) if qn_on else
+        degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SQNS(S=spin)) if qnon else
                     DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: int(spin*2+1)),
         mask=       [],
         dtype=      np.float64
         )
-    tsg=TSG(
-            name=       'GTOWTH',
-            scopes=     range(N),
-            targets=    [SQN(0.0)]*(N/2) if qn_on else [None]*(N/2),
-            nmax=       20,
-            save_data=  False,
-            plot=       True,
-            run=DMRGTSG
-            )
-    dmrg.register(TSS(name='SWEEP',target=SQN(0.0),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS))
+    targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
+    if mode=='idmrg':
+        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=200,terminate=True,save_data=False,plot=True,run=DMRGTSG)
+        dmrg.register(tsg)
+    else:
+        target=SQN(0.0)
+        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=20,terminate=False,save_data=False,plot=True,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=target,layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS)
+        dmrg.register(tss)
     dmrg.summary()
     print
 
-def test_dmrg_spinless_fermion():
-    print 'test_dmrg_spinless_fermion'
-    N,t,qn_on=20,-0.5,True
+def dmrg_spinless_fermion(mode,N,t,qnon=True):
+    print '%s_spinless_fermion'%mode
     priority,layers=('scope','site','orbital','spin','nambu'),[('scope','site','orbital','spin')]
-    degfres_map=lambda index: QuantumNumbers('C',([PQN(0.0),PQN(1.0)],[1,1]),protocal=QuantumNumbers.COUNTS)
     dmrg=DMRG(
         log=        Log('fermin-spin-o.log',mode='a+'),
         name=       'fermion-spin-o',
-        mps=        MPS(mode='QN') if qn_on else MPS(mode='NB'),
+        mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
         lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
         terms=      [Hopping('t',t,neighbour=1)],
         config=     IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=1,nnambu=1)),
-        degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=degfres_map) if qn_on else
+        degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: PQNS(1)) if qnon else
                     DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: 2),
         mask=       ['nambu'],
         dtype=      np.float64
         )
-    tsg=TSG(
-            name=       'GTOWTH',
-            scopes=     range(N),
-            targets=    [PQN(num) for num in xrange(1,N/2+1)] if qn_on else [None]*(N/2),
-            nmax=       20,
-            save_data=  False,
-            plot=       True,
-            run=        DMRGTSG
-            )
-    dmrg.register(TSS(name='SWEEP',target=PQN(N/2),layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS))
+    targets=[PQN(num) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
+    if mode=='idmrg':
+        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=200,terminate=True,save_data=False,plot=True,run=DMRGTSG)
+        dmrg.register(tsg)
+    else:
+        target=PQN(N/2)
+        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=20,terminate=False,save_data=False,plot=True,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=target,layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS)
+        dmrg.register(tss)
     dmrg.summary()
     print
 
-def test_dmrg_spinful_fermion():
-    print 'test_dmrg_spinful_fermion'
-    N,t,U,qn_on=20,-0.1,0.1,True
-    priority,layers=('scope','site','orbital','spin','nambu'),[('scope','site','orbital'),('spin',)]
+def dmrg_spinful_fermion(mode,N,t,U,qnon=True):
+    print '%s_spinful_fermion'%mode
+    priority,layers=DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS
     dmrg=DMRG(
         log=        Log('fermin-spin-0.5.log',mode='a+'),
         name=       'fermion-spin-0.5',
-        mps=        MPS(mode='QN') if qn_on else MPS(mode='NB'),
+        mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
         lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
         terms=      [Hopping('t',t,neighbour=1),Hubbard('U',U)],
         config=     IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1)),
-        degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SzPQNS(index.spin-0.5)) if qn_on else
+        degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SzPQNS(index.spin-0.5)) if qnon else
                     DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: 2),
         layer=      0,
         mask=       ['nambu'],
         dtype=      np.float64
         )
-    tsg=TSG(
-            name=       'GTOWTH',
-            scopes=     range(N),
-            targets=    [SPQN((num*2,0.0)) for num in xrange(1,N/2+1)] if qn_on else [None]*(N/2),
-            nmax=       30,
-            save_data=  False,
-            plot=       True,
-            run=        DMRGTSG
-            )
-    #tss=TSS(name='PRESWEEP',target=SPQN((N,0.0)),layer=0,nsite=N,protocal=1,nmaxs=[30,50,100],save_data=False,plot=True,run=DMRGTSS)
-    #dmrg.register(TSS(name='SWEEP',target=SPQN((N,0.0)),layer=1,nsite=2*N,nmaxs=[100,150,200,200],dependences=[tsg,tss],save_data=False,plot=True,save_fig=True,run=DMRGTSS))
-    dmrg.register(TSS(name='SWEEP',target=SPQN((N,0.0)),layer=0,nsite=N,nmaxs=[30,50,100,100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS))
+    targets=[SPQN((num*2,0.0)) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
+    if mode=='idmrg':
+        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=200,terminate=True,save_data=False,plot=True,run=DMRGTSG)
+        dmrg.register(tsg)
+    else:
+        target=SPQN((N,0.0))
+        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=50,terminate=False,save_data=False,plot=True,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=target,layer=0,nsite=N,nmaxs=[100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS)
+        dmrg.register(tss)
     dmrg.summary()
     print

@@ -17,7 +17,7 @@ from collections import OrderedDict
 from HamiltonianPy import QuantumNumbers,Operator,FOperator,SOperator,JWBosonization
 from Tensor import Tensor,Label,contract
 from MPS import MPS
-from copy import copy,deepcopy
+from copy import copy
 
 class Opt(Operator.Operator):
     '''
@@ -484,9 +484,14 @@ class OptMPO(list):
         np.set_printoptions()
         return '\n'.join(result)
 
-    def to_mpo(self):
+    def to_mpo(self,**karg):
         '''
         Convert to the tensor-formated mpo.
+
+        Parameters
+        ----------
+        karg : dict with keys containing 'nsweep','method' and 'options'
+            Please see MPO.compress for details.
 
         Returns
         -------
@@ -496,17 +501,18 @@ class OptMPO(list):
         Ms=[]
         dtype,type=self[0][0,0].value.dtype,self[0][0,0].site.qns.type if isinstance(self[0][0,0].site.qns,QuantumNumbers) else None
         for pos,m in enumerate(self):
-            L,U,D,R=copy(self.bonds[pos]),self.sites[pos].prime,self.sites[pos],copy(self.bonds[pos+1])
-            dim=U.dim
-            if type is not None:
-                U,D=U.replace(qns=None),D.replace(qns=None)
-                lqns,sqns=QuantumNumbers.mono(type.zero()) if pos==0 else Ms[-1].labels[MPO.R].qns,self.sites[pos].qns
+            L,U,D,R,dim=copy(self.bonds[pos]),self.sites[pos].prime,self.sites[pos],copy(self.bonds[pos+1]),self.sites[pos].dim
+            if type is not None: U,D=U.replace(qns=None),D.replace(qns=None)
             Ms.append(Tensor(np.zeros((m.shape[0],dim,dim,m.shape[1]),dtype=dtype),labels=[L,U,D,R]))
             for i,j in it.product(xrange(m.shape[0]),xrange(m.shape[1])):
                 Ms[-1][i,:,:,j]=m[i,j].value*m[i,j].matrix
-            if type is not None:
-                Ms[-1].qng(axes=[MPO.L,MPO.U,MPO.D],qnses=[lqns,sqns,sqns],signs='++-')
-        return MPO(Ms)
+        result=MPO(Ms)
+        result.compress(**karg)
+        if type is not None:
+            for pos in xrange(len(result)):
+                lqns,sqns=QuantumNumbers.mono(type.zero()) if pos==0 else result[pos-1].labels[MPO.R].qns,self.sites[pos].qns
+                result[pos].qng(axes=[MPO.L,MPO.U,MPO.D],qnses=[lqns,sqns,sqns],signs='++-')
+        return result
 
 class MPO(list):
     '''

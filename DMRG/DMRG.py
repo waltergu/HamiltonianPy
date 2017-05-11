@@ -81,7 +81,7 @@ class Cylinder(Lattice):
         self.block=block
         self.translation=translation
 
-    def insert(self,A,B):
+    def insert(self,A,B,news=None):
         '''
         Insert two blocks into the center of the cylinder.
 
@@ -89,6 +89,9 @@ class Cylinder(Lattice):
         ----------
         A,B : any hashable object
             The scopes of the insert block points.
+        news : list of any hashable object, optional
+            The new scopes for the points of the cylinder before the insertion.
+            If None, the old scopes remain unchanged.
         '''
         if len(self)==0:
             aps=[Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
@@ -98,6 +101,10 @@ class Cylinder(Lattice):
             for ap,bp in zip(aps,bps):
                 ap.rcoord-=self.translation
                 bp.rcoord+=self.translation
+            if news is not None:
+                assert len(news)==len(self)
+                for scope,point in zip(news,self.points):
+                    point.pid=point.pid._replace(scope=scope)
             aps.extend(Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block))
             bps.extend(Point(PID(scope=B,site=i),rcoord=rcoord+self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block))
         self.points=aps+bps
@@ -221,7 +228,7 @@ class DMRG(Engine):
         if self.mps.mode=='QN':
             self.timers.add(parent='kron',name='csr')
             self.timers.add(parent='kron',name='fkron')
-        self.info=Info('Etotal','Esite','nbasis','nslice','nnz','nz','density','overlap','err')
+        self.info=Info('Etotal','Esite','dE/E','nbasis','nslice','nnz','nz','density','overlap','err')
         self.cache={}
 
     @property
@@ -253,17 +260,14 @@ class DMRG(Engine):
         '''
         Set the generators, operators and optstrs of the DMRG.
         '''
-        self.operators,self.mpo=self.generator.operators,0
+        self.operators=self.generator.operators
         if self.mask==['nambu']:
-            for operator in self.operators.values()[:]:
+            for operator in self.operators.values():
                 self.operators+=operator.dagger
-        for i,opt in enumerate(self.operators.itervalues()):
-            optstr=OptStr.from_operator(opt,self.degfres,self.degfres.layers[-1] if self.mask==['nambu'] else self.layer).relayer(self.degfres,self.layer)
-            self.mpo+=optstr.to_mpo(self.degfres)
-            if i%20==0 or i==len(self.operators)-1:
-                self.mpo.compress(nsweep=1,method='dpl',options=dict(tol=hm.TOL))
+        if len(self.operators)>0:
+            self.mpo=OptMPO([OptStr.from_operator(operator,self.degfres,self.layer) for operator in self.operators.itervalues()],self.degfres).to_mpo()
 
-    def set_HL_(self,pos,tol=hm.TOL):
+    def set_HL_(self,pos,job='contract',tol=hm.TOL):
         '''
         Set a certain left block Hamiltonian.
 
@@ -271,21 +275,31 @@ class DMRG(Engine):
         ----------
         pos : integer
             The position of the left block Hamiltonian.
+        job : 'contract' or 'relabel'
+            'contract' for a complete calculation from the contraction of `self.mpo` and `self.mps`;
+            'relabel' for a sole labels change according to `self.mpo` and `self.mps`.
         tol : np.float64, optional
             The tolerance of the non-zeros.
         '''
-        if pos==-1:
-            self._Hs_['L'][0]=Tensor([[[1.0]]],labels=[self.mps[+0].labels[MPS.L].prime,self.mpo[+0].labels[MPO.L],self.mps[+0].labels[MPS.L]])
+        assert job in ('contract','relabel')
+        if job=='contract':
+            if pos==-1:
+                self._Hs_['L'][0]=Tensor([[[1.0]]],labels=[self.mps[+0].labels[MPS.L].prime,self.mpo[+0].labels[MPO.L],self.mps[+0].labels[MPS.L]])
+            else:
+                u,m=self.mps[pos],self.mpo[pos]
+                L,S,R=u.labels
+                up=u.copy(copy_data=False).conjugate()
+                up.relabel(news=[L.prime,S.prime,R.prime])
+                temp=contract([self._Hs_['L'][pos],up,m,u],engine='tensordot')
+                temp[np.abs(temp)<tol]=0.0
+                self._Hs_['L'][pos+1]=temp
         else:
-            u,m=self.mps[pos],self.mpo[pos]
-            L,S,R=u.labels
-            up=u.copy(copy_data=False).conjugate()
-            up.relabel(news=[L.prime,S.prime,R.prime])
-            temp=contract([self._Hs_['L'][pos],up,m,u],engine='tensordot')
-            temp[np.abs(temp)<tol]=0.0
-            self._Hs_['L'][pos+1]=temp
+            if pos==-1:
+                self._Hs_['L'][0].relabel(news=[self.mps[+0].labels[MPS.L].prime,self.mpo[+0].labels[MPO.L],self.mps[+0].labels[MPS.L]])
+            else:
+                self._Hs_['L'][pos+1].relabel(news=[self.mps[pos].labels[MPS.R].prime,self.mpo[pos].labels[MPO.R],self.mps[pos].labels[MPS.R]])
 
-    def set_HR_(self,pos,tol=hm.TOL):
+    def set_HR_(self,pos,job='contract',tol=hm.TOL):
         '''
         Set a certain right block Hamiltonian.
 
@@ -293,41 +307,61 @@ class DMRG(Engine):
         ----------
         pos : integer
             The position of the right block Hamiltonian.
+        job : 'contract' or 'relabel'
+            'contract' for a complete calculation from the contraction of `self.mpo` and `self.mps`;
+            'relabel' for a sole labels change according to `self.mpo` and `self.mps`.
         tol : np.float64, optional
             The tolerance of the non-zeros.
         '''
-        if pos==self.mps.nsite:
-            self._Hs_['R'][0]=Tensor([[[1.0]]],labels=[self.mps[-1].labels[MPS.R].prime,self.mpo[-1].labels[MPO.R],self.mps[-1].labels[MPS.R]])
+        assert job in ('contract','relabel')
+        if job=='contract':
+            if pos==self.mps.nsite:
+                self._Hs_['R'][0]=Tensor([[[1.0]]],labels=[self.mps[-1].labels[MPS.R].prime,self.mpo[-1].labels[MPO.R],self.mps[-1].labels[MPS.R]])
+            else:
+                v,m=self.mps[pos],self.mpo[pos]
+                L,S,R=v.labels
+                vp=v.copy(copy_data=False).conjugate()
+                vp.relabel(news=[L.prime,S.prime,R.prime])
+                temp=contract([self._Hs_['R'][self.mps.nsite-pos-1],vp,m,v],engine='tensordot')
+                temp[np.abs(temp)<tol]=0.0
+                self._Hs_['R'][self.mps.nsite-pos]=temp
         else:
-            v,m=self.mps[pos],self.mpo[pos]
-            L,S,R=v.labels
-            vp=v.copy(copy_data=False).conjugate()
-            vp.relabel(news=[L.prime,S.prime,R.prime])
-            temp=contract([self._Hs_['R'][self.mps.nsite-pos-1],vp,m,v],engine='tensordot')
-            temp[np.abs(temp)<tol]=0.0
-            self._Hs_['R'][self.mps.nsite-pos]=temp
+            if pos==self.mps.nsite:
+                self._Hs_['R'][0].relabel(news=[self.mps[-1].labels[MPS.R].prime,self.mpo[-1].labels[MPO.R],self.mps[-1].labels[MPS.R]])
+            else:
+                self._Hs_['R'][self.mps.nsite-pos].relabel(news=[self.mps[pos].labels[MPS.L].prime,self.mpo[pos].labels[MPO.L],self.mps[pos].labels[MPS.L]])
 
-    def set_Hs_(self,L=None,R=None,tol=hm.TOL):
+    def set_Hs_(self,SL=None,EL=None,SR=None,ER=None,keep=False,tol=hm.TOL):
         '''
         Set the Hamiltonians of blocks.
 
         Parameters
         ----------
-        L : integer, optional
-            The maximum position of the left Hamiltonians to be set.
-        R : integer, optional
-            The maximum position of the right Hamiltonians to be set.
+        SL/EL : integer, optional
+            The start/end position of the left Hamiltonians to be set.
+        SR/ER : integer, optional
+            The start/end position of the right Hamiltonians to be set.
+        keep : logical, optional
+            True for keeping the old `_Hs_` and False for not.
         tol : np.float64, optional
             The tolerance of the zeros.
         '''
-        self._Hs_={'L':[None]*(self.mps.nsite+1),'R':[None]*(self.mps.nsite+1)}
+        SL=-1 if SL is None else SL
+        SR=self.mps.nsite if SR is None else SR
+        if keep:
+            for pos in xrange(-1,SL):
+                self.set_HL_(pos,job='relabel')
+            for pos in xrange(self.mps.nsite,SR,-1):
+                self.set_HR_(pos,job='relabel')
+        else:
+            self._Hs_={'L':[None]*(self.mps.nsite+1),'R':[None]*(self.mps.nsite+1)}
         if self.mps.cut is not None:
-            L=self.mps.cut-1 if L is None else L
-            R=self.mps.cut if R is None else R
-            for pos in xrange(-1,L+1):
-                self.set_HL_(pos,tol=tol)
-            for pos in xrange(self.mps.nsite,R-1,-1):
-                self.set_HR_(pos,tol=tol)
+            EL=self.mps.cut-1 if EL is None else EL
+            ER=self.mps.cut if ER is None else ER
+            for pos in xrange(SL,EL+1):
+                self.set_HL_(pos,job='contract',tol=tol)
+            for pos in xrange(SR,ER-1,-1):
+                self.set_HR_(pos,job='contract',tol=tol)
 
     def reset(self,layer,lattice,mps):
         '''
@@ -372,6 +406,7 @@ class DMRG(Engine):
             True for showing the piechart of self.timers while False for not.
         '''
         self.log<<'%s%s\n%s\n'%(self.state,info,self.graph)
+        eold=self.info['Esite']
         with self.timers.get('Preparation'):
             Ha,Hb=self._Hs_['L'][self.mps.cut-1],self._Hs_['R'][self.mps.nsite-self.mps.cut-1]
             Hasite,Hbsite=self.mpo[self.mps.cut-1],self.mpo[self.mps.cut]
@@ -425,6 +460,7 @@ class DMRG(Engine):
             energy,Psi=es[0],vs[:,0]
             self.info['Etotal']=energy,'%.6f'
             self.info['Esite']=energy/self.mps.nsite,'%.8f'
+            self.info['dE/E']=None if eold is None else (norm(self.info['Esite']-eold)/norm(self.info['Esite']+eold),'%.1e')
             self.info['overlap']=np.inf if v0 is None else np.abs(Psi.conjugate().dot(v0)/norm(v0)/norm(Psi)),'%.6f'
         with self.timers.get('Truncation'):
             u,s,v,err=Tensor(Psi,labels=[Label('__DMRG_TWO_SITE_STEP__',qns=qns)]).partitioned_svd(Lsys,new,Lenv,nmax=nmax,tol=tol,return_truncation_err=True)
@@ -437,11 +473,11 @@ class DMRG(Engine):
             self.info['density']=1.0*self.info['nnz']/self.info['nslice']**2,'%.1e'
             self.info['err']=err,'%.1e'
         self.timers.record()
-        self.log<<'timers of the dmrg:\n%s\n'%self.timers.tostr(None)
+        self.log<<'timers of the dmrg:\n%s\n'%self.timers.tostr(Timers.ALL)
         self.log<<'info of the dmrg:\n%s\n\n'%self.info
         if piechart: self.timers.graph(parents=Timers.ALL)
 
-    def insert(self,A,B,target=None,mps0=None):
+    def insert(self,A,B,target=None,keep=False,mps0=None):
         '''
         Insert two blocks of points into the center of the lattice.
 
@@ -451,8 +487,14 @@ class DMRG(Engine):
             The scopes of the insert block points.
         target : QuantumNumber, optional
             The new target of the DMRG.
+        keep : logical, optional
+            True for keep old `self._Hs_` and False for not.
         mps0 : MPS, optional
             The initial mps.
+
+        Notes
+        -----
+        Usually, when the growth of the system has stepped into the translation-invariant bulk, `keep` is set to be True.
         '''
         self.lattice.insert(A,B)
         self.config.reset(pids=self.lattice.pids)
@@ -523,11 +565,16 @@ class DMRG(Engine):
             self.mps[self.mps.cut:self.mps.cut]=nms
             self.mps.cut=self.mps.nsite/2
             self.mps.relabel(sites=sites,bonds=nbonds)
+            self._Hs_['L'].extend([None]*((nb-ob)*2))
+            self._Hs_['R'].extend([None]*((nb-ob)*2))
+            EL,ER=nb-3,nb
+            SL,SR=(ob-1,self.mps.nsite-ob) if keep else (None,None)
+            self.set_Hs_(SL=SL,EL=EL,SR=SR,ER=ER,keep=keep)
         else:
             assert self.mps.nsite==0 and mps0.nsite==len(self.mpo) and mps0.cut==mps0.nsite/2
             self.mps=mps0
             self.mps.relabel(sites=sites,bonds=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds,mps0.bonds)])
-        self.set_Hs_(L=self.mps.cut-2,R=self.mps.cut+1)
+            self.set_Hs_(EL=self.mps.cut-2,ER=self.mps.cut+1)
         self.target=target
 
     def sweep(self,info='',path=None,**karg):
@@ -566,10 +613,9 @@ class DMRG(Engine):
         '''
         self.layer=layer if type(layer) in (int,long) else self.degfres.layers.index(layer)
         self.set_operators_mpo()
-        self.mpo.compress(nsweep=nsweep,options=dict(method='dpl',tol=hm.TOL))
         self.mps=self.mps.relayer(self.degfres,layer,nmax=nmax,tol=tol)
         self.mps.compress(nsweep=nsweep,cut=cut,nmax=nmax,tol=tol)
-        self.set_Hs_(tol=tol)
+        self.set_Hs_()
 
     def coredump(self):
         '''
@@ -639,15 +685,19 @@ class TSG(App):
         The number of sites per block of the dmrg.
     nmax : integer
         The maximum singular values to be kept.
+    terminate : logical
+        True for terminate the growing process if converged groundsate energy has been obtained, False for not.
     tol : float64
         The tolerance of the singular values.
+    etol : float64
+        The tolerance of the groundsate energy.
     heatbaths : list of integer
         The maximum bond dimensions for the heat bath processes.
     sweeps : list of integer
         The maximum bond dimensions for the sweep processes.
     '''
 
-    def __init__(self,scopes,targets,mps0=None,layer=0,ns=1,nmax=200,tol=hm.TOL,heatbaths=None,sweeps=None,**karg):
+    def __init__(self,scopes,targets,mps0=None,layer=0,ns=1,nmax=200,terminate=False,tol=hm.TOL,etol=10**-6,heatbaths=None,sweeps=None,**karg):
         '''
         Constructor.
 
@@ -665,8 +715,12 @@ class TSG(App):
             The number of sites per block of the dmrg.
         nmax : integer, optional
             The maximum number of singular values to be kept.
+        terminate : logical, optional
+            True for terminate the growing process if converged groundsate energy has been obtained, False for not.
         tol : float64, optional
             The tolerance of the singular values.
+        etol : float64, optional
+            The tolerance of the groundsate energy.
         heatbaths : list of integer, optional
             The maximum bond dimensions for the heat bath processes.
         sweeps : list of integer, optional
@@ -679,8 +733,10 @@ class TSG(App):
         self.layer=layer
         self.ns=ns
         self.nmax=nmax
+        self.terminate=terminate
         self.tol=tol
-        self.heatbaths=[nmax*(i+1)/15 for i in xrange(15)] if heatbaths is None else heatbaths
+        self.etol=etol
+        self.heatbaths=[nmax*(i+1)/10 for i in xrange(10)] if heatbaths is None else heatbaths
         self.sweeps=[nmax]*4 if sweeps is None else sweeps
 
     def recover(self,engine):
@@ -720,12 +776,19 @@ def DMRGTSG(engine,app):
     if engine.layer!=app.layer: engine.layer=app.layer
     for pos,target in enumerate(app.targets[num+1:]):
         nold,nnew=engine.mps.nsite,engine.mps.nsite+2*app.ns
-        engine.insert(app.scopes[pos+num+1],app.scopes[-pos-num-2],target=target,mps0=app.mps0 if num+pos<0 else None)
+        keep,mps0=True if pos+num+1>engine.lattice.nneighbour else False,app.mps0 if num+pos<0 else None
+        engine.insert(app.scopes[pos+num+1],app.scopes[-pos-num-2],target=target,keep=keep,mps0=mps0)
         assert nnew==engine.mps.nsite
+        geold=engine.info['Esite']
         engine.iterate(info='(++)',sp=True if num+pos>=0 else False,nmax=app.nmax,tol=app.tol,piechart=app.plot)
         for i,nmax in enumerate(app.heatbaths if num+pos==-1 else app.sweeps):
             path=it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2))
+            seold=engine.info['Esite']
             engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,tol=app.tol,piechart=app.plot)
+            senew=engine.info['Esite']
+            if norm(seold-senew)/norm(seold+senew)<app.etol: break
+        genew=engine.info['Esite']
+        if app.terminate and geold is not None and norm(geold-genew)/norm(geold+genew)<app.etol: break
     if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
     if app.save_data: engine.coredump()
     engine.log.close()
@@ -758,7 +821,7 @@ class TSS(App):
         The tolerance of the singular values.
     '''
 
-    def __init__(self,target,layer,nsite,nmaxs,protocal=0,BS=None,paths=None,tol=hm.TOL,**karg):
+    def __init__(self,target,layer,nsite,nmaxs,protocal=0,BS=None,paths=None,tol=hm.TOL,etol=10**-6,**karg):
         '''
         Constructor.
 
