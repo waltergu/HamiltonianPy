@@ -592,6 +592,21 @@ class MPO(list):
                 result=contract([result,m],engine='tensordot')
         return np.asarray(result.transpose(axes=[self[0].labels[MPO.L]]+ls+rs+[self[-1].labels[MPO.R]])).reshape((L,R))
 
+    def relabel(self,sites,bonds):
+        '''
+        Change the labels of the mpo.
+
+        Parameters
+        ----------
+        sites : list of Label
+            The new site labels of the mpo.
+        bonds : list of Label
+            The new bond labels of the mpo.
+        '''
+        assert len(sites)==self.nsite and len(bonds)==self.nsite+1
+        for m,L,S,R in zip(self,bonds[:-1],sites,bonds[1:]):
+            m.relabel(news=[L,S.prime,S,R])
+
     def _mul_mpo_(self,other):
         '''
         The multiplication of two mpos.

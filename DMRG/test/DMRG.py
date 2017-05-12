@@ -20,7 +20,7 @@ def test_dmrg():
 
 def test_idmrg():
     print 'test_idmrg'
-    dmrg_spin('idmrg',spin=1.0,N=200,J=1.0,qnon=True)
+    dmrg_spin('idmrg',spin=0.5,N=200,J=1.0,qnon=True)
     dmrg_spinless_fermion('idmrg',N=200,t=-0.5,qnon=True)
     dmrg_spinful_fermion('idmrg',N=200,t=-1.0,U=1.0,qnon=True)
     print
@@ -37,7 +37,7 @@ def dmrg_spin(mode,spin,N,J,qnon=True):
     priority,layers=DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
     dmrg=DMRG(
         log=        Log('spin-%s.log'%(spin),mode='a+'),
-        name=       'spin-%s'%(spin),
+        name=       '%s-spin-%s'%(mode,spin),
         mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
         lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0]),nneighbour=1),
         terms=      [SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())],
@@ -49,7 +49,7 @@ def dmrg_spin(mode,spin,N,J,qnon=True):
         )
     targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=200,terminate=True,save_data=False,plot=True,run=DMRGTSG)
+        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=200,terminate=True,save_data=False,plot=True,save_fig=True,run=DMRGTSG)
         dmrg.register(tsg)
     else:
         target=SQN(0.0)
@@ -64,7 +64,7 @@ def dmrg_spinless_fermion(mode,N,t,qnon=True):
     priority,layers=('scope','site','orbital','spin','nambu'),[('scope','site','orbital','spin')]
     dmrg=DMRG(
         log=        Log('fermin-spin-o.log',mode='a+'),
-        name=       'fermion-spin-o',
+        name=       '%s-fermion-spin-0'%mode,
         mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
         lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
         terms=      [Hopping('t',t,neighbour=1)],
@@ -76,7 +76,7 @@ def dmrg_spinless_fermion(mode,N,t,qnon=True):
         )
     targets=[PQN(num) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=200,terminate=True,save_data=False,plot=True,run=DMRGTSG)
+        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=200,terminate=True,save_data=False,plot=True,save_fig=True,run=DMRGTSG)
         dmrg.register(tsg)
     else:
         target=PQN(N/2)
@@ -91,7 +91,7 @@ def dmrg_spinful_fermion(mode,N,t,U,qnon=True):
     priority,layers=DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS
     dmrg=DMRG(
         log=        Log('fermin-spin-0.5.log',mode='a+'),
-        name=       'fermion-spin-0.5',
+        name=       '%s-fermion-spin-0.5'%mode,
         mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
         lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
         terms=      [Hopping('t',t,neighbour=1),Hubbard('U',U)],
@@ -104,7 +104,7 @@ def dmrg_spinful_fermion(mode,N,t,U,qnon=True):
         )
     targets=[SPQN((num*2,0.0)) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=200,terminate=True,save_data=False,plot=True,run=DMRGTSG)
+        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=200,terminate=True,save_data=False,plot=True,save_fig=True,run=DMRGTSG)
         dmrg.register(tsg)
     else:
         target=SPQN((N,0.0))

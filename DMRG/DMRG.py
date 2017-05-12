@@ -220,7 +220,8 @@ class DMRG(Engine):
         self.generator=Generator(bonds=lattice.bonds,config=config,terms=terms,dtype=dtype)
         self.status.update(const=self.generator.parameters['const'])
         self.status.update(alter=self.generator.parameters['alter'])
-        self.set_operators_mpo()
+        self.set_operators()
+        self.set_mpo()
         self.set_Hs_()
         self.timers=Timers('Preparation','Hamiltonian','Diagonalization','Truncation')
         self.timers.add(parent='Hamiltonian',name='kron')
@@ -253,17 +254,23 @@ class DMRG(Engine):
         '''
         self.generators['h'].update(**karg)
         self.status.update(alter=self.generators['h'].parameters['alter'])
-        self.set_operators_mpo()
+        self.set_operators()
+        self.set_mpo()
         self.set_Hs_()
 
-    def set_operators_mpo(self):
+    def set_operators(self):
         '''
-        Set the generators, operators and optstrs of the DMRG.
+        Set the operators of the DMRG.
         '''
         self.operators=self.generator.operators
         if self.mask==['nambu']:
             for operator in self.operators.values():
                 self.operators+=operator.dagger
+
+    def set_mpo(self):
+        '''
+        Set the mpo of the DMRG.
+        '''
         if len(self.operators)>0:
             self.mpo=OptMPO([OptStr.from_operator(operator,self.degfres,self.layer) for operator in self.operators.itervalues()],self.degfres).to_mpo()
 
@@ -381,7 +388,8 @@ class DMRG(Engine):
         self.config.reset(pids=self.lattice.pids)
         self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
         self.generator.reset(bonds=self.lattice.bonds,config=self.config)
-        self.set_operators_mpo()
+        self.set_operators()
+        self.set_mpo()
         self.mps=mps
         sites,bonds=self.degfres.labels(self.degfres.layers[self.layer],'S'),self.degfres.labels(self.degfres.layers[self.layer],'B')
         self.mps.relabel(sites=sites,bonds=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds,mps.bonds)])
@@ -477,7 +485,111 @@ class DMRG(Engine):
         self.log<<'info of the dmrg:\n%s\n\n'%self.info
         if piechart: self.timers.graph(parents=Timers.ALL)
 
-    def insert(self,A,B,target=None,keep=False,mps0=None):
+    @staticmethod
+    def imps_predict(mps,sites,bonds,osvs,target=None,dtype=np.float64):
+        '''
+        Infinite DMRG state prediction.
+
+        Parameters
+        ----------
+        mps : MPS
+            The mps to be predicted.
+        sites/bonds : list of Label
+            The new site/bond labels of the mps.
+        osvs : 1d ndarray
+            The old singular values.
+        target : QuantumNumber, optional
+            The new target of the mps.
+        dtype : np.float64, np.complex128, etc, optional
+            The data type of the mps.
+
+        Returns
+        -------
+        nsvs : 1d ndarray
+            The updated singular values for the next imps prediction.
+        '''
+        if mps.cut is None: mps.cut=0
+        assert mps.cut==mps.nsite/2 and mps.nsite%2==0
+        obonds=mps.bonds
+        diff=0 if target is None else (target if mps.nsite==0 else target-next(iter(obonds[-1].qns)))
+        ob,nb=mps.nsite/2+1,(len(bonds)+1)/2
+        L,LS,RS,R=bonds[:ob],bonds[ob:nb],bonds[nb:-ob],bonds[-ob:]
+        if mps.cut==0:
+            L[+0]=L[+0].replace(qns=QuantumNumbers.mono(target.zero(),count=1) if mps.mode=='QN' else 1)
+            R[-1]=R[-1].replace(qns=QuantumNumbers.mono(target,count=1) if mps.mode=='QN' else 1)
+        for i,(bond,obond) in enumerate(zip(L,obonds[:ob])):
+            L[i]=bond.replace(qns=obond.qns)
+        for i,(bond,obond) in enumerate(zip(R,obonds[-ob:])):
+            R[i]=bond.replace(qns=obond.qns+diff)
+        if mps.nsite>0:
+            for i,(bond,obond) in enumerate(zip(LS,obonds[ob:nb])):
+                LS[i]=bond.replace(qns=obond.qns)
+            for i,(bond,obond) in enumerate(zip(RS,obonds[-nb+1:-ob])):
+                RS[i]=bond.replace(qns=obond.qns+diff)
+        else:
+            LS,RS=deepcopy(LS),deepcopy(RS)
+        nbonds=L+LS+RS+R
+        ns,nms,lms,rms=nb-ob,[],[],[]
+        if mps.nsite>0:
+            us,vs,nsvs=mps[mps.cut-ns:mps.cut],mps[mps.cut:mps.cut+ns],np.asarray(mps.Lambda)
+            for i,(L,S,R) in enumerate(zip(nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb])):
+                m=Tensor(np.asarray(vs[i].dotarray(axis=MPS.L,array=nsvs) if i==0 else vs[i]),labels=[L,S,R])
+                u,s,v=m.svd(row=[L,S],new=Label('__DMRG_INSERT_L_%i__'%i),col=[R],row_signs='++',col_signs='+')
+                if i<len(vs)-1:
+                    u.relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
+                    vs[i+1].relabel(olds=[MPS.L],news=[R.replace(qns=s.labels[0].qns)])
+                    vs[i+1]=contract([s,v,vs[i+1]],engine='einsum',reserve=s.labels)
+                    vs[i+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
+                else:
+                    ml=v.dotarray(axis=0,array=np.asarray(s))
+                lms.append(u)
+            for i,(L,S,R) in enumerate(reversed(zip(nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]))):
+                m=Tensor(np.asarray(us[-1-i].dotarray(axis=MPS.R,array=nsvs) if i==0 else us[-1-i]),labels=[L,S,R])
+                u,s,v=m.svd(row=[L],new=Label('__DMRG_INSERT_R_%i__'%i),col=[S,R],row_signs='+',col_signs='-+')
+                if i<len(us)-1:
+                    v.relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
+                    us[-i-2].relabel(olds=[MPS.R],news=[L.replace(qns=s.labels[0].qns)])
+                    us[-i-2]=contract([us[-i-2],u,s],engine='einsum',reserve=s.labels)
+                    us[-i-2].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
+                else:
+                    mr=u.dotarray(axis=1,array=np.asarray(s))
+                rms.insert(0,v)
+            u,s,v=contract([ml,Tensor(1.0/osvs,labels=[nbonds[nb-1]]),mr],engine='einsum').svd(row=[0],new=nbonds[nb-1],col=[1])
+            lms[-1]=contract([lms[-1],u],engine='tensordot')
+            rms[+0]=contract([v,rms[+0]],engine='tensordot')
+            nms=lms+rms
+            mps.Lambda=s
+        else:
+            for L,S,R in zip(nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb]):
+                nms.append(Tensor(np.zeros((1,S.dim,1),dtype=dtype),labels=[L,S,R]))
+            for L,S,R in zip(nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]):
+                nms.append(Tensor(np.zeros((1,S.dim,1),dtype=dtype),labels=[L,S,R]))
+            nsvs=np.array([1.0])
+        mps[mps.cut:mps.cut]=nms
+        mps.cut=mps.nsite/2
+        mps.relabel(sites=sites,bonds=nbonds)
+        return nsvs
+
+    @staticmethod
+    def impo_generate(mpo,sites,bonds):
+        '''
+        Infinite DMRG mpo generation.
+
+        Parameters
+        ----------
+        mpo : MPO
+            The mpo to be generated.
+        sites/bonds : list of Label
+            The site/bond labels of the mpo.
+        '''
+        ob,nb,obonds=mpo.nsite/2+1,(len(bonds)+1)/2,mpo.bonds
+        L=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds[:ob],obonds[:ob])]
+        C=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds[ob:-ob],obonds[ob:nb]*2)]
+        R=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds[-ob:],obonds[-ob:])]
+        mpo[mpo.nsite/2:mpo.nsite/2]=deepcopy(mpo[2*ob-nb-1:nb-1])
+        mpo.relabel(sites=sites,bonds=L+C+R)
+
+    def insert(self,A,B,target=None,mps0=None):
         '''
         Insert two blocks of points into the center of the lattice.
 
@@ -487,93 +599,31 @@ class DMRG(Engine):
             The scopes of the insert block points.
         target : QuantumNumber, optional
             The new target of the DMRG.
-        keep : logical, optional
-            True for keep old `self._Hs_` and False for not.
         mps0 : MPS, optional
             The initial mps.
-
-        Notes
-        -----
-        Usually, when the growth of the system has stepped into the translation-invariant bulk, `keep` is set to be True.
         '''
         self.lattice.insert(A,B)
         self.config.reset(pids=self.lattice.pids)
         self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
         self.generator.reset(bonds=self.lattice.bonds,config=self.config)
-        self.set_operators_mpo()
+        self.set_operators()
         layer=self.degfres.layers[self.layer]
-        sites,bonds=self.degfres.labels(layer,'S'),self.degfres.labels(layer,'B')
+        sites,mpsbonds,mpobonds=self.degfres.labels(layer,'S'),self.degfres.labels(layer,'B'),self.degfres.labels(layer,'O')
+        ob,nb=self.mps.nsite/2+1,(len(mpsbonds)+1)/2
+        if ob/(nb-ob)>self.lattice.nneighbour+2:
+            DMRG.impo_generate(self.mpo,sites,mpobonds)
+        else:
+            self.set_mpo()
         if mps0 is None:
-            if self.mps.cut is None: self.mps.cut=0
-            assert self.mps.cut==self.mps.nsite/2 and self.mps.nsite%2==0
-            obonds=self.mps.bonds
-            diff=0 if target is None else (target if self.target is None else target-self.target)
-            ob,nb=(len(obonds)+1)/2 if self.mps.nsite>0 else 1,(len(bonds)+1)/2
-            L,LS,RS,R=bonds[:ob],bonds[ob:nb],bonds[nb:-ob],bonds[-ob:]
-            if self.mps.cut==0:
-                L[+0]=L[+0].replace(qns=QuantumNumbers.mono(target.zero(),count=1) if self.mps.mode=='QN' else 1)
-                R[-1]=R[-1].replace(qns=QuantumNumbers.mono(target,count=1) if self.mps.mode=='QN' else 1)
-            for i,(bond,obond) in enumerate(zip(L,obonds[:ob])):
-                L[i]=bond.replace(qns=obond.qns)
-            for i,(bond,obond) in enumerate(zip(R,obonds[-ob:])):
-                R[i]=bond.replace(qns=obond.qns+diff)
-            if self.mps.nsite>0:
-                for i,(bond,obond) in enumerate(zip(LS,obonds[ob:nb])):
-                    LS[i]=bond.replace(qns=obond.qns)
-                for i,(bond,obond) in enumerate(zip(RS,obonds[-nb+1:-ob])):
-                    RS[i]=bond.replace(qns=obond.qns+diff)
-            else:
-                LS,RS=deepcopy(LS),deepcopy(RS)
-            nbonds=L+LS+RS+R
-            ns,nms,lms,rms=nb-ob,[],[],[]
-            if len(self.lattice)/len(self.lattice.block)>2:
-                us,vs=self.mps[self.mps.cut-ns:self.mps.cut],self.mps[self.mps.cut:self.mps.cut+ns]
-                nsvs,osvs=np.asarray(self.mps.Lambda),self.cache.get('osvs',np.array([1.0]))
-                for i,(L,S,R) in enumerate(zip(nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb])):
-                    m=Tensor(np.asarray(vs[i].dotarray(axis=MPS.L,array=nsvs) if i==0 else vs[i]),labels=[L,S,R])
-                    u,s,v=m.svd(row=[L,S],new=Label('__DMRG_INSERT_L_%i__'%i),col=[R],row_signs='++',col_signs='+')
-                    if i<len(vs)-1:
-                        u.relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
-                        vs[i+1].relabel(olds=[MPS.L],news=[R.replace(qns=s.labels[0].qns)])
-                        vs[i+1]=contract([s,v,vs[i+1]],engine='einsum',reserve=s.labels)
-                        vs[i+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
-                    else:
-                        ml=v.dotarray(axis=0,array=np.asarray(s))
-                    lms.append(u)
-                for i,(L,S,R) in enumerate(reversed(zip(nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]))):
-                    m=Tensor(np.asarray(us[-1-i].dotarray(axis=MPS.R,array=nsvs) if i==0 else us[-1-i]),labels=[L,S,R])
-                    u,s,v=m.svd(row=[L],new=Label('__DMRG_INSERT_R_%i__'%i),col=[S,R],row_signs='+',col_signs='-+')
-                    if i<len(us)-1:
-                        v.relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
-                        us[-i-2].relabel(olds=[MPS.R],news=[L.replace(qns=s.labels[0].qns)])
-                        us[-i-2]=contract([us[-i-2],u,s],engine='einsum',reserve=s.labels)
-                        us[-i-2].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
-                    else:
-                        mr=u.dotarray(axis=1,array=np.asarray(s))
-                    rms.insert(0,v)
-                u,s,v=contract([ml,Tensor(1.0/osvs,labels=[nbonds[nb-1]]),mr],engine='einsum').svd(row=[0],new=nbonds[nb-1],col=[1])
-                lms[-1]=contract([lms[-1],u],engine='tensordot')
-                rms[+0]=contract([v,rms[+0]],engine='tensordot')
-                nms=lms+rms
-                self.cache['osvs']=np.asarray(self.mps.Lambda)
-                self.mps.Lambda=s
-            else:
-                for L,S,R in zip(nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb]):
-                    nms.append(Tensor(np.zeros((1,S.dim,1),dtype=self.dtype),labels=[L,S,R]))
-                for L,S,R in zip(nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]):
-                    nms.append(Tensor(np.zeros((1,S.dim,1),dtype=self.dtype),labels=[L,S,R]))
-            self.mps[self.mps.cut:self.mps.cut]=nms
-            self.mps.cut=self.mps.nsite/2
-            self.mps.relabel(sites=sites,bonds=nbonds)
+            self.cache['osvs']=DMRG.imps_predict(self.mps,sites,mpsbonds,self.cache.get('osvs',np.array([1.0])),target=target,dtype=self.dtype)
             self._Hs_['L'].extend([None]*((nb-ob)*2))
             self._Hs_['R'].extend([None]*((nb-ob)*2))
-            EL,ER=nb-3,nb
-            SL,SR=(ob-1,self.mps.nsite-ob) if keep else (None,None)
-            self.set_Hs_(SL=SL,EL=EL,SR=SR,ER=ER,keep=keep)
+            SL,SR,keep=(ob-1,self.mps.nsite-ob,True) if ob/(nb-ob)>self.lattice.nneighbour+1 else (None,None,False)
+            self.set_Hs_(SL=SL,EL=nb-3,SR=SR,ER=nb,keep=keep)
         else:
             assert self.mps.nsite==0 and mps0.nsite==len(self.mpo) and mps0.cut==mps0.nsite/2
             self.mps=mps0
-            self.mps.relabel(sites=sites,bonds=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds,mps0.bonds)])
+            self.mps.relabel(sites=sites,bonds=[bond.replace(qns=obond.qns) for bond,obond in zip(mpsbonds,mps0.bonds)])
             self.set_Hs_(EL=self.mps.cut-2,ER=self.mps.cut+1)
         self.target=target
 
@@ -612,7 +662,8 @@ class DMRG(Engine):
             The tolerance of the singular values.
         '''
         self.layer=layer if type(layer) in (int,long) else self.degfres.layers.index(layer)
-        self.set_operators_mpo()
+        self.set_operators()
+        self.set_mpo()
         self.mps=self.mps.relayer(self.degfres,layer,nmax=nmax,tol=tol)
         self.mps.compress(nsweep=nsweep,cut=cut,nmax=nmax,tol=tol)
         self.set_Hs_()
@@ -776,8 +827,7 @@ def DMRGTSG(engine,app):
     if engine.layer!=app.layer: engine.layer=app.layer
     for pos,target in enumerate(app.targets[num+1:]):
         nold,nnew=engine.mps.nsite,engine.mps.nsite+2*app.ns
-        keep,mps0=True if pos+num+1>engine.lattice.nneighbour else False,app.mps0 if num+pos<0 else None
-        engine.insert(app.scopes[pos+num+1],app.scopes[-pos-num-2],target=target,keep=keep,mps0=mps0)
+        engine.insert(app.scopes[pos+num+1],app.scopes[-pos-num-2],target=target,mps0=app.mps0 if num+pos<0 else None)
         assert nnew==engine.mps.nsite
         geold=engine.info['Esite']
         engine.iterate(info='(++)',sp=True if num+pos>=0 else False,nmax=app.nmax,tol=app.tol,piechart=app.plot)
