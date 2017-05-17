@@ -41,6 +41,17 @@ class Operator(object):
         '''
         raise ValueError("%s id error: it is not implemented."%self.__class__.__name__)
 
+    @property
+    def dagger(self):
+        '''
+        The Hermitian conjugate of the operator.
+
+        Notes
+        -----
+        * This property must be overridden by its child class.
+        '''
+        raise ValueError("%s dagger error: it is not implemented."%(self.__class__.__name__))
+
     def __pos__(self):
         '''
         Overloaded positive(+) operator.
@@ -242,3 +253,13 @@ class Operators(dict):
         Overloaded left subtraction(-) operator, which supports the left subtraction by an instance of Operator/Operators.
         '''
         return self+other*(-1)
+
+    @property
+    def dagger(self):
+        '''
+        The Hermitian conjugate of the operators.
+        '''
+        result=Operators()
+        for operator in self.values():
+            result+=operator.dagger
+        return self

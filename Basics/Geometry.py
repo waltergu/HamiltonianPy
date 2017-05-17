@@ -824,6 +824,23 @@ class Lattice(object):
         for point in self.points:
             point.rcoord+=vector
 
+    def rename(self,name=None,pids=None):
+        '''
+        Rename the lattice and its points.
+
+        Parameters
+        ----------
+        name : string, optional
+            The new name of the lattice.
+        pids : list of PID, optional
+            The new pids of the points of the lattice.
+        '''
+        if name is not None: self.name=name
+        if pids is not None:
+            assert len(pids)==len(self)
+            for pid,point in zip(pids,self.points):
+                point.pid=pid
+
     def plot(self,fig=None,ax=None,show=True,suspend=False,save=False,close=True,pid_on=False):
         '''
         Plot the lattice points and bonds. Only 2D or quasi 1d systems are supported.

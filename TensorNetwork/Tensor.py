@@ -362,7 +362,7 @@ class Tensor(np.ndarray):
             * permutation: 1d ndarray of integers
                 The permutation array.
             * qns: QuantumNumbers, optional
-                The new qantum number collection of the dimension if it uses good quantum numbers.
+                The new qantum number collection of the dimension if good quantum numbers are used.
 
         Returns
         -------
@@ -548,7 +548,7 @@ class Tensor(np.ndarray):
         labels : list of Label
             The labels of the random tensor.
         signs : string, optional
-            The signs of the quantum number collections of the labels if they use good quantum number.
+            The signs of the quantum number collections of the labels if good quantum numbers are used.
         dtype : np.float32, np.float64, np.complex64, np.complex128, optional
             The data type of the random tensor.
 
@@ -608,6 +608,73 @@ class Tensor(np.ndarray):
         slices=[np.newaxis]*self.ndim
         slices[axis]=slice(None)
         return self*array[slices]
+
+    def eigh(self,row,new,col,row_signs=None,col_signs=None,return_dagger=False):
+        '''
+        Eigenvalue decomposition of a tensor.
+
+        Parameters
+        ----------
+        row/col : list of Label or Integer
+            The axes or labels to be merged as the row/column dimension during the eigenvalue decomposition.
+            The positive direction is IN for row and OUT for col if good quantum numbers are used.
+        new : Label
+            The label for the eigenvalues.
+        row_signs/col_signs : string, optional
+            The signs of the quantum number collections of the row/col labels if good quantum numbers are used.
+        return_dagger : logical, optional
+            True for returning the Hermitian conjugate of the eigenvalue matrix and False for not.
+
+        Returns
+        -------
+        E,U : Tensor
+            The eigenvalue decomposition of the tensor, such taht `self=U*E*U^{\daager}`.
+        UD : Tensor, optional
+            The Hermitian conjugate of the tensor `U`, with the column split in accordance with `self`.
+
+        Notes
+        -----
+        The tensor to be decomposed must be Hermitian after the merge of its dimensions.
+        '''
+        assert len(row)+len(col)==self.ndim
+        row=[r if isinstance(r,Label) else self.label(r) for r in row]
+        col=[c if isinstance(c,Label) else self.label(c) for c in col]
+        if self.qnon:
+            row_qns,row_permutation=QuantumNumbers.kron([lb.qns for lb in row],row_signs).sort(history=True)
+            col_qns,col_permutation=QuantumNumbers.kron([lb.qns for lb in col],col_signs).sort(history=True)
+            assert len(row_qns)==len(col_qns)
+            row_label=Label('__TENSOR_EIGH_ROW__',qns=row_qns)
+            col_label=Label('__TENSOR_EIGH_COL__',qns=col_qns)
+            m=np.asarray(self.merge((row,row_label,row_permutation),(col,col_label,col_permutation)))
+            row_od,col_od=row_qns.to_ordereddict(),col_qns.to_ordereddict()
+            E=np.zeros(len(row_qns),dtype=np.float64)
+            U=np.zeros((len(row_qns),len(row_qns)),dtype=self.dtype)
+            for qn in row_od:
+                assert row_od[qn]==col_od[qn]
+                e,u=sl.eigh(m[row_od[qn],row_od[qn]],check_finite=False)
+                E[row_od[qn]]=e
+                U[row_od[qn],row_od[qn]]=u
+            new=new.replace(qns=row_qns)
+            E=Tensor(E,labels=[new])
+            U=Tensor(U,labels=[row_label,new]).split((row_label,row,np.argsort(row_permutation)))
+            if return_dagger:
+                UD=Tensor(hm.dagger(np.asarray(U)),labels=[new,col_label]).split((col_label,col,np.argsort(col_permutation)))
+                return E,U,UD
+            else:
+                return E,U
+        else:
+            row_label=Label('__TENSOR_EIGH_ROW__',qns=np.product([label.dim for label in row]))
+            col_label=Label('__TENSOR_EIGH_COL__',qns=np.product([label.dim for label in col]))
+            assert len(row_qns)==len(col_qns)
+            e,u=sl.eigh(np.asarray(self.merge((row,row_label),(col,col_label))),check_finite=False)
+            new=new.replace(qns=len(row_label))
+            E=Tensor(e,labels=[new])
+            U=Tensor(u,labels=[row_label,new]).split((row_label,row))
+            if return_dagger:
+                UD=Tensor(hm.dagger(np.asarray(U)),labels=[new,col_label]).split((col_label,col))
+                return E,U,UD
+            else:
+                return E,U
 
     def partitioned_svd(self,L,new,R,nmax=None,tol=None,return_truncation_err=False,**karg):
         '''
@@ -693,11 +760,11 @@ class Tensor(np.ndarray):
         ----------
         row/col : list of Label or integer
             The labels or axes to be merged as the row/column dimension during the svd.
-            The positive direction is IN for row and OUT for col if they use good quantum numbers.
+            The positive direction is IN for row and OUT for col if good quantum numbers are used.
         new : Label
-            The new axis label after the svd.
+            The label for the singular values.
         row_signs/col_signs : string, optional
-            The signs for the quantum number collections of the labels to be merged as the row/column if they use good quantum numbers.
+            The signs of the quantum number collections of the row/col labels if good quantum numbers are used.
         nmax,tol,return_truncation_err :
             Please refer to HamiltonianPy.Misc.Linalg.truncated_svd for details.
 
@@ -777,17 +844,17 @@ class Tensor(np.ndarray):
         ----------
         L/R : list of Label or integer
             The labels or axes to be merged as the left/right dimension during the expanded svd.
-            The positive direction is IN for L and OUT for R if they use good quantum numbers.
+            The positive direction is IN for L and OUT for R if good quantum numbers are used.
         S : Label/integer
             The label/axis to be expanded.
-            The positive direction is IN for S if it uses good quantum numbers.
+            The positive direction is IN for S if good quantum numbers are used.
         E : list of Label
             The expansion of the merge of S labels.
-            The positive direction is IN for E if they use good quantum numbers.
+            The positive direction is IN for E if good quantum numbers are used.
         I : list of Label
             The labels of the newly generated internal legs during the expanded svd.
         ls/rs/es : string, optional
-            The signs of the quantum number collections of the L/R/E labels they use good quantum numbers.
+            The signs of the quantum number collections of the L/R/E labels if good quantum numbers are used.
         cut : integer, optional
             The labels in E whose sequences are less than cut will be tied with the u matrices of the svds from the left;
             The labels in E whose sequences are equal to or greater than cut will be tied with the v matrices of the svds from the right.

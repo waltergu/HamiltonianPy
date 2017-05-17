@@ -589,7 +589,7 @@ class DMRG(Engine):
         mpo[mpo.nsite/2:mpo.nsite/2]=deepcopy(mpo[2*ob-nb-1:nb-1])
         mpo.relabel(sites=sites,bonds=L+C+R)
 
-    def insert(self,A,B,target=None,mps0=None):
+    def insert(self,A,B,news=None,target=None,mps0=None):
         '''
         Insert two blocks of points into the center of the lattice.
 
@@ -597,20 +597,22 @@ class DMRG(Engine):
         ----------
         A,B : any hashable object
             The scopes of the insert block points.
+        news : list of any hashable object, optional
+            The new scopes of the original points before the insertion.
         target : QuantumNumber, optional
             The new target of the DMRG.
         mps0 : MPS, optional
             The initial mps.
         '''
-        self.lattice.insert(A,B)
+        self.lattice.insert(A,B,news=news)
         self.config.reset(pids=self.lattice.pids)
         self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
         self.generator.reset(bonds=self.lattice.bonds,config=self.config)
         self.set_operators()
         layer=self.degfres.layers[self.layer]
         sites,mpsbonds,mpobonds=self.degfres.labels(layer,'S'),self.degfres.labels(layer,'B'),self.degfres.labels(layer,'O')
-        ob,nb=self.mps.nsite/2+1,(len(mpsbonds)+1)/2
-        if ob/(nb-ob)>self.lattice.nneighbour+2:
+        niter,ob,nb=len(self.lattice)/len(self.lattice.block)/2,self.mps.nsite/2+1,(len(mpsbonds)+1)/2
+        if niter>self.lattice.nneighbour+2:
             DMRG.impo_generate(self.mpo,sites,mpobonds)
         else:
             self.set_mpo()
@@ -618,7 +620,7 @@ class DMRG(Engine):
             self.cache['osvs']=DMRG.imps_predict(self.mps,sites,mpsbonds,self.cache.get('osvs',np.array([1.0])),target=target,dtype=self.dtype)
             self._Hs_['L'].extend([None]*((nb-ob)*2))
             self._Hs_['R'].extend([None]*((nb-ob)*2))
-            SL,SR,keep=(ob-1,self.mps.nsite-ob,True) if ob/(nb-ob)>self.lattice.nneighbour+1 else (None,None,False)
+            SL,SR,keep=(ob-1,self.mps.nsite-ob,True) if niter>self.lattice.nneighbour+1 else (None,None,False)
             self.set_Hs_(SL=SL,EL=nb-3,SR=SR,ER=nb,keep=keep)
         else:
             assert self.mps.nsite==0 and mps0.nsite==len(self.mpo) and mps0.cut==mps0.nsite/2
@@ -825,13 +827,13 @@ def DMRGTSG(engine,app):
     engine.log.open()
     num=app.recover(engine)
     if engine.layer!=app.layer: engine.layer=app.layer
-    for pos,target in enumerate(app.targets[num+1:]):
-        nold,nnew=engine.mps.nsite,engine.mps.nsite+2*app.ns
-        engine.insert(app.scopes[pos+num+1],app.scopes[-pos-num-2],target=target,mps0=app.mps0 if num+pos<0 else None)
+    for i,target in enumerate(app.targets[num+1:]):
+        pos,nold,nnew=i+num+1,engine.mps.nsite,engine.mps.nsite+2*app.ns
+        engine.insert(app.scopes[pos],app.scopes[-pos-1],news=app.scopes[:pos]+app.scopes[-pos:] if pos>0 else None,target=target,mps0=app.mps0 if pos==0 else None)
         assert nnew==engine.mps.nsite
         geold=engine.info['Esite']
-        engine.iterate(info='(++)',sp=True if num+pos>=0 else False,nmax=app.nmax,tol=app.tol,piechart=app.plot)
-        for i,nmax in enumerate(app.heatbaths if num+pos==-1 else app.sweeps):
+        engine.iterate(info='(++)',sp=True if pos>0 else False,nmax=app.nmax,tol=app.tol,piechart=app.plot)
+        for i,nmax in enumerate(app.heatbaths if pos==0 else app.sweeps):
             path=it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2))
             seold=engine.info['Esite']
             engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,tol=app.tol,piechart=app.plot)
