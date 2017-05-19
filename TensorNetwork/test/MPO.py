@@ -48,7 +48,7 @@ def test_mpo_spin():
     bonds[+0]=bonds[+0].replace(qns=QuantumNumbers.mono(SQN(0.0)))
     bonds[-1]=bonds[-1].replace(qns=QuantumNumbers.mono(SQN(0.0)))
     cut=np.random.randint(0,Nsite*Nscope+1)
-    mps1,mps2=MPS.random(sites,bonds,cut=cut),MPS.random(sites,bonds,cut=cut)
+    mps1,mps2=MPS.random(sites,bonds,cut=cut,nmax=20),MPS.random(sites,bonds,cut=cut,nmax=20)
 
     # set the reference of test
     mopts=[soptrep(opt,table) for opt in opts]
@@ -96,29 +96,29 @@ def test_mpo_fermi():
         print opt
         print optstr
         print
-#    mpos=[optstr.to_mpo(degfres) for optstr in optstrs]
+    mpos=[optstr.to_mpo(degfres) for optstr in optstrs]
 
-#    # set the states
-#    sites,bonds=degfres.labels(layer=layers[-1],mode='S'),degfres.labels(layer=layers[-1],mode='B')
-#    bonds[+0]=bonds[+0].replace(qns=QuantumNumbers.mono(PQN(0)))
-#    bonds[-1]=bonds[-1].replace(qns=QuantumNumbers.mono(PQN(Nscope*Nsite/2)))
-#    cut=np.random.randint(0,Nsite*Nscope+1)
-#    mps1,mps2=MPS.random(sites,bonds,cut=cut),MPS.random(sites,bonds,cut=cut)
+    # set the states
+    sites,bonds=degfres.labels(layer=layers[-1],mode='S'),degfres.labels(layer=layers[-1],mode='B')
+    bonds[+0]=bonds[+0].replace(qns=QuantumNumbers.mono(PQN(0)))
+    bonds[-1]=bonds[-1].replace(qns=QuantumNumbers.mono(PQN(Nscope*Nsite/2)))
+    cut=np.random.randint(0,Nsite*Nscope+1)
+    mps1,mps2=MPS.random(sites,bonds,cut=cut,nmax=20),MPS.random(sites,bonds,cut=cut,nmax=20)
 
-#    # set the reference of test
-#    mopts=[foptrep(opt,basis=FBasis(nstate=Nscope*Nsite),transpose=True,dtype=np.complex128) for opt in opts]
-#    overlaps=[hm.overlap(mps1.state,mopt,mps2.state) for mopt in mopts]
+    # set the reference of test
+    mopts=[foptrep(opt,basis=FBasis(nstate=Nscope*Nsite),transpose=True,dtype=np.complex128) for opt in opts]
+    overlaps=[hm.overlap(mps1.state,mopt,mps2.state) for mopt in mopts]
 
-#    # test optstr
-#    test_optstr_overlap(optstrs,mps1,mps2,overlaps)
-#    test_optstr_algebra(optstrs,mps1,mps2,overlaps)
-#    test_optstr_relayer(optstrs,degfres,mps1,mps2,overlaps)
+    # test optstr
+    test_optstr_overlap(optstrs,mps1,mps2,overlaps)
+    test_optstr_algebra(optstrs,mps1,mps2,overlaps)
+    test_optstr_relayer(optstrs,degfres,mps1,mps2,overlaps)
 
-#    # test mpo
-#    test_mpo_overlap(mpos,mps1,mps2,overlaps)
-#    test_mpo_algebra(mpos,mps1,mps2,mopts,overlaps)
-#    test_mpo_relayer(mpos,degfres,mps1,mps2,overlaps)
-#    print
+    # test mpo
+    test_mpo_overlap(mpos,mps1,mps2,overlaps)
+    test_mpo_algebra(mpos,mps1,mps2,mopts,overlaps)
+    test_mpo_relayer(mpos,degfres,mps1,mps2,overlaps)
+    print
 
 def test_optstr_overlap(optstrs,mps1,mps2,overlaps):
     print 'test_optstr_overlap'

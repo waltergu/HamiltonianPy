@@ -9,7 +9,7 @@ Miscellaneous classes and functions, including:
 
 __all__=['SSF']
 
-def SSF(mps1,mps2,**karg):
+def SSF(mps1,mps2,sys):
     '''
     Subsystem fidelity between two mpses.
 
@@ -17,9 +17,13 @@ def SSF(mps1,mps2,**karg):
     ----------
     mps1,mps2 : MPS
         The mpses between which the subsystem fidelity is to be calculated.
+    sys : slice
+        The system part of the SSF.
 
     References
     ----------
     See J. -G. Liu, Z. -L. Gu, J. -X. Li and Q.-H. Wang, arXiv:1609.09309.
     '''
-    pass
+    assert mps1.nsite==mps2.nsite
+    if sys.start in (None,0):
+        return 

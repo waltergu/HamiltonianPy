@@ -82,6 +82,14 @@ def test_quantumnumbers_kron():
 def test_quantumnumbers_decomposition():
     print 'test_quantumnumbers_decomposition'
     qnses,signs=[SQNS(0.5)]*4,'+-+-'
-    for index in QuantumNumbers.decomposition(qnses,signs=signs,target=SQN(-0.0)):
+    print 'Exhaustion method:'
+    for index in QuantumNumbers.decomposition(qnses,signs=signs,target=SQN(0.0),method='exhaustion',nmax=None):
         print index
+    print
+    print 'Monte carlo method:'
+    qnses,signs=[SQNS(0.5)]*40,None
+    for index in QuantumNumbers.decomposition(qnses,signs=signs,target=SQN(1.0),method='monte carlo',nmax=10):
+        print index
+        assert index.count(1)==21
+    print
     print

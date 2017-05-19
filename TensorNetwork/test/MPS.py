@@ -40,10 +40,9 @@ def test_mps_random():
     N=20
     np.random.seed()
     breakpoints=set(np.random.randint(1,N,size=N/2))|set([0,N])
-    sites=[Label('S%s'%i,qns=SQNS(0.5)) for i in xrange(N)]
-    bonds=[Label('B%s'%i,qns=QuantumNumbers.mono(SQN(0.0 if i%2==0 else 0.5)) if i in breakpoints else None) for i in xrange(N+1)]
-    print 'breakpoints: %s'%', '.join(str(breakpoint) for breakpoint in sorted(breakpoints))
-    mps=MPS.random(sites,bonds,cut=np.random.randint(0,N+1))
+    sites=[SQNS(0.5) for i in xrange(N)]
+    bonds=[SQN(0.0),SQN(0.0)]
+    mps=MPS.random(sites,bonds,cut=np.random.randint(0,N+1),nmax=10)
     print 'mps.bonds:\n%s'%'\n'.join(repr(bond) for bond in mps.bonds)
     print
 
@@ -51,13 +50,12 @@ def test_mps_algebra():
     print 'test_mps_algebra'
     N=8
     np.random.seed()
-    target=SQN(0.0)
-    sites=[Label('S%s'%i,qns=SQNS(0.5)) for i in xrange(N)]
-    bonds=[Label('B%s'%i,qns=SQNS(0.0) if i==0 else (QuantumNumbers.mono(target) if i==N else None)) for i in xrange(N+1)]
+    sites=[SQNS(0.5) for i in xrange(N)]
+    bonds=[SQN(0.0),SQN(0.0)]
     cut=np.random.randint(0,N+1)
     print 'cut: %s'%cut
-    mps1=MPS.random(sites,bonds,cut=cut)
-    mps2=MPS.random(sites,bonds,cut=cut)
+    mps1=MPS.random(sites,bonds,cut=cut,nmax=10)
+    mps2=MPS.random(sites,bonds,cut=cut,nmax=10)
     print 'Addition diff: %s.'%(norm((mps1+mps2).state-(mps1.state+mps2.state)))
     print 'Subtraction diff: %s.'%(norm((mps1-mps2).state-(mps1.state-mps2.state)))
     print 'Left multiplication diff: %s.'%(norm((mps1*2.0).state-mps1.state*2.0))
@@ -80,7 +78,7 @@ def test_mps_relayer():
     bonds=tree.labels(layer=layers[-1],mode='B')
     bonds[+0]=bonds[+0].replace(qns=QuantumNumbers.mono(SQN(0.0)))
     bonds[-1]=bonds[-1].replace(qns=QuantumNumbers.mono(SQN(0.0)))
-    mps0=MPS.random(sites,bonds,cut=0)
+    mps0=MPS.random(sites,bonds,cut=0,nmax=10)
     mps1=mps0.relayer(tree,layers[0])
     print 'relayer(1->0) diff: %s'%norm(mps1.state-mps0.state)
     mps2=mps1.relayer(tree,layers[1])

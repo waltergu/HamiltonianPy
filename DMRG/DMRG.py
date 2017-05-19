@@ -102,6 +102,7 @@ class Cylinder(Lattice):
                 ap.rcoord-=self.translation
                 bp.rcoord+=self.translation
             if news is not None:
+                print news
                 assert len(news)==len(self)
                 for scope,point in zip(news,self.points):
                     point.pid=point.pid._replace(scope=scope)

@@ -78,7 +78,7 @@ class MPS(list):
             assert len(ms)==len(sites) and len(ms)==len(bonds)-1
             for i in xrange(len(ms)):
                 assert ms[i].ndim==3
-                self.append(Tensor(m,labels=[bonds[i],sites[i],bonds[i+1]]))
+                self.append(Tensor(ms[i],labels=[bonds[i],sites[i],bonds[i+1]]))
             if Lambda is not None and cut is not None:
                 self.Lambda=Tensor(Lambda,labels=deepcopy([bonds[cut]]))
                 self.cut=cut
@@ -126,6 +126,32 @@ class MPS(list):
             ms[-1].relabel(olds=[R],news=[bonds[-1]])
         return MPS(mode='QN' if L.qnon else 'NB',ms=ms,Lambda=Lambda,cut=cut)
 
+    @staticmethod
+    def productstate(ms,sites,bonds):
+        '''
+        Generate a product state.
+
+        Parameters
+        ----------
+        ms : list of 1d ndarray
+            The matrices of the product state. 
+        sites : list of Label
+            The site labels of the product state.
+        bonds : list of Label
+            The bond labels of the product state.
+
+        Returns
+        -------
+        MPS
+            The corresponding product state.
+        '''
+        assert len(ms)==len(sites) and len(bonds)==len(sites)+1
+        for i in xrange(len(ms)):
+            m,L,S,R=ms[i],bonds[i],sites[i],bonds[i+1]
+            ms[i]=Tensor(m.reshape((1,S.dim,1)),labels=[L,S,R])
+            if S.qnon: ms[i].qng(axes=[0,1],qnses=[L.qns,S.qns],signs='++')
+        return MPS(mode='QN' if S.qnon else 'NB',ms=ms)
+
     @property
     def state(self):
         '''
@@ -161,7 +187,7 @@ class MPS(list):
                 return np.asarray(result).reshape((L.dim,-1))
 
     @staticmethod
-    def random(sites,bonds,cut=None,nmax=None,tol=None,dtype=np.float64):
+    def random(sites,bonds,cut=None,nmax=None,dtype=np.float64):
         '''
         Generate a random mps.
 
@@ -172,15 +198,14 @@ class MPS(list):
         bonds :
             * list of Label
                 The labels of the virtual legs.
-            * list of None/1/QuantumNumber
-                The number-of-degrees-of-freedom/quantum-numbers of the virtual legs.
-                The positions of the non-None values are the breakpoints of the random mps, where the bond dimension are forced to be 1.
+            * 2-list of QuantumNumber 
+                The quantum numbers of the first and last virtual legs.
+            * QuantumNumber
+                The quantum numbers of the last virtual legs.
         cut : integer, optional
             The index of the connecting link.
         namx : integer, optional
             The maximum number of singular values to be kept.
-        tol : float64, optional
-            The tolerance of the singular values.
         dtype : np.float32, np.float64, np.complex64, np.complex128, optional
             The data type of the random mps.
 
@@ -189,30 +214,42 @@ class MPS(list):
         MPS
             The random mixed-canonical mps.
         '''
-        assert len(bonds)==len(sites)+1
         np.random.seed()
-        sites=[s if isinstance(s,Label) else Label('__MPS_RANDOM_S_%s__'%i,qns=s) for i,s in enumerate(sites)]
-        bonds=[b if isinstance(b,Label) else Label('__MPS_RANDOM_B_%s__'%i,qns=QNS.mono(b) if isinstance(b,QN) else b) for i,b in enumerate(bonds)]
-        breakpoints=[i for i,bond in enumerate(bonds) if bond.dim==1]
-        result,mode,shape=[],'QN' if next(iter(sites)).qnon else 'NB',tuple([site.dim for site in sites])
-        for start,stop in zip(breakpoints[:-1],breakpoints[1:]):
-            if mode=='QN':
-                state=np.zeros(shape[start:stop],dtype=dtype)
-                for index in QNS.decomposition([bonds[start].qns]+[site.qns for site in sites[start:stop]],target=next(iter(bonds[stop].qns))):
-                    if dtype in (np.float32,np.float64):
-                        state[index[1:]]=np.random.random()
-                    else:
-                        state[index[1:]]=np.random.random()+1j*np.random.random()
-                state=state.reshape((-1,))/norm(state)
-                result.append(MPS.from_state(state,sites[start:stop],bonds[start:stop+1],cut=0,nmax=nmax,tol=tol))
+        sites=[site if isinstance(site,Label) else Label('__MPS_RANDOM_S_%s__'%i,qns=site) for i,site in enumerate(sites)]
+        if all(isinstance(bond,Label) for bond in bonds):
+            assert len(bonds)==len(sites)+1
+        else:
+            if isinstance(bonds,QN):
+                iqns,oqns=QNS.mono(bonds[0].zero()),QNS.mono(bonds[0])
             else:
+                assert len(bonds)==2
+                iqns=QNS.mono(bonds[0]) if isinstance(bonds[0],QN) else bonds[0]
+                oqns=QNS.mono(bonds[1]) if isinstance(bonds[1],QN) else bonds[0]
+            bonds=[Label('__MPS_RANDOM_B_%s__'%i,qns=iqns if i==0 else (oqns if i==len(sites) else None)) for i in xrange(len(sites)+1)]
+        mode,shape='QN' if next(iter(sites)).qnon else 'NB',tuple([site.dim for site in sites])
+        if mode=='QN':
+            result=0
+            if dtype in (np.float32,np.float64):
+                coeffs=np.random.random(nmax)
+            else:
+                coeffs=np.random.random(nmax)+1j*np.random.random(nmax)
+            for indices in QNS.decomposition([site.qns for site in sites],bonds[-1].qns[0]-bonds[0].qns[0],method='monte carlo',nmax=nmax):
+                ms=[np.array([1.0 if i==index else 0.0 for i in xrange(site.dim)],dtype=dtype) for site,index in zip(sites,indices)]
+                result+=MPS.productstate(ms,sites,deepcopy(bonds))*coeffs[i]
+        else:
+            ms=[]
+            for i in xrange(len(sites)):
                 if dtype in (np.float32,np.float64):
-                    state=np.random.random(shape[start:stop]).reshape((-1,))
+                    ms.append(np.random.random((nmax,shape[i],nmax)))
                 else:
-                    state=np.random.random(shape[start:stop]).reshape((-1,))+1j*np.random.random(shape[start:stop]).reshape((-1,))
-                state/=norm(state)
-                result.append(MPS.from_state(state,sites,bonds,cut=0,nmax=nmax,tol=tol))
-        return MPS.concatenate(result,cut=cut)
+                    ms.append(np.random.random((nmax,shape[i],nmax))+1j*np.random.random((nmax,shape[i],nmax)))
+            result=MPS(mode=mode,ms=ms,sites=sites,bonds=bonds)
+        if cut is None:
+            result.canonicalize(cut=len(sites)/2,nmax=nmax)
+            result._merge_ABL_()
+        else:
+            result.canonicalize(cut=cut,nmax=nmax)
+        return result
 
     @staticmethod
     def concatenate(mpses,mode=None,cut=None):
@@ -629,24 +666,40 @@ class MPS(list):
         '''
         Overloaded addition(+) operator, which supports the addition of two mpses.
         '''
-        assert self.mode==other.mode and self.nsite==other.nsite
-        if self is other:
-            u,Lambda=self._merge_ABL_()
+        if isinstance(other,MPS):
+            assert self.mode==other.mode and self.nsite==other.nsite
+            if self is other:
+                u,Lambda=self._merge_ABL_()
+            else:
+                u1,Lambda1=self._merge_ABL_()
+                u2,Lambda2=other._merge_ABL_()
+            mode,ms=self.mode,[]
+            for i,(m1,m2) in enumerate(zip(self,other)):
+                assert m1.labels==m2.labels
+                labels=[label.replace(qns=None) for label in m1.labels]
+                axes=[MPS.L,MPS.S] if i==0 else ([MPS.S,MPS.R] if i==self.nsite-1 else [MPS.S])
+                ms.append(Tensor.directsum([m1,m2],labels=labels,axes=axes))
+            if self is other:
+                self._set_ABL_(u,Lambda)
+            else:
+                self._set_ABL_(u1,Lambda1)
+                other._set_ABL_(u2,Lambda2)
+            return MPS(mode=mode,ms=ms)
         else:
-            u1,Lambda1=self._merge_ABL_()
-            u2,Lambda2=other._merge_ABL_()
-        mode,ms=self.mode,[]
-        for i,(m1,m2) in enumerate(zip(self,other)):
-            assert m1.labels==m2.labels
-            labels=[label.replace(qns=None) for label in m1.labels]
-            axes=[MPS.L,MPS.S] if i==0 else ([MPS.S,MPS.R] if i==self.nsite-1 else [MPS.S])
-            ms.append(Tensor.directsum([m1,m2],labels=labels,axes=axes))
-        if self is other:
-            self._set_ABL_(u,Lambda)
-        else:
-            self._set_ABL_(u1,Lambda1)
-            other._set_ABL_(u2,Lambda2)
-        return MPS(mode=mode,ms=ms)
+            assert norm(other)==0
+            return self
+
+    def __radd__(self,other):
+        '''
+        Overloaded right-addition(+) operator.
+        '''
+        return self+other
+
+    def __iadd__(self,other):
+        '''
+        Overloaded self-addition(+=) operator.
+        '''
+        return self+other
 
     def __pos__(self):
         '''
@@ -657,6 +710,12 @@ class MPS(list):
     def __sub__(self,other):
         '''
         Overloaded subtraction(-) operator, which supports the subtraction of two mpses.
+        '''
+        return self+other*(-1)
+
+    def __isub__(self,other):
+        '''
+        Overloaded self-subtraction(-=) operator.
         '''
         return self+other*(-1)
 

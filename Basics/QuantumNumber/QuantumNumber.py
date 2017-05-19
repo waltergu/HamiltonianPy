@@ -11,6 +11,8 @@ from collections import OrderedDict
 from copy import copy,deepcopy
 from fpermutation import fpermutation
 import numpy as np
+import numpy.linalg as nl
+import random
 
 __all__=['QuantumNumber','QuantumNumbers']
 
@@ -354,6 +356,14 @@ class QuantumNumbers(object):
         for values in self.contents:
             yield self.type(values)
 
+    def __getitem__(self,n):
+        '''
+        Overloaded method ``self[n]``, where `n` should be a integer.
+        '''
+        index=len(self)+n if n<0 else n
+        if index<0 or index>=len(self): raise IndexError('QuantumNumbers index(%s) out of range.'%n)
+        return self.type(self.contents[np.searchsorted(self.indptr,index,side='right')-1])
+
     def indices(self,qn):
         '''
         Find the indices of a quantum number.
@@ -399,23 +409,45 @@ class QuantumNumbers(object):
         '''
         Overloaded negative(-) operator.
         '''
-        return QuantumNumbers('U' if self.form=='C' else self.form,(self.type,self.type.regularization(-self.contents),self.indptr),protocal=QuantumNumbers.INDPTR)
+        return QuantumNumbers(
+                form=       'U' if self.form=='C' else self.form,
+                data=       (self.type,self.type.regularization(-self.contents),self.indptr),
+                protocal=   QuantumNumbers.INDPTR
+                )
 
     def __add__(self,other):
         '''
         Overloaded addition(+) operator.
         '''
         assert self.type is other.__class__ or not issubclass(other.__class__,QuantumNumber)
-        contents=self.type.regularization(self.contents+np.asarray(other)[np.newaxis,:])
-        return QuantumNumbers('U' if self.form=='C' else self.form,(self.type,contents,self.indptr),protocal=QuantumNumbers.INDPTR)
+        return QuantumNumbers(
+                form=       'U' if self.form=='C' else self.form,
+                data=       (self.type,self.type.regularization(self.contents+np.asarray(other)[np.newaxis,:]),self.indptr),
+                protocal=   QuantumNumbers.INDPTR
+                )
 
     def __sub__(self,other):
         '''
         Overloaded subtraction(-) operator.
         '''
         assert self.type is other.__class__ or not issubclass(other.__class__,QuantumNumber)
-        contents=self.type.regularization(self.contents-np.asarray(other)[np.newaxis,:])
-        return QuantumNumbers('U' if self.form=='C' else self.form,(self.type,contents,self.indptr),protocal=QuantumNumbers.INDPTR)
+        return QuantumNumbers(
+                form=       'U' if self.form=='C' else self.form,
+                data=       (self.type,self.type.regularization(self.contents-np.asarray(other)[np.newaxis,:]),self.indptr),
+                protocal=   QuantumNumbers.INDPTR
+                )
+
+    def __eq__(self,other):
+        '''
+        Overloaded equivalent(==) operator.
+        '''
+        return self.type is other.type and nl.norm(self.contents-other.contents)==0 and nl.norm(self.indptr-other.indptr)==0
+
+    def __ne__(self,other):
+        '''
+        Overloaded not-equivalent(!=) operator.
+        '''
+        return not self==other
 
     def subset(self,targets=()):
         '''
@@ -432,7 +464,11 @@ class QuantumNumbers(object):
             The subset.
         '''
         indices=np.concatenate([self.indices(target) for target in targets])
-        return QuantumNumbers('G' if self.form=='G' else 'U',(self.type,self.contents[indices],self.indptr[indices+1]-self.indptr[indices]),protocal=QuantumNumbers.COUNTS)
+        return QuantumNumbers(
+                    form=       'G' if self.form=='G' else 'U',
+                    data=       (self.type,self.contents[indices],self.indptr[indices+1]-self.indptr[indices]),
+                    protocal=   QuantumNumbers.COUNTS
+                    )
 
     def subslice(self,targets=()):
         '''
@@ -605,14 +641,22 @@ class QuantumNumbers(object):
         else:
             assert protocal in ('EXPANSION','CONTENTS')
             if protocal=='EXPANSION':
-                return QuantumNumbers('G',(self.type,self.expansion()[permutation],range(len(permutation)+1)),QuantumNumbers.INDPTR)
+                return QuantumNumbers(
+                        form=       'G',
+                        data=       (self.type,self.expansion()[permutation],range(len(permutation)+1)),
+                        protocal=   QuantumNumbers.INDPTR
+                        )
             else:
-                return QuantumNumbers('G' if self.form=='G' else 'U',(self.type,self.contents[permutation],(self.indptr[1:]-self.indptr[:-1])[permutation]),QuantumNumbers.COUNTS)
+                return QuantumNumbers(
+                        form=       'G' if self.form=='G' else 'U',
+                        data=       (self.type,self.contents[permutation],(self.indptr[1:]-self.indptr[:-1])[permutation]),
+                        protocal=   QuantumNumbers.COUNTS
+                        )
 
     @staticmethod
-    def decomposition(qnses,target,signs=None):
+    def decomposition(qnses,target,signs=None,method='exhaustion',nmax=None):
         '''
-        Find the complete decomposition of target with respect to qnses.
+        Find the a couple of decompositions of target with respect to qnses.
 
         Parameters
         ----------
@@ -620,21 +664,50 @@ class QuantumNumbers(object):
             The decomposition set of quantum number collections.
         target : QuantumNumber
             The target of the decomposition.
-        signs : string
+        signs : string, optional
             The signs of qnses when they are tensordotted.
+        method : 'exhaustion' or 'monte carlo', optional
+            The method used to find the decompositions.
+        nmax : integer, optional
+            The maximum number of decompositions.
 
         Returns
         -------
         list of tuple
             For each tuple, it satisfies the decomposition rule:
-                * ``sum([qns.expansion[index] if sign=='+' else -qns.expansion[index] for qns,sign,index in zip(qnses,signs,tuple)])==target``
+                * ``sum([qns.expansion()[index] if sign=='+' else -qns.expansion()[index] for qns,sign,index in zip(qnses,signs,tuple)])==target``
         '''
-        result=[]
-        qns=QuantumNumbers.kron(qnses,signs=signs)
-        for pos in QuantumNumbers.kron(qnses,signs=signs).subslice(targets=(target,)):
-            indices=[]
-            for qns in reversed(qnses):
-                indices.append(pos%len(qns))
-                pos/=len(qns)
-            result.append(tuple(reversed(indices)))
-        return result
+        assert method in ('exhaustion','monte carlo')
+        result=set()
+        if method== 'exhaustion':
+            for pos in QuantumNumbers.kron(qnses,signs=signs).subslice(targets=(target,)):
+                indices=[]
+                for qns in reversed(qnses):
+                    indices.append(pos%len(qns))
+                    pos/=len(qns)
+                result.add(tuple(reversed(indices)))
+            if nmax is not None and nmax>len(result): 
+                random.seed()
+                result=random.sample(result,nmax)
+        else:
+            assert type(nmax) in (int,long)
+            random.seed()
+            target=np.array(target)
+            qnses=[qns.expansion() if sign=='+' else -qns.expansion() for qns,sign in zip(qnses,'+'*len(qnses) if signs is None else signs)]
+            diff=lambda indices: nl.norm(sum(qns[index] for qns,index in zip(qnses,indices))-target)
+            old,new=np.array([random.randint(0,len(qns)-1) for qns in qnses]),np.zeros(len(qnses),dtype=np.int64)
+            count,olddiff=0,diff(old)
+            while 1:
+                new[...]=old[...]
+                pos=random.randint(0,len(qnses)-1)
+                index=random.randint(0,len(qnses[pos])-2)
+                new[pos]=index if index<old[pos] else index+1
+                newdiff=diff(new)
+                if newdiff<=olddiff or np.exp(olddiff-newdiff)>random.random():
+                    old[...]=new[...]
+                    olddiff=newdiff
+                if newdiff==0:
+                    count+=1
+                    result.add(tuple(new))
+                if len(result)>=nmax or count>nmax*5: break
+        return list(result)

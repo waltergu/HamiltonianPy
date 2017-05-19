@@ -10,7 +10,7 @@ Exact diagonalization for fermionic systems, including:
 
 __all__=['ED','EL','EDEL','GF','EDGFP','EDGF','EDDOS']
 
-from ..Misc import Lanczos
+from ..Misc import Lanczos,derivatives
 from scipy.linalg import eigh,norm,solve_banded,solveh_banded
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
@@ -141,33 +141,52 @@ class ED(HP.Engine):
             result.set_matrix()
             return result
 
+    def eig(self,k=1,return_eigenvectors=False):
+        '''
+        Lowest k eigenvalues and optionally, the corresponding eigenvectors.
+
+        Parameters
+        ----------
+        k : integer, optional
+            The number of eigenvalues to be computed.
+        return_eigenvectors : logical, optional
+            True for returning the eigenvectors and False for not.
+        '''
+        self.set_matrix()
+        return eigsh(self.matrix,k=k,which='SA',return_eigenvectors=return_eigenvectors)
+
 class EL(HP.EB):
     '''
     Energy level.
 
     Attributes
     ----------
+    nder : integer
+        The order of derivatives to be computed.
     ns : integer
         The number of energy levels.
     '''
     
-    def __init__(self,ns=6,**karg):
+    def __init__(self,nder=0,ns=6,**karg):
         '''
         Constructor.
 
         Parameters
         ----------
+        nder : integer, optional
+            The order of derivatives to be computed.
         ns : integer, optional
             The number of energy levels.
         '''
         super(EL,self).__init__(**karg)
+        self.nder=nder
         self.ns=ns
 
 def EDEL(engine,app):
     '''
     This method calculates the energy levels of the Hamiltonian.
     '''
-    result=np.zeros((app.path.rank.values()[0],app.ns+1))
+    result=np.zeros((app.path.rank.values()[0],app.ns*(app.nder+1)+1))
     if len(app.path.rank)==1 and len(app.path.mesh.values()[0].shape)==1:
         result[:,0]=app.path.mesh.values()[0]
     else:
@@ -175,13 +194,20 @@ def EDEL(engine,app):
     for i,paras in enumerate(app.path('+')):
         engine.update(**paras)
         engine.set_matrix()
-        result[i,1:]=eigsh(engine.matrix,k=app.ns,which='SA',return_eigenvectors=False)
+        result[i,1:app.ns+1]=eigsh(engine.matrix,k=app.ns,which='SA',return_eigenvectors=False)
     suffix='_%s'%(app.status.name)
+    if app.nder>0:
+        for i in xrange(app.ns):
+            result.T[[j*app.ns+i+1 for j in xrange(1,app.nder+1)]]=derivatives(result[:,0],result[:,i+1],ders=range(1,app.nder+1))
     if app.save_data:
         np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.const,app.status.name),result)
     if app.plot:
         plt.title('%s_%s'%(engine.status.const,app.status.name))
-        plt.plot(result[:,0],result[:,1:])
+        prefixs={i:'1st' if i==1 else ('2nd' if i==2 else ('3rd' if i==3 else '%sth'%i)) for i in xrange(app.nder+1)}
+        for k in xrange(1,result.shape[1]):
+            i,j=divmod(k-1,app.ns)
+            plt.plot(result[:,0],result[:,k],label=('%s der of '%prefixs[i] if i>0 else '')+'E%s'%(j))
+        plt.legend(shadow=True,fancybox=True,loc='lower right')
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
         if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.const,app.status.name))

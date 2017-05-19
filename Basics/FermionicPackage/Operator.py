@@ -24,9 +24,9 @@ class FOperator(Operator):
         The tag used to distinguish operators with different types or ranks.
     indices : tuple of Index
         The associated indices of the operator, whose length should be equal to the operator's rank.
-    rcoords : tuple of 1D ndarray
+    rcoords : tuple of 1D ndarray, optional
         The associated real coordinates of the operator.
-    icoords : tuple of 1D ndarray
+    icoords : tuple of 1D ndarray, optional
         The associated lattice coordinates of the operator.
     seqs : tuple of integer, optional
          The associated sequences of the operator, whose length should be equal to the operator's rank.
@@ -46,7 +46,7 @@ class FOperator(Operator):
                 Only one rcoord and icoord is needed because Hubbard operators are always on-site ones.
     '''
 
-    def __init__(self,mode,value,indices,rcoords,icoords,seqs=None):
+    def __init__(self,mode,value,indices,rcoords=None,icoords=None,seqs=None):
         '''
         Constructor.
 
@@ -56,9 +56,9 @@ class FOperator(Operator):
             The tag used to distinguish operators with different types or ranks.
         indices : tuple of Index
             The associated indices of the operator, whose length should be equal to the operator's rank.
-        rcoords : tuple of 1D ndarray
+        rcoords : tuple of 1D ndarray, optional
             The associated real coordinates of the operator.
-        icoords : tuple of 1D ndarray
+        icoords : tuple of 1D ndarray, optional
             The associated lattice coordinates of the operator.
         seqs : tuple of integer, optional
              The associated sequences of the operator, whose length should be equal to the operator's rank.
@@ -66,8 +66,8 @@ class FOperator(Operator):
         super(FOperator,self).__init__(value)
         self.mode=mode
         self.indices=tuple(indices)
-        self.rcoords=tuple([array(obj) for obj in rcoords])
-        self.icoords=tuple([array(obj) for obj in icoords])
+        if rcoords is not None: self.rcoords=tuple([array(obj) for obj in rcoords])
+        if rcoords is not None: self.icoords=tuple([array(obj) for obj in icoords])
         if seqs is not None: self.seqs=tuple(seqs)
 
     def __repr__(self):
@@ -79,8 +79,8 @@ class FOperator(Operator):
         result.append('mode=%s'%self.mode)
         result.append(', value=%s'%self.value)
         result.append(', indices=%s'%(self.indices,))
-        result.append(', rcoords=%s'%(self.rcoords,))
-        result.append(', icoords=%s'%(self.icoords,))
+        if hasattr(self,'rcoords'): result.append(', rcoords=%s'%(self.rcoords,))
+        if hasattr(self,'icoords'): result.append(', icoords=%s'%(self.icoords,))
         if hasattr(self,'seqs'): result.append(', seqs=%s'%(self.seqs,))
         result.append(')')
         return ''.join(result)
@@ -90,7 +90,7 @@ class FOperator(Operator):
         '''
         The unique id of this operator.
         '''
-        return self.indices+tuple(['%f'%rcoord for rcoord in concatenate(self.rcoords)])
+        return (self.indices+tuple(['%f'%rcoord for rcoord in concatenate(self.rcoords)])) if hasattr(self,'rcoords') else self.indices
 
     @property
     def dagger(self):
@@ -101,8 +101,8 @@ class FOperator(Operator):
                 mode=           self.mode,
                 value=          conjugate(self.value),
                 indices=        reversed([obj.replace(nambu=1-obj.nambu) for obj in self.indices]),
-                rcoords=        reversed(list(self.rcoords)),
-                icoords=        reversed(list(self.icoords)),
+                rcoords=        reversed(list(self.rcoords)) if hasattr(self,'rcoords') else None,
+                icoords=        reversed(list(self.icoords)) if hasattr(self,'icoords') else None,
                 seqs=           reversed(list(self.seqs)) if hasattr(self,'seqs') else None
                 )
 
@@ -129,19 +129,19 @@ class FOperator(Operator):
         '''
         return self==self.dagger
 
-def FLinear(value,indices,rcoords,icoords,seqs=None):
+def FLinear(value,indices,rcoords=None,icoords=None,seqs=None):
     '''
     A specialized constructor to create an Operator instance with mode='flinear'.
     '''
     return FOperator('flinear',value,indices,rcoords,icoords,seqs)
 
-def FQuadratic(value,indices,rcoords,icoords,seqs=None):
+def FQuadratic(value,indices,rcoords=None,icoords=None,seqs=None):
     '''
     A specialized constructor to create an Operator instance with mode='fquadratic'.
     '''
     return FOperator('fquadratic',value,indices,rcoords,icoords,seqs)
 
-def FHubbard(value,indices,rcoords,icoords,seqs=None):
+def FHubbard(value,indices,rcoords=None,icoords=None,seqs=None):
     '''
     A specialized constructor to create an Operator instance with mode='fhubbard'.
     '''

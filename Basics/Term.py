@@ -33,7 +33,7 @@ class Term(object):
         self.mode=mode
         self.value=value
         if not modulate is None:
-            self.modulate=modulate
+            self.modulate=modulate if callable(modulate) else lambda **karg: karg.get(self.id,'None')
 
     def __mul__(self,other):
         '''
