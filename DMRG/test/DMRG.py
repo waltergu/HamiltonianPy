@@ -10,6 +10,7 @@ import HamiltonianPy as HP
 from HamiltonianPy import *
 from HamiltonianPy.TensorNetwork import *
 from HamiltonianPy.DMRG import *
+from HamiltonianPy.DataBase.Hexagon import *
 
 def test_dmrg():
     print 'test_dmrg'
@@ -23,6 +24,7 @@ def test_idmrg():
     dmrg_spin('idmrg',spin=0.5,N=200,J=1.0,qnon=True)
     dmrg_spinless_fermion('idmrg',N=200,t=-0.5,qnon=True)
     dmrg_spinful_fermion('idmrg',N=200,t=-1.0,U=1.0,qnon=True)
+    dmrg_honeycomb_heisenberg('idmrg',N=100,J=1.0,qnon=True)
     print
 
 def test_fdmrg():
@@ -30,6 +32,7 @@ def test_fdmrg():
     dmrg_spin('fdmrg',spin=1.0,N=20,J=1.0,qnon=True)
     dmrg_spinless_fermion('fdmrg',N=20,t=-0.5,qnon=True)
     dmrg_spinful_fermion('fdmrg',N=20,t=-1.0,U=1.0,qnon=True)
+    dmrg_honeycomb_heisenberg('fdmrg',N=20,J=1.0,qnon=True)
     print
 
 def dmrg_spin(mode,spin,N,J,qnon=True):
@@ -49,19 +52,18 @@ def dmrg_spin(mode,spin,N,J,qnon=True):
         )
     targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=200,terminate=True,save_data=False,plot=True,save_fig=True,run=DMRGTSG)
+        tsg=TSG(name='GTOWTH',targets=targets,nspb=1,nmax=200,terminate=True,save_data=False,plot=True,save_fig=True,run=DMRGTSG)
         dmrg.register(tsg)
     else:
-        target=SQN(0.0)
-        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=20,terminate=False,save_data=False,plot=True,run=DMRGTSG)
-        tss=TSS(name='SWEEP',target=target,layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS)
+        tsg=TSG(name='GTOWTH',targets=targets,nspb=1,nmax=200,terminate=False,save_data=False,plot=True,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=targets[-1],nsite=N,nmaxs=[200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS)
         dmrg.register(tss)
     dmrg.summary()
     print
 
 def dmrg_spinless_fermion(mode,N,t,qnon=True):
     print '%s_spinless_fermion'%mode
-    priority,layers=('scope','site','orbital','spin','nambu'),[('scope','site','orbital','spin')]
+    priority,layers=DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS
     dmrg=DMRG(
         log=        Log('fermin-spin-o.log',mode='a+'),
         name=       '%s-fermion-spin-0'%mode,
@@ -76,12 +78,11 @@ def dmrg_spinless_fermion(mode,N,t,qnon=True):
         )
     targets=[PQN(num) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=200,terminate=True,save_data=False,plot=True,save_fig=True,run=DMRGTSG)
+        tsg=TSG(name='GTOWTH',targets=targets,nspb=1,nmax=200,terminate=True,save_data=False,plot=True,save_fig=True,run=DMRGTSG)
         dmrg.register(tsg)
     else:
-        target=PQN(N/2)
-        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=20,terminate=False,save_data=False,plot=True,run=DMRGTSG)
-        tss=TSS(name='SWEEP',target=target,layer=0,nsite=N,nmaxs=[50,100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS)
+        tsg=TSG(name='GTOWTH',targets=targets,nmax=200,nspb=1,terminate=False,save_data=False,plot=True,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=targets[-1],nsite=N,nmaxs=[200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS)
         dmrg.register(tss)
     dmrg.summary()
     print
@@ -98,18 +99,42 @@ def dmrg_spinful_fermion(mode,N,t,U,qnon=True):
         config=     IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1)),
         degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SzPQNS(index.spin-0.5)) if qnon else
                     DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: 2),
-        layer=      0,
         mask=       ['nambu'],
         dtype=      np.float64
         )
     targets=[SPQN((num*2,0.0)) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=200,terminate=True,save_data=False,plot=True,save_fig=True,run=DMRGTSG)
+        tsg=TSG(name='GTOWTH',targets=targets,nspb=1,nmax=200,terminate=True,save_data=False,plot=True,save_fig=True,run=DMRGTSG)
         dmrg.register(tsg)
     else:
-        target=SPQN((N,0.0))
-        tsg=TSG(name='GTOWTH',scopes=range(N),targets=targets,nmax=50,terminate=False,save_data=False,plot=True,run=DMRGTSG)
-        tss=TSS(name='SWEEP',target=target,layer=0,nsite=N,nmaxs=[100,200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS)
+        tsg=TSG(name='GTOWTH',targets=targets,nspb=1,nmax=200,terminate=False,save_data=False,plot=True,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=targets[-1],nsite=N,nmaxs=[200,200],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS)
+        dmrg.register(tss)
+    dmrg.summary()
+    print
+
+def dmrg_honeycomb_heisenberg(mode,N,J,qnon=True):
+    print '%s_honeycomb_heisenberg'%mode
+    h4,priority,layers=HexagonDataBase(name='H4'),DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
+    dmrg=DMRG(
+        log=        Log('honeycomb-heisenberg.log',mode='a+'),
+        name=       '%s-honeycomb-heisenberg'%mode,
+        mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
+        lattice=    Cylinder(name='WG',block=h4.rcoords,translation=h4.vectors[0],vectors=[h4.vectors[1]],nneighbour=1),
+        terms=      [SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())],
+        config=     IDFConfig(priority=priority,map=lambda pid: Spin(S=0.5)),
+        degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SQNS(S=0.5)) if qnon else
+                    DegFreTree(mode='NB',layers=layers,priority=priority,map=lambda index: 2),
+        mask=       [],
+        dtype=      np.float64
+        )
+    targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
+    if mode=='idmrg':
+        tsg=TSG(name='GROWTH',targets=targets,nspb=4,nmax=100,terminate=True,save_data=False,plot=True,save_fig=True,run=DMRGTSG)
+        dmrg.register(tsg)
+    else:
+        tsg=TSG(name='GROWTH',targets=targets,nspb=4,nmax=100,terminate=False,save_data=False,plot=True,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*4,nmaxs=[100,100],dependences=[tsg],save_data=False,plot=True,save_fig=True,run=DMRGTSS)
         dmrg.register(tss)
     dmrg.summary()
     print

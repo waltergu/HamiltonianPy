@@ -834,7 +834,7 @@ class MPS(list):
         else:
             t,svs=self._merge_ABL_()
             olayer,nlayer=degfres.layers[old],degfres.layers[new]
-            sites,bonds=degfres.labels(nlayer,'S'),degfres.labels(nlayer,'B')
+            sites,bonds=degfres.labels('S',nlayer),degfres.labels('B',nlayer)
             Ms=[]
             if new<old:
                 table=degfres.table(olayer)

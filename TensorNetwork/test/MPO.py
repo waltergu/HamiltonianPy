@@ -44,7 +44,7 @@ def test_mpo_spin():
     mpos=[optstr.to_mpo(degfres) for optstr in optstrs]
 
     # set the states
-    sites,bonds=degfres.labels(layer=layers[-1],mode='S'),degfres.labels(layer=layers[-1],mode='B')
+    sites,bonds=degfres.labels(mode='S',layer=layers[-1]),degfres.labels(mode='B',layer=layers[-1])
     bonds[+0]=bonds[+0].replace(qns=QuantumNumbers.mono(SQN(0.0)))
     bonds[-1]=bonds[-1].replace(qns=QuantumNumbers.mono(SQN(0.0)))
     cut=np.random.randint(0,Nsite*Nscope+1)
@@ -99,7 +99,7 @@ def test_mpo_fermi():
     mpos=[optstr.to_mpo(degfres) for optstr in optstrs]
 
     # set the states
-    sites,bonds=degfres.labels(layer=layers[-1],mode='S'),degfres.labels(layer=layers[-1],mode='B')
+    sites,bonds=degfres.labels(mode='S',layer=layers[-1]),degfres.labels(mode='B',layer=layers[-1])
     bonds[+0]=bonds[+0].replace(qns=QuantumNumbers.mono(PQN(0)))
     bonds[-1]=bonds[-1].replace(qns=QuantumNumbers.mono(PQN(Nscope*Nsite/2)))
     cut=np.random.randint(0,Nsite*Nscope+1)

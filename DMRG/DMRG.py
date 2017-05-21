@@ -23,7 +23,7 @@ from HamiltonianPy import *
 from HamiltonianPy.TensorNetwork import *
 from copy import copy,deepcopy
 
-def pattern(status,target,layer,nsite,mode='re'):
+def pattern(status,target,nsite,mode='re'):
     '''
     Return the pattern of data files for match.
 
@@ -33,8 +33,6 @@ def pattern(status,target,layer,nsite,mode='re'):
         The status of the DMRG.
     target : QuantumNumber
         The target of the DMRG.
-    layer : integer
-        The layer of the DMRG.
     nsite : integer
         The number of sites of the DMRG.
     mode : 're','py'
@@ -46,7 +44,7 @@ def pattern(status,target,layer,nsite,mode='re'):
         The pattern.
     '''
     assert mode in ('re','py')
-    result='%s_(%s,%s,%s)'%(status,tuple(target) if isinstance(target,QuantumNumber) else None,layer,nsite)
+    result='%s_(%s,%s)'%(status,tuple(target) if isinstance(target,QuantumNumber) else None,nsite)
     if mode=='re':
         ss=['(',')','[',']']
         rs=['\(','\)','\[','\]']
@@ -96,19 +94,20 @@ class Cylinder(Lattice):
         if len(self)==0:
             aps=[Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
             bps=[Point(PID(scope=B,site=i),rcoord=rcoord+self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
+            ass,bss=[],[]
         else:
+            if news is not None:
+                assert len(news)*len(self.block)==len(self)
+                for i,scope in enumerate(news):
+                    for j in xrange(len(self.block)):
+                        self.points[i*len(self.block)+j].pid=self.points[i*len(self.block)+j].pid._replace(scope=scope)
             aps,bps=self.points[:len(self)/2],self.points[len(self)/2:]
             for ap,bp in zip(aps,bps):
                 ap.rcoord-=self.translation
                 bp.rcoord+=self.translation
-            if news is not None:
-                print news
-                assert len(news)==len(self)
-                for scope,point in zip(news,self.points):
-                    point.pid=point.pid._replace(scope=scope)
-            aps.extend(Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block))
-            bps.extend(Point(PID(scope=B,site=i),rcoord=rcoord+self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block))
-        self.points=aps+bps
+            ass=[Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
+            bss=[Point(PID(scope=B,site=i),rcoord=rcoord+self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
+        self.points=aps+ass+bss+bps
         links,mindists=intralinks(
                 mode=                   'nb',
                 cluster=                np.asarray([p.rcoord for p in self.points]),
@@ -156,8 +155,6 @@ class DMRG(Engine):
         The configuration of the internal degrees of freedom on the lattice.
     degfres : DegFreTree
         The physical degrees of freedom tree.
-    layer : integer
-        The layer on which the DMRG works.
     mask : [] or ['nambu']
         [] for spin systems and ['nambu'] for fermionic systems.
     target : QuantumNumber
@@ -184,7 +181,7 @@ class DMRG(Engine):
             The old singular values of the DMRG.
     '''
 
-    def __init__(self,mps,lattice,terms,config,degfres,layer=0,mask=[],target=None,dtype=np.complex128,**karg):
+    def __init__(self,mps,lattice,terms,config,degfres,mask=[],target=None,dtype=np.complex128,**karg):
         '''
         Constructor.
 
@@ -200,8 +197,6 @@ class DMRG(Engine):
             The configuration of the internal degrees of freedom on the lattice.
         degfres : DegFreTree
             The physical degrees of freedom tree.
-        layer : integer
-            The layer on which the DMRG works.
         mask : [] or ['nambu']
             [] for spin systems and ['nambu'] for fermionic systems.
         target : QuantumNumber
@@ -214,7 +209,6 @@ class DMRG(Engine):
         self.terms=terms
         self.config=config
         self.degfres=degfres
-        self.layer=layer
         self.mask=mask
         self.target=target
         self.dtype=dtype
@@ -247,7 +241,7 @@ class DMRG(Engine):
         '''
         The current state of the dmrg.
         '''
-        return '%s(target=%s,layer=%s,nsite=%s,cut=%s)'%(self.status,self.target,self.layer,self.mps.nsite,self.mps.cut)
+        return '%s(target=%s,nsite=%s,cut=%s)'%(self.status,self.target,self.mps.nsite,self.mps.cut)
 
     def update(self,**karg):
         '''
@@ -273,7 +267,7 @@ class DMRG(Engine):
         Set the mpo of the DMRG.
         '''
         if len(self.operators)>0:
-            self.mpo=OptMPO([OptStr.from_operator(operator,self.degfres,self.layer) for operator in self.operators.itervalues()],self.degfres).to_mpo()
+            self.mpo=OptMPO([OptStr.from_operator(operator,self.degfres) for operator in self.operators.itervalues()],self.degfres).to_mpo()
 
     def set_HL_(self,pos,job='contract',tol=hm.TOL):
         '''
@@ -371,20 +365,17 @@ class DMRG(Engine):
             for pos in xrange(SR,ER-1,-1):
                 self.set_HR_(pos,job='contract',tol=tol)
 
-    def reset(self,layer,lattice,mps):
+    def reset(self,lattice,mps):
         '''
         Reset the core of the dmrg.
 
         Parameters
         ----------
-        layer : integer
-            The new layer of the dmrg.
         lattice : Lattice
             The new lattice of the dmrg.
         mps : MPS
             The new mps of the dmrg.
         '''
-        self.layer=layer
         self.lattice=lattice
         self.config.reset(pids=self.lattice.pids)
         self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
@@ -392,7 +383,7 @@ class DMRG(Engine):
         self.set_operators()
         self.set_mpo()
         self.mps=mps
-        sites,bonds=self.degfres.labels(self.degfres.layers[self.layer],'S'),self.degfres.labels(self.degfres.layers[self.layer],'B')
+        sites,bonds=self.degfres.labels('S'),self.degfres.labels('B')
         self.mps.relabel(sites=sites,bonds=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds,mps.bonds)])
         self.target=next(iter(mps[-1].labels[MPS.R].qns)) if mps.mode=='QN' else None
         self.set_Hs_()
@@ -590,7 +581,7 @@ class DMRG(Engine):
         mpo[mpo.nsite/2:mpo.nsite/2]=deepcopy(mpo[2*ob-nb-1:nb-1])
         mpo.relabel(sites=sites,bonds=L+C+R)
 
-    def insert(self,A,B,news=None,target=None,mps0=None):
+    def insert(self,A,B,news=None,target=None):
         '''
         Insert two blocks of points into the center of the lattice.
 
@@ -602,31 +593,29 @@ class DMRG(Engine):
             The new scopes of the original points before the insertion.
         target : QuantumNumber, optional
             The new target of the DMRG.
-        mps0 : MPS, optional
-            The initial mps.
         '''
         self.lattice.insert(A,B,news=news)
         self.config.reset(pids=self.lattice.pids)
         self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
         self.generator.reset(bonds=self.lattice.bonds,config=self.config)
         self.set_operators()
-        layer=self.degfres.layers[self.layer]
-        sites,mpsbonds,mpobonds=self.degfres.labels(layer,'S'),self.degfres.labels(layer,'B'),self.degfres.labels(layer,'O')
+        sites,mpsbonds,mpobonds=self.degfres.labels('S'),self.degfres.labels('B'),self.degfres.labels('O')
         niter,ob,nb=len(self.lattice)/len(self.lattice.block)/2,self.mps.nsite/2+1,(len(mpsbonds)+1)/2
         if niter>self.lattice.nneighbour+2:
             DMRG.impo_generate(self.mpo,sites,mpobonds)
         else:
             self.set_mpo()
-        if mps0 is None:
+        if niter>1 or nb-ob==1:
             self.cache['osvs']=DMRG.imps_predict(self.mps,sites,mpsbonds,self.cache.get('osvs',np.array([1.0])),target=target,dtype=self.dtype)
             self._Hs_['L'].extend([None]*((nb-ob)*2))
             self._Hs_['R'].extend([None]*((nb-ob)*2))
-            SL,SR,keep=(ob-1,self.mps.nsite-ob,True) if niter>self.lattice.nneighbour+1 else (None,None,False)
+            SL,SR,keep=(ob-1,self.mps.nsite-ob,True) if niter>self.lattice.nneighbour+2 else (None,None,False)
             self.set_Hs_(SL=SL,EL=nb-3,SR=SR,ER=nb,keep=keep)
         else:
-            assert self.mps.nsite==0 and mps0.nsite==len(self.mpo) and mps0.cut==mps0.nsite/2
-            self.mps=mps0
-            self.mps.relabel(sites=sites,bonds=[bond.replace(qns=obond.qns) for bond,obond in zip(mpsbonds,mps0.bonds)])
+            assert self.mps.nsite==0
+            mpsbonds[+0]=mpsbonds[+0].replace(qns=QuantumNumbers.mono(target.zero()) if isinstance(target,QuantumNumber) else 1)
+            mpsbonds[-1]=mpsbonds[-1].replace(qns=QuantumNumbers.mono(target) if isinstance(target,QuantumNumber) else 1)
+            self.mps=MPS.random(sites=sites,bonds=mpsbonds,cut=len(sites)/2,nmax=20,dtype=self.dtype)
             self.set_Hs_(EL=self.mps.cut-2,ER=self.mps.cut+1)
         self.target=target
 
@@ -647,38 +636,13 @@ class DMRG(Engine):
             self.mps<<=1 if '<<' in move else -1
             self.iterate(info='%s(%s)'%(info,move),sp=True,**karg)
 
-    def relayer(self,layer,nsweep=1,cut=0,nmax=None,tol=None):
-        '''
-        Change the layer of the physical degrees of freedom.
-
-        Parameters
-        ----------
-        layer : integer/tuple-of-string
-            The new layer.
-        nsweep : integer, optional
-            The number of sweeps to compress the new mps and mpo.
-        cut : integer, optional
-            The position of the connecting bond of the new mps.
-        nmax : integer, optional
-            The maximum number of singular values to be kept.
-        tol : np.float64, optional
-            The tolerance of the singular values.
-        '''
-        self.layer=layer if type(layer) in (int,long) else self.degfres.layers.index(layer)
-        self.set_operators()
-        self.set_mpo()
-        self.mps=self.mps.relayer(self.degfres,layer,nmax=nmax,tol=tol)
-        self.mps.compress(nsweep=nsweep,cut=cut,nmax=nmax,tol=tol)
-        self.set_Hs_()
-
     def coredump(self):
         '''
         Use pickle to dump the core of the dmrg.
         '''
-        with open('%s/%s_%s.dat'%(self.din,pattern(self.status,self.target,self.layer,self.mps.nsite,mode='py'),self.mps.nmax),'wb') as fout:
+        with open('%s/%s_%s.dat'%(self.din,pattern(self.status,self.target,self.mps.nsite,mode='py'),self.mps.nmax),'wb') as fout:
             core=   {
                         'lattice':      self.lattice,
-                        'layer':        self.layer,
                         'target':       self.target,
                         'operators':    self.operators,
                         'mpo':          self.mpo,
@@ -727,71 +691,50 @@ class TSG(App):
 
     Attributes
     ----------
-    scopes : list of hashable objects
-        The scopes of the blocks to be added two-by-two into the lattice of the DMRG.
     targets : sequence of QuantumNumber
         The target space at each growth of the DMRG.
-    mps0 : MPS
-        The initial mps.
-    layer : integer
-        The layer of the DMRG's mps.
-    ns : integer
+    nspb : integer
         The number of sites per block of the dmrg.
     nmax : integer
         The maximum singular values to be kept.
+    npresweep : integer
+        The number of presweeps to make a random mps converged to the target state.
+    nsweep : integer
+        The number of sweeps to make the predicted mps converged to the target state.
     terminate : logical
-        True for terminate the growing process if converged groundsate energy has been obtained, False for not.
+        True for terminate the growing process if converged target state energy has been obtained, False for not.
     tol : float64
-        The tolerance of the singular values.
-    etol : float64
-        The tolerance of the groundsate energy.
-    heatbaths : list of integer
-        The maximum bond dimensions for the heat bath processes.
-    sweeps : list of integer
-        The maximum bond dimensions for the sweep processes.
+        The tolerance of the target state energy.
     '''
 
-    def __init__(self,scopes,targets,mps0=None,layer=0,ns=1,nmax=200,terminate=False,tol=hm.TOL,etol=10**-6,heatbaths=None,sweeps=None,**karg):
+    def __init__(self,targets,nspb,nmax,npresweep=10,nsweep=4,terminate=False,tol=10**-6,**karg):
         '''
         Constructor.
 
         Parameters
         ----------
-        scopes : list of hashable objects
-            The scopes of the blocks to be added two-by-two into the lattice of the DMRG.
         targets : sequence of QuantumNumber
             The target space at each growth of the DMRG.
-        mps0 : MPS, optional
-            The initial mps.
-        layer : integer, optional
-            The layer of the DMRG's mps.
-        ns : integer, optional
+        nspb : integer
             The number of sites per block of the dmrg.
-        nmax : integer, optional
+        nmax : integer
             The maximum number of singular values to be kept.
+        npresweep : integer, optional
+            The number of presweeps to make a random mps converged to the target state.
+        nsweep : integer, optional
+            The number of sweeps to make the predicted mps converged to the target state.
         terminate : logical, optional
-            True for terminate the growing process if converged groundsate energy has been obtained, False for not.
+            True for terminate the growing process if converged target state energy has been obtained, False for not.
         tol : float64, optional
-            The tolerance of the singular values.
-        etol : float64, optional
-            The tolerance of the groundsate energy.
-        heatbaths : list of integer, optional
-            The maximum bond dimensions for the heat bath processes.
-        sweeps : list of integer, optional
-            The maximum bond dimensions for the sweep processes.
+            The tolerance of the target state energy.
         '''
-        assert len(scopes)==len(targets)*2
-        self.scopes=scopes
         self.targets=targets
-        self.mps0=mps0
-        self.layer=layer
-        self.ns=ns
+        self.nspb=nspb
         self.nmax=nmax
+        self.npresweep=npresweep
+        self.nsweep=nsweep
         self.terminate=terminate
         self.tol=tol
-        self.etol=etol
-        self.heatbaths=[nmax*(i+1)/10 for i in xrange(10)] if heatbaths is None else heatbaths
-        self.sweeps=[nmax]*4 if sweeps is None else sweeps
 
     def recover(self,engine):
         '''
@@ -808,7 +751,7 @@ class TSG(App):
             The recover code.
         '''
         for i,target in enumerate(reversed(self.targets)):
-            core=DMRG.coreload(din=engine.din,pattern=pattern(engine.status,target,self.layer,(len(self.targets)-i)*self.ns*2,mode='re'),nmax=self.nmax)
+            core=DMRG.coreload(din=engine.din,pattern=pattern(engine.status,target,(len(self.targets)-i)*self.nspb*2,mode='re'),nmax=self.nmax)
             if core:
                 for key,value in core.iteritems():
                     setattr(engine,key,value)
@@ -827,21 +770,22 @@ def DMRGTSG(engine,app):
     '''
     engine.log.open()
     num=app.recover(engine)
-    if engine.layer!=app.layer: engine.layer=app.layer
+    scopes=range(len(app.targets)*2)
     for i,target in enumerate(app.targets[num+1:]):
-        pos,nold,nnew=i+num+1,engine.mps.nsite,engine.mps.nsite+2*app.ns
-        engine.insert(app.scopes[pos],app.scopes[-pos-1],news=app.scopes[:pos]+app.scopes[-pos:] if pos>0 else None,target=target,mps0=app.mps0 if pos==0 else None)
+        pos,nold,nnew=i+num+1,engine.mps.nsite,engine.mps.nsite+2*app.nspb
+        engine.insert(scopes[pos],scopes[-pos-1],news=scopes[:pos]+scopes[-pos:] if pos>0 else None,target=target)
         assert nnew==engine.mps.nsite
         geold=engine.info['Esite']
-        engine.iterate(info='(++)',sp=True if pos>0 else False,nmax=app.nmax,tol=app.tol,piechart=app.plot)
-        for i,nmax in enumerate(app.heatbaths if pos==0 else app.sweeps):
+        engine.iterate(info='(++)',sp=True if pos>0 else False,nmax=app.nmax,piechart=app.plot)
+        for sweep in xrange(app.npresweep if pos==0 else app.nsweep):
             path=it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2))
             seold=engine.info['Esite']
-            engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,tol=app.tol,piechart=app.plot)
+            engine.sweep(info=' No.%s'%(sweep+1),path=path,nmax=app.nmax,piechart=app.plot)
             senew=engine.info['Esite']
-            if norm(seold-senew)/norm(seold+senew)<app.etol: break
+            if norm(seold-senew)/norm(seold+senew)<app.tol: break
+        if app.nspb>1 and pos==0 and app.save_data: engine.coredump()
         genew=engine.info['Esite']
-        if app.terminate and geold is not None and norm(geold-genew)/norm(geold+genew)<app.etol: break
+        if app.terminate and geold is not None and norm(geold-genew)/norm(geold+genew)<app.tol: break
     if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
     if app.save_data: engine.coredump()
     engine.log.close()
@@ -854,27 +798,20 @@ class TSS(App):
     ----------
     target : QuantumNumber
         The target of the DMRG's mps.
-    layer : integer
-        The layer of the DMRG's mps.
     nsite : integer
         The length of the DMRG's mps.
-    protocal : 0,1
-        Before sweeps, the core of the dmrg will be recovered from exsiting data files.
-
-            * When protocal==0, no real sweep will be taken when the recovered mps perfectly matches the recovering rule;
-            * When protocal==1, the sweep will be taken at least once even if the recovered mps perfectly matches the recovering rule.
-
-    BS : BaseSpace
-        The basespace of the DMRG's parametes for the sweeps.
     nmaxs : list of integer
         The maximum numbers of singular values to be kept for the sweeps.
+    BS : BaseSpace
+        The basespace of the DMRG's parametes for the sweeps.
     paths : list of list of '<<' or '>>'
         The paths along which the sweeps are performed.
-    tol : np.float64
-        The tolerance of the singular values.
+    force_sweep : logical
+        When True, the sweep will be taken at least once even if the mps are recovered from existing data files perfectly.
+        When False, no real sweep will be taken if the mps can be perfectly recovered from existing data files.
     '''
 
-    def __init__(self,target,layer,nsite,nmaxs,protocal=0,BS=None,paths=None,tol=hm.TOL,etol=10**-6,**karg):
+    def __init__(self,target,nsite,nmaxs,BS=None,paths=None,force_sweep=False,**karg):
         '''
         Constructor.
 
@@ -882,30 +819,25 @@ class TSS(App):
         ----------
         target : QuantumNumber
             The target of the DMRG's mps.
-        layer : integer
-            The layer of the DMRG's mps.
         nsite : integer
             The length of the DMRG's mps.
         nmaxs : list of integer
             The maximum numbers of singular values to be kept for each sweep.
-        protocal : 0,1
-            The protocal of the app to carry out the sweep.
         BS : list of dict, optional
             The parameters of the DMRG for each sweep.
         paths : list of list of '<<' or '>>', optional
             The paths along which the sweeps are performed.
-        tol : np.float64, optional
-            The tolerance of the singular values.
+        force_sweep : logical, optional
+            When True, the sweep will be taken at least once even if the mps are recovered from existing data files perfectly.
+            When False, no real sweep will be taken if the mps can be perfectly recovered from existing data files.
         '''
         self.target=target
-        self.layer=layer
         self.nsite=nsite
         self.nmaxs=nmaxs
-        self.protocal=protocal
         self.BS=[{}]*len(nmaxs) if BS is None else BS
         self.paths=[None]*len(nmaxs) if paths is None else paths
         assert len(nmaxs)==len(self.BS) and len(nmaxs)==len(self.paths)
-        self.tol=tol
+        self.force_sweep=force_sweep
 
     def recover(self,engine):
         '''
@@ -924,7 +856,7 @@ class TSS(App):
         status=deepcopy(engine.status)
         for i,(nmax,parameters) in enumerate(reversed(zip(self.nmaxs,self.BS))):
             status.update(alter=parameters)
-            core=DMRG.coreload(din=engine.din,pattern=pattern(status,self.target,self.layer,self.nsite,mode='re'),nmax=nmax)
+            core=DMRG.coreload(din=engine.din,pattern=pattern(status,self.target,self.nsite,mode='re'),nmax=nmax)
             if core:
                 for key,value in core.iteritems():
                     setattr(engine,key,value)
@@ -933,7 +865,7 @@ class TSS(App):
                 engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
                 engine.mps>>=1 if engine.mps.cut==0 else (-1 if engine.mps.cut==engine.mps.nsite else 0)
                 code=len(self.nmaxs)-1-i
-                if self.protocal==1 or engine.mps.nmax<nmax: code-=1
+                if self.force_sweep or engine.mps.nmax<nmax: code-=1
                 break
         else:
             code=None
@@ -947,12 +879,11 @@ def DMRGTSS(engine,app):
     num=app.recover(engine)
     if num is None:
         if app.status.name in engine.apps: engine.rundependences(app.status.name)
-        if engine.layer!=app.layer: engine.relayer(layer=app.layer,cut=app.nsite/2,tol=app.tol)
         num=-1
     for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs[num+1:],app.BS[num+1:],app.paths[num+1:])):
         app.status.update(alter=parameters)
         if not (app.status<=engine.status): engine.update(**parameters)
-        engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,tol=app.tol,piechart=app.plot)
+        engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,piechart=app.plot)
         if app.save_data: engine.coredump()
     if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
     engine.log.close()

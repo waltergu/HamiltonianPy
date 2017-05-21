@@ -168,8 +168,14 @@ class OptStr(list):
         '''
         return '\n'.join(str(opt) for opt in self)
 
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return '\n'.join('%s%s%s'%(opt.value,repr(opt.site),opt.tag) for opt in self)
+
     @staticmethod
-    def from_operator(operator,degfres,layer):
+    def from_operator(operator,degfres,layer=0):
         '''
         Constructor, which converts an operator to an optstr.
 
@@ -179,7 +185,7 @@ class OptStr(list):
             The operator to be converted to an optstr.
         degfres : DegFreTree
             The degfretree of the system.
-        layer : integer or tuple of string
+        layer : integer/tuple-of-string, optional
             The layer where the converted optstr lives.
 
         Returns
@@ -189,7 +195,7 @@ class OptStr(list):
         '''
         assert type(operator) in (SOperator,FOperator)
         dtype,layer=np.array(operator.value).dtype,degfres.layers[layer] if type(layer) in (int,long) else layer
-        table,sites=degfres.table(degfres.layers[-1]),degfres.labels(degfres.layers[-1],'S')
+        table,sites=degfres.table(degfres.layers[-1]),degfres.labels('S',degfres.layers[-1])
         operator=operator if type(operator) is SOperator else JWBosonization(operator,table)
         opts=[]
         permutation=sorted(range(len(operator.indices)),key=lambda k: table[operator.indices[k]])
@@ -321,7 +327,7 @@ class OptStr(list):
         '''
         dtype,index=self[0].value.dtype,self[0].site.identifier
         type,layer=degfres[index].type if degfres.mode=='QN' else None,degfres.layers[degfres.level(index)-1]
-        table,sites,bonds=degfres.table(layer),degfres.labels(layer,'S'),degfres.labels(layer,'O')
+        table,sites,bonds=degfres.table(layer),degfres.labels('S',layer),degfres.labels('O',layer)
         poses=set(table[opt.site.identifier] for opt in self)
         ms,count=[],0
         for pos in xrange(len(sites)):
@@ -350,7 +356,7 @@ class OptStr(list):
         '''
         dtype=self[0].value.dtype
         layer=degfres.layers[degfres.level(self[0].site.identifier)-1]
-        table,sites=degfres.table(layer),degfres.labels(layer,'S')
+        table,sites=degfres.table(layer),degfres.labels('S',layer)
         count,poses=0,[table[opt.site.identifier] for opt in self]
         for start,stop in zip(poses[:-1],poses[1:]):
             count+=1
@@ -391,7 +397,7 @@ class OptStr(list):
             opts=[]
             olayer,nlayer=degfres.layers[old],degfres.layers[new]
             otable,ntable=degfres.table(olayer),degfres.table(nlayer)
-            sites=degfres.labels(nlayer,'S')
+            sites=degfres.labels('S',nlayer)
             for ancestor in sorted(poses.keys(),key=ntable.get):
                 value,tag,m=1.0,(),1.0
                 for index in degfres.descendants(ancestor,old-new):
@@ -430,7 +436,7 @@ class OptMPO(list):
             The tree of the site degrees of freedom.
         '''
         dtype,layer=optstrs[0][0].value.dtype,degfres.layers[degfres.level(optstrs[0][0].site.identifier)-1]
-        table,sites,bonds=degfres.table(layer),degfres.labels(layer,'S'),degfres.labels(layer,'O')
+        table,sites,bonds=degfres.table(layer),degfres.labels('S',layer),degfres.labels('O',layer)
         for optstr in optstrs: optstr.connect(degfres)
         optstrs.sort(key=lambda optstr: (len(optstr),table[optstr[0].site.identifier],tuple(opt.tag for opt in optstr)))
         rows,cols=[],[]
@@ -892,7 +898,7 @@ class MPO(list):
             return copy(self)
         else:
             olayer,nlayer=degfres.layers[old],degfres.layers[new]
-            sites,bonds=degfres.labels(nlayer,'S'),degfres.labels(nlayer,'O')
+            sites,bonds=degfres.labels('S',nlayer),degfres.labels('O',nlayer)
             Ms=[]
             if new<old:
                 table=degfres.table(olayer)

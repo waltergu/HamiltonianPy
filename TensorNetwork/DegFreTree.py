@@ -123,13 +123,13 @@ class DegFreTree(Tree):
         else:
             return len(self[index])
 
-    def indices(self,layer):
+    def indices(self,layer=0):
         '''
         The indices in a layer.
 
         Parameters
         ----------
-        layer : tuple of string
+        layer : integer/tuple-of-string, optional
             The layer where the indices are restricted.
 
         Returns
@@ -137,15 +137,15 @@ class DegFreTree(Tree):
         list of Index
             The indices in the requested layer.
         '''
-        return self.cache[('indices',layer)]
+        return self.cache[('indices',self.layers[layer] if type(layer) in (int,long) else layer)]
 
-    def table(self,layer):
+    def table(self,layer=0):
         '''
         Return a index-sequence table with the index restricted on a specific layer.
 
         Parameters
         ----------
-        layer : tuple of string
+        layer : integer/tuple-of-string
             The layer where the indices are restricted.
 
         Returns
@@ -153,32 +153,32 @@ class DegFreTree(Tree):
         Table
             The index-sequence table.
         '''
-        return self.cache[('table',layer)]
+        return self.cache[('table',self.layers[layer] if type(layer) in (int,long) else layer)]
 
-    def labels(self,layer,mode):
+    def labels(self,mode,layer=0):
         '''
         Return the inquired labels.
 
         Parameters
         ----------
-        layer : tuple of string
-            The layer information of the inquired labels.
         mode : 'B','S','O'
             * 'B' for bond labels of an mps;
             * 'S' for site labels of an mps or an mpo;
             * 'O' for bond labels of an mpo.
+        layer : integer/tuple-of-string, optional
+            The layer information of the inquired labels.
 
         Returns
         -------
         list of Label
             The inquired labels.
         '''
-        mode=mode.upper()
+        mode,layer=mode.upper(),self.layers[layer] if type(layer) in (int,long) else layer
         assert mode in ('B','S','O')
-        if ('labels',layer,mode) not in self.cache:
+        if ('labels',mode,layer) not in self.cache:
             if mode in ('B','O'):
                 result=[Label(identifier='%s%s-%s'%(mode,self.layers.index(layer),i),qns=None) for i in xrange(len(self.indices(layer))+1)]
             else:
                 result=[Label(identifier=index,qns=self[index]) for index in self.indices(layer)]
-            self.cache[('labels',layer,mode)]=result
-        return self.cache[('labels',layer,mode)]
+            self.cache[('labels',mode,layer)]=result
+        return self.cache[('labels',mode,layer)]
