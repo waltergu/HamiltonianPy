@@ -5,9 +5,9 @@ Introduction
 
 This subpackage contains miscellaneous classes and functions as aids to the algorithms.
 
-================    ====================================================
+================    =======================================================
 MODULES             DESCRIPTION
-================    ====================================================
+================    =======================================================
 `Tree`              Tree data structure
 `BerryCurvature`    Berry curvature for filled bands
 `Parity`            Parity of a permutation
@@ -15,7 +15,8 @@ MODULES             DESCRIPTION
 `Lanczos`           Lanczos algorithm for large spare Hermitian matrices
 `Linalg`            Linear algebras
 `Calculus`          Calculus related
-================    ====================================================
+`Arithmetic`        Base class for those that support arithmetic operations
+================    =======================================================
 '''
 
 from MPI import *
@@ -25,3 +26,4 @@ from BerryCurvature import *
 from Lanczos import *
 from Linalg import *
 from Calculus import *
+from Arithmetic import *

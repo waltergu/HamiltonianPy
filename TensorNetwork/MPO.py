@@ -10,11 +10,11 @@ Matrix product operator, including:
 __all__=['Opt','OptStr','OptMPO','MPO']
 
 import numpy as np
-import HamiltonianPy.Misc as hm
 import itertools as it
 from numpy.linalg import norm
 from collections import OrderedDict
 from HamiltonianPy import QuantumNumbers,Operator,FOperator,SOperator,JWBosonization
+from HamiltonianPy.Misc import TOL,Arithmetic
 from Tensor import Tensor,Label,contract
 from MPS import MPS
 from copy import copy
@@ -146,7 +146,7 @@ class Opt(Operator.Operator):
             else:
                 return Opt(1.0,self.site,'%s(%s)+%s(%s)'%(self.value,self.tag,other.value,other.tag,self.value*self.matrix+other.value*other.matrix))
 
-class OptStr(list):
+class OptStr(Arithmetic,list):
     '''
     Operator string, a list of single site operators.
     '''
@@ -204,18 +204,6 @@ class OptStr(list):
             opts.append(Opt(operator.value if i==0 else 1.0,sites[table[index]],matrix.tag,matrix))
         return OptStr(opts).relayer(degfres,layer)
 
-    def __pos__(self):
-        '''
-        Overloaded positive(+) operator.
-        '''
-        return self
-
-    def __neg__(self):
-        '''
-        Overloaded negative(-) operator.
-        '''
-        return self*(-1)
-
     def __imul__(self,other):
         '''
         Overloaded self-multiplication(*=) operator, which supports the self-multiplication by a scalar.
@@ -230,24 +218,6 @@ class OptStr(list):
         result=copy(self)
         result[0]=result[0]*other
         return result
-
-    def __rmul__(self,other):
-        '''
-        Overloaded multiplication(*) operator, which supports the multiplication of a scalar with an optstr.
-        '''
-        return self*other
-
-    def __idiv__(self,other):
-        '''
-        Overloaded self-division(/=) operator, which supports the self-division by a scalar.
-        '''
-        return self.__imul__(1.0/other)
-
-    def __div__(self,other):
-        '''
-        Overloaded division(/) operator, which supports the division of an optstr by a scalar.
-        '''
-        return self.__mul__(1.0/other)
 
     def overlap(self,mps1,mps2):
         '''
@@ -520,7 +490,7 @@ class OptMPO(list):
                 result[pos].qng(axes=[MPO.L,MPO.U,MPO.D],qnses=[lqns,sqns,sqns],signs='++-')
         return result
 
-class MPO(list):
+class MPO(Arithmetic,list):
     '''
     Matrix product operator, with each of its elements a 4d `Tensor`.
     '''
@@ -673,12 +643,6 @@ class MPO(list):
         other._set_ABL_(u,Lambda)
         return MPS(mode=other.mode,ms=ms)
 
-    def __iadd__(self,other):
-        '''
-        Overloaded self-addition(+=) operator.
-        '''
-        return self+other
-
     def __add__(self,other):
         '''
         Overloaded addition(+) operator, which supports the addition of two mpos.
@@ -696,29 +660,7 @@ class MPO(list):
             assert abs(other)==0
             return self
 
-    def __radd__(self,other):
-        '''
-        Overloaded addition(+) operator, which supports the addition of two mpos.
-        '''
-        return self+other
-
-    def __pos__(self):
-        '''
-        Overloaded positive(+) operator.
-        '''
-        return copy(self)
-
-    def __sub__(self,other):
-        '''
-        Overloaded subtraction(-) operator, which supports the subtraction of two mpos.
-        '''
-        return self+other*(-1)
-
-    def __neg__(self):
-        '''
-        Overloaded negative(-) operator.
-        '''
-        return self*(-1)
+    __iadd__=__add__
 
     def __imul__(self,other):
         '''
@@ -742,24 +684,6 @@ class MPO(list):
             result=copy(self)
             result[0]=result[0]*other
         return result
-
-    def __rmul__(self,other):
-        '''
-        Overloaded multiplication(*) operator, which supports the multiplication of a scalar with an mpo.
-        '''
-        return self*other
-
-    def __idiv__(self,other):
-        '''
-        Overloaded self-division(/=) operator, which supports the self-division by a scalar.
-        '''
-        return self.__imul__(1.0/other)
-
-    def __div__(self,other):
-        '''
-        Overloaded division(/) operator, which supports the division of an mpo by a scalar.
-        '''
-        return self.__mul__(1.0/other)
 
     def overlap(self,mps1,mps2):
         '''
@@ -828,7 +752,7 @@ class MPO(list):
         '''
         assert method in ('svd','dpl','dln')
         if method=='svd':
-            tol=options.get('tol',hm.TOL)
+            tol=options.get('tol',TOL)
             for sweep in xrange(nsweep):
                 for i,m in enumerate(self):
                     if i<self.nsite-1:

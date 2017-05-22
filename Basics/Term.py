@@ -10,9 +10,10 @@ This module defines the way to desribe a term and a set of terms of the Hamilton
 __all__=['Term','Terms']
 
 from numpy import complex128
+from ..Misc import Arithmetic
 from copy import copy
 
-class Term(object):
+class Term(Arithmetic,object):
     '''
     This class is the base class for all kinds of terms contained in a Hamiltonian.
 
@@ -48,13 +49,7 @@ class Term(object):
                 result.modulate=lambda *arg,**karg: self.modulate(*arg,**karg)*other if self.modulate(*arg,**karg) is not None else None
         return result
  
-    def __rmul__(self,other):
-        '''
-        Overloaded operator(*) which supports the right multiplication with a scalar.
-        '''
-        return self.__mul__(other)
-
-class Terms(list):
+class Terms(Arithmetic,list):
     '''
     This class packs several instances of Term's subclasses as a whole for convenience.
     '''
@@ -96,11 +91,7 @@ class Terms(list):
             raise ValueError("%s '+' error: the other parameter must be an instance of Term's or Terms's subclasses."%self.__class__.__name__)
         return result
 
-    def __radd__(self,other):
-        '''
-        Overloaded operator(+), which supports the right addition of a Terms instance with a Term/Terms instance.
-        '''
-        return self.__add__(other)
+    __iadd__=__add__
 
     def __mul__(self,other):
         '''
@@ -111,11 +102,7 @@ class Terms(list):
             result.append(obj*other)
         return result
 
-    def __rmul__(self,other):
-        '''
-        Overloaded operator(*), which supports the right multiplication with a scalar.
-        '''
-        return self.__mul__(other)
+    __imul__=__mul__
 
     def operators(self,bond,config,table=None,dtype=complex128):
         '''

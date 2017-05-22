@@ -132,13 +132,15 @@ class QuantumNumber(np.ndarray):
 
     def __add__(self,other):
         '''
-        Overloaded addition(+) operator, which supports the addition of two quantum numbers.
+        Overloaded left addition(+) operator, which supports the left addition by an instance of QuantumNumber/QuantumNumbers..
         '''
         if isinstance(other,QuantumNumbers):
             return other+self
         else:
             assert self.__class__ is other.__class__
             return self.__class__(self.__class__.regularization(np.asarray(self)+np.asarray(other)))
+
+    __iadd__=__add__
 
     def __sub__(self,other):
         '''
@@ -150,17 +152,29 @@ class QuantumNumber(np.ndarray):
             assert self.__class__ is other.__class__
             return self.__class__(self.__class__.regularization(np.asarray(self)-np.asarray(other)))
 
+    __isub__=__sub__
+
     def __mul__(self):
         '''
         Overloaded multiplication(*) operator.
         '''
         raise NotImplementedError()
 
+    __imul__=__mul__
+
     def __rmul__(self,other):
         '''
         Overloaded multiplication(*) operator.
         '''
         return self.__mul__(other)
+
+    def __div__(self,other):
+        '''
+        Overloaded left division(/) operator.
+        '''
+        raise NotImplementedError()
+
+    __idiv__=__div__
 
     def replace(self,**karg):
         '''
@@ -405,6 +419,12 @@ class QuantumNumbers(object):
         except ValueError:
             return False
 
+    def __pos__(self):
+        '''
+        Overloaed positive(+) operator.
+        '''
+        return self
+
     def __neg__(self):
         '''
         Overloaded negative(-) operator.
@@ -417,7 +437,7 @@ class QuantumNumbers(object):
 
     def __add__(self,other):
         '''
-        Overloaded addition(+) operator.
+        Overloaded left addition(+) operator, which supports the left addition by an instance of QuantumNumber.
         '''
         assert self.type is other.__class__ or not issubclass(other.__class__,QuantumNumber)
         return QuantumNumbers(
@@ -425,6 +445,14 @@ class QuantumNumbers(object):
                 data=       (self.type,self.type.regularization(self.contents+np.asarray(other)[np.newaxis,:]),self.indptr),
                 protocal=   QuantumNumbers.INDPTR
                 )
+
+    __iadd__=__add__
+
+    def __radd__(self,other):
+        '''
+        Overloaded right addition(+) operator, which supports the right addition by an instance of QuantumNumber.
+        '''
+        return self+other
 
     def __sub__(self,other):
         '''
@@ -436,6 +464,23 @@ class QuantumNumbers(object):
                 data=       (self.type,self.type.regularization(self.contents-np.asarray(other)[np.newaxis,:]),self.indptr),
                 protocal=   QuantumNumbers.INDPTR
                 )
+
+    __isub__=__sub__
+
+    def __mul__(self,other):
+        '''
+        Overloaded left multiplication(*) operator.
+        '''
+        assert type(other) in (int,long)
+        return QuantumNumbers.kron([self]*other)
+
+    __imul__=__mul__
+
+    def __rmul__(self,other):
+        '''
+        Overloaded right multiplication(*) operator.
+        '''
+        return self*other
 
     def __eq__(self,other):
         '''

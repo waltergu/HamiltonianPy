@@ -14,12 +14,12 @@ from numpy.linalg import norm
 from HamiltonianPy import Status
 from HamiltonianPy import QuantumNumber as QN
 from HamiltonianPy import QuantumNumbers as QNS
-from ..Misc import TOL
+from ..Misc import TOL,Arithmetic
 from Tensor import *
 from copy import copy,deepcopy
 from collections import OrderedDict
 
-class MPS(list):
+class MPS(Arithmetic,list):
     '''
     The general matrix product state, with each of its elements being a 3d `Tensor`.
 
@@ -689,41 +689,7 @@ class MPS(list):
             assert norm(other)==0
             return self
 
-    def __radd__(self,other):
-        '''
-        Overloaded right-addition(+) operator.
-        '''
-        return self+other
-
-    def __iadd__(self,other):
-        '''
-        Overloaded self-addition(+=) operator.
-        '''
-        return self+other
-
-    def __pos__(self):
-        '''
-        Overloaded positive(+) operator.
-        '''
-        return copy(self)
-
-    def __sub__(self,other):
-        '''
-        Overloaded subtraction(-) operator, which supports the subtraction of two mpses.
-        '''
-        return self+other*(-1)
-
-    def __isub__(self,other):
-        '''
-        Overloaded self-subtraction(-=) operator.
-        '''
-        return self+other*(-1)
-
-    def __neg__(self):
-        '''
-        Overloaded negative(-) operator.
-        '''
-        return self*(-1)
+    __iadd__=__add__
 
     def __imul__(self,other):
         '''
@@ -745,24 +711,6 @@ class MPS(list):
         else:
             result.Lambda=result.Lambda*other
         return result
-
-    def __rmul__(self,other):
-        '''
-        Overloaded multiplication(*) operator, which supports the multiplication of a scalar with an mps.
-        '''
-        return self*other
-
-    def __idiv__(self,other):
-        '''
-        Overloaded self-division(/=) operator, which supports the self-division by a scalar.
-        '''
-        return self.__imul__(1.0/other)
-
-    def __div__(self,other):
-        '''
-        Overloaded division(/) operator, which supports the division of an mps by a scalar.
-        '''
-        return self.__mul__(1.0/other)
 
     @staticmethod
     def overlap(mps1,mps2):

@@ -13,6 +13,7 @@ import numpy as np
 from numpy.linalg import norm
 from Constant import RZERO
 from Geometry import PID
+from ..Misc import Arithmetic
 from copy import copy,deepcopy
 from collections import OrderedDict
 
@@ -206,15 +207,7 @@ class Table(dict):
         Table
             The subset table.
         '''
-        result=Table()
-        for k,v in self.iteritems():
-            if select(k):
-                result[k]=v
-        buff={}
-        for i,k in enumerate(sorted([key for key in result.keys()],key=result.get)):
-            buff[k]=i
-        result.update(buff)
-        return result
+        return Table(sorted([key for key in self if select(key)],key=self.get))
 
     @property
     def reversed_table(self):
@@ -480,7 +473,7 @@ class IDFConfig(dict):
         '''
         return Table([index for key,value in self.items() for index in value.indices(key,mask)],key=lambda index: index.to_tuple(priority=self.priority))
 
-class IndexPack(object):
+class IndexPack(Arithmetic):
     '''
     This class packs several degrees of freedom as a whole for convenience.
 
@@ -503,7 +496,7 @@ class IndexPack(object):
 
     def __add__(self,other):
         '''
-        Overloaded operator(+), which supports the addition of an IndexPack instance with an IndexPack/IndexPacks instance.
+        Overloaded left addition(+) operator, which supports the left addition by an IndexPack/IndexPacks.
         '''
         result=IndexPacks()
         result.append(self)
@@ -512,24 +505,18 @@ class IndexPack(object):
         elif isinstance(other,IndexPacks):
             result.extend(other)
         else:
-            raise ValueError("IndexPack '+' error: the 'other' parameter must be of class IndexPack or IndexPacks.")
+            assert norm(other)==0
         return result
 
-    def __rmul__(self,other):
-        '''
-        Overloaded operator(*).
-        '''
-        return self.__mul__(other)
-
-class IndexPacks(list):
+class IndexPacks(Arithmetic,list):
     '''
     This class packs several IndexPack as a whole for convenience.
     '''
 
     def __init__(self,*arg):
-        for buff in arg:
-            if issubclass(buff.__class__,IndexPack):
-                self.append(buff)
+        for obj in arg:
+            if issubclass(obj.__class__,IndexPack):
+                self.append(obj)
             else:
                 raise ValueError("IndexPacks init error: the input parameters must be of IndexPack's subclasses.")
 
@@ -539,9 +526,21 @@ class IndexPacks(list):
         '''
         return 'IndexPacks('+', '.join([str(obj) for obj in self])
 
+    def __iadd__(self,other):
+        '''
+        Overloaded self-addition(+=) operator, which supports the self-addition by an IndexPack/IndexPacks.
+        '''
+        if isinstance(other,IndexPack):
+            self.append(other)
+        elif isinstance(other,IndexPacks):
+            self.extend(other)
+        else:
+            assert norm(other)==0
+        return self
+
     def __add__(self,other):
         '''
-        Overloaded operator(+), which supports the addition of an IndexPacks instance with an IndexPack/IndexPacks instance.
+        Overloaded left addition(+) operator, which supports the left addition by an IndexPack/IndexPacks.
         '''
         result=IndexPacks(*self)
         if isinstance(other,IndexPack):
@@ -549,32 +548,22 @@ class IndexPacks(list):
         elif isinstance(other,IndexPacks):
             result.extend(other)
         else:
-            raise ValueError("IndexPacks '+' error: the 'other' parameter must be of class IndexPack or IndexPacks.")
+            assert norm(other)==0
         return result
-
-    def __radd__(self,other):
-        '''
-        Overloaded operator(+).
-        '''
-        return self.__add__(other)
 
     def __mul__(self,other):
         '''
-        Overloaded operator(*).
+        Overloaded left multiplication(*) operator, which supports the left-multiplication by a scalar/IndexPack/IndexPacks.
         '''
         result=IndexPacks()
-        for buff in self:
-            temp=buff*other
+        for obj in self:
+            temp=obj*other
             if isinstance(temp,IndexPacks):
                 result.extend(temp)
             elif issubclass(temp.__class__,IndexPack):
                 result.append(temp)
             else:
-                raise ValueError("IndexPacks *' error: the element(%s) in self multiplied by other is not of IndexPack/IndexPacks."%(buff))
+                raise ValueError("IndexPacks *' error: the element(%s) in self multiplied by other is not of IndexPack/IndexPacks."%(obj))
         return result
-
-    def __rmul__(self,other):
-        '''
-        Overloaded operator(*).
-        '''
-        return self.__mul__(other)
+    
+    __imul__=__mul__

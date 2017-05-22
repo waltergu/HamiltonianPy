@@ -11,3 +11,6 @@ def test_database(arg):
     if arg in ('triangle','database','all'):
         from HamiltonianPy.DataBase.test.Triangle import test_triangle
         test_triangle()
+    if arg in ('kagome','database','all'):
+        from HamiltonianPy.DataBase.test.Kagome import test_kagome
+        test_kagome()

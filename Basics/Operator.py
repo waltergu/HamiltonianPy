@@ -10,10 +10,11 @@ This modulate defines the way to describe an operator and a set of operators, in
 __all__=['Operator','Operators']
 
 from Constant import *
+from ..Misc import Arithmetic
 from copy import copy
 from numpy.linalg import norm
 
-class Operator(object):
+class Operator(Arithmetic):
     '''
     This class is the base class of all types of operators.
 
@@ -52,12 +53,6 @@ class Operator(object):
         '''
         raise ValueError("%s dagger error: it is not implemented."%(self.__class__.__name__))
 
-    def __pos__(self):
-        '''
-        Overloaded positive(+) operator.
-        '''
-        return self
-
     def __add__(self,other):
         '''
         Overloaded left addition(+) operator, which supports the left addition by an instance of Operator/Operators.
@@ -81,12 +76,6 @@ class Operator(object):
             result=self
         return result
 
-    def __radd__(self,other):
-        '''
-        Overloaded right addition(+) operator, which supports the right addition by an instance of Operator/Operators.
-        '''
-        return self+other
-
     def __imul__(self,other):
         '''
         Overloaded self-multiplication(*=) operator, which supports the self multiplication by a scalar.
@@ -102,43 +91,13 @@ class Operator(object):
         result.value=result.value*other
         return result
 
-    def __rmul__(self,other):
-        '''
-        Overloaded right multiplication(*) operator, which supports the right multiplication by a scalar.
-        '''
-        return self*other
-
-    def __neg__(self):
-        '''
-        Overloaded negative(-) operator.
-        '''
-        return self*(-1)
-
-    def __sub__(self,other):
-        '''
-        Overloaded left subtraction(-) operator, which supports the left subtraction by an instance of Operator/Operators.
-        '''
-        return self+other*(-1)
-
-    def __idiv__(self,other):
-        '''
-        Overloaded self-division(/=) operator, which supports the self division by a scalar.
-        '''
-        return self.__imul__(1.0/other)
-
-    def __div__(self,other):
-        '''
-        Overloaded left division(/) operator, which supports the left division by a scalar.
-        '''
-        return self*(1.0/other)
-
     def __eq__(self,other):
         '''
         Overloaded operator(==).
         '''
         return self.id==other.id and abs(self.value-other.value)<RZERO
 
-class Operators(dict):
+class Operators(Arithmetic,dict):
     '''
     This class packs several operators as a whole for convenience. For each of its (key,value) pairs:
         * key: any hashable object
@@ -152,12 +111,6 @@ class Operators(dict):
         Convert an instance to string.
         '''
         return '\n'.join(['[%s]:%s'%(i,obj) for i,obj in enumerate(self.values())])
-
-    def __pos__(self):
-        '''
-        Overloaded positive(+) operator.
-        '''
-        return self
 
     def __iadd__(self,other):
         '''
@@ -188,12 +141,6 @@ class Operators(dict):
         '''
         return copy(self).__iadd__(other)
 
-    def __radd__(self,other):
-        '''
-        Overloaded right addition(+) operator, which supports the right addition by an instance of Operator/Operators.
-        '''
-        return self+other
-
     def __imul__(self,other):
         '''
         Overloaded self-multiplication(*=) operator, which supports the self multiplication by a scalar.
@@ -210,18 +157,6 @@ class Operators(dict):
         for id,obj in self.iteritems():
             result[id]=obj*other
         return result
-
-    def __rmul__(self,other):
-        '''
-        Overloaded right multiplication(*) operator, which supports the right multiplication by a scalar.
-        '''
-        return self.__mul__(other)
-
-    def __neg__(self):
-        '''
-        Overloaded negative(-) operator.
-        '''
-        return self*(-1)
 
     def __isub__(self,other):
         '''
@@ -247,12 +182,6 @@ class Operators(dict):
         else:
             assert norm(other)==0
         return self
-
-    def __sub__(self,other):
-        '''
-        Overloaded left subtraction(-) operator, which supports the left subtraction by an instance of Operator/Operators.
-        '''
-        return self+other*(-1)
 
     @property
     def dagger(self):
