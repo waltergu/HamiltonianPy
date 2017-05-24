@@ -135,7 +135,7 @@ class SCMF(TBA):
             eigs,eigvecs=eigh(matrix)
             for eig,eigvec in zip(eigs,eigvecs.T):
                 m+=dot(eigvec.conj().reshape((nmatrix,1)),eigvec.reshape((1,nmatrix)))*f(eig,self.mu)
-        nstate=(1 if kspace is None else kspace.rank['k'])*nmatrix/self.config.values()[0].nspin
+        nstate=(1 if kspace is None else kspace.rank('k'))*nmatrix/self.config.values()[0].nspin
         for key in self.ops.keys():
             self.ops[key].value=sum(m*self.ops[key].matrix)/nstate
             if self.ops[key].dtype in (float32,float64): self.ops[key].value=self.ops[key].value.real

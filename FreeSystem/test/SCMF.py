@@ -43,6 +43,6 @@ def test_scmf():
         )
     h2.iterate(KSpace(reciprocals=h2.lattice.reciprocals,nk=100),tol=10**-5,maxiter=400)
     h2.register(EB(name='EB',path=hexagon_gkm(nk=100),save_data=False,plot=True,show=True,run=TBAEB))
-    h2.register(BC(name='BC',BZ=KSpace(reciprocals=h2.lattice.reciprocals,nk=200),mu=h2.mu,d=10**-6,save_data=False,plot=False,show=True,run=TBABC))
+    h2.register(BC(name='BC',BZ=KSpace(reciprocals=h2.lattice.reciprocals,nk=200),mu=h2.mu,d=10**-6,save_data=False,run=TBABC))
     h2.summary()
     print

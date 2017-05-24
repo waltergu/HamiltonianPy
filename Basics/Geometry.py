@@ -841,7 +841,7 @@ class Lattice(object):
             for pid,point in zip(pids,self.points):
                 point.pid=pid
 
-    def plot(self,fig=None,ax=None,show=True,suspend=False,save=False,close=True,pid_on=False):
+    def plot(self,fig=None,ax=None,show=True,suspend=False,save=True,close=True,pid_on=False):
         '''
         Plot the lattice points and bonds. Only 2D or quasi 1d systems are supported.
         '''

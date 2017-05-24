@@ -786,7 +786,9 @@ def DMRGTSG(engine,app):
         if app.nspb>1 and pos==0 and app.save_data: engine.coredump()
         genew=engine.info['Esite']
         if app.terminate and geold is not None and norm(geold-genew)/norm(geold+genew)<app.tol: break
-    if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
+    if app.plot and app.save_fig:
+        plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
+        plt.close()
     if app.save_data: engine.coredump()
     engine.log.close()
 
@@ -885,5 +887,7 @@ def DMRGTSS(engine,app):
         if not (app.status<=engine.status): engine.update(**parameters)
         engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,piechart=app.plot)
         if app.save_data: engine.coredump()
-    if app.plot and app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
+    if app.plot and app.save_fig:
+        plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
+        plt.close()
     engine.log.close()

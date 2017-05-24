@@ -25,6 +25,7 @@ def test_timers():
         timers.record()
         print timers,'\n'
         timers.graph()
+    timers.close()
     print
 
 def test_info():

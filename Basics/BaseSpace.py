@@ -15,28 +15,20 @@ from Constant import *
 from numpy.linalg import norm,inv
 from collections import OrderedDict
 import matplotlib.pyplot as plt
-import itertools
+import itertools as it
 
 class BaseSpace(object):
     '''
-    This class provides a unified description of all kinds of parameter spaces.
+    This class provides a unified description of parameter spaces.
 
     Attributes
     ----------
-    mesh : OrderedDict in the form (key,value), with
-        * key: any hashable object
-            * When len(mesh)==1, the name of the parameter space;
-            * When len(mesh)>1, the tags of the axes of the parameter space.
-        * value: ndarray
-            * When len(mesh)==1, the data mesh of the parameter space;
-            * When len(mesh)>1, the data mesh of each axis of the parameter space.
-    volume : OrderedDict in the form (key,value), with
-        * key: any hashable object
-           The same as the keys of mesh.
-        * value: float64
-            * When len(volume)==1, the volume of the parameter space;
-            * When len(volume)>1, the volume of each axis of the parameter space.
-        This attribute is not always initialized or used.
+    tags : list of string
+        The tags of the parameter spaces.
+    meshes : list of ndarray
+        The meshes of the parameter spaces.
+    volumes : list of float64
+        The volumes of the parameter spaces.
     '''
 
     def __init__(self,*paras):
@@ -45,25 +37,23 @@ class BaseSpace(object):
 
         Parameters
         ----------
-        paras : list of dicts, each of which contains the following entries
-            * `tag`: any hashable object
-                It specifies the key used in the attributes mesh and volume.
-            * `mesh`: ndarray, optional
-                The corresponding mesh.
-            * `volume`: float, optional
-                The corresponding volume.
+        paras : list of 2/3-tuples
+            * tuple[0]: string
+                The tag of the parameter space.
+            * tuple[1]: ndarray
+                The mesh of the parameter space.
+            * tuple[2]: float64, optional
+                The volume of the parameter space..
         '''
-        self.mesh=OrderedDict()
-        self.volume=OrderedDict()
-        for para in paras:
-            self.mesh[para['tag']]=para['mesh'] if 'mesh' in para else None
-            self.volume[para['tag']]=para['volume'] if 'volume' in para else None
+        self.tags=[para[0] for para in paras]
+        self.meshes=[para[1] for para in paras]
+        self.volumes=[para[2] if len(para)==3 else None for para in paras]
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
-        return str(self.mesh)
+        return '\n'.join('%s: volume=%s,\nmesh=%s'%(tag,volume,mesh) for tag,volume,mesh in zip(self.tags,self.volumes,self.meshes))
 
     def __call__(self,mode="*"):
         '''
@@ -75,88 +65,81 @@ class BaseSpace(object):
 
             A flag to indicate how to construct the generator.
                 * "+": direct sum
-                     In this case, all the meshes must have the same rank.
                 * "*": direct product
 
         Yields
         ------
-            A dict in the form {key1:value1,key2:value2,...}
+            A dict in the form {tag1:value1,tag2:value2,...}
+
+        Notes
+        -----
+        When ``mode=='+'``, all the meshes must have the same rank.
         '''
-        keys=self.mesh.keys()
         if mode=="*":
-            for values in itertools.product(*self.mesh.values()):
-                yield {key:value for key,value in zip(keys,values)}
+            for values in it.product(*self.meshes):
+                yield {tag:value for tag,value in zip(self.tags,values)}
         elif mode=="+":
-            for values in zip(*self.mesh.values()):
-                yield {key:value for key,value in zip(keys,values)}
+            for values in zip(*self.meshes):
+                yield {tag:value for tag,value in zip(self.tags,values)}
 
-    @property
-    def rank(self):
+    def rank(self,tag):
         '''
-        This method returns a dict containing the number of points in the base space.
+        The rank, i.e. the number of sample points in the mesh, of the parameter space whose tag is `tag`.
         '''
-        return {key:self.mesh[key].shape[0] for key in self.mesh.keys()}
+        return self.meshes[self.tags.index(tag) if isinstance(tag,str) else tag].shape[0]
 
-    def plot(self,show=True,suspend=False,save=False,name='BaseSpace'):
+    def mesh(self,tag):
         '''
-        Plot the points contained in its mesh. Only two dimensional base spaces are supported.
+        The mesh of the parameter space whose tag is `tag`.
+        '''
+        return self.meshes[self.tags.index(tag) if isinstance(tag,str) else tag]
+
+    def volume(self,tag):
+        '''
+        The volume of the parameter space whose tag is `tag`.
+        '''
+        return self.volumes[self.tags.index(tag) if isinstance(tag,str) else tag]
+
+    def plot(self,show=True,suspend=False,save=True,name='BaseSpace'):
+        '''
+        Plot the sample points contained in its mesh.
+        
+        Notes
+        -----
+        Only two dimensional base spaces are supported.
         '''
         plt.axis('equal')
-        for key,mesh in self.mesh.iteritems():
+        for tag,mesh in zip(self.tags,self.meshes):
             x=mesh[:,0]
             y=mesh[:,1]
             plt.scatter(x,y)
+            plt.title(name)
             if show and suspend: plt.show()
             if show and not suspend: plt.pause(1)
-            if save: plt.savefig(name+'_'+key+'.png')
+            if save: plt.savefig('%s_%s.png'%(name,tag))
         plt.close()
 
-def KSpace(reciprocals=None,nk=100,mesh=None,volume=0.0):
+def KSpace(reciprocals,nk=100,segments=None,end=False):
     '''
-    This function returns a BaseSpace instance that represents the whole Broullouin zone(BZ), a path in the BZ, or just some isolated points in the BZ.
-    It can be used in the following ways:
-        * ``KSpace(reciprocals=...,nk=...)``
-        * ``KSpace(mesh=...,volume=...)``
+    This function constructs an instance of BaseSpace that represents a region in the reciprocal space, e.g. the first Broullouin zone(FBZ).
 
     Parameters
     ----------
-    reciprocals : list of 1d ndarrays, optional
-        The unit translation vectors of the BZ.
+    reciprocals : list of 1d ndarray
+        The translation vectors of the reciprocal lattice.
     nk : integer,optional
-        The number of mesh points along each unit translation vector.
-    mesh : ndarray, optional
-        The mesh of the BZ
-    volume : float, optional
-        The volume of the BZ.
-        When the parameter reciprocals is not None, it is omitted since the volume of the BZ will be calculated by the reciprocals.
+        The number of sample points along each translation vector.
+    segments : list of 2-tuple, optional
+        The relative start and stop positions along each translation vector.
+    end : logical, optional
+        True for including the endpoint and False for not.
     '''
-    result=BaseSpace({'tag':'k','mesh':mesh,'volume':volume})
-    if reciprocals is not None:
-        nvectors=len(reciprocals)
-        if nvectors==1:
-            result.volume['k']=norm(reciprocals[0])
-        elif nvectors==2:
-            result.volume['k']=abs(cross(reciprocals[0],reciprocals[1]))
-        elif nvectors==3:
-            result.volume['k']=abs(volume(reciprocals[0],reciprocals[1],reciprocals[2]))
-        else:
-            raise ValueError("KSpace error: the number of reciprocals should not be greater than 3.")
-        ndim=reciprocals[0].shape[0]
-        ubi=1;ubj=1;ubk=1
-        if nvectors>=1:ubi=nk
-        if nvectors>=2:ubj=nk
-        if nvectors>=3:ubk=nk
-        result.mesh['k']=zeros((ubi*ubj*ubk,ndim))
-        for i in xrange(ubi):
-            for j in xrange(ubj):
-                for k in xrange(ubk):
-                    for l in xrange(ndim):
-                        for h in xrange(nvectors):
-                            if h==0: buff=1.0*i/ubi-0.5
-                            if h==1: buff=1.0*j/ubj-0.5
-                            if h==2: buff=1.0*k/ubk-0.5
-                            result.mesh['k'][(i*ubj+j)*ubk+k,l]=result.mesh['k'][(i*ubj+j)*ubk+k,l]+reciprocals[h][l]*buff
-    return result
+    nvectors=len(reciprocals)
+    segments=[(-0.5,0.5)]*nvectors if segments is None else segments
+    assert len(segments)==nvectors and nvectors in (1,2,3)
+    vol=(norm if nvectors==1 else (cross if nvectors==2 else volume))(*reciprocals)
+    mesh=[dot([a+(b-a)*i/(nk-1 if end else nk) for (a,b),i in zip(segments,pos)],reciprocals) for pos in it.product(*([xrange(nk)]*nvectors))]
+    return BaseSpace(('k',asarray(mesh),abs(vol)))
 
 def line_bz(reciprocals=None,nk=100):
     '''
@@ -172,39 +155,35 @@ def rectangle_gxm(reciprocals=None,nk=100):
     '''
     The Gamma-X-M-Gamma path in the rectangular BZ.
     '''
-    result=KSpace(nk=nk)
-    if not reciprocals is None:
+    if reciprocals is not None:
         b1=reciprocals[0]
         b2=reciprocals[1]
     else:
         b1=array([2*pi,0.0])
         b2=array([0.0,2*pi])
-    ndim=b1.shape[0]
-    result.mesh['k']=zeros((3*nk,ndim))
+    mesh=zeros((3*nk,b1.shape[0]))
     for i in xrange(nk):
-        result.mesh['k'][i,:]=b1/2*i/nk
-        result.mesh['k'][nk+i,:]=b1/2+b2/2*i/nk
-        result.mesh['k'][nk*2+i,:]=(b1+b2)/2*(1-1.0*i/nk)
-    return result
+        mesh[i,:]=b1/2*i/nk
+        mesh[nk+i,:]=b1/2+b2/2*i/nk
+        mesh[nk*2+i,:]=(b1+b2)/2*(1-1.0*i/nk)
+    return BaseSpace(('k',mesh))
 
 def rectangle_gym(reciprocals=None,nk=100):
     '''
     The Gamma-X-M-Gamma path in the rectangular BZ.
     '''
-    result=KSpace(nk=nk)
-    if not reciprocals is None:
+    if reciprocals is not None:
         b1=reciprocals[1]
         b2=reciprocals[0]
     else:
         b1=array([0.0,2*pi])
         b2=array([2*pi,0.0])
-    ndim=b1.shape[0]
-    result.mesh['k']=zeros((3*nk,ndim))
+    mesh=zeros((3*nk,b1.shape[0]))
     for i in xrange(nk):
-        result.mesh['k'][i,:]=b1/2*i/nk
-        result.mesh['k'][nk+i,:]=b1/2+b2/2*i/nk
-        result.mesh['k'][nk*2+i,:]=(b1+b2)/2*(1-1.0*i/nk)
-    return result
+        result.mesh[i,:]=b1/2*i/nk
+        result.mesh[nk+i,:]=b1/2+b2/2*i/nk
+        result.mesh[nk*2+i,:]=(b1+b2)/2*(1-1.0*i/nk)
+    return BaseSpace(('k',mesh))
 
 def rectangle_bz(reciprocals=None,nk=100):
     '''
@@ -226,80 +205,94 @@ def hexagon_gkm(reciprocals=None,nk=100,vh='H'):
     '''
     The Gamma-K-M-Gamma path in the hexagonal BZ.
     '''
-    result=KSpace(nk=nk)
-    if not reciprocals is None:
+    if reciprocals is not None:
         b1=reciprocals[0]
         b2=reciprocals[1]
-        buff=inner(b1,b2)/norm(b1)/norm(b2)
-        if abs(buff+0.5)<RZERO:
-            b2=-b2
-        elif abs(buff-0.5)>RZERO:
-            raise ValueError("Hexagon_gkm error: the reciprocals are too wired.")
+        temp=inner(b1,b2)/norm(b1)/norm(b2)
+        assert abs(abs(temp)-0.5)<RZERO
+        if abs(temp+0.5)<RZERO: b2=-b2
     else:
         if vh in ('H','h'):
-          b1=array([sqrt(3.0)/2,0.5])*4*pi/sqrt(3.0)
-          b2=array([sqrt(3.0)/2,-0.5])*4*pi/sqrt(3.0)
+            b1=array([sqrt(3.0)/2,0.5])*4*pi/sqrt(3.0)
+            b2=array([sqrt(3.0)/2,-0.5])*4*pi/sqrt(3.0)
         else:
-          b1=array([1.0,0.0])*4*pi/sqrt(3.0)
-          b2=array([0.5,sqrt(3.0)/2])*4*pi/sqrt(3.0)
-    ndim=b1.shape[0]
-    result.mesh['k']=zeros((3*nk,ndim))
+            b1=array([1.0,0.0])*4*pi/sqrt(3.0)
+            b2=array([0.5,sqrt(3.0)/2])*4*pi/sqrt(3.0)
+    mesh=zeros((3*nk,b1.shape[0]))
     for i in xrange(nk):
-        result.mesh['k'][i,:]=(b1+b2)/3*i/nk
-        result.mesh['k'][nk+i,:]=(b1+b2)/3+(b1-2*b2)/6*i/nk
-        result.mesh['k'][nk*2+i,:]=b1/2*(1-1.0*i/nk)
-    return result
+        mesh[i,:]=(b1+b2)/3*i/nk
+        mesh[nk+i,:]=(b1+b2)/3+(b1-2*b2)/6*i/nk
+        mesh[nk*2+i,:]=b1/2*(1-1.0*i/nk)
+    return BaseSpace(('k',mesh))
 
 def hexagon_bz(reciprocals=None,nk=100,vh='H'):
     '''
     The whole hexagonal BZ.
     '''
-    result=KSpace(nk=nk)
-    if not reciprocals is None:
+    if reciprocals is not None:
         b1=reciprocals[0]
         b2=reciprocals[1]
-        buff=inner(b1,b2)/norm(b1)/norm(b2)
-        if abs(buff+0.5)<RZERO:
-            b2=-b2
-        elif abs(buff-0.5)>RZERO:
-            raise ValueError("Hexagon_gkm error: the reciprocals are too wired.")
+        temp=inner(b1,b2)/norm(b1)/norm(b2)
+        assert abs(abs(temp)-0.5)<RZERO
+        if abs(temp+0.5)<RZERO: b2=-b2
     else:
         if vh in ('H','h'):
-          b1=array([sqrt(3.0)/2,0.5])*4*pi/sqrt(3.0)
-          b2=array([sqrt(3.0)/2,-0.5])*4*pi/sqrt(3.0)
+            b1=array([sqrt(3.0)/2,0.5])*4*pi/sqrt(3.0)
+            b2=array([sqrt(3.0)/2,-0.5])*4*pi/sqrt(3.0)
         else:
-          b1=array([1.0,0.0])*4*pi/sqrt(3.0)
-          b2=array([0.5,sqrt(3.0)/2])*4*pi/sqrt(3.0)
-    ndim=b1.shape[0]
-    result.mesh['k']=zeros((nk**2,ndim))
-    p0=-(b1+b2)/3
-    p1=(b1+b2)/3
-    p2=(b1+b2)*2/3
-    p3=(b1*2-b2)/3
-    p4=(b2*2-b1)/3
+            b1=array([1.0,0.0])*4*pi/sqrt(3.0)
+            b2=array([0.5,sqrt(3.0)/2])*4*pi/sqrt(3.0)
+    p0,p1,p2,p3,p4=-(b1+b2)/3,(b1+b2)/3,(b1+b2)*2/3,(b1*2-b2)/3,(b2*2-b1)/3
+    mesh=zeros((nk**2,b1.shape[0]))
     for i in xrange(nk):
         for j in xrange(nk):
-          coords=b1*(i-1)/nk+b2*(j-1)/nk+p0
-          if in_triangle(coords,p1,p2,p3): coords=coords-b1
-          if in_triangle(coords,p1,p2,p4): coords=coords-b2
-          result.mesh['k'][i*nk+j,:]=coords
-    result.volume['k']=abs(cross(b1,b2))
-    return result
+            coords=b1*i/nk+b2*j/nk+p0
+            if in_triangle(coords,p1,p2,p3,vertexes=(False,True,False),edges=(True,True,False)): coords=coords-b1
+            if in_triangle(coords,p1,p2,p4,vertexes=(False,True,False),edges=(True,True,False)): coords=coords-b2
+            mesh[i*nk+j,:]=coords
+    volume=abs(cross(b1,b2))
+    return BaseSpace(('k',mesh,volume))
     
-def in_triangle(p0,p1,p2,p3):
+def in_triangle(p0,p1,p2,p3,vertexes=(True,True,True),edges=(True,True,True)):
     '''
-    Judge whether a point represented by p0 belongs to the interior of a triangle whose vertices are p1,p2 and p3.
+    Judge whether a point belongs to the interior of a triangle.
+    
+    Parameters
+    ----------
+    p0 : 1d ndarray
+        The coordinates of the point.
+    p1,p2,p3 : 1d ndarray
+        The coordinates of the vertexes of the triangle.
+    vertexes : 3-tuple of logical, optional
+        Define whether the "interior" contains the vertexes of the triangle. True for YES and False for NO..
+    edges : 3-tuple of logical, optional
+        Define whether the "interior" contains the edges of the triangle. True for YES and False for NO.
+
+    Returns
+    -------
+    logical
+        True for belonging to the interior and False for not.
+
+    Notes
+    -----
+        * Whether or not the boundary of the triangle belongs to its interior is defined by the parameters `vertexes` and `edges`.
+        * The vertexes are in the order (p1,p2,p3) and the edges are in the order (p1p2,p2p3,p3p1).
+        * The edges do not contain the vertexes.
     '''
-    a=zeros((3,3))
-    b=zeros(3)
-    x=zeros(3)
-    ndim=p0.shape[0]
+    a,b,x,ndim=zeros((3,3)),zeros(3),zeros(3),p0.shape[0]
     a[0:ndim,0]=p2-p1
     a[0:ndim,1]=p3-p1
-    a[(2 if ndim==2 else 0):3,2]=cross(p2-p1,p3-p2)
+    a[(2 if ndim==2 else 0):3,2]=cross(p2-p1,p3-p1)
     b[0:ndim]=p0-p1
     x=dot(inv(a),b)
-    if x[0]>=0 and x[0]<=1 and x[1]>=0 and x[1]<=1 and x[0]+x[1]<=1:
+    assert x[2]==0
+    onvertexes=[x[0]==0 and x[1]==0,x[0]==1 and x[1]==0,x[0]==0 and x[1]==1]
+    onedges=[x[1]==0 and x[0]>0 and x[0]<1,x[0]==0 and x[1]>0 and x[1]<1,x[0]+x[1]==1 and x[0]>0 and x[0]<1]
+    if any(onvertexes):
+        return any([on and condition for on,condition in zip(onvertexes,vertexes)])
+    elif any(onedges):
+        return any([on and condition for on,condition in zip(onedges,edges)])
+    elif x[0]>0 and x[0]<1 and x[1]>0 and x[1]<1 and x[0]+x[1]<1:
         return True
     else:
         return False
@@ -308,4 +301,4 @@ def TSpace(mesh):
     '''
     The time space.
     '''
-    return BaseSpace({'tag':'t','mesh':mesh,'volume':mesh.max()-mesh.min()})
+    return BaseSpace(('t',mesh,mesh.max()-mesh.min()))

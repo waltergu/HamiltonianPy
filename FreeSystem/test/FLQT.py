@@ -27,7 +27,7 @@ def test_flqt():
                     ],
         mask=       []
         )
-    a.register(EB(name='EB',path=BaseSpace({'tag':'t','mesh':linspace(0,1,100)}),save_data=False,run=TBAEB))
+    a.register(EB(name='EB',path=BaseSpace(('t',linspace(0,1,100))),save_data=False,run=TBAEB))
     a.register(QEB(name='QEB',ts=TSpace(array([0,0.5,1])),save_data=False,run=FLQTQEB))
     a.summary()
     print

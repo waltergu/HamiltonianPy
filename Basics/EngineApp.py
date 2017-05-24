@@ -185,7 +185,7 @@ class App(object):
         result=object.__new__(cls)
         result.status=Status(name=karg.get('name',id(result)),info=False)
         result.status.update(alter=karg.get('parameters',None))
-        attr_def={'dependences':[],'plot':True,'show':True,'suspend':False,'parallel':False,'np':0,'save_data':True,'save_fig':False,'prepare':None,'run':None}
+        attr_def={'dependences':[],'plot':True,'show':True,'suspend':False,'parallel':False,'np':0,'save_data':True,'save_fig':True,'prepare':None,'run':None}
         for key,value in attr_def.items():
             setattr(result,key,karg.get(key,value))
         return result

@@ -259,6 +259,12 @@ class Timers(Tree):
         '''
         return self[key].time
 
+    def close(self):
+        '''
+        Close the graph.
+        '''
+        plt.close()
+
 class Info(object):
     '''
     Information for code executing.

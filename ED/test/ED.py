@@ -26,7 +26,7 @@ def test_ed():
                         Hubbard('U',U,modulate=lambda **karg:karg.get('U',None))
                         ]
         )
-    a.register(EL(name='EL',path=BaseSpace({'tag':'U','mesh':linspace(0.0,5.0,100)}),ns=6,save_data=False,run=EDEL))
+    a.register(EL(name='EL',path=BaseSpace(('U',linspace(0.0,5.0,100))),ns=6,save_data=False,run=EDEL))
     gf=GF(name='GF',operators=fspoperators(config.table().subset(GF.select(nspin=2)),lattice),nspin=2,nstep=100,save_data=False,prepare=EDGFP,run=EDGF)
     a.register(DOS(name='DOS-1',parameters={'U':0.0},mu=0.0,emin=-10,emax=10,ne=501,eta=0.05,save_data=False,run=EDDOS,plot=True,show=True,dependences=[gf]))
     a.register(DOS(name='DOS-2',parameters={'U':8.0},mu=4.0,emin=-10,emax=10,ne=501,eta=0.05,save_data=False,run=EDDOS,plot=True,show=True,dependences=[gf]))

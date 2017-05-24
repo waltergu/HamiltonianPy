@@ -4,11 +4,11 @@ Cluster perturbation theory and variational cluster approach
 ============================================================
 
 CPT and VCA, including:
-    * classes: VCA, EB, GPM, CPFF, OP
-    * functions: VCAEB, VCADOS, VCAFS, VCABC, VCATEB, VCAGP, VCAGPM, VCACPFF, VCAOP
+    * classes: VCA, EB, GPM, CPFF, OP, DTBT
+    * functions: VCAEB, VCADOS, VCAFS, VCABC, VCATEB, VCAGP, VCAGPM, VCACPFF, VCAOP, VCADTBT
 '''
 
-__all__=['VCA','EB','VCAEB','VCADOS','VCAFS','VCABC','VCATEB','VCAGP','GPM','VCAGPM','CPFF','VCACPFF','OP','VCAOP']
+__all__=['VCA','EB','VCAEB','VCADOS','VCAFS','VCABC','VCATEB','VCAGP','GPM','VCAGPM','CPFF','VCACPFF','OP','VCAOP','DTBT','VCADTBT']
 
 from gf_contract import *
 from numpy.linalg import det,inv
@@ -111,6 +111,7 @@ class VCA(ED.ED):
         `VCAGPM`    minimizes the grand potential
         `VCACPFF`   calculates the chemical potential or filling factor
         `VCAOP`     calculates the order parameter
+        `VCADTBT`   calculates the distribution of fermions along a path in the Brillouin zone
         =========   ======================================================================================================================
     '''
 
@@ -341,7 +342,9 @@ class VCA(ED.ED):
         2d ndarray
             The VCA Green's function.
         '''
-        return _gf_contract_(k=k,mgf=self.mgf(omega,k),seqs=self.periodization['seqs'],coords=self.periodization['coords'])/(self.ncopt/self.nopt)
+        app=self.preloads[1]
+        app.gf[...]= _gf_contract_(k,self.mgf(omega,k),self.periodization['seqs'],self.periodization['coords'])/(self.ncopt/self.nopt)
+        return app.gf
 
     def gf_kmesh(self,omega,kmesh):
         '''
@@ -363,7 +366,7 @@ class VCA(ED.ED):
         mgf_kmesh=self.mgf_kmesh(omega,kmesh)
         result=np.zeros((kmesh.shape[0],self.nopt,self.nopt),dtype=np.complex128)
         for n,k in enumerate(kmesh):
-            result[n,:,:]=_gf_contract_(k=k,mgf=mgf_kmesh[n,:,:],seqs=self.periodization['seqs'],coords=self.periodization['coords'])
+            result[n,:,:]=_gf_contract_(k,mgf_kmesh[n,:,:],self.periodization['seqs'],self.periodization['coords'])
         return result/(self.ncopt/self.nopt)
 
 class EB(HP.EB):
@@ -405,7 +408,7 @@ def VCAEB(engine,app):
     '''
     engine.rundependences(app.status.name)
     engine.cache.pop('pt_kmesh',None)
-    erange,kmesh,nk=np.linspace(app.emin,app.emax,app.ne),app.path.mesh['k'],app.path.rank['k']
+    erange,kmesh,nk=np.linspace(app.emin,app.emax,app.ne),app.path.mesh('k'),app.path.rank('k')
     result=np.zeros((nk,app.ne))
     for i,omega in enumerate(erange):
         result[:,i]=-(np.trace(engine.gf_kmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2)).imag/engine.nopt/np.pi
@@ -432,7 +435,7 @@ def VCADOS(engine,app):
     '''
     engine.rundependences(app.status.name)
     engine.cache.pop('pt_kmesh',None)
-    erange,kmesh,nk=np.linspace(app.emin,app.emax,app.ne),app.BZ.mesh['k'],app.BZ.rank['k']
+    erange,kmesh,nk=np.linspace(app.emin,app.emax,app.ne),app.BZ.mesh('k'),app.BZ.rank('k')
     result=np.zeros((app.ne,2))
     for i,omega in enumerate(erange):
         result[i,0]=omega
@@ -454,7 +457,7 @@ def VCAFS(engine,app):
     '''
     engine.rundependences(app.status.name)
     engine.cache.pop('pt_kmesh',None)
-    kmesh,nk=app.BZ.mesh['k'],app.BZ.rank['k']
+    kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
     result=-np.trace(engine.gf_kmesh(app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).imag/engine.ncopt/np.pi
     if app.save_data:
         np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),np.append(kmesh,result.reshape((nk,1)),axis=1))
@@ -479,13 +482,13 @@ def VCABC(engine,app):
     app.mu=mu
     engine.log<<'Chern number(mu): %s(%s)\n'%(app.cn,app.mu)
     if app.save_data or app.plot:
-        data=np.zeros((app.BZ.rank['k'],3))
-        data[:,0:2]=app.BZ.mesh['k']
+        data=np.zeros((app.BZ.rank('k'),3))
+        data[:,0:2]=app.BZ.mesh('k')
         data[:,2]=app.bc
     if app.save_data:
         np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),data)
     if app.plot:
-        nk=int(round(np.sqrt(app.BZ.rank['k'])))
+        nk=int(round(np.sqrt(app.BZ.rank('k'))))
         plt.title('%s_%s'%(engine.status,app.status.name))
         plt.axis('equal')
         plt.colorbar(plt.pcolormesh(data[:,0].reshape((nk,nk)),data[:,1].reshape((nk,nk)),data[:,2].reshape((nk,nk))))
@@ -501,7 +504,7 @@ def VCATEB(engine,app):
     engine.rundependences(app.status.name)
     engine.gf(omega=app.mu)
     H=lambda kx,ky: -inv(engine.gf(k=[kx,ky]))
-    result=np.zeros((app.path.rank['k'],engine.nopt+1))
+    result=np.zeros((app.path.rank('k'),engine.nopt+1))
     for i,paras in enumerate(app.path()):
         result[i,0]=i
         result[i,1:]=eigh(H(paras['k'][0],paras['k'][1]),eigvals_only=True)
@@ -521,7 +524,7 @@ def VCAGP(engine,app):
     '''
     if app.status.name in engine.apps: engine.rundependences(app.status.name)
     engine.cache.pop('pt_kmesh',None)
-    cgf,kmesh,nk=engine.preloads[0],app.BZ.mesh['k'],app.BZ.rank['k']
+    cgf,kmesh,nk=engine.preloads[0],app.BZ.mesh('k'),app.BZ.rank('k')
     fx=lambda omega: np.log(np.abs(det(np.eye(engine.ncopt)-engine.pt_kmesh(kmesh).dot(engine.cgf(omega=omega*1j+app.mu))))).sum()
     part1=-quad(fx,0,np.float(np.inf))[0]/np.pi*2/cgf.nspin
     part2=np.trace(engine.pt_kmesh(kmesh),axis1=1,axis2=2).sum().real
@@ -584,8 +587,8 @@ def VCAGPM(engine,app):
         engine.rundependences(app.status.name)
         return app.dependences[2].gp
     if isinstance(app.BS,HP.BaseSpace):
-        nbs=len(app.BS.mesh.keys())
-        result=np.zeros((np.product(app.BS.rank.values()),nbs+1),dtype=np.float64)
+        nbs=len(app.BS.tags)
+        result=np.zeros((np.product([app.BS.rank(tag) for tag in app.BS.tags]),nbs+1),dtype=np.float64)
         for i,paras in enumerate(app.BS('*')):
             result[i,0:nbs]=np.array(paras.values())
             result[i,nbs]=gp(paras.values(),paras.keys())
@@ -596,7 +599,7 @@ def VCAGPM(engine,app):
         if app.save_data:
             np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.const,app.status.name),result)
         if app.plot:
-            if len(app.BS.mesh.keys())==1:
+            if len(app.BS.tags)==1:
                 plt.title('%s_%s'%(engine.status.const,app.status.name))
                 X=np.linspace(result[:,0].min(),result[:,0].max(),300)
                 for i in xrange(1,result.shape[1]):
@@ -658,7 +661,7 @@ def VCACPFF(engine,app):
     '''
     engine.rundependences(app.status.name)
     engine.cache.pop('pt_kmesh',None)
-    kmesh,nk=app.BZ.mesh['k'],app.BZ.rank['k']
+    kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
     fx=lambda omega,mu: (np.trace(engine.mgf_kmesh(omega=mu+1j*omega,kmesh=kmesh),axis1=1,axis2=2)-engine.ncopt/(1j*omega-mu-app.p)).sum().real
     if app.task=='CP':
         gx=lambda mu: quad(fx,0,np.float(np.inf),args=mu)[0]/nk/engine.ncopt/np.pi-app.filling
@@ -717,11 +720,11 @@ class OP(HP.App):
 
 def VCAOP(engine,app):
     '''
-    This methods calculates the order parameters.
+    This method calculates the order parameters.
     '''
     engine.rundependences(app.status.name)
     engine.cache.pop('pt_kmesh',None)
-    cgf,kmesh,nk=engine.preloads[0],app.BZ.mesh['k'],app.BZ.rank['k']
+    cgf,kmesh,nk=engine.preloads[0],app.BZ.mesh('k'),app.BZ.rank('k')
     ms=np.zeros((len(app.terms),engine.ncopt,engine.ncopt),dtype=np.complex128)
     for i,term in enumerate(app.terms):
         order=deepcopy(term)
@@ -737,3 +740,56 @@ def VCAOP(engine,app):
         if dtype in (np.float32,np.float64): app.ops[i]=app.ops[i].real
     for term,op in zip(app.terms,app.ops):
         engine.log<<'%s: %s\n'%(term.id,op)
+
+class DTBT(HP.App):
+    '''
+    Distribution of fermions.
+
+    Attributes
+    ----------
+    path : BaseSpace
+        The path in the Brillouin zone.
+    mu : np.float64
+        The Fermi level.
+    p : np.float64
+        A tunale parameter used in the calculation.
+    '''
+
+    def __init__(self,path,mu,p=1.0,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        path : BaseSpace
+            The path in the Brillouin zone.
+        mu : np.float64
+            The Fermi level.
+        p : np.float64, optional
+            A tunale parameter used in the calculation.
+        '''
+        self.path=path
+        self.mu=mu
+        self.p=p
+
+def VCADTBT(engine,app):
+    '''
+    This method calculates the ditribution of fermions along a path in the Brillouin zone.
+    '''
+    engine.rundependences(app.status.name)
+    nk,kmesh=app.path.rank('k'),app.path.mesh('k')
+    nwk=lambda omega,k: (np.trace(engine.gf(omega*1j+app.mu,k))-engine.nopt/(omega*1j-app.mu-app.p)).real
+    result=np.zeros((nk,2))
+    for i,k in enumerate(kmesh):
+        result[i,0]=i
+        result[i,1]=quad(nwk,0,np.float(np.inf),args=k)[0]/np.pi
+    if app.save_data:
+        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
+    if app.plot:
+        plt.title('%s_%s'%(engine.status,app.status.name))
+        plt.plot(result[:,0],result[:,1])
+        plt.ylim([0.0,engine.nopt*1.1])
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
+        plt.close()

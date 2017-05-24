@@ -186,11 +186,11 @@ def EDEL(engine,app):
     '''
     This method calculates the energy levels of the Hamiltonian.
     '''
-    result=np.zeros((app.path.rank.values()[0],app.ns*(app.nder+1)+1))
-    if len(app.path.rank)==1 and len(app.path.mesh.values()[0].shape)==1:
-        result[:,0]=app.path.mesh.values()[0]
+    result=np.zeros((app.path.rank(0),app.ns*(app.nder+1)+1))
+    if len(app.path.tags)==1 and app.path.mesh(0).ndim==1:
+        result[:,0]=app.path.mesh(0)
     else:
-        result[:,0]=array(xrange(app.path.rank.values()[0]))
+        result[:,0]=array(xrange(app.path.rank(0)))
     for i,paras in enumerate(app.path('+')):
         engine.update(**paras)
         engine.set_matrix()

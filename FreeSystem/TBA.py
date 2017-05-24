@@ -144,13 +144,10 @@ class TBA(Engine):
         1d ndarray
             All the eigenvalues.
         '''
-        nmatrix=self.nmatrix
-        result=zeros(nmatrix*(1 if basespace==None else product(basespace.rank.values())))
         if basespace is None:
-            result[...]=eigh(self.matrix(),eigvals_only=True)
+            result=eigh(self.matrix(),eigvals_only=True)
         else:
-            for i,paras in enumerate(basespace(mode)):
-                result[i*nmatrix:(i+1)*nmatrix]=eigh(self.matrix(**paras),eigvals_only=True)
+            result=asarray([eigh(self.matrix(**paras),eigvals_only=True) for paras in basespace(mode)]).reshape(-1)
         return result
 
     def mu(self,filling,kspace=None):
@@ -169,7 +166,7 @@ class TBA(Engine):
         float64
             The chemical potential of the system.
         '''
-        nelectron,eigvals=int(round(filling*(1 if kspace is None else kspace.rank['k'])*self.nmatrix)),sort(self.eigvals(kspace))
+        nelectron,eigvals=int(round(filling*(1 if kspace is None else kspace.rank('k')*self.nmatrix))),sort(self.eigvals(kspace))
         return (eigvals[nelectron]+eigvals[nelectron-2])/2
 
     def gse(self,filling,kspace=None):
@@ -188,7 +185,7 @@ class TBA(Engine):
         float64
             The ground state energy of the system.
         '''
-        return sort(self.eigvals(kspace))[0:int(round(filling*(1 if kspace is None else kspace.rank['k'])*self.nmatrix))].sum()
+        return sort(self.eigvals(kspace))[0:int(round(filling*(1 if kspace is None else kspace.rank('k')*self.nmatrix)))].sum()
 
 def TBAEB(engine,app):
     '''
@@ -196,14 +193,14 @@ def TBAEB(engine,app):
     '''
     nmatrix=engine.nmatrix
     if app.path!=None:
-        key=app.path.mesh.keys()[0]
-        result=zeros((app.path.rank[key],nmatrix+1))
-        if len(app.path.mesh[key].shape)==1:
-            result[:,0]=app.path.mesh[key]
+        assert len(app.path.tags)==1
+        result=zeros((app.path.rank(0),nmatrix+1))
+        if app.path.mesh(0).ndim==1:
+            result[:,0]=app.path.mesh(0)
         else:
-            result[:,0]=array(xrange(app.path.rank[key]))
-        for i,parameter in enumerate(list(app.path.mesh[key])):
-            result[i,1:]=eigh(engine.matrix(**{key:parameter}),eigvals_only=True)
+            result[:,0]=array(xrange(app.path.rank(0)))
+        for i,paras in enumerate(app.path()):
+            result[i,1:]=eigh(engine.matrix(**paras),eigvals_only=True)
     else:
         result=zeros((2,nmatrix+1))
         result[:,0]=array(xrange(2))
@@ -247,16 +244,16 @@ def TBABC(engine,app):
     app.set(lambda kx,ky: engine.matrix(k=[kx,ky]))
     engine.log<<'Chern number(mu): %s(%s)'%(app.cn,app.mu)<<'\n'
     if app.save_data or app.plot:
-        buff=zeros((app.BZ.rank['k'],3))
-        buff[:,0:2]=app.BZ.mesh['k']
-        buff[:,2]=app.bc
+        result=zeros((app.BZ.rank('k'),3))
+        result[:,0:2]=app.BZ.mesh('k')
+        result[:,2]=app.bc
     if app.save_data:
-        savetxt('%s/%s_BC.dat'%(engine.dout,engine.status),buff)
+        savetxt('%s/%s_BC.dat'%(engine.dout,engine.status),result)
     if app.plot:
-        nk=int(round(sqrt(app.BZ.rank['k'])))
+        nk=int(round(sqrt(app.BZ.rank('k'))))
         plt.title('%s_BC'%(engine.status))
         plt.axis('equal')
-        plt.colorbar(plt.pcolormesh(buff[:,0].reshape((nk,nk)),buff[:,1].reshape((nk,nk)),buff[:,2].reshape((nk,nk))))
+        plt.colorbar(plt.pcolormesh(result[:,0].reshape((nk,nk)),result[:,1].reshape((nk,nk)),result[:,2].reshape((nk,nk))))
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
         if app.save_fig: plt.savefig('%s/%s_BC.png'%(engine.dout,engine.status))

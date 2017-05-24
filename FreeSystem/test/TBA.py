@@ -13,7 +13,7 @@ def test_tba():
     print 'open boundary conditions'
     print '------------------------'
     op=tba_construct(bc='op')
-    op.register(EB(name='EB-1',path=BaseSpace({'tag':'mu','mesh':linspace(-3,3,num=201)}),run=TBAEB,save_data=False,plot=True))
+    op.register(EB(name='EB-1',path=BaseSpace(('mu',linspace(-3,3,num=201))),save_data=False,run=TBAEB))
     op.register(EB(name='EB-2',parameters={'mu':0.0},save_data=False,run=TBAEB))
     op.register(DOS(name='DOS',parameters={'mu':0.0},ne=400,eta=0.01,save_data=False,run=TBADOS))
     op.summary()
@@ -36,7 +36,7 @@ def tba_construct(bc='op'):
     for pid in lattice.pids:
         config[pid]=Fermi(norbital=1,nspin=1,nnambu=2)
     result=TBA(
-        name=       'WG',
+        name=       'WG(%s)'%bc,
         lattice=    lattice,
         config=     config,
         terms=[     Hopping('t1',-1.0),

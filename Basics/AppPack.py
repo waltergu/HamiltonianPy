@@ -190,7 +190,7 @@ class BC(App):
         self.BZ=BZ
         self.mu=mu
         self.d=d
-        self.bc=np.zeros(BZ.rank['k'])
+        self.bc=np.zeros(BZ.rank('k'))
         self.cn=None
 
     def set(self,H):
@@ -204,7 +204,7 @@ class BC(App):
         '''
         for i,ks in enumerate(self.BZ()):
             self.bc[i]=berry_curvature(H,ks['k'][0],ks['k'][1],self.mu,d=self.d)
-        self.cn=sum(self.bc)*self.BZ.volume['k']/len(self.bc)/2/np.pi
+        self.cn=sum(self.bc)*self.BZ.volume('k')/len(self.bc)/2/np.pi
 
 class GP(App):
     '''

@@ -78,18 +78,19 @@ def FLQTQEB(engine,app):
     This method calculates the Floquet quasi-energy bands.
     '''
     if app.path!=None:
-        result=zeros((app.path.rank,engine.nmatrix+1))
-        key=app.path.mesh.keys()[0]
-        if len(app.path.mesh[key].shape)==1:
-            result[:,0]=app.path.mesh[key]
+        assert len(app.path.tags)==1
+        rank,mesh=app.path.rank(0),app.path.mesh(0)
+        result=zeros((rank,engine.nmatrix+1))
+        if mesh.ndim==1:
+            result[:,0]=mesh
         else:
-            result[:,0]=array(xrange(app.path.rank[key]))
-        for i,parameter in enumerate(list(app.path.mesh[key])):
-            result[i,1:]=phase(eig(engine.evolution(t=app.ts.mesh['t'],**{key:parameter}))[0])/app.ts.volume['t']
+            result[:,0]=array(xrange(rank))
+        for i,paras in app.path():
+            result[i,1:]=phase(eig(engine.evolution(t=app.ts.mesh('t'),**paras))[0])/app.ts.volume('t')
     else:
         result=zeros((2,engine.nmatrix+1))
         result[:,0]=array(xrange(2))
-        result[0,1:]=angle(eig(engine.evolution(t=app.ts.mesh['t']))[0])/app.ts.volume['t']
+        result[0,1:]=angle(eig(engine.evolution(t=app.ts.mesh('t')))[0])/app.ts.volume('t')
         result[1,1:]=result[0,1:]
     if app.save_data:
         savetxt('%s/%s_QEB.dat'%(engine.dout,engine.status),result)
