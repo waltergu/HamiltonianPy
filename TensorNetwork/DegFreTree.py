@@ -27,7 +27,7 @@ class DegFreTree(Tree):
     For each (node,data) pair of the tree,
         * node: Index
             The selected index which can represent a couple of indices.
-        * data: integer of QuantumNumbers
+        * data: integer or QuantumNumbers
             When an integer, it is the number of degrees of freedom that the index represents;
             When a QuantumNumbers, it is the quantum number collection that the index is associated with.
 
