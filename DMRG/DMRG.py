@@ -155,6 +155,8 @@ class DMRG(Engine):
         The configuration of the internal degrees of freedom on the lattice.
     degfres : DegFreTree
         The physical degrees of freedom tree.
+    matvec : 'csr' or 'lo'
+        The matrix-vector multiplication method. 'csr' for csr-matrix and 'lo' for linear operator.
     mask : [] or ['nambu']
         [] for spin systems and ['nambu'] for fermionic systems.
     target : QuantumNumber
@@ -181,7 +183,7 @@ class DMRG(Engine):
             The old singular values of the DMRG.
     '''
 
-    def __init__(self,mps,lattice,terms,config,degfres,matvec='csr',mask=[],target=None,dtype=np.complex128,**karg):
+    def __init__(self,mps,lattice,terms,config,degfres,matvec='lo',mask=[],target=None,dtype=np.complex128,**karg):
         '''
         Constructor.
 
@@ -197,6 +199,8 @@ class DMRG(Engine):
             The configuration of the internal degrees of freedom on the lattice.
         degfres : DegFreTree
             The physical degrees of freedom tree.
+        matvec : 'csr' or 'lo'
+            The matrix-vector multiplication method. 'csr' for csr-matrix and 'lo' for linear operator.
         mask : [] or ['nambu']
             [] for spin systems and ['nambu'] for fermionic systems.
         target : QuantumNumber

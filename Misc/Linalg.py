@@ -67,6 +67,12 @@ def kron(m1,m2,rcs=None,timers=None):
     m1,m2 : 2d ndarray
         The matrices.
     rcs : 1d ndarray or 3-tuple of 1d ndarray
+        * When 1d ndarray
+            The selected rows and columns of the kronecker product
+        * When 3-tuple of 1d ndarray
+            * tuple[0]: the selected rows and columns of the first matrix `m1`
+            * tuple[1]: the selected rows and columns of the second matrix `m2`
+            * tuple[2]: the map between the indices before and after the selection of the rows and columns of the kronecker product.
 
     Returns
     -------

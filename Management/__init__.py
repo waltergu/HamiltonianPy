@@ -27,4 +27,8 @@ class Manager(object):
         print self.prog_name
 
     def execute(self):
-        pass
+        try:
+            subcommand=self.args[1]
+        except IndexError:
+            subcommand='help'
+
