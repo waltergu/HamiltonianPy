@@ -233,9 +233,9 @@ class MPS(Arithmetic,list):
                 coeffs=np.random.random(nmax)
             else:
                 coeffs=np.random.random(nmax)+1j*np.random.random(nmax)
-            for indices in QNS.decomposition([site.qns for site in sites],bonds[-1].qns[0]-bonds[0].qns[0],method='monte carlo',nmax=nmax):
+            for k,indices in enumerate(QNS.decomposition([site.qns for site in sites],bonds[-1].qns[0]-bonds[0].qns[0],method='monte carlo',nmax=nmax)):
                 ms=[np.array([1.0 if i==index else 0.0 for i in xrange(site.dim)],dtype=dtype) for site,index in zip(sites,indices)]
-                result+=MPS.productstate(ms,sites,deepcopy(bonds))*coeffs[i]
+                result+=MPS.productstate(ms,sites,deepcopy(bonds))*coeffs[k]
         else:
             ms=[]
             for i in xrange(len(sites)):

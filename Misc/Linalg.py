@@ -3,12 +3,13 @@
 Linear algebras
 ---------------
 
-Linear algebras as a supplement to `numpy.linalg` and `scipy.linalg`, including
+Linear algebras as a supplement to `numpy.linalg`, `scipy.linalg` and 'scipy.sparse.linalg', including
     * constants: TOL
+    * classes: LinearOperator
     * functions: kron, overlap, reorder, dagger, truncated_svd, eigsh, block_diag, solve, deparallelization
 '''
 
-__all__=['TOL','kron','overlap','reorder','dagger','truncated_svd','eigsh','block_diag','solve','deparallelization']
+__all__=['TOL','LinearOperator','kron','overlap','reorder','dagger','truncated_svd','eigsh','block_diag','solve','deparallelization']
 
 import numpy as np
 import scipy.sparse as sp
@@ -18,7 +19,46 @@ from fkron import *
 
 TOL=5*10**-12
 
-def kron(m1,m2,timers=None,**karg):
+class LinearOperator(pl.LinearOperator):
+    '''
+    Linear operator with a count for the matrix-vector multiplications.
+
+    Attributes:
+        shape : 2-tuple
+            The shape of the linear operator.
+        dtype : np.float64, np.complex128, etc
+            The data type of the linear operator.
+        count : integer
+            The count for the matrix-vector multiplications.
+        _matvec_ : callable
+            The matrix-vector multiplication function.
+    '''
+    
+    def __init__(self,shape,matvec,dtype=None):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        shape : 2-tuple
+            The shape of the linear operator.
+        matvec : callable
+            The matrix-vector multiplication function.
+        dtype : np.float64, np.complex128, etc, optional
+            The data type of the linear operator.
+        '''
+        super(LinearOperator,self).__init__(dtype=dtype,shape=shape)
+        self.count=0
+        self._matvec_=matvec
+
+    def _matvec(self,v):
+        '''
+        Matrix-vector multiplication.
+        '''
+        self.count+=1
+        return self._matvec_(v)
+
+def kron(m1,m2,rcs=None,timers=None):
     '''
     Kronecker product of two matrices.
 
@@ -26,17 +66,23 @@ def kron(m1,m2,timers=None,**karg):
     ----------
     m1,m2 : 2d ndarray
         The matrices.
+    rcs : 1d ndarray or 3-tuple of 1d ndarray
 
     Returns
     -------
     csr_matrix
         The product.
     '''
-    if karg.get('rcs',None) is None:
+    if rcs is None:
         result=sp.kron(m1,m2,format='csr')
     else:
-        assert len(karg)==4 and m1.dtype==m2.dtype and m1.shape[0]==m1.shape[1] and m2.shape[0]==m2.shape[1]
-        rcs,rcs1,rcs2,slices=karg['rcs'],karg['rcs1'],karg['rcs2'],karg['slices']
+        assert m1.dtype==m2.dtype and m1.shape[0]==m1.shape[1] and m2.shape[0]==m2.shape[1]
+        if isinstance(rcs,np.ndarray):
+            rcs1,rcs2=np.divide(rcs,m2.shape[1]),np.mod(rcs,m2.shape[1])
+            slices=np.zeros(m1.shape[1]*m2.shape[1],dtype=np.int64)
+            slices[rcs]=xrange(len(rcs))
+        else:
+            rcs1,rcs2,slices=rcs
         with timers.get('csr'):
             m1=sp.csr_matrix(m1)
             m2=sp.csr_matrix(m2)
@@ -53,9 +99,9 @@ def kron(m1,m2,timers=None,**karg):
                     data,indices,indptr=fkron_c8(m1.data,m1.indices,m1.indptr,rcs1,m2.data,m2.indices,m2.indptr,rcs2,nnz,slices)
                 else:
                     raise ValueError("_fkron_ error: only matrices with dtype being float32, float64, complex64 or complex128 are supported.")
-                result=sp.csr_matrix((data,indices,indptr),shape=(len(rcs),len(rcs)))
+                result=sp.csr_matrix((data,indices,indptr),shape=(len(rcs1),len(rcs1)))
             else:
-                result=sp.csr_matrix((len(rcs),len(rcs)),dtype=m1.dtype)
+                result=sp.csr_matrix((len(rcs1),len(rcs1)),dtype=m1.dtype)
     return result
 
 def overlap(*args):
@@ -164,19 +210,18 @@ def eigsh(A,max_try=6,**karg):
         Please refer to https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.sparse.linalg.eigsh.html for details.
     '''
     if A.shape==(1,1):
-        assert 'M' not in karg
-        assert 'sigma' not in karg
-        es=np.array([A.todense()[0,0]])
+        assert 'M' not in karg and 'sigma' not in karg
+        es=A.dot(np.ones(1)).reshape(-1)
         vs=np.ones((1,1),dtype=A.dtype)
     else:
-        num=1
+        ntry=1
         while True:
             try:
                 es,vs=pl.eigsh(A,**karg)
                 break
             except pl.ArpackNoConvergence as err:
-                if num<max_try:
-                    num+=1
+                if ntry<max_try:
+                    ntry+=1
                 else:
                     raise err
     return es,vs

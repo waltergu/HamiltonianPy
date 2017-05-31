@@ -181,7 +181,7 @@ class DMRG(Engine):
             The old singular values of the DMRG.
     '''
 
-    def __init__(self,mps,lattice,terms,config,degfres,mask=[],target=None,dtype=np.complex128,**karg):
+    def __init__(self,mps,lattice,terms,config,degfres,matvec='csr',mask=[],target=None,dtype=np.complex128,**karg):
         '''
         Constructor.
 
@@ -204,11 +204,13 @@ class DMRG(Engine):
         dtype : np.float64,np.complex128, optional
             The data type.
         '''
+        assert matvec.lower() in ('csr','lo')
         self.mps=mps
         self.lattice=lattice
         self.terms=terms
         self.config=config
         self.degfres=degfres
+        self.matvec=matvec.lower()
         self.mask=mask
         self.target=target
         self.dtype=dtype
@@ -218,13 +220,18 @@ class DMRG(Engine):
         self.set_operators()
         self.set_mpo()
         self.set_Hs_()
-        self.timers=Timers('Preparation','Hamiltonian','Diagonalization','Truncation')
-        self.timers.add(parent='Hamiltonian',name='kron')
-        self.timers.add(parent='Hamiltonian',name='sum')
-        if self.mps.mode=='QN':
-            self.timers.add(parent='kron',name='csr')
-            self.timers.add(parent='kron',name='fkron')
-        self.info=Info('Etotal','Esite','dE/E','nbasis','nslice','nnz','nz','density','overlap','err')
+        if self.matvec=='csr':
+            self.timers=Timers('Preparation','Hamiltonian','Diagonalization','Truncation')
+            self.timers.add(parent='Hamiltonian',name='kron')
+            self.timers.add(parent='Hamiltonian',name='sum')
+            if self.mps.mode=='QN':
+                self.timers.add(parent='kron',name='csr')
+                self.timers.add(parent='kron',name='fkron')
+            self.info=Info('Etotal','Esite','dE/E','nmatvec','nbasis','nslice','nnz','nz','density','overlap','err')
+        else:
+            self.timers=Timers('Preparation','Diagonalization','Truncation')
+            self.timers.add('Diagonalization','matvec')
+            self.info=Info('Etotal','Esite','dE/E','nmatvec','nbasis','nslice','overlap','err')
         self.cache={}
 
     @property
@@ -419,37 +426,61 @@ class DMRG(Engine):
                 envqns,envpt=QuantumNumbers.kron([Sb.qns,Rb.qns],signs='-+').sort(history=True)
                 sysantipt,envantipt=np.argsort(syspt),np.argsort(envpt)
                 subslice=QuantumNumbers.kron([sysqns,envqns],signs='+-').subslice(targets=(self.target.zero(),))
-                rcs=subslice
                 qns=QuantumNumbers.mono(self.target.zero(),count=len(subslice))
                 self.info['nslice']=len(subslice)
             else:
-                sysqns,syspt=np.product([La.qns,Sa.qns]),None
-                envqns,envpt=np.product([Sb.qns,Rb.qns]),None
-                sysantipt,envantipt=None,None
-                subslice=slice(None)
-                rcs=None
-                qns=sysqns*envqns
+                sysqns,syspt,sysantipt=np.product([La.qns,Sa.qns]),None,None
+                envqns,envpt,envantipt=np.product([Sb.qns,Rb.qns]),None,None
+                subslice,qns=slice(None),sysqns*envqns
                 self.info['nslice']=qns
             Lpa,Spa,Spb,Rpb=La.prime,Sa.prime,Sb.prime,Rb.prime
             Lsys,Lenv,new=Label('__DMRG_TWO_SITE_STEP_SYS__',qns=sysqns),Label('__DMRG_TWO_SITE_STEP_ENV__',qns=envqns),Ra.replace(qns=None)
             Lpsys,Lpenv=Lsys.prime,Lenv.prime
             Hsys=contract([Ha,Hasite],engine='tensordot').transpose([Oa,Lpa,Spa,La,Sa]).merge(([Lpa,Spa],Lpsys,syspt),([La,Sa],Lsys,syspt))
             Henv=contract([Hbsite,Hb],engine='tensordot').transpose([Ob,Spb,Rpb,Sb,Rb]).merge(([Spb,Rpb],Lpenv,envpt),([Sb,Rb],Lenv,envpt))
-            if rcs is None:
-                rcs1,rcs2,slices=None,None,None
-            else:
-                rcs1,rcs2=np.divide(rcs,Henv.shape[1]),np.mod(rcs,Henv.shape[1])
-                slices=np.zeros(Hsys.shape[1]*Henv.shape[1],dtype=np.int64)
-                slices[rcs]=xrange(len(rcs))
-        with self.timers.get('Hamiltonian'):
-            matrix=0
-            for hsys,henv in zip(Hsys,Henv):
-                with self.timers.get('kron'):
-                    temp=hm.kron(hsys,henv,rcs=rcs,rcs1=rcs1,rcs2=rcs2,slices=slices,timers=self.timers)
-                with self.timers.get('sum'):
-                    matrix+=temp
-            self.info['nnz']=matrix.nnz
-            self.info['nz']=(len(np.argwhere(np.abs(matrix.data)<tol))*100.0/matrix.nnz) if matrix.nnz>0 else 0,'%1.1f%%'
+        if self.matvec=='csr':
+            with self.timers.get('Hamiltonian'):
+                if isinstance(subslice,slice):
+                    rcs=None
+                else:
+                    rcs=(np.divide(subslice,Henv.shape[1]),np.mod(subslice,Henv.shape[1]),np.zeros(Hsys.shape[1]*Henv.shape[1],dtype=np.int64))
+                    rcs[2][subslice]=xrange(len(subslice))
+                matrix=0
+                for hsys,henv in zip(Hsys,Henv):
+                    with self.timers.get('kron'):
+                        temp=hm.kron(hsys,henv,rcs=rcs,timers=self.timers)
+                    with self.timers.get('sum'):
+                        matrix+=temp
+                self.info['nnz']=matrix.nnz
+                self.info['nz']=(len(np.argwhere(np.abs(matrix.data)<tol))*100.0/matrix.nnz) if matrix.nnz>0 else 0,'%1.1f%%'
+                self.info['density']=1.0*self.info['nnz']/self.info['nslice']**2,'%.1e'
+                matrix=hm.LinearOperator(shape=matrix.shape,matvec=matrix.dot,dtype=self.dtype)
+        else:
+            with self.timers.get('Preparation'):
+                if self.mps.mode=='QN':
+                    sysod,envod=sysqns.to_ordereddict(),envqns.to_ordereddict()
+                    qnpairs=[[(tuple(qn),tuple(qn-oqn)) for qn in sysqns if tuple(qn) in envod and tuple(qn-oqn) in sysod and tuple(qn-oqn) in envod] for oqn in Oa.qns]
+                    assert len(qnpairs)==len(Hsys)
+                    self.cache['vecold']=np.zeros(Hsys.shape[1]*Henv.shape[1],dtype=self.dtype)
+                    self.cache['vecnew']=np.zeros((Hsys.shape[1],Henv.shape[1]),dtype=self.dtype)
+                    def matvec(v):
+                        with self.timers.get('matvec'):
+                            vec,result=self.cache['vecold'],self.cache['vecnew']
+                            vec[subslice]=v;result[...]=0.0
+                            vec=vec.reshape((Hsys.shape[1],Henv.shape[1]))
+                            for hsys,henv,pairs in zip(Hsys,Henv,qnpairs):
+                                for qn1,qn2 in pairs:
+                                    result[sysod[qn1],envod[qn1]]+=hsys[sysod[qn1],sysod[qn2]].dot(vec[sysod[qn2],envod[qn2]]).dot(henv.T[envod[qn2],envod[qn1]])
+                        return result.reshape(-1)[subslice] 
+                    matrix=hm.LinearOperator(shape=(len(subslice),len(subslice)),matvec=matvec,dtype=self.dtype)
+                else:
+                    def matvec(v):
+                        v=v.reshape((Hsys.shape[1],Henv.shape[1]))
+                        result=np.zeros_like(v)
+                        for hsys,henv in zip(Hsys,Henv):
+                            result+=hsys.dot(v).dot(henv.T)
+                        return result.reshape(-1)
+                    matrix=hm.LinearOperator(shape=(Hsys.shape[1]*Henv.shape[1],Hsys.shape[1]*Henv.shape[1]),matvec=matvec,dtype=self.dtype)
         with self.timers.get('Diagonalization'):
             u,s,v=self.mps[self.mps.cut-1],self.mps.Lambda,self.mps[self.mps.cut]
             if sp and norm(s)>RZERO:
@@ -461,6 +492,7 @@ class DMRG(Engine):
             self.info['Etotal']=energy,'%.6f'
             self.info['Esite']=energy/self.mps.nsite,'%.8f'
             self.info['dE/E']=None if eold is None else (norm(self.info['Esite']-eold)/norm(self.info['Esite']+eold),'%.1e')
+            self.info['nmatvec']=matrix.count
             self.info['overlap']=np.inf if v0 is None else np.abs(Psi.conjugate().dot(v0)/norm(v0)/norm(Psi)),'%.6f'
         with self.timers.get('Truncation'):
             u,s,v,err=Tensor(Psi,labels=[Label('__DMRG_TWO_SITE_STEP__',qns=qns)]).partitioned_svd(Lsys,new,Lenv,nmax=nmax,tol=tol,return_truncation_err=True)
@@ -470,7 +502,6 @@ class DMRG(Engine):
             self.set_HL_(self.mps.cut-1,tol=tol)
             self.set_HR_(self.mps.cut,tol=tol)
             self.info['nbasis']=len(s)
-            self.info['density']=1.0*self.info['nnz']/self.info['nslice']**2,'%.1e'
             self.info['err']=err,'%.1e'
         self.timers.record()
         self.log<<'timers of the dmrg:\n%s\n'%self.timers.tostr(Timers.ALL)

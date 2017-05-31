@@ -1,0 +1,6 @@
+#! python
+if __name__=='__main__':
+    import sys
+    from HamiltonianPy.Management import Manager
+    manager=Manager(sys.argv[:])
+    sys.exit(manager.execute())

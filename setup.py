@@ -10,7 +10,9 @@ def configuration(parent_package='',top_path=None):
     config.add_subpackage('VCA')
     config.add_subpackage('DMRG')
     config.add_subpackage('QMC')
+    config.add_subpackage('Management')
     config.add_subpackage('Test')
+    config.add_scripts('Hamiltonian')
     config.make_config_py()
     return config
 

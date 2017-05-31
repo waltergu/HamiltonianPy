@@ -15,6 +15,7 @@ import HamiltonianPy.Misc as hm
 from collections import Counter
 from copy import copy,deepcopy
 from HamiltonianPy import QuantumNumbers
+import time
 
 __all__=['Label','Tensor','contract']
 
@@ -965,7 +966,7 @@ class Tensor(np.ndarray):
             T=Tensor(m2,labels=[new,clabel]).split((clabel,col))
             return M,T
 
-def contract(tensors,engine='einsum',sequence=None,reserve=None):
+def contract(tensors,engine='einsum',**karg):
     '''
     Contract a collection of tensors.
 
@@ -973,14 +974,10 @@ def contract(tensors,engine='einsum',sequence=None,reserve=None):
     ----------
     tensors : list of Tensor
         The tensors to be contracted.
-    engine : 'tensordot','einsum', optional
-        The engine to implement the contract of tensors, 'tensordot' for np.tensordot and 'einsum' for np.einsum.
-    sequence : list of tuple-of-integer, optional
-        The contraction path of the tensors.
-        Omitted if engine=='tensordot'.
-    reserve : list of Label, optional
-        The labels that are repeated but not summed over.
-        Omitted if engine=='tensordot'.
+    engine : 'tensordot', 'einsum' or 'block', optional
+        The engine to implement the contract of tensors, 'tensordot' for np.tensordot, 'einsum' for np.einsum and 'block' for blockcontract.
+    karg : dict, optional
+        See tensordotcontract, einsumcontract or blockcontract for details.
 
     Returns
     -------
@@ -989,16 +986,27 @@ def contract(tensors,engine='einsum',sequence=None,reserve=None):
     '''
     assert len(tensors)>0
     if engine=='tensordot':
-        return tensordotcontract(tensors)
+        return tensordotcontract(tensors,**karg)
     elif engine=='einsum':
-        return einsumcontract(tensors,sequence=sequence,reserve=reserve)
+        return einsumcontract(tensors,**karg)
+    elif engine=='block':
+        return blockcontract(tensors,**karg)
     else:
         raise ValueError('contract error: engine(%s) not supported.'%engine)
 
 def tensordotcontract(tensors):
     '''
     Use np.tensordot to implement the contraction of tensors.
-    See contract for details.
+
+    Parameters
+    ----------
+    tensors : list of Tensor
+        The tensors to be contracted.
+
+    Returns
+    -------
+    Tensor
+        The contracted tensor.
     '''
     def _contract_(a,b):
         common=set(a.labels)&set(b.labels)
@@ -1015,7 +1023,20 @@ def tensordotcontract(tensors):
 def einsumcontract(tensors,sequence=None,reserve=None):
     '''
     Use np.einsum to implement the contraction of tensors.
-    See contract for details.
+    
+    Parameters
+    ----------
+    tensors : list of Tensor
+        The tensors to be contracted.
+    sequence : list of tuple-of-integer, optional
+        The contraction path of the tensors.
+    reserve : list of Label, optional
+        The labels that are repeated but not summed over.
+    
+    Returns
+    -------
+    Tensor
+        The contracted tensor.
     '''
     def _contract_(tensors,reserve=None):
         reserve=[] if reserve is None else reserve
@@ -1035,4 +1056,89 @@ def einsumcontract(tensors,sequence=None,reserve=None):
         result=tensors[0]
         for i in xrange(1,len(tensors)):
             result=_contract_((result,tensors[i]),reserve=reserve)
+        return result
+
+def blockcontract(tensors,signs=None):
+    '''
+    Use the block information of the tensors to implement their contraction.
+
+    Parameters
+    ----------
+    tensors : 2-list of Tensor
+        The tensors to be contracted.
+    signs : 2-list of string, optional
+        The signs of the quantum numbers of the tensors' labels. '+' for IN and '-' for OUT.
+
+    Returns
+    -------
+    Tensor
+        The contracted tensor.
+    '''
+    assert len(tensors)==2
+    A,B=tensors
+    common=set(A.labels)&set(B.labels)
+    if len(common)==0 or not A.qnon or not B.qnon:
+        aaxes=[A.axis(label) for label in common]
+        baxes=[B.axis(label) for label in common]
+        labels=[label for label in it.chain(A.labels,B.labels) if label not in common]
+        axes=(aaxes,baxes) if len(common)>0 else 0
+        return Tensor(np.tensordot(A,B,axes=axes),labels=labels)
+    else:
+        #t1=time.time()
+        ASIGNS,BSIGNS=('+'*A.ndim,'+'*B.ndim) if signs is None else signs
+        laxes,aaxes,baxes,raxes=[],[],[],[]
+        lqnses,aqnses,bqnses,rqnses=[],[],[],[]
+        lsigns,asigns,bsigns,rsigns=[],[],[],[]
+        lshape,ashape,bshape,rshape=[],[],[],[]
+        labels=[]
+        for i,label in enumerate(A.labels):
+            if label not in common:
+                laxes.append(i)
+                lqnses.append(label.qns)
+                lsigns.append(ASIGNS[i])
+                lshape.append(label.dim)
+                labels.append(label)
+            else:
+                aaxes.append(i)
+                aqnses.append(label.qns)
+                asigns.append('+' if ASIGNS[i]=='-' else '-')
+                ashape.append(label.dim)
+        for i,label in enumerate(B.labels):
+            if label in common:
+                baxes.append(i)
+                bqnses.append(label.qns)
+                bsigns.append(BSIGNS[i])
+                bshape.append(label.dim)
+            else:
+                raxes.append(i)
+                rqnses.append(label.qns)
+                rsigns.append('+' if BSIGNS[i]=='-' else '-')
+                rshape.append(label.dim)
+                labels.append(label)
+        #t2=time.time()
+        #print 'group: %ss'%(t2-t1)
+        A=np.asarray(A).transpose(laxes+aaxes).reshape((np.product(lshape),np.product(ashape)))
+        B=np.asarray(B).transpose(baxes+raxes).reshape((np.product(bshape),np.product(rshape)))
+        #t3=time.time()
+        #print 'merge: %ss'%(t3-t2)
+        lqns,lpermutation=QuantumNumbers.kron(lqnses,signs=lsigns).sort(history=True)
+        aqns,apermutation=QuantumNumbers.kron(aqnses,signs=asigns).sort(history=True)
+        bqns,bpermutation=QuantumNumbers.kron(bqnses,signs=bsigns).sort(history=True)
+        rqns,rpermutation=QuantumNumbers.kron(rqnses,signs=rsigns).sort(history=True)
+        #t4=time.time()
+        #print 'qns: %ss'%(t4-t3)
+        lod,cod,rod=lqns.to_ordereddict(),aqns.to_ordereddict(),rqns.to_ordereddict()
+        #t5=time.time()
+        #print 'to ordereddict: %ss'%(t5-t4)
+        result=np.zeros((A.shape[0],B.shape[1]),dtype=np.find_common_type([A.dtype,B.dtype],[]))
+        for qn in it.ifilter(lambda qn: True if lod.has_key(qn) and rod.has_key(qn) else False,cod):
+            linds=lpermutation[lod[qn]]
+            ainds=apermutation[cod[qn]]
+            binds=bpermutation[cod[qn]]
+            rinds=rpermutation[rod[qn]]
+            result[linds[:,None],rinds]=A[linds[:,None],ainds].dot(B[binds[:,None],rinds])
+        #t6=time.time()
+        #print 'real mul: %ss'%(t6-t5)
+        result=Tensor(result.reshape(lshape+rshape),labels=labels)
+        #print 'split: %ss'%(time.time()-t6)
         return result

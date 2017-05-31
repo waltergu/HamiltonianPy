@@ -16,3 +16,6 @@ TensorNetwork
 
 .. automodule:: HamiltonianPy.TensorNetwork.MPO
    :members:
+
+.. automodule:: HamiltonianPy.TensorNetwork.Misc
+   :members:

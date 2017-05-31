@@ -10,3 +10,6 @@ DataBase
 
 .. automodule:: HamiltonianPy.DataBase.Triangle
    :members:
+
+.. automodule:: HamiltonianPy.DataBase.Kagome
+   :members:

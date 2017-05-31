@@ -34,6 +34,7 @@ SUBPACKAGE        DESCRIPTION
 `VCA`             CPT and VCA for fermionic systems
 `TensorNetwork`   Tensor, MPS and MPO
 `DMRG`            Density matrix renormalization group for electron and spin systems
+`Management`      Project construction and maintenance
 ===============   =====================================================================
 
 #################
@@ -52,6 +53,7 @@ Contents
    VCA/index
    TensorNetwork/index
    DMRG/index
+   Management/index
 '''
 
 from Basics import *

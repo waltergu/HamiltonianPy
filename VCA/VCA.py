@@ -426,7 +426,7 @@ def VCAEB(engine,app):
         plt.colorbar(plt.pcolormesh(np.tensordot(krange,np.ones(app.ne),axes=0),np.tensordot(np.ones(nk),erange,axes=0),result))
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
         plt.close()
 
 def VCADOS(engine,app):
@@ -788,7 +788,7 @@ def VCADTBT(engine,app):
     if app.plot:
         plt.title('%s_%s'%(engine.status,app.status.name))
         plt.plot(result[:,0],result[:,1])
-        plt.ylim([0.0,engine.nopt*1.1])
+        plt.ylim([0.0,engine.nopt])
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
         if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
