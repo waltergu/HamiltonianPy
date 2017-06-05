@@ -5,7 +5,6 @@ SCMF test.
 __all__=['test_scmf']
 
 from HamiltonianPy.Basics import *
-from HamiltonianPy.DataBase.Hexagon import *
 from HamiltonianPy.FreeSystem.SCMF import *
 from HamiltonianPy.FreeSystem.TBA import *
 
@@ -20,7 +19,7 @@ def haldane_hopping(bond):
 def test_scmf():
     print 'test_scmf'
     U,t1,t2=3.13,-1.0,0.1
-    H2=HexagonDataBase(name='H2')
+    H2=Hexagon(name='H2')
     lattice=Lattice(name='H2_SCMF',rcoords=H2.rcoords,vectors=H2.vectors,nneighbour=2)
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
     for pid in lattice.pids:

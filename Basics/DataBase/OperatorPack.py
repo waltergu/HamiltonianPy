@@ -1,14 +1,18 @@
 '''
+-------------
+Operator pack
+-------------
+
 Operator pack, including:
     * functions: fspoperators, JWBosonization
 '''
 
 __all__=['fspoperators','JWBosonization']
 
-from FermionicPackage import FLinear,ANNIHILATION,CREATION
-from SpinPackage import SOperator,SpinMatrix
+from ..FermionicPackage import FLinear,ANNIHILATION,CREATION
+from ..SpinPackage import SOperator,SpinMatrix
 from collections import OrderedDict
-from ..Misc import parity
+from HamiltonianPy.Misc import parity
 import numpy as np
 
 def fspoperators(table,lattice):

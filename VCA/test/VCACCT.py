@@ -6,14 +6,13 @@ __all__=['test_vcacct']
 
 from HamiltonianPy import *
 from HamiltonianPy.VCA import *
-from HamiltonianPy.DataBase import HexagonDataBase
 import numpy as np
 import HamiltonianPy.ED as ED
 
 def test_vcacct():
     print 'test_vcacct'
     t1,U,nspin=-1.0,4.0,2
-    H2,H8P=HexagonDataBase('H2'),HexagonDataBase('H8P')
+    H2,H8P=Hexagon('H2'),Hexagon('H8P')
     cell=Lattice(name='H2',rcoords=H2.rcoords,vectors=H2.vectors,nneighbour=1)
     LA=Lattice(name='H4-A',rcoords=H8P.rcoords[[3,0,4,6]],nneighbour=1)
     LB=Lattice(name='H4-B',rcoords=H8P.rcoords[[2,1,5,7]],nneighbour=1)

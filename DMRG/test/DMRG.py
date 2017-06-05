@@ -10,7 +10,6 @@ import HamiltonianPy as HP
 from HamiltonianPy import *
 from HamiltonianPy.TensorNetwork import *
 from HamiltonianPy.DMRG import *
-from HamiltonianPy.DataBase.Hexagon import *
 
 def test_dmrg():
     print 'test_dmrg'
@@ -24,7 +23,7 @@ def test_idmrg():
     dmrg_spin('idmrg',spin=0.5,N=200,J=1.0,qnon=True,matvec='lo')
     dmrg_spinless_fermion('idmrg',N=200,t=-0.5,qnon=True,matvec='lo')
     dmrg_spinful_fermion('idmrg',N=200,t=-1.0,U=1.0,qnon=True,matvec='lo')
-    dmrg_honeycomb_heisenberg('idmrg',N=50,J=1.0,qnon=True,matvec='lo')
+    dmrg_honeycomb_heisenberg('idmrg',N=20,J=1.0,qnon=True,matvec='lo')
     print
 
 def test_fdmrg():
@@ -118,7 +117,7 @@ def dmrg_spinful_fermion(mode,N,t,U,qnon=True,matvec='lo'):
 
 def dmrg_honeycomb_heisenberg(mode,N,J,qnon=True,matvec='lo'):
     print '%s_honeycomb_heisenberg'%mode
-    h4,priority,layers=HexagonDataBase(name='H4'),DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
+    h4,priority,layers=Hexagon(name='H4'),DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
     dmrg=DMRG(
         log=        Log('honeycomb-heisenberg.log',mode='a+'),
         name=       '%s-honeycomb-heisenberg'%mode,

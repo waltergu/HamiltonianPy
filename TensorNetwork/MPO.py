@@ -267,13 +267,13 @@ class OptStr(Arithmetic,list):
                 olds.remove(R1)
             if S1 in poses:
                 u1.relabel(news=news,olds=olds)
-                result=contract([result,u1,ms[count],u2],engine='einsum',sequence='sequential')
+                result=contract([result,u1,ms[count],u2],engine='tensordot')
                 count+=1
             else:
                 news.remove(S1.prime)
                 olds.remove(S1)
                 u1.relabel(news=news,olds=olds)
-                result=contract([result,u1,u2],engine='einsum',sequence='sequential')
+                result=contract([result,u1,u2],engine='tensordot')
         if mps1 is mps2:
             mps1._set_ABL_(m,Lambda)
         else:

@@ -1,6 +1,5 @@
 from Test.Misc import *
 from Test.Basics import *
-from Test.DataBase import *
 from Test.TensorNetwork import *
 from Test.FreeSystem import *
 from Test.ED import*
@@ -12,7 +11,6 @@ import sys
 for arg in sys.argv:
     test_misc(arg)
     test_basics(arg)
-    test_database(arg)
     test_tensornetwork(arg)
     test_fre_sys(arg)
     test_ed(arg)

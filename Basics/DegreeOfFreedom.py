@@ -288,7 +288,7 @@ class Index(tuple):
         '''
         return self.icls(**{key:getattr(self,key) for key in self.names if key not in PID._fields})
 
-    def __repr__(self):
+    def __str__(self):
         '''
         Convert an instance to string.
         '''

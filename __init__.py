@@ -28,7 +28,6 @@ SUBPACKAGE        DESCRIPTION
 ===============   =====================================================================
 `Basics`          The general framework of the Hamiltonian-based algorithms
 `Misc`            Miscellaneous functions and classes as supports to the algorithms
-`DataBase`        Lattice data base
 `FreeSystem`      Free fermionic system algorithm, including TBA, BdG, Floquet and SCMF
 `ED`              Exact diagonalization for fermionic systems
 `VCA`             CPT and VCA for fermionic systems
@@ -46,7 +45,6 @@ Contents
    :maxdepth: 4
 
    Basics/index
-   DataBase/index
    Misc/index
    FreeSystem/index
    ED/index

@@ -1130,7 +1130,7 @@ def blockcontract(tensors,signs=None):
                 result[linds[:,None],rinds]=A[linds[:,None],ainds].dot(B[binds[:,None],rinds])
             result=Tensor(result.reshape(lshape+rshape),labels=labels)
             return result,signs
-    signs=['*'*tensor.ndim for tensor in tensors] if signs is None else signs
+    signs=['+'*tensor.ndim for tensor in tensors] if signs is None else signs
     assert len(signs)==len(tensors)
     result,SIGNS=tensors[0],signs[0]
     for i in xrange(1,len(tensors)):

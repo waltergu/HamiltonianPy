@@ -76,11 +76,26 @@ class FOperator(Operator):
         '''
         result=[]
         result.append('FOperator(')
+        result.append('%s'%self.mode)
+        result.append(', %s'%self.value)
+        result.append(', %s'%(self.indices,))
+        if hasattr(self,'rcoords'): result.append(', rcoords=(%s)'%(','.join(str(rcoord) for rcoord in self.rcoords)))
+        if hasattr(self,'icoords'): result.append(', icoords=(%s)'%(','.join(str(icoord) for icoord in self.icoords)))
+        if hasattr(self,'seqs'): result.append(', seqs=%s'%(self.seqs,))
+        result.append(')')
+        return ''.join(result)
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        result=[]
+        result.append('FOperator(')
         result.append('mode=%s'%self.mode)
         result.append(', value=%s'%self.value)
-        result.append(', indices=%s'%(self.indices,))
-        if hasattr(self,'rcoords'): result.append(', rcoords=%s'%(self.rcoords,))
-        if hasattr(self,'icoords'): result.append(', icoords=%s'%(self.icoords,))
+        result.append(', indices=(%s)'%(','.join(str(index) for index in self.indices)))
+        if hasattr(self,'rcoords'): result.append(', rcoords=(%s)'%(','.join(str(rcoord) for rcoord in self.rcoords)))
+        if hasattr(self,'icoords'): result.append(', icoords=(%s)'%(','.join(str(icoord) for icoord in self.icoords)))
         if hasattr(self,'seqs'): result.append(', seqs=%s'%(self.seqs,))
         result.append(')')
         return ''.join(result)

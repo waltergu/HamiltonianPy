@@ -93,8 +93,8 @@ def test_mpo_fermi():
     optstrs=[OptStr.from_operator(opt,degfres,layers[-1]) for opt in opts]
     for i,(opt,optstr) in enumerate(zip(opts,optstrs)):
         print 'operator: %s'%i
-        print opt
-        print optstr
+        print repr(opt)
+        print repr(optstr)
         print
     mpos=[optstr.to_mpo(degfres) for optstr in optstrs]
 
