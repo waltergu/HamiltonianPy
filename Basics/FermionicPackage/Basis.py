@@ -101,6 +101,18 @@ class FBasis(object):
                 result+=str(i)+': '+'{0:b}'.format(v)+'\n'
         return result
 
+    @property
+    def rep(self):
+        '''
+        The string representation of the basis.
+        '''
+        if self.mode=='FP':
+            return 'FP(%s-%s)'%(self.nstate[0],self.nparticle[0])
+        elif self.mode=='FS':
+            return 'FS(%s-%s,%s-%s)'%(self.nstate[0],self.nparticle[0],self.nstate[1],self.nparticle[1])
+        else:
+            return 'FG(%s)'%(self.nstate)
+
 def table_ep(nstate,nparticle,dtype=int64):
     '''
     This function generates the binary basis table with nstate orbitals occupied by nparticle electrons.

@@ -672,7 +672,7 @@ class Lattice(object):
     '''
     max_coordinate_number=8
 
-    def __init__(self,name=None,rcoords=[],icoords=None,vectors=[],nneighbour=1,max_coordinate_number=8):
+    def __init__(self,name=None,rcoords=[],icoords=None,vectors=[],nneighbour=1,max_coordinate_number=None):
         '''
         Construct a lattice directly from its coordinates.
 
@@ -692,7 +692,7 @@ class Lattice(object):
             The max coordinate number for every neighbour.
         '''
         assert icoords is None or len(icoords)==len(rcoords)
-        Lattice.max_coordinate_number=max_coordinate_number
+        if max_coordinate_number is not None: Lattice.max_coordinate_number=max_coordinate_number
         self.name=name
         rcoords=np.asarray(rcoords)
         icoords=np.zeros(rcoords.shape) if icoords is None else np.asarray(icoords)
@@ -705,7 +705,7 @@ class Lattice(object):
         self.mindists=mindists
 
     @classmethod
-    def compose(cls,name=None,points=[],vectors=[],nneighbour=1,max_coordinate_number=8):
+    def compose(cls,name=None,points=[],vectors=[],nneighbour=1,max_coordinate_number=None):
         '''
         Construct a lattice from its contained points.
 
@@ -722,7 +722,7 @@ class Lattice(object):
         max_coordinate_number : int, optional
             The max coordinate number for every neighbour.
         '''
-        Lattice.max_coordinate_number=max_coordinate_number
+        if max_coordinate_number is not None: Lattice.max_coordinate_number=max_coordinate_number
         result=object.__new__(cls)
         result.name=name
         result.points=points

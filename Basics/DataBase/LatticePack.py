@@ -46,13 +46,13 @@ class Cluster(object):
         self.rcoords=asarray(rcoords)
         self.vectors=asarray(vectors)
 
-    def lattice(self,tbs,nneighbour=1):
+    def __call__(self,tbs=None,nneighbour=1):
         '''
         Construct a lattice acoording the translation and boundary conditions.
 
         Parameters
         ----------
-        tbs : str
+        tbs : str, optional
             The translation and boundary conditions.
         nneighbour : integer, optional
             The highest order of the neighbours.
@@ -62,15 +62,36 @@ class Cluster(object):
         Lattice
             The constructed lattice.
         '''
-        num,ts,bcs=0,[],[]
-        for tb in re.split('-',tbs):
-            num+=1
-            ts.extend(re.findall('\d+',tb))
-            bcs.extend(re.findall('[P,p,O,o]',tb))
-        assert len(ts)==num and len(bcs)==num
-        rcoords=tiling(cluster=self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts]))
-        vectors=[self.vectors[i] for i,bc in enumerate(bcs) if bc.lower()=='p']
-        return Lattice(name='%s(%s)'%(self.name,tbs.upper()),rcoords=rcoords,vectors=vectors,nneighbour=nneighbour)
+        tbs=tbs or '-'.join(['1P']*len(self.vectors))
+        ts,bcs=re.findall('\d+',tbs),re.findall('[P,p,O,o]',tbs)
+        assert len(ts)==len(self.vectors) and len(bcs)==len(self.vectors)
+        return Lattice(
+                name=       '%s(%s)'%(self.name,tbs.upper()),
+                rcoords=    tiling(cluster=self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts])),
+                vectors=    [self.vectors[i] for i,bc in enumerate(bcs) if bc.lower()=='p'],
+                nneighbour= nneighbour
+                )
+
+    def tiling(self,ts):
+        '''
+        Construct a new cluster by tiling.
+
+        Parameters
+        ----------
+        ts : tuple of integer
+            The translation and boundary conditions.
+
+        Returns
+        -------
+        Cluster
+            The new cluster after the tiling.
+        '''
+        assert len(ts)==len(self.vectors)
+        return Cluster(
+                name=       '%s^%s'%(self.name,'-'.join(str(t) for t in ts)),
+                rcoords=    tiling(cluster=self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts])),
+                vectors=    [self.vectors[i]*t for i,t in enumerate(ts)]
+                )
 
 def Square(name):
     '''

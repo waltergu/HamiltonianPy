@@ -1,14 +1,14 @@
 '''
 This subpackage implements the construction and maintenance of a project through command line commands, including:
     * classes: Manager
-    * functions: init, git, add
+    * functions: init, add
 '''
 
 import os
 import Template
 from argparse import ArgumentParser
 
-__all__=['Manager','init','git','add']
+__all__=['Manager','init','add']
 
 class Manager(object):
     '''
@@ -34,7 +34,6 @@ class Manager(object):
         self.args=args
         self.parser=ArgumentParser(prog=os.path.basename(args[0]))
         self.init()
-        self.git()
         self.add()
 
     def add_subcommand(self,name,subcommand):
@@ -64,15 +63,8 @@ class Manager(object):
         '''
         subcommand=self.add_subcommand('init',init)
         subcommand.add_argument('project',help='The project name')
-        subcommand.add_argument('-n','--name',help='The model name')
         subcommand.add_argument('-d','--directory',help='The directory where to store the project.',default='.')
         subcommand.add_argument('-r','--readme',help='The description of the project.')
-
-    def git(self):
-        '''
-        Subcommand git, which adds a git repository to this project.
-        '''
-        subcommand=self.add_subcommand('git',git)
 
     def add(self):
         '''
@@ -88,7 +80,20 @@ class Manager(object):
         namespace=self.parser.parse_args(self.args[1:] or ['-h'])
         namespace.subcommand(**{key:value for key,value in vars(namespace).iteritems() if key!='subcommand'})
 
-def init(directory,project,name=None,readme=None):
+    @classmethod
+    def has_project(self):
+        '''
+        Judge whether the current folder contains a project.
+        '''
+        try:
+            with open('README.md','r') as fin:
+                name=fin.readline()[2:-1]
+            assert name==os.path.basename(os.getcwd())
+            return True
+        except:
+            return False
+
+def init(directory,project,readme=None):
     '''
     Initialize a project.
 
@@ -98,8 +103,6 @@ def init(directory,project,name=None,readme=None):
         The directory where to store the project.
     project : str
         The project name.
-    name : str, optional
-        The model name.
     readme : str, optional
         The description of the project.
     '''
@@ -118,16 +121,30 @@ def init(directory,project,name=None,readme=None):
         for line in Template.manager():
             fout.write(line)
             fout.write('\n')
-    with open('%s/basics.py'%sdir,'w') as fout:
-        for line in Template.basics(name or project):
+    with open('%s/config.py'%sdir,'w') as fout:
+        for line in Template.config():
             fout.write(line)
             fout.write('\n')
     with open('%s/__init__.py'%sdir,'w') as fout:
-        fout.write('from basics import *')
+        fout.write('from config import *')
         fout.write('\n')
 
-def git(args=None):
-    pass
-
 def add(engine):
-    pass
+    '''
+    Add an engine to a project.
+
+    Parameters
+    ----------
+    engine : 'tba','ed','vca','dmrg'
+        The engine ot be added.
+    '''
+    if Manager.has_project():
+        with open('source/%s.py'%engine,'w') as fout:
+            for line in getattr(Template,engine)():
+                fout.write(line)
+                fout.write('\n')
+        with open('source/__init__.py','a+') as fout:
+            fout.write('from %s import *'%engine)
+            fout.write('\n')
+    else:
+        raise ValueError('add error: No project found.')

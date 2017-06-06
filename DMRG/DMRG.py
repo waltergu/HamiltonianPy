@@ -79,6 +79,33 @@ class Cylinder(Lattice):
         self.block=block
         self.translation=translation
 
+    @staticmethod
+    def from_cluster(cluster,dt,bcs,**karg):
+        '''
+        Construct a cylinder from a cluster.
+
+        Parameters
+        ----------
+        cluster : Cluster
+            The cluster to build the cylinder.
+        dt : integer
+            The direction along which the cylinder extends.
+        bcs : str
+            The boundary conditions of the cylinder.
+
+        Notes
+        -----
+        The boundary condition along the cylinder must be open, i.e. ``bcs[dt]`` must be 'O' or 'o'.
+        '''
+        assert len(bcs)==len(cluster.vectors) and bcs[dt].upper()=='O'
+        return Cylinder(
+                name=           '%s(%s)'%(cluster.name,'-'.join('%s%s'%('+' if i==dt else 1,bc.upper()) for i,bc in enumerate(bc))),
+                block=          cluster.rcoords,
+                translation=    cluster.vectors[dt],
+                vectors=        cluster.vectors[[i for i,bc in enumerate(bc) if bc.upper()=='P']],
+                **karg
+                )
+
     def insert(self,A,B,news=None):
         '''
         Insert two blocks into the center of the cylinder.
@@ -120,7 +147,7 @@ class Cylinder(Lattice):
         self.links=links
         self.mindists=mindists
 
-    def lattice(self,scopes):
+    def __call__(self,scopes):
         '''
         Construct a cylinder with the assigned scopes.
 
@@ -137,7 +164,7 @@ class Cylinder(Lattice):
         points,num=[],len(scopes)
         for i,rcoord in enumerate(tiling(self.block,[self.translation],np.linspace(-(num-1)/2.0,(num-1)/2.0,num) if num>1 else xrange(1))):
             points.append(Point(PID(scope=scopes[i/len(self.block)],site=i%len(self.block)),rcoord=rcoord,icoord=np.zeros_like(rcoord)))
-        return Lattice.compose(name=self.name,points=points,vectors=self.vectors,nneighbour=self.nneighbour)
+        return Lattice.compose(name=self.name.replace('+',str(num)),points=points,vectors=self.vectors,nneighbour=self.nneighbour)
 
 class DMRG(Engine):
     '''
