@@ -4,7 +4,7 @@ Tensor
 ======
 
 Labled multi-dimensional tensors, including:
-    * classes: Label,Tensor
+    * classes: Tensor
     * functions: contract
 '''
 
@@ -14,133 +14,9 @@ import scipy.linalg as sl
 import HamiltonianPy.Misc as hm
 from collections import Counter
 from copy import copy,deepcopy
-from HamiltonianPy import QuantumNumbers
+from HamiltonianPy import Label,QuantumNumbers
 
-__all__=['Label','Tensor','contract']
-
-class Label(tuple):
-    '''
-    The label of a dimension of a tensor.
-
-    Attributes
-    ----------
-    names : ('identifier','_prime_')
-        The names of the immutable part of the label.
-    qns : integer or QuantumNumbers
-        * When integer, it is the dimension of the label;
-        * When QuantumNumbers, it is the collection of the quantum numbers of the label.
-    '''
-    names=('identifier','_prime_')
-
-    def __new__(cls,identifier,prime=False,qns=None):
-        '''
-        Constructor.
-
-        Parameters
-        ----------
-        identifier : Label
-            The index of the label
-        prime : logical, optional
-            When True, the label is in the prime form; otherwise not.
-        qns : integer or QuantumNumbers, optional
-            * When integer, it is the dimension of the label;
-            * When QuantumNumbers, it is the collection of the quantum numbers of the label.
-        '''
-        self=tuple.__new__(cls,(identifier,prime))
-        self.qns=qns
-        return self
-
-    def __getnewargs__(self):
-        '''
-        Return the arguments for Label.__new__, required by copy and pickle.
-        '''
-        return tuple(self)+(self.qns,)
-
-    def __getstate__(self):
-        '''
-        Since Label.__new__ constructs everything, self.__dict__ can be omitted for copy and pickle.
-        '''
-        pass
-
-    def __getattr__(self,key):
-        '''
-        Overloaded operator(.).
-        '''
-        try:
-            return self[type(self).names.index(key)]
-        except ValueError:
-            raise AttributeError("'Label' object has no attribute %s."%(key))
-
-    def __str__(self):
-        '''
-        Convert an instance to string.
-        '''
-        if self[-1]:
-            return "Label(%s)%s<%s>"%(self[0],"'",self.qns)
-        else:
-            return "Label(%s)<%s>"%(self[0],self.qns)
-
-    def __repr__(self):
-        '''
-        Convert an instance to string.
-        '''
-        if self[-1]:
-            return "Label(%s)%s<%s>"%(self[0],"'",repr(self.qns))
-        else:
-            return "Label(%s)<%s>"%(self[0],repr(self.qns))
-
-    def replace(self,**karg):
-        '''
-        Return a new label with some of its attributes replaced.
-
-        Parameters
-        ----------
-        karg : dict in the form (key,value), with
-            * key: string
-                The attributes of the label
-            * value: any object
-                The corresponding value.
-
-        Returns
-        -------
-        Label
-            The new label.
-        '''
-        result=tuple.__new__(self.__class__,map(karg.pop,type(self).names,self))
-        for key,value in self.__dict__.iteritems():
-            setattr(result,key,karg.pop(key,value))
-        if karg:
-            raise ValueError("Label replace error: %s are not the attributes of the label."%karg.keys())
-        return result
-
-    @property
-    def prime(self):
-        '''
-        The prime of the label.
-        '''
-        temp=list(self)
-        temp[-1]=not temp[-1]
-        result=tuple.__new__(self.__class__,temp)
-        for key,value in self.__dict__.iteritems():
-            tuple.__setattr__(result,key,value)
-        return result
-
-    @property
-    def dim(self):
-        '''
-        The length of the dimension this label labels.
-        '''
-        if isinstance(self.qns,QuantumNumbers):
-            return len(self.qns)
-        else:
-            return self.qns
-
-    @property
-    def qnon(self):
-        '''
-        True for qns is an instance of QuantumNumbers otherwise False.
-        '''
-        return isinstance(self.qns,QuantumNumbers)
+__all__=['Tensor','contract']
 
 class Tensor(np.ndarray):
     '''

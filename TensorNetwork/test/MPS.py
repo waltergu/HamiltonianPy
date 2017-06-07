@@ -7,7 +7,7 @@ __all__=['test_mps']
 import numpy as np
 from HamiltonianPy import *
 from numpy.linalg import norm
-from HamiltonianPy.TensorNetwork import Label,Tensor,MPS,DegFreTree
+from HamiltonianPy.TensorNetwork import *
 from copy import copy,deepcopy
 
 def test_mps():

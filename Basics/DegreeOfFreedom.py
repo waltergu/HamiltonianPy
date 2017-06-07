@@ -4,16 +4,17 @@ Descriptions of the interanl degrees of freedom on a lattice
 ============================================================
 
 This modulate defines several classes to define the way to describe the interanl degrees of freedom on a lattice, including
-    * classes: Status,Table, Index, Internal, IDFConfig, DegFreTree, IndexPack, IndexPacks
+    * classes: Status,Table, Index, Internal, IDFConfig, Label, DegFreTree, IndexPack, IndexPacks
 '''
 
-__all__=['Status','Table','Index','Internal','IDFConfig','IndexPack','IndexPacks']
+__all__=['Status','Table','Index','Internal','IDFConfig','Label','DegFreTree','IndexPack','IndexPacks']
 
 import numpy as np
 from numpy.linalg import norm
 from Constant import RZERO
 from Geometry import PID
-from ..Misc import Arithmetic
+from QuantumNumber import QuantumNumbers
+from ..Misc import Arithmetic,Tree
 from copy import copy,deepcopy
 from collections import OrderedDict
 
@@ -472,6 +473,292 @@ class IDFConfig(dict):
         Return a Table instance that contains all the allowed indices which can be defined on a lattice.
         '''
         return Table([index for key,value in self.items() for index in value.indices(key,mask)],key=lambda index: index.to_tuple(priority=self.priority))
+
+class Label(tuple):
+    '''
+    The label for a set of degrees of freedom.
+
+    Attributes
+    ----------
+    names : ('identifier','_prime_')
+        The names of the immutable part of the label.
+    qns : integer or QuantumNumbers
+        * When integer, it is the dimension of the label;
+        * When QuantumNumbers, it is the collection of the quantum numbers of the label.
+    '''
+    names=('identifier','_prime_')
+
+    def __new__(cls,identifier,prime=False,qns=None):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        identifier : Label
+            The index of the label
+        prime : logical, optional
+            When True, the label is in the prime form; otherwise not.
+        qns : integer or QuantumNumbers, optional
+            * When integer, it is the dimension of the label;
+            * When QuantumNumbers, it is the collection of the quantum numbers of the label.
+        '''
+        self=tuple.__new__(cls,(identifier,prime))
+        self.qns=qns
+        return self
+
+    def __getnewargs__(self):
+        '''
+        Return the arguments for Label.__new__, required by copy and pickle.
+        '''
+        return tuple(self)+(self.qns,)
+
+    def __getstate__(self):
+        '''
+        Since Label.__new__ constructs everything, self.__dict__ can be omitted for copy and pickle.
+        '''
+        pass
+
+    def __getattr__(self,key):
+        '''
+        Overloaded operator(.).
+        '''
+        try:
+            return self[type(self).names.index(key)]
+        except ValueError:
+            raise AttributeError("'Label' object has no attribute %s."%(key))
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        if self[-1]:
+            return "Label(%s)%s<%s>"%(self[0],"'",self.qns)
+        else:
+            return "Label(%s)<%s>"%(self[0],self.qns)
+
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        if self[-1]:
+            return "Label(%s)%s<%s>"%(self[0],"'",repr(self.qns))
+        else:
+            return "Label(%s)<%s>"%(self[0],repr(self.qns))
+
+    def replace(self,**karg):
+        '''
+        Return a new label with some of its attributes replaced.
+
+        Parameters
+        ----------
+        karg : dict in the form (key,value), with
+            * key: string
+                The attributes of the label
+            * value: any object
+                The corresponding value.
+
+        Returns
+        -------
+        Label
+            The new label.
+        '''
+        result=tuple.__new__(self.__class__,map(karg.pop,type(self).names,self))
+        for key,value in self.__dict__.iteritems():
+            setattr(result,key,karg.pop(key,value))
+        if karg:
+            raise ValueError("Label replace error: %s are not the attributes of the label."%karg.keys())
+        return result
+
+    @property
+    def prime(self):
+        '''
+        The prime of the label.
+        '''
+        temp=list(self)
+        temp[-1]=not temp[-1]
+        result=tuple.__new__(self.__class__,temp)
+        for key,value in self.__dict__.iteritems():
+            tuple.__setattr__(result,key,value)
+        return result
+
+    @property
+    def dim(self):
+        '''
+        The length of the dimension this label labels.
+        '''
+        if isinstance(self.qns,QuantumNumbers):
+            return len(self.qns)
+        else:
+            return self.qns
+
+    @property
+    def qnon(self):
+        '''
+        True for qns is an instance of QuantumNumbers otherwise False.
+        '''
+        return isinstance(self.qns,QuantumNumbers)
+
+class DegFreTree(Tree):
+    '''
+    The tree of the layered degrees of freedom.
+    For each (node,data) pair of the tree,
+        * node: Index
+            The selected index which can represent a couple of indices.
+        * data: integer or QuantumNumbers
+            When an integer, it is the number of degrees of freedom that the index represents;
+            When a QuantumNumbers, it is the quantum number collection that the index is associated with.
+
+    Attributes
+    ----------
+    mode : 'QN' or 'NB'
+        The mode of the DegFreTree.
+    layers : list of tuples of string
+        The tag of each layer of indices.
+    priority : lsit of string
+        The sequence priority of the allowed indices.
+    map : function
+        This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
+    cache : dict
+        The cache of the degfretree.
+    '''
+
+    def __init__(self,mode,layers,priority,leaves=[],map=None):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        mode : 'QN' or 'NB'
+            The mode of the DegFreTree.
+        layers : list of tuples of string
+            The tag of each layer of indices.
+        priority : lsit of string
+            The sequence priority of the allowed indices.
+        leaves : list of Index, optional
+            The leaves (bottom indices) of the DegFreTree.
+        map : function, optional
+            This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
+        '''
+        self.reset(mode=mode,layers=layers,priority=priority,leaves=leaves,map=map)
+
+    def reset(self,mode=None,layers=None,priority=None,leaves=[],map=None):
+        '''
+        Reset the DegFreTree.
+
+        Parameters
+        ----------
+        mode,layers,priority,leaves,map :
+            Please see DegFreTree.__init__ for details.
+        '''
+        self.clear()
+        Tree.__init__(self)
+        assert mode in (None,'QN','NB')
+        if mode is not None: self.mode=mode
+        if layers is not None: self.layers=layers
+        if priority is not None: self.priority=priority
+        if map is not None: self.map=map
+        self.cache={}
+        if len(leaves)>0:
+            temp=[key for layer in self.layers for key in layer]
+            assert set(range(len(PID._fields)))==set([temp.index(key) for key in PID._fields])
+            temp=set(temp)
+            self.add_leaf(parent=None,leaf=tuple([None]*len(leaves[0])),data=None)
+            for layer in self.layers:
+                temp-=set(layer)
+                indices=set([index.replace(**{key:None for key in temp}) for index in leaves])
+                self.cache[('indices',layer)]=sorted(indices,key=lambda index: index.to_tuple(priority=self.priority))
+                self.cache[('table',layer)]=Table(self.indices(layer=layer))
+                for index in self.indices(layer=layer):
+                    self.add_leaf(parent=index.replace(**{key:None for key in layer}),leaf=index,data=None)
+            for i,layer in enumerate(reversed(self.layers)):
+                if i==0:
+                    for index in self.indices(layer):
+                        self[index]=self.map(index)
+                else:
+                    for index in self.indices(layer):
+                        if self.mode=='QN':
+                            self[index]=QuantumNumbers.kron([self[child] for child in self.children(index)])
+                        else:
+                            self[index]=np.product([self[child] for child in self.children(index)])
+
+    def ndegfre(self,index):
+        '''
+        The number of degrees of freedom represented by index.
+
+        Parameters
+        ----------
+        index : Index
+            The index of the degrees of freedom.
+
+        Returns
+        -------
+        integer
+            The number of degrees of freedom.
+        '''
+        if self.mode=='NB':
+            return self[index]
+        else:
+            return len(self[index])
+
+    def indices(self,layer=0):
+        '''
+        The indices in a layer.
+
+        Parameters
+        ----------
+        layer : integer/tuple-of-string, optional
+            The layer where the indices are restricted.
+
+        Returns
+        -------
+        list of Index
+            The indices in the requested layer.
+        '''
+        return self.cache[('indices',self.layers[layer] if type(layer) in (int,long) else layer)]
+
+    def table(self,layer=0):
+        '''
+        Return a index-sequence table with the index restricted on a specific layer.
+
+        Parameters
+        ----------
+        layer : integer/tuple-of-string
+            The layer where the indices are restricted.
+
+        Returns
+        -------
+        Table
+            The index-sequence table.
+        '''
+        return self.cache[('table',self.layers[layer] if type(layer) in (int,long) else layer)]
+
+    def labels(self,mode,layer=0):
+        '''
+        Return the inquired labels.
+
+        Parameters
+        ----------
+        mode : 'B','S','O'
+            * 'B' for bond labels of an mps;
+            * 'S' for site labels of an mps or an mpo;
+            * 'O' for bond labels of an mpo.
+        layer : integer/tuple-of-string, optional
+            The layer information of the inquired labels.
+
+        Returns
+        -------
+        list of Label
+            The inquired labels.
+        '''
+        mode,layer=mode.upper(),self.layers[layer] if type(layer) in (int,long) else layer
+        assert mode in ('B','S','O')
+        if ('labels',mode,layer) not in self.cache:
+            if mode in ('B','O'):
+                result=[Label(identifier='%s%s-%s'%(mode,self.layers.index(layer),i),qns=None) for i in xrange(len(self.indices(layer))+1)]
+            else:
+                result=[Label(identifier=index,qns=self[index]) for index in self.indices(layer)]
+            self.cache[('labels',mode,layer)]=result
+        return self.cache[('labels',mode,layer)]
 
 class IndexPack(Arithmetic):
     '''

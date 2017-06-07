@@ -99,10 +99,10 @@ class Cylinder(Lattice):
         '''
         assert len(bcs)==len(cluster.vectors) and bcs[dt].upper()=='O'
         return Cylinder(
-                name=           '%s(%s)'%(cluster.name,'-'.join('%s%s'%('+' if i==dt else 1,bc.upper()) for i,bc in enumerate(bc))),
+                name=           '%s(%s)'%(cluster.name,'-'.join('%s%s'%('+' if i==dt else 1,bc.upper()) for i,bc in enumerate(bcs))),
                 block=          cluster.rcoords,
                 translation=    cluster.vectors[dt],
-                vectors=        cluster.vectors[[i for i,bc in enumerate(bc) if bc.upper()=='P']],
+                vectors=        cluster.vectors[[i for i,bc in enumerate(bcs) if bc.upper()=='P']],
                 **karg
                 )
 
@@ -849,7 +849,7 @@ def DMRGTSG(engine,app):
         genew=engine.info['Esite']
         if app.terminate and geold is not None and norm(geold-genew)/norm(geold+genew)<app.tol: break
     if app.plot and app.save_fig:
-        plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
+        plt.savefig('%s/%s_.png'%(engine.din,engine.status))
         plt.close()
     if app.save_data: engine.coredump()
     engine.log.close()
@@ -950,6 +950,6 @@ def DMRGTSS(engine,app):
         engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,piechart=app.plot)
         if app.save_data: engine.coredump()
     if app.plot and app.save_fig:
-        plt.savefig('%s/%s_.png'%(engine.dout,engine.status))
+        plt.savefig('%s/%s_.png'%(engine.din,engine.status))
         plt.close()
     engine.log.close()

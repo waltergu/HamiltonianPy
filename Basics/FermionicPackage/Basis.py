@@ -107,7 +107,7 @@ class FBasis(object):
         The string representation of the basis.
         '''
         if self.mode=='FP':
-            return 'FP(%s-%s)'%(self.nstate[0],self.nparticle[0])
+            return 'FP(%s-%s)'%(self.nstate,self.nparticle)
         elif self.mode=='FS':
             return 'FS(%s-%s,%s-%s)'%(self.nstate[0],self.nparticle[0],self.nstate[1],self.nparticle[1])
         else:

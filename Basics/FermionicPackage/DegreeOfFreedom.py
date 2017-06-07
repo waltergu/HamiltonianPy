@@ -4,12 +4,12 @@ Fermionic degrees of freedom
 ----------------------------
 
 Fermionic degree of freedom package, including:
-    * constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY
+    * constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY, DEGFRE_FERMIONIC_PRIORITY, DEGFRE_FERMIONIC_LAYERS
     * classes: FID, Fermi, FermiPack
     * functions: sigma0, sigmax, sigmay, sigmaz
 '''
 
-__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','FermiPack','sigma0','sigmax','sigmay','sigmaz']
+__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','DEGFRE_FERMIONIC_PRIORITY','DEGFRE_FERMIONIC_LAYERS','FID','Fermi','FermiPack','sigma0','sigmax','sigmay','sigmaz']
 
 from numpy import *
 from numpy.linalg import norm
@@ -20,7 +20,9 @@ from copy import copy
 from collections import namedtuple
 
 ANNIHILATION,CREATION=0,1
-DEFAULT_FERMIONIC_PRIORITY=['scope','nambu','spin','site','orbital']
+DEFAULT_FERMIONIC_PRIORITY=('scope','nambu','spin','site','orbital')
+DEGFRE_FERMIONIC_PRIORITY=('scope','site','orbital','spin','nambu')
+DEGFRE_FERMIONIC_LAYERS=[('scope','site','orbital'),('spin',)]
 
 class FID(namedtuple('FID',['orbital','spin','nambu'])):
     '''

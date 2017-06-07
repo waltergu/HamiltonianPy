@@ -7,8 +7,7 @@ __all__=['test_tensor']
 from numpy import *
 from numpy.linalg import norm
 from HamiltonianPy import *
-from HamiltonianPy.TensorNetwork.Tensor import *
-from HamiltonianPy.TensorNetwork.MPS import MPS
+from HamiltonianPy.TensorNetwork import *
 from time import time
 
 def test_tensor():

@@ -107,8 +107,8 @@ def init(directory,project,readme=None):
         The description of the project.
     '''
     pdir='%s/%s'%(directory,project)
-    ddir,rdir,sdir='%s/data'%pdir,'%s/result'%pdir,'%s/source'%pdir
-    dirs=[pdir,ddir,rdir,sdir]
+    ddir,rdir,sdir,ldir='%s/data'%pdir,'%s/result'%pdir,'%s/source'%pdir,'%s/log'%pdir
+    dirs=[pdir,ddir,rdir,sdir,ldir]
     for folder in dirs:
         if not os.path.exists(folder): os.makedirs(folder)
     with open('%s/README.md'%pdir,'w') as fout:
@@ -139,6 +139,8 @@ def add(engine):
         The engine ot be added.
     '''
     if Manager.has_project():
+        if not os.path.exists('data/%s'%engine): os.makedirs('data/%s'%engine)
+        if not os.path.exists('result/%s'%engine): os.makedirs('result/%s'%engine)
         with open('source/%s.py'%engine,'w') as fout:
             for line in getattr(Template,engine)():
                 fout.write(line)

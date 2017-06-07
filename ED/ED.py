@@ -206,7 +206,7 @@ def EDEL(engine,app):
         prefixs={i:'1st' if i==1 else ('2nd' if i==2 else ('3rd' if i==3 else '%sth'%i)) for i in xrange(app.nder+1)}
         for k in xrange(1,result.shape[1]):
             i,j=divmod(k-1,app.ns)
-            plt.plot(result[:,0],result[:,k],label=('%s der of '%prefixs[i] if i>0 else '')+'E%s'%(j))
+            plt.plot(result[:,0],result[:,k],label=('%s der of '%prefixs[i] if i>0 else '')+'$E_{%s}$'%(j))
         plt.legend(shadow=True,fancybox=True,loc='lower right')
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)

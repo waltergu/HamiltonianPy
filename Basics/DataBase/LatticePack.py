@@ -68,7 +68,7 @@ class Cluster(object):
         return Lattice(
                 name=       '%s(%s)'%(self.name,tbs.upper()),
                 rcoords=    tiling(cluster=self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts])),
-                vectors=    [self.vectors[i] for i,bc in enumerate(bcs) if bc.lower()=='p'],
+                vectors=    [self.vectors[i]*int(t) for i,(t,bc) in enumerate(zip(ts,bcs)) if bc.lower()=='p'],
                 nneighbour= nneighbour
                 )
 

@@ -700,7 +700,7 @@ class Lattice(object):
         self.vectors=vectors
         self.reciprocals=reciprocals(vectors)
         self.nneighbour=nneighbour
-        links,mindists=intralinks('nb',rcoords,None,vectors,nneighbour=nneighbour,max_coordinate_number=max_coordinate_number,return_mindists=True)
+        links,mindists=intralinks('nb',rcoords,None,vectors,nneighbour=nneighbour,max_coordinate_number=Lattice.max_coordinate_number,return_mindists=True)
         self.links=links
         self.mindists=mindists
 
@@ -730,7 +730,7 @@ class Lattice(object):
         result.reciprocals=reciprocals(vectors)
         result.nneighbour=nneighbour
         rcoords=np.asarray([point.rcoord for point in points])
-        links,mindists=intralinks('nb',rcoords,None,vectors,nneighbour=nneighbour,max_coordinate_number=max_coordinate_number,return_mindists=True)
+        links,mindists=intralinks('nb',rcoords,None,vectors,nneighbour=nneighbour,max_coordinate_number=Lattice.max_coordinate_number,return_mindists=True)
         result.links=links
         result.mindists=mindists
         return result
@@ -891,7 +891,7 @@ class SuperLattice(Lattice):
         The pairs of names of sublattices that are united to form new links.
     '''
 
-    def __init__(self,name,sublattices,vectors=[],nneighbour=1,merge=None,union=None,mindists=None,maxdist=None,max_coordinate_number=8):
+    def __init__(self,name,sublattices,vectors=[],nneighbour=1,merge=None,union=None,mindists=None,maxdist=None,max_coordinate_number=None):
         '''
         Constructor.
 
@@ -916,7 +916,7 @@ class SuperLattice(Lattice):
         max_coordinate_number : int, optional
             The max coordinate number for every neighbour.
         '''
-        Lattice.max_coordinate_number=max_coordinate_number
+        if max_coordinate_number is not None: Lattice.max_coordinate_number=max_coordinate_number
         self.name=name
         self.sublattices=sublattices
         self.points=[point for lattice in sublattices for point in lattice.points]
@@ -930,7 +930,7 @@ class SuperLattice(Lattice):
                     cluster=                np.concatenate([self.sublattices[name].rcoords for name in self._merge_]),
                     vectors=                vectors,
                     nneighbour=             nneighbour,
-                    max_coordinate_number=  max_coordinate_number,
+                    max_coordinate_number=  Lattice.max_coordinate_number,
                     return_mindists=        True
                     )
             self.links=links
@@ -958,7 +958,7 @@ class SuperLattice(Lattice):
                     ))
 
     @staticmethod
-    def merge(name,sublattices,vectors=[],nneighbour=1,max_coordinate_number=8):
+    def merge(name,sublattices,vectors=[],nneighbour=1,max_coordinate_number=None):
         '''
         This is a simplified version of SuperLattice.__init__ by just merging sublattices to construct the superlattice.
         For details, see SuperLattice.__init__.

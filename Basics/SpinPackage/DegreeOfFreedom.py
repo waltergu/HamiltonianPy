@@ -4,12 +4,12 @@ Spin degree of freedom
 ----------------------
 
 Spin degree of freedom package, including:
-    * constants: DEFAULT_SPIN_PRIORITY
+    * constants: DEFAULT_SPIN_PRIORITY, DEGFRE_SPIN_PRIORITY, DEGFRE_SPIN_LAYERS
     * classes: SID, Spin, SpinMatrix, SpinPack
     * functions: Heisenberg, Ising, S
 '''
 
-__all__=['DEFAULT_SPIN_PRIORITY','SID','Spin','SpinMatrix','SpinPack','Heisenberg','Ising','S']
+__all__=['DEFAULT_SPIN_PRIORITY','DEGFRE_SPIN_PRIORITY','DEGFRE_SPIN_LAYERS','SID','Spin','SpinMatrix','SpinPack','Heisenberg','Ising','S']
 
 from ..Geometry import PID
 from ..DegreeOfFreedom import *
@@ -17,7 +17,9 @@ from numpy import *
 from collections import namedtuple
 import copy
 
-DEFAULT_SPIN_PRIORITY=['scope','site','orbital','S']
+DEFAULT_SPIN_PRIORITY=('scope','site','orbital','S')
+DEGFRE_SPIN_PRIORITY=('scope','site','orbital','S')
+DEGFRE_SPIN_LAYERS=[('scope','site','orbital','S')]
 
 class SID(namedtuple('SID',['orbital','S'])):
     '''

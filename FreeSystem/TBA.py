@@ -166,7 +166,7 @@ class TBA(Engine):
         float64
             The chemical potential of the system.
         '''
-        nelectron,eigvals=int(round(filling*(1 if kspace is None else kspace.rank('k')*self.nmatrix))),sort(self.eigvals(kspace))
+        nelectron,eigvals=int(round(filling*(1 if kspace is None else kspace.rank('k'))*self.nmatrix)),sort(self.eigvals(kspace))
         return (eigvals[nelectron]+eigvals[nelectron-2])/2
 
     def gse(self,filling,kspace=None):
@@ -185,7 +185,7 @@ class TBA(Engine):
         float64
             The ground state energy of the system.
         '''
-        return sort(self.eigvals(kspace))[0:int(round(filling*(1 if kspace is None else kspace.rank('k')*self.nmatrix)))].sum()
+        return sort(self.eigvals(kspace))[0:int(round(filling*(1 if kspace is None else kspace.rank('k'))*self.nmatrix))].sum()
 
 def TBAEB(engine,app):
     '''
