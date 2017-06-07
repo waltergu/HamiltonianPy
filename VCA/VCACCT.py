@@ -22,7 +22,7 @@ class VCACCT(VCA):
 
     Attributes
     ----------
-    preloads,cell,lattice,config,terms,weiss,dtype,pthgenerator,ptwgenerator,pthoperators,ptwoperators,periodization,matrix,cache :
+    preloads,cell,lattice,config,terms,weiss,mask,dtype,pthgenerator,ptwgenerator,pthoperators,ptwoperators,periodization,matrix,cache :
         Inherited from VCA. See VCA for details.
     groups : list of hashable object
         The groups of the components of the system.
@@ -33,13 +33,13 @@ class VCACCT(VCA):
             A representative subsystem of the same group.
     '''
 
-    def __init__(self,cgf,cell=None,lattice=None,config=None,terms=[],weiss=[],subsystems=None,dtype=np.complex128,**karg):
+    def __init__(self,cgf,cell=None,lattice=None,config=None,terms=[],weiss=[],mask=['nambu'],subsystems=None,dtype=np.complex128,**karg):
         '''
         Constructor.
 
         Parameters
         ----------
-        cgf,cell,lattice,config,terms,weiss :
+        cgf,cell,lattice,config,terms,weiss,mask :
             See VCA.__init__ for details.
         subsystem: dict
             * entry 'basis': FBasis
@@ -49,23 +49,23 @@ class VCACCT(VCA):
             * entry 'group': any hashable object, optional
                 The group of the subsystem.
         '''
-        nspin,mask,cellconfig=cgf.nspin,cgf.mask,HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map)
-        self.preloads.extend([cgf,HP.GF(operators=HP.fspoperators(cellconfig.table().subset(select=ED.GF.select(nspin)),cell),dtype=cgf.dtype)])
+        cellconfig=HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map)
+        self.preloads.extend([cgf,HP.GF(operators=HP.fspoperators(cellconfig.table(),cell),dtype=cgf.dtype)])
         self.cell=cell
         self.lattice=lattice
         self.config=config
         self.terms=terms
         self.weiss=weiss
+        self.mask=mask
         self.dtype=dtype
         self.groups=[subsystem.get('group',subsystem['lattice'].name) for subsystem in subsystems]
         self.subsystems={}
         extras={key:value for key,value in karg.iteritems() if key!='name'}
         for i,group in enumerate(set(self.groups)):
             subsystem=subsystems[self.groups.index(group)]
-            if subsystem['basis'].mode in ('FG','FP'): assert nspin==2
             subbasis,sublattice=subsystem['basis'],subsystem['lattice']
             subconfig=HP.IDFConfig(priority=config.priority,pids=subsystem['lattice'].pids,map=config.map)
-            self.subsystems[group]=ED.ED(
+            self.subsystems[group]=ED.FED(
                     name=           group,
                     basis=          subbasis,
                     lattice=        sublattice,
@@ -77,7 +77,7 @@ class VCACCT(VCA):
             attributes={attr:vars(cgf)[attr] for attr in set(vars(cgf))-set(['status','operators','gf','k','omega','prepare','run'])}
             gf=ED.GF(
                     name=           'gf',
-                    operators=      HP.fspoperators(subconfig.table().subset(ED.GF.select(nspin)),lattice),
+                    operators=      HP.fspoperators(subconfig.table(),lattice),
                     prepare=        ED.EDGFP,
                     run=            ED.EDGF,
                     **attributes
@@ -89,14 +89,14 @@ class VCACCT(VCA):
         self.pthgenerator=HP.Generator(
                     bonds=          [bond for bond in lattice.bonds if not bond.isintracell() or bond.spoint.pid.scope!=bond.epoint.pid.scope],
                     config=         config,
-                    table=          config.table(mask=mask).subset(ED.GF.select(nspin)),
+                    table=          config.table(mask=mask),
                     terms=          [term for term in terms if isinstance(term,HP.Quadratic)],
                     dtype=          dtype
                     )
         self.ptwgenerator=HP.Generator(
                     bonds=          [bond for bond in lattice.bonds if bond.isintracell() and bond.spoint.pid.scope==bond.epoint.pid.scope],
                     config=         config,
-                    table=          config.table(mask=mask).subset(ED.GF.select(nspin)),
+                    table=          config.table(mask=mask),
                     terms=          [term*(-1) for term in weiss],
                     dtype=          dtype
                     )

@@ -1,1 +1,2 @@
-from ED import *
+from FED import *
+from SED import *

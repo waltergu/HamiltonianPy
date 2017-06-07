@@ -50,7 +50,7 @@ def _gf_contract_(k,mgf,seqs,coords):
     else:
         raise ValueError("_gf_contract_ error: mgf must be of type np.complex64 or np.complex128.")
 
-class VCA(ED.ED):
+class VCA(ED.FED):
     '''
     This class implements the algorithm of the variational cluster approach of an electron system.
 
@@ -74,6 +74,9 @@ class VCA(ED.ED):
         The weiss terms are not included in this list.
     weiss : list of Term
         The Weiss terms of the system.
+    mask : [] or ['nambu']
+        * []: using the nambu space and computing the anomalous Green's functions;
+        * ['nambu']: not using the nambu space and not computing the anomalous Green's functions.
     dtype : np.float32, np.float64, np.complex64, np.complex128
         The data type of the matrix representation of the Hamiltonian.
     generator : Generator
@@ -115,7 +118,7 @@ class VCA(ED.ED):
         =========   ======================================================================================================================
     '''
 
-    def __init__(self,cgf,basis=None,cell=None,lattice=None,config=None,terms=[],weiss=[],dtype=np.complex128,**karg):
+    def __init__(self,cgf,basis=None,cell=None,lattice=None,config=None,terms=[],weiss=[],mask=['nambu'],dtype=np.complex128,**karg):
         '''
         Constructor.
 
@@ -135,18 +138,21 @@ class VCA(ED.ED):
             The terms of the system.
         weiss : lsit of Term, optional
             The Weiss terms of the system.
+        mask : [] or ['nambu']
+            * []: using the nambu space and computing the anomalous Green's functions;
+            * ['nambu']: not using the nambu space and not computing the anomalous Green's functions.
         dtype : np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
         '''
-        nspin,mask,cellconfig=cgf.nspin,cgf.mask,HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map)
-        self.preloads.extend([cgf,HP.GF(operators=HP.fspoperators(cellconfig.table().subset(select=ED.GF.select(nspin)),cell),dtype=cgf.dtype)])
-        if basis.mode in ('FG','FP'): assert nspin==2
+        cellconfig=HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map)
+        self.preloads.extend([cgf,HP.GF(operators=HP.fspoperators(cellconfig.table(),cell),dtype=cgf.dtype)])
         self.basis=basis
         self.cell=cell
         self.lattice=lattice
         self.config=config
         self.terms=terms
         self.weiss=weiss
+        self.mask=mask
         self.dtype=dtype
         self.generator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if bond.isintracell()],
@@ -158,14 +164,14 @@ class VCA(ED.ED):
         self.pthgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if not bond.isintracell()],
             config=     config,
-            table=      config.table(mask=mask).subset(ED.GF.select(nspin)),
+            table=      config.table(mask=mask),
             terms=      [term for term in terms if isinstance(term,HP.Quadratic)],
             dtype=      dtype
             )
         self.ptwgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if bond.isintracell()],
             config=     config,
-            table=      config.table(mask=mask).subset(ED.GF.select(nspin)),
+            table=      config.table(mask=mask),
             terms=      None if weiss is None else [term*(-1) for term in weiss],
             dtype=      dtype
             )
@@ -526,7 +532,7 @@ def VCAGP(engine,app):
     engine.cache.pop('pt_kmesh',None)
     cgf,kmesh,nk=engine.preloads[0],app.BZ.mesh('k'),app.BZ.rank('k')
     fx=lambda omega: np.log(np.abs(det(np.eye(engine.ncopt)-engine.pt_kmesh(kmesh).dot(engine.cgf(omega=omega*1j+app.mu))))).sum()
-    part1=-quad(fx,0,np.float(np.inf))[0]/np.pi*2/cgf.nspin
+    part1=-quad(fx,0,np.float(np.inf))[0]/np.pi
     part2=np.trace(engine.pt_kmesh(kmesh),axis1=1,axis2=2).sum().real
     app.gp=(cgf.gse+(part1+part2)/nk)/(engine.ncopt/engine.nopt)/len(engine.cell)
     engine.log<<'gp: %s\n\n'%app.gp
@@ -730,7 +736,7 @@ def VCAOP(engine,app):
         order=deepcopy(term)
         order.value=1
         m=np.zeros((engine.ncopt,engine.ncopt),dtype=np.complex128)
-        for opt in HP.Generator(engine.lattice.bonds,engine.config,table=engine.config.table(mask=cgf.mask),terms=[order]).operators.values():
+        for opt in HP.Generator(engine.lattice.bonds,engine.config,table=engine.config.table(mask=engine.mask),terms=[order]).operators.values():
             m[opt.seqs]+=opt.value
         m+=m.T.conjugate()
         ms[i,:,:]=m
