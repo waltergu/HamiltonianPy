@@ -235,6 +235,7 @@ class DMRG(Engine):
         dtype : np.float64,np.complex128, optional
             The data type.
         '''
+        assert config.priority==degfres.priority
         assert matvec.lower() in ('csr','lo')
         self.mps=mps
         self.lattice=lattice

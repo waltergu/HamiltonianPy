@@ -33,7 +33,7 @@ class VCACCT(VCA):
             A representative subsystem of the same group.
     '''
 
-    def __init__(self,cgf,cell=None,lattice=None,config=None,terms=[],weiss=[],mask=['nambu'],subsystems=None,dtype=np.complex128,**karg):
+    def __init__(self,cgf,cell,lattice,config,terms=[],weiss=[],mask=['nambu'],subsystems=None,dtype=np.complex128,**karg):
         '''
         Constructor.
 

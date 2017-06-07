@@ -73,6 +73,8 @@ def kron(m1,m2,rcs=None,timers=None):
             * tuple[0]: the selected rows and columns of the first matrix `m1`
             * tuple[1]: the selected rows and columns of the second matrix `m2`
             * tuple[2]: the map between the indices before and after the selection of the rows and columns of the kronecker product.
+    timers : Timers, optional
+        The timers to record certain procedures of this function.
 
     Returns
     -------
@@ -89,10 +91,9 @@ def kron(m1,m2,rcs=None,timers=None):
             slices[rcs]=xrange(len(rcs))
         else:
             rcs1,rcs2,slices=rcs
-        with timers.get('csr'):
-            m1=sp.csr_matrix(m1)
-            m2=sp.csr_matrix(m2)
-        with timers.get('fkron'):
+        def csr(m1,m2):
+            return sp.csr_matrix(m1),sp.csr_matrix(m2)
+        def fkron(m1,m2):
             nnz=(m1.indptr[rcs1+1]-m1.indptr[rcs1]).dot(m2.indptr[rcs2+1]-m2.indptr[rcs2])
             if nnz>0:
                 if m1.dtype==np.float32:
@@ -108,6 +109,15 @@ def kron(m1,m2,rcs=None,timers=None):
                 result=sp.csr_matrix((data,indices,indptr),shape=(len(rcs1),len(rcs1)))
             else:
                 result=sp.csr_matrix((len(rcs1),len(rcs1)),dtype=m1.dtype)
+            return result
+        if timers is None:
+            m1,m2=csr(m1,m2)
+            result=fkron(m1,m2)
+        else:
+            with timers.get('csr'):
+                m1,m2=csr(m1,m2)
+            with timers.get('fkron'):
+                result=fkron(m1,m2)
     return result
 
 def overlap(*args):

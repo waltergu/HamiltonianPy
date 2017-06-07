@@ -118,7 +118,7 @@ class VCA(ED.FED):
         =========   ======================================================================================================================
     '''
 
-    def __init__(self,cgf,basis=None,cell=None,lattice=None,config=None,terms=[],weiss=[],mask=['nambu'],dtype=np.complex128,**karg):
+    def __init__(self,cgf,basis,cell,lattice,config,terms=[],weiss=[],mask=['nambu'],dtype=np.complex128,**karg):
         '''
         Constructor.
 
@@ -126,13 +126,13 @@ class VCA(ED.FED):
         ----------
         cgf : HP.ED.GF
             The cluster Green's function.
-        basis : FBasis, optional
+        basis : FBasis
             The occupation number basis of the system.
-        cell : Lattice, optional
+        cell : Lattice
             The unit cell of the system.
-        lattice : Lattice, optional
+        lattice : Lattice
             The lattice of the system.
-        config : IDFConfig, optional
+        config : IDFConfig
             The configuration of the internal degrees of freedom on the lattice.
         terms : list of Term, optional
             The terms of the system.

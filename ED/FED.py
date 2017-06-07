@@ -26,17 +26,17 @@ class FED(ED):
         The occupation number basis of the system.
     '''
 
-    def __init__(self,basis=None,lattice=None,config=None,terms=None,dtype=np.complex128,**karg):
+    def __init__(self,basis,lattice,config,terms=[],dtype=np.complex128,**karg):
         '''
         Constructor.
 
         Parameters
         ----------
-        basis : FBasis, optional
+        basis : FBasis
             The occupation number basis of the system.
-        lattice : Lattice, optional
+        lattice : Lattice
             The lattice of the system.
-        config : IDFConfig, optional
+        config : IDFConfig
             The configuration of the internal degrees of freedom on the lattice.
         terms : list of Term, optional
             The terms of the system.
@@ -57,7 +57,7 @@ class FED(ED):
         '''
         Set the csr_matrix representation of the Hamiltonian.
         '''
-        self.matrix=csr_matrix((self.basis.nbasis,self.basis.nbasis),dtype=self.dtype)
+        self.matrix=0
         for operator in self.operators.itervalues():
             self.matrix+=HP.foptrep(operator,self.basis,transpose=False)
         self.matrix+=self.matrix.T.conjugate()

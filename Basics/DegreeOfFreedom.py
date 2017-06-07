@@ -852,5 +852,5 @@ class IndexPacks(Arithmetic,list):
             else:
                 raise ValueError("IndexPacks *' error: the element(%s) in self multiplied by other is not of IndexPack/IndexPacks."%(obj))
         return result
-    
+
     __imul__=__mul__
