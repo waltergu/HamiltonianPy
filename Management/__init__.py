@@ -64,7 +64,11 @@ class Manager(object):
         subcommand=self.add_subcommand('init',init)
         subcommand.add_argument('project',help='The project name')
         subcommand.add_argument('-d','--directory',help='The directory where to store the project.',default='.')
-        subcommand.add_argument('-r','--readme',help='The description of the project.')
+        subcommand.add_argument('-a','--authors',help='The authors, seperated by commas, of the project.',default='Anonymous')
+        subcommand.add_argument('-e','--email',help='The contact email.',default='.')
+        subcommand.add_argument('-r','--readme',help='The description of the project.',default='')
+        subcommand.add_argument('-l','--license',help="'T'/'t' for adding a GNU GPL v3.0 LICENSE file and 'F'/'f' for not.",default='t',choices=['T','t','F','f'])
+        subcommand.add_argument('-g','--gitignore',help="'T'/'t' for adding a gitignore file and 'F'/'f' for not.",default='t',choices=['T','t','F','f'])
 
     def add(self):
         '''
@@ -72,7 +76,7 @@ class Manager(object):
         '''
         subcommand=self.add_subcommand('add',add)
         subcommand.add_argument('engine',help='The engine to be added to the project.',choices=['tba','ed','vca','dmrg'])
-        subcommand.add_argument('-s','--system',help="'spin' for spin systems and 'fermi' for fermionic systems.",choices=['spin','fermi'])
+        subcommand.add_argument('-s','--system',help="'spin' for spin systems and 'fermi' for fermionic systems.",default='fermi',choices=['spin','fermi'])
 
     def execute(self):
         '''
@@ -94,7 +98,7 @@ class Manager(object):
         except:
             return False
 
-def init(directory,project,readme=None):
+def init(directory,project,authors,email,readme,license,gitignore):
     '''
     Initialize a project.
 
@@ -104,8 +108,16 @@ def init(directory,project,readme=None):
         The directory where to store the project.
     project : str
         The project name.
-    readme : str, optional
+    authors : str
+        The authors, seperated by commas, of the project.
+    email : str
+        The contact email.
+    readme : str
         The description of the project.
+    license : 'T','t','F','f'
+        'T'/'t' for adding a GNU GPL v3.0 LICENSE file and 'F'/'f' for not.
+    gitignore : 'T','t','F','f'
+        'T'/'t' for adding a gitignore file and 'F'/'f' for not.
     '''
     pdir='%s/%s'%(directory,project)
     ddir,rdir,sdir,ldir='%s/data'%pdir,'%s/result'%pdir,'%s/source'%pdir,'%s/log'%pdir
@@ -118,6 +130,28 @@ def init(directory,project,readme=None):
         if readme:
             fout.write(readme)
             fout.write('\n')
+        if authors!='Anonymous':
+            fout.write('\nAuthors\n')
+            fout.write('-------\n')
+            fout.write('\n'.join('* %s'%author.lstrip() for author in authors.split(',')))
+            fout.write('\n')
+        if email:
+            fout.write('\nContact\n')
+            fout.write('-------\n')
+            fout.write('%s\n'%email)
+            fout.write('\n')
+    if license.upper()=='T':
+        with open('%s/LICENSE'%pdir,'w') as fout:
+            for line in Template.license(authors):
+                if line is not None:
+                    fout.write(line)
+                    fout.write('\n')
+    if gitignore.upper()=='T':
+        with open('%s/.gitignore'%pdir,'w') as fout:
+            for line in Template.gitignore():
+                if line is not None:
+                    fout.write(line)
+                    fout.write('\n')
     with open('%s/manager.py'%pdir,'w') as fout:
         for line in Template.manager():
             if line is not None:
@@ -132,7 +166,7 @@ def init(directory,project,readme=None):
         fout.write('from config import *')
         fout.write('\n')
 
-def add(engine,system='fermi'):
+def add(engine,system):
     '''
     Add an engine to a project.
 
