@@ -15,7 +15,6 @@ def test_spin_deg_fre():
     test_spin()
     test_spin_matrix()
     test_spin_pack()
-    test_degfretree()
 
 def test_sid():
     print 'test_sid'
@@ -52,33 +51,4 @@ def test_spin_pack():
     print 'b*2: %s'%(b*2)
     print '2*b: %s'%(2*b)
     print 'S("WG",random.random((2,2))): %s'%S("WG",random.random((2,2)))
-    print
-
-def test_degfretree():
-    print 'test_degfretree'
-    config=IDFConfig(priority=DEGFRE_SPIN_PRIORITY)
-    for site in xrange(4):
-        config[PID(scope=1,site=site)]=Spin(S=0.5)
-        config[PID(scope=2,site=site)]=Spin(S=0.5)
-
-    layers=DEGFRE_SPIN_LAYERS
-    priority=DEGFRE_SPIN_PRIORITY
-    leaves=config.table(mask=[]).keys()
-
-    map_nb=lambda index: 2
-    tree=DegFreTree(mode='NB',layers=layers,priority=priority,leaves=leaves,map=map_nb)
-    for layer in layers:
-        print 'layer:',layer
-        for i,index in enumerate(tree.indices(layer)):
-            print i,index,tree[index]
-        print
-
-    map_qn=lambda index: SQNS(0.5)
-    tree=DegFreTree(mode='QN',layers=layers,priority=priority,leaves=leaves,map=map_qn)
-    for layer in layers:
-        print 'layer:',layer
-        for i,index in enumerate(tree.indices(layer)):
-            print 'i,index,len(tree[index]): %s, %s, %s'%(i,index,len(tree[index]))
-            print 'tree[index]: %s'%tree[index]
-        print
     print

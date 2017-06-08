@@ -72,6 +72,7 @@ class Manager(object):
         '''
         subcommand=self.add_subcommand('add',add)
         subcommand.add_argument('engine',help='The engine to be added to the project.',choices=['tba','ed','vca','dmrg'])
+        subcommand.add_argument('-s','--system',help="'spin' for spin systems and 'fermi' for fermionic systems.",choices=['spin','fermi'])
 
     def execute(self):
         '''
@@ -119,17 +120,19 @@ def init(directory,project,readme=None):
             fout.write('\n')
     with open('%s/manager.py'%pdir,'w') as fout:
         for line in Template.manager():
-            fout.write(line)
-            fout.write('\n')
+            if line is not None:
+                fout.write(line)
+                fout.write('\n')
     with open('%s/config.py'%sdir,'w') as fout:
         for line in Template.config():
-            fout.write(line)
-            fout.write('\n')
+            if line is not None:
+                fout.write(line)
+                fout.write('\n')
     with open('%s/__init__.py'%sdir,'w') as fout:
         fout.write('from config import *')
         fout.write('\n')
 
-def add(engine):
+def add(engine,system='fermi'):
     '''
     Add an engine to a project.
 
@@ -137,16 +140,22 @@ def add(engine):
     ----------
     engine : 'tba','ed','vca','dmrg'
         The engine ot be added.
+    system : 'spin' or 'fermi'
+        'spin' for spin systems and 'fermi' for fermionic systems.
     '''
     if Manager.has_project():
         if not os.path.exists('data/%s'%engine): os.makedirs('data/%s'%engine)
         if not os.path.exists('result/%s'%engine): os.makedirs('result/%s'%engine)
         with open('source/%s.py'%engine,'w') as fout:
-            for line in getattr(Template,engine)():
-                fout.write(line)
-                fout.write('\n')
+            for line in getattr(Template,engine)(system):
+                if line is not None:
+                    fout.write(line)
+                    fout.write('\n')
+        with open('source/__init__.py') as fin:
+            content=set(fin.readlines())
         with open('source/__init__.py','a+') as fout:
-            fout.write('from %s import *'%engine)
-            fout.write('\n')
+            line='from %s import *\n'%engine
+            if line not in content:
+                fout.write(line)
     else:
         raise ValueError('add error: No project found.')

@@ -4,11 +4,11 @@ Density matrix renormalization group
 ====================================
 
 DMRG, including:
-    * classes: Cylinder, DMRG, TSG, TSS
+    * classes: DMRG, TSG, TSS
     * function: pattern, DMRGTSG, DMRGTSS
 '''
 
-__all__=['pattern','Cylinder','DMRG','TSG','DMRGTSG','TSS','DMRGTSS']
+__all__=['pattern','DMRG','TSG','DMRGTSG','TSS','DMRGTSS']
 
 import os
 import re
@@ -46,125 +46,11 @@ def pattern(status,target,nsite,mode='re'):
     assert mode in ('re','py')
     result='%s_(%s,%s)'%(status,tuple(target) if isinstance(target,QuantumNumber) else None,nsite)
     if mode=='re':
-        ss=['(',')','[',']']
-        rs=['\(','\)','\[','\]']
+        ss=['(',')','[',']','^','+']
+        rs=['\(','\)','\[','\]','\^','\+']
         for s,r in zip(ss,rs):
             result=result.replace(s,r)
     return result
-
-class Cylinder(Lattice):
-    '''
-    The cylinder geometry of a lattice.
-
-    Attributes
-    ----------
-    block : list of 1d ndarray
-        The building block of the cylinder.
-    translation : 1d ndarray
-        The translation vector of the building block to construct the cylinder.
-    '''
-
-    def __init__(self,block,translation,**karg):
-        '''
-        Constructor.
-
-        Parameters
-        ----------
-        block : list of 1d ndarray
-            The building block of the cylinder.
-        translation : 1d ndarray
-            The translation vector of the building block to construct the cylinder.
-        '''
-        super(Cylinder,self).__init__(**karg)
-        self.block=block
-        self.translation=translation
-
-    @staticmethod
-    def from_cluster(cluster,dt,bcs,**karg):
-        '''
-        Construct a cylinder from a cluster.
-
-        Parameters
-        ----------
-        cluster : Cluster
-            The cluster to build the cylinder.
-        dt : integer
-            The direction along which the cylinder extends.
-        bcs : str
-            The boundary conditions of the cylinder.
-
-        Notes
-        -----
-        The boundary condition along the cylinder must be open, i.e. ``bcs[dt]`` must be 'O' or 'o'.
-        '''
-        assert len(bcs)==len(cluster.vectors) and bcs[dt].upper()=='O'
-        return Cylinder(
-                name=           '%s(%s)'%(cluster.name,'-'.join('%s%s'%('+' if i==dt else 1,bc.upper()) for i,bc in enumerate(bcs))),
-                block=          cluster.rcoords,
-                translation=    cluster.vectors[dt],
-                vectors=        cluster.vectors[[i for i,bc in enumerate(bcs) if bc.upper()=='P']],
-                **karg
-                )
-
-    def insert(self,A,B,news=None):
-        '''
-        Insert two blocks into the center of the cylinder.
-
-        Parameters
-        ----------
-        A,B : any hashable object
-            The scopes of the insert block points.
-        news : list of any hashable object, optional
-            The new scopes for the points of the cylinder before the insertion.
-            If None, the old scopes remain unchanged.
-        '''
-        if len(self)==0:
-            aps=[Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
-            bps=[Point(PID(scope=B,site=i),rcoord=rcoord+self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
-            ass,bss=[],[]
-        else:
-            if news is not None:
-                assert len(news)*len(self.block)==len(self)
-                for i,scope in enumerate(news):
-                    for j in xrange(len(self.block)):
-                        self.points[i*len(self.block)+j].pid=self.points[i*len(self.block)+j].pid._replace(scope=scope)
-            aps,bps=self.points[:len(self)/2],self.points[len(self)/2:]
-            for ap,bp in zip(aps,bps):
-                ap.rcoord-=self.translation
-                bp.rcoord+=self.translation
-            ass=[Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
-            bss=[Point(PID(scope=B,site=i),rcoord=rcoord+self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
-        self.points=aps+ass+bss+bps
-        links,mindists=intralinks(
-                mode=                   'nb',
-                cluster=                np.asarray([p.rcoord for p in self.points]),
-                indices=                None,
-                vectors=                self.vectors,
-                nneighbour=             self.nneighbour,
-                max_coordinate_number=  self.max_coordinate_number,
-                return_mindists=        True
-                )
-        self.links=links
-        self.mindists=mindists
-
-    def __call__(self,scopes):
-        '''
-        Construct a cylinder with the assigned scopes.
-
-        Parameters
-        ----------
-        scopes : list of hashable object
-            The scopes of the cylinder.
-
-        Returns
-        -------
-        Lattice
-            The constructed cylinder.
-        '''
-        points,num=[],len(scopes)
-        for i,rcoord in enumerate(tiling(self.block,[self.translation],np.linspace(-(num-1)/2.0,(num-1)/2.0,num) if num>1 else xrange(1))):
-            points.append(Point(PID(scope=scopes[i/len(self.block)],site=i%len(self.block)),rcoord=rcoord,icoord=np.zeros_like(rcoord)))
-        return Lattice.compose(name=self.name.replace('+',str(num)),points=points,vectors=self.vectors,nneighbour=self.nneighbour)
 
 class DMRG(Engine):
     '''
@@ -764,13 +650,11 @@ class TSG(App):
         The number of presweeps to make a random mps converged to the target state.
     nsweep : integer
         The number of sweeps to make the predicted mps converged to the target state.
-    terminate : logical
-        True for terminate the growing process if converged target state energy has been obtained, False for not.
     tol : float64
         The tolerance of the target state energy.
     '''
 
-    def __init__(self,targets,nspb,nmax,npresweep=10,nsweep=4,terminate=False,tol=10**-6,**karg):
+    def __init__(self,targets,nspb,nmax,npresweep=10,nsweep=4,tol=10**-6,**karg):
         '''
         Constructor.
 
@@ -786,8 +670,6 @@ class TSG(App):
             The number of presweeps to make a random mps converged to the target state.
         nsweep : integer, optional
             The number of sweeps to make the predicted mps converged to the target state.
-        terminate : logical, optional
-            True for terminate the growing process if converged target state energy has been obtained, False for not.
         tol : float64, optional
             The tolerance of the target state energy.
         '''
@@ -796,7 +678,6 @@ class TSG(App):
         self.nmax=nmax
         self.npresweep=npresweep
         self.nsweep=nsweep
-        self.terminate=terminate
         self.tol=tol
 
     def recover(self,engine):
@@ -838,7 +719,6 @@ def DMRGTSG(engine,app):
         pos,nold,nnew=i+num+1,engine.mps.nsite,engine.mps.nsite+2*app.nspb
         engine.insert(scopes[pos],scopes[-pos-1],news=scopes[:pos]+scopes[-pos:] if pos>0 else None,target=target)
         assert nnew==engine.mps.nsite
-        geold=engine.info['Esite']
         engine.iterate(info='(++)',sp=True if pos>0 else False,nmax=app.nmax,piechart=app.plot)
         for sweep in xrange(app.npresweep if pos==0 else app.nsweep):
             path=it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2))
@@ -847,8 +727,6 @@ def DMRGTSG(engine,app):
             senew=engine.info['Esite']
             if norm(seold-senew)/norm(seold+senew)<app.tol: break
         if app.nspb>1 and pos==0 and app.save_data: engine.coredump()
-        genew=engine.info['Esite']
-        if app.terminate and geold is not None and norm(geold-genew)/norm(geold+genew)<app.tol: break
     if app.plot and app.save_fig:
         plt.savefig('%s/%s_.png'%(engine.din,engine.status))
         plt.close()

@@ -13,9 +13,9 @@ import numpy as np
 import itertools as it
 from numpy.linalg import norm
 from collections import OrderedDict
-from HamiltonianPy import Label,QuantumNumbers,Operator,FOperator,SOperator,JWBosonization
+from HamiltonianPy import QuantumNumbers,Operator,FOperator,SOperator,JWBosonization
 from HamiltonianPy.Misc import TOL,Arithmetic
-from Tensor import Tensor,contract
+from Tensor import Label,Tensor,contract
 from MPS import MPS
 from copy import copy
 

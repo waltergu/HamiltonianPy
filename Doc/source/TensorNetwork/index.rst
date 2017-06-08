@@ -8,6 +8,9 @@ TensorNetwork
 .. automodule:: HamiltonianPy.TensorNetwork.Tensor
    :members:
 
+.. automodule:: HamiltonianPy.TensorNetwork.DegFreTree
+   :members:
+
 .. automodule:: HamiltonianPy.TensorNetwork.MPS
    :members:
 

@@ -11,7 +11,7 @@ __all__=['MPS','Vidal']
 
 import numpy as np
 from numpy.linalg import norm
-from HamiltonianPy import Label,Status
+from HamiltonianPy import Status
 from HamiltonianPy import QuantumNumber as QN
 from HamiltonianPy import QuantumNumbers as QNS
 from ..Misc import TOL,Arithmetic

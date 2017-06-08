@@ -102,14 +102,18 @@ class QuantumNumber(np.ndarray):
         '''
         Convert an instance to string.
         '''
+        return ''.join(['QN(',','.join(['%s']*len(self)),')'])%tuple(self)
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
         temp=[]
         for name,value,period in zip(self.__class__.names,self,self.__class__.periods):
             temp.append(name)
             temp.append(value)
             temp.append('U1' if period is None else 'Z%s'%(period))
         return ''.join(['QN','(',','.join(['%s=%r(%s)']*len(self)),')'])%tuple(temp)
-
-    __str__=__repr__
 
     @classmethod
     def zero(cls):

@@ -10,7 +10,7 @@ Lattice pack, including:
 
 __all__=['Cluster','Square','Hexagon','Triangle','Kagome']
 
-from ..Geometry import Lattice,tiling
+from ..Geometry import Lattice,Cylinder,tiling
 from numpy import asarray,array,sqrt
 import itertools as it
 import re
@@ -46,6 +46,27 @@ class Cluster(object):
         self.rcoords=asarray(rcoords)
         self.vectors=asarray(vectors)
 
+    def tiling(self,ts):
+        '''
+        Construct a new cluster by tiling.
+
+        Parameters
+        ----------
+        ts : tuple of integer
+            The translation and boundary conditions.
+
+        Returns
+        -------
+        Cluster
+            The new cluster after the tiling.
+        '''
+        assert len(ts)==len(self.vectors)
+        return Cluster(
+                name=       '%s^%s'%(self.name,'-'.join(str(t) for t in ts)),
+                rcoords=    tiling(cluster=self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts])),
+                vectors=    [self.vectors[i]*t for i,t in enumerate(ts)]
+                )
+
     def __call__(self,tbs=None,nneighbour=1):
         '''
         Construct a lattice acoording the translation and boundary conditions.
@@ -72,25 +93,37 @@ class Cluster(object):
                 nneighbour= nneighbour
                 )
 
-    def tiling(self,ts):
+    def cylinder(self,dt,tbs=None,nneighbour=1):
         '''
-        Construct a new cluster by tiling.
+        Construct a cylinder acoording the extension direction and the translation and boundary conditions.
 
         Parameters
         ----------
-        ts : tuple of integer
+        dt : integer
+            The direction along which the cylinder extends.
+        tbs : str, optional
             The translation and boundary conditions.
+        nneighbour : integer, optional
+            The highest order of the neighbours.
 
         Returns
         -------
-        Cluster
-            The new cluster after the tiling.
+        Cylinder
+            The constructed cylinder.
+
+        Notes
+        -----
+        The boundary along the cylinder must be open.
         '''
-        assert len(ts)==len(self.vectors)
-        return Cluster(
-                name=       '%s^%s'%(self.name,'-'.join(str(t) for t in ts)),
-                rcoords=    tiling(cluster=self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts])),
-                vectors=    [self.vectors[i]*t for i,t in enumerate(ts)]
+        tbs=tbs or '-'.join(['1O']*len(self.vectors))
+        ts,bcs=re.findall('\d+',tbs),re.findall('[P,p,O,o]',tbs)
+        assert len(ts)==len(self.vectors) and len(bcs)==len(self.vectors) and bcs[dt].upper()=='O'
+        return Cylinder(
+                name=           '%s^%s(%s)'%(self.name,'-'.join(ts),'-'.join('%s%s'%('+' if i==dt else 1,bc.upper()) for i,bc in enumerate(bcs))),
+                block=          tiling(self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts])),
+                translation=    self.vectors[dt]*int(ts[dt]),
+                vectors=        [self.vectors[i]*int(t) for i,(t,bc) in enumerate(zip(ts,bcs)) if bc.upper()=='P'],
+                nneighbour=     nneighbour
                 )
 
 def Square(name):

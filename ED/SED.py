@@ -19,13 +19,13 @@ class SED(ED):
 
     Attributes
     ----------
-    degfres : DegFreTree
-        The physical degrees of freedom tree.
+    qnses : QNSConfig
+        The configuration of the quantum numbers.
     target : QuantumNumber
         The target space of the SED.
     '''
 
-    def __init__(self,lattice,config,degfres,terms=[],target=None,dtype=np.complex128,**karg):
+    def __init__(self,lattice,config,qnses,terms=[],target=None,dtype=np.complex128,**karg):
         '''
         Constructor.
 
@@ -35,6 +35,8 @@ class SED(ED):
             The lattice of the system.
         config : IDFConfig
             The configuration of the internal degrees of freedom on the lattice.
+        qnses : QNSConfig
+            The configuration of the quantum numbers.
         terms : list of Term, optional
             The terms of the system.
         target : QuantumNumber, optional
@@ -42,10 +44,10 @@ class SED(ED):
         dtype : np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
         '''
-        assert config.priority==degfres.priority
+        assert config.priority==qnses.priority
         self.lattice=lattice
         self.config=config
-        self.degfres=degfres
+        self.qnses=qnses
         self.terms=terms
         self.target=target
         self.dtype=dtype
@@ -63,7 +65,7 @@ class SED(ED):
             for operator in self.operators.itervalues():
                 self.matrix+=HP.soptrep(operator,table)
         else:
-            cut,qnses=len(table)/2,[self.degfres[index] for index in sorted(table,key=table.get)]
+            cut,qnses=len(table)/2,[self.qnses[index] for index in sorted(table,key=table.get)]
             lqns,lpermutation=HP.QuantumNumbers.kron(qnses[:cut]).sort(history=True)
             rqns,rpermutation=HP.QuantumNumbers.kron(qnses[cut:]).sort(history=True)
             subslice=HP.QuantumNumbers.kron([lqns,rqns]).subslice(targets=(self.target,))

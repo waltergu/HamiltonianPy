@@ -5,10 +5,10 @@ Lattice construction
 
 This module provides enormous functions and classes to construct a lattice, including
     * functions: azimuthd, azimuth, polard, polar, volume, isparallel, issubordinate, reciprocals, translation, rotation, tiling, intralinks, interlinks
-    * classes: PID, Point, Bond, Link, Lattice, SuperLattice
+    * classes: PID, Point, Bond, Link, Lattice, SuperLattice, Cylinder
 '''
 
-__all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'isparallel', 'issubordinate', 'reciprocals', 'translation', 'rotation', 'tiling', 'intralinks', 'interlinks', 'PID', 'Point', 'Bond', 'Link', 'Lattice', 'SuperLattice']
+__all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'isparallel', 'issubordinate', 'reciprocals', 'translation', 'rotation', 'tiling', 'intralinks', 'interlinks', 'PID', 'Point', 'Bond', 'Link', 'Lattice', 'SuperLattice','Cylinder']
 
 from Constant import RZERO
 from collections import namedtuple,OrderedDict,Iterable
@@ -997,3 +997,90 @@ class SuperLattice(Lattice):
         for n in set(xrange(len(self.sublattices)))-set(self._merge_):
             result.extend(self.sublattices[n].bonds)
         return result
+
+class Cylinder(Lattice):
+    '''
+    The cylinder geometry of a lattice.
+
+    Attributes
+    ----------
+    block : list of 1d ndarray
+        The building block of the cylinder.
+    translation : 1d ndarray
+        The translation vector of the building block to construct the cylinder.
+    '''
+
+    def __init__(self,block,translation,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        block : list of 1d ndarray
+            The building block of the cylinder.
+        translation : 1d ndarray
+            The translation vector of the building block to construct the cylinder.
+        '''
+        super(Cylinder,self).__init__(**karg)
+        self.block=block
+        self.translation=translation
+
+    def insert(self,A,B,news=None):
+        '''
+        Insert two blocks into the center of the cylinder.
+
+        Parameters
+        ----------
+        A,B : any hashable object
+            The scopes of the insert block points.
+        news : list of any hashable object, optional
+            The new scopes for the points of the cylinder before the insertion.
+            If None, the old scopes remain unchanged.
+        '''
+        if len(self)==0:
+            aps=[Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
+            bps=[Point(PID(scope=B,site=i),rcoord=rcoord+self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
+            ass,bss=[],[]
+        else:
+            if news is not None:
+                assert len(news)*len(self.block)==len(self)
+                for i,scope in enumerate(news):
+                    for j in xrange(len(self.block)):
+                        self.points[i*len(self.block)+j].pid=self.points[i*len(self.block)+j].pid._replace(scope=scope)
+            aps,bps=self.points[:len(self)/2],self.points[len(self)/2:]
+            for ap,bp in zip(aps,bps):
+                ap.rcoord-=self.translation
+                bp.rcoord+=self.translation
+            ass=[Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
+            bss=[Point(PID(scope=B,site=i),rcoord=rcoord+self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
+        self.points=aps+ass+bss+bps
+        links,mindists=intralinks(
+                mode=                   'nb',
+                cluster=                np.asarray([p.rcoord for p in self.points]),
+                indices=                None,
+                vectors=                self.vectors,
+                nneighbour=             self.nneighbour,
+                max_coordinate_number=  self.max_coordinate_number,
+                return_mindists=        True
+                )
+        self.links=links
+        self.mindists=mindists
+
+    def __call__(self,scopes):
+        '''
+        Construct a cylinder with the assigned scopes.
+
+        Parameters
+        ----------
+        scopes : list of hashable object
+            The scopes of the cylinder.
+
+        Returns
+        -------
+        Lattice
+            The constructed cylinder.
+        '''
+        points,num=[],len(scopes)
+        for i,rcoord in enumerate(tiling(self.block,[self.translation],np.linspace(-(num-1)/2.0,(num-1)/2.0,num) if num>1 else xrange(1))):
+            points.append(Point(PID(scope=scopes[i/len(self.block)],site=i%len(self.block)),rcoord=rcoord,icoord=np.zeros_like(rcoord)))
+        return Lattice.compose(name=self.name.replace('+',str(num)),points=points,vectors=self.vectors,nneighbour=self.nneighbour)

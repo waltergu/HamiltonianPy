@@ -4,12 +4,12 @@ Fermionic degrees of freedom
 ----------------------------
 
 Fermionic degree of freedom package, including:
-    * constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY, DEGFRE_FERMIONIC_PRIORITY, DEGFRE_FERMIONIC_LAYERS
+    * constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY
     * classes: FID, Fermi, FermiPack
     * functions: sigma0, sigmax, sigmay, sigmaz
 '''
 
-__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','DEGFRE_FERMIONIC_PRIORITY','DEGFRE_FERMIONIC_LAYERS','FID','Fermi','FermiPack','sigma0','sigmax','sigmay','sigmaz']
+__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','FermiPack','sigma0','sigmax','sigmay','sigmaz']
 
 from numpy import *
 from numpy.linalg import norm

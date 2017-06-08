@@ -30,6 +30,20 @@ class Term(Arithmetic,object):
     '''
 
     def __init__(self,id,mode,value,modulate=None):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        id : string
+            The specific id of the term.
+        mode : string
+            The type of the term.
+        value : scalar of 1D array-like of float, complex
+            The overall coefficient(s) of the term.
+        modulate : function, optional
+            A function used to alter the value of the term.
+        '''
         self.id=id
         self.mode=mode
         self.value=value
@@ -48,7 +62,16 @@ class Term(Arithmetic,object):
             if hasattr(self,'modulate'):
                 result.modulate=lambda *arg,**karg: self.modulate(*arg,**karg)*other if self.modulate(*arg,**karg) is not None else None
         return result
- 
+
+    def replace(self,**karg):
+        '''
+        Replace 
+        '''
+        result=copy(self)
+        assert all(key in self.__dict__ for key in karg)
+        result.__dict__.update(**karg)
+        return result
+
 class Terms(Arithmetic,list):
     '''
     This class packs several instances of Term's subclasses as a whole for convenience.
