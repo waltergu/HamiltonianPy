@@ -24,6 +24,8 @@ class Engine(object):
 
     Attributes
     ----------
+    dlog : string
+        The directory where the program records the logs.
     din : string
         The directory where the program reads data.
     dout : string
@@ -52,7 +54,7 @@ class Engine(object):
         This method automatically initialize the attributes of an Engine instance.
         '''
         result=object.__new__(cls)
-        dirs={'din':'.','dout':'.'}
+        dirs={'dlog':'.','din':'.','dout':'.'}
         for key,value in dirs.items():
             setattr(result,key,karg.get(key,value))
             if not os.path.exists(getattr(result,key)):
