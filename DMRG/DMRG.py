@@ -728,7 +728,7 @@ def DMRGTSG(engine,app):
             if norm(seold-senew)/norm(seold+senew)<app.tol: break
         if app.nspb>1 and pos==0 and app.save_data: engine.coredump()
     if app.plot and app.save_fig:
-        plt.savefig('%s/%s_.png'%(engine.dlog,engine.status))
+        plt.savefig('%s/%s_%s.png'%(engine.dlog,engine.status,repr(engine.target)))
         plt.close()
     if app.save_data: engine.coredump()
     engine.log.close()
@@ -829,6 +829,6 @@ def DMRGTSS(engine,app):
         engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,piechart=app.plot)
         if app.save_data: engine.coredump()
     if app.plot and app.save_fig:
-        plt.savefig('%s/%s_.png'%(engine.dlog,engine.status))
+        plt.savefig('%s/%s_%s.png'%(engine.dlog,engine.status,repr(engine.target)))
         plt.close()
     engine.log.close()
