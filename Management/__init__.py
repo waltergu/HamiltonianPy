@@ -178,6 +178,7 @@ def add(engine,system):
         'spin' for spin systems and 'fermi' for fermionic systems.
     '''
     if Manager.has_project():
+        if not os.path.exists('log/%s'%engine): os.makedirs('log/%s'%engine)
         if not os.path.exists('data/%s'%engine): os.makedirs('data/%s'%engine)
         if not os.path.exists('result/%s'%engine): os.makedirs('result/%s'%engine)
         with open('source/%s.py'%engine,'w') as fout:

@@ -78,10 +78,10 @@ def tba(system):
             "    assert len(parameters)==len(terms)",
             "    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=idfmap)",
             "    tba=TBA.TBA(",
-            "        dlog=       'log',",
+            "        dlog=       'log/tba',",
             "        din=        'data/tba',",
             "        dout=       'result/tba',",
-            "        log=        Log('%s_%s_%s_TBA.log'%(name,lattice.name,parameters)),",
+            "        log=        '%s_%s_%s_TBA.log'%(name,lattice.name,parameters),",
             "        name=       '%s_%s'%(name,lattice.name),",
             "        lattice=    lattice,",
             "        config=     config,",
@@ -91,6 +91,7 @@ def tba(system):
             "    # edit tasks",
             "    tba.register()",
             "    tba.summary()",
+            "    return tba",
             ]
 
 def ed(system):
@@ -107,10 +108,10 @@ def ed(system):
             "    config=IDFConfig(priority=DEFAULT_%s_PRIORITY,pids=lattice.pids,map=idfmap)"%('SPIN' if system=='spin' else 'FERMIONIC'),
             "    qnses=QNSConfig(indices=config.table().keys(),priority='DEFAULT_SPIN_PRIORITY',map=qnsmap)" if system=='spin' else None,
             "    ed=ED.%s("%('SED' if system=='spin' else 'FED'),
-            "        dlog=       'log',",
+            "        dlog=       'log/ed',",
             "        din=        'data/ed',",
             "        dout=       'result/ed',",
-            "        log=        %s%s%s"%("Log('%s_%s_%s_%s_ED.log'%(name,lattice.name,",'repr(target)' if system=='spin' else 'basis.rep',',parameters)),'),
+            "        log=        %s%s%s"%("'%s_%s_%s_%s_ED.log'%(name,lattice.name,",'repr(target)' if system=='spin' else 'basis.rep',',parameters),'),
             "        name=       %s%s%s"%("'%s_%s_%s'%(name,lattice.name,",'repr(target)' if system=='spin' else 'basis.rep','),'),
             "        %s"%('qnses=      qnses,' if system=='spin' else 'basis=      basis,'),
             "        lattice=    lattice,",
@@ -122,6 +123,7 @@ def ed(system):
             "    # edit tasks",
             "    ed.register()",
             "    ed.summary()",
+            "    return ed",
             ]
 
 def vca(system):
@@ -139,10 +141,10 @@ def vca(system):
             "    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=idfmap)",
             "    cgf=ED.FGF(operators=fspoperators(config.table(),lattice),nstep=150,prepare=ED.EDGFP,run=ED.EDGF)",
             "    vca=VCA.VCA(",
-            "        dlog=       'log',",
+            "        dlog=       'log/vca',",
             "        din=        'data/vca',",
             "        dout=       'result/vca',",
-            "        log=        Log('%s_%s_%s_%s_VCA.log'%(name,lattice.name,basis.rep,parameters)),",
+            "        log=        '%s_%s_%s_%s_VCA.log'%(name,lattice.name,basis.rep,parameters),",
             "        cgf=        cgf,",
             "        name=       '%s_%s_%s'%(name,lattice.name,basis.rep),",
             "        basis=      basis,",
@@ -157,6 +159,7 @@ def vca(system):
             "    # edit tasks",
             "    vca.register()",
             "    vca.summary()",
+            "    return vca"
             ]
 
 def dmrg(system):
@@ -173,10 +176,10 @@ def dmrg(system):
             "    assert len(parameters)==len(terms)",
             "    priority,layers,mask=DEGFRE_%s_PRIORITY,DEGFRE_%s_LAYERS,[%s]"%(('SPIN','SPIN','') if system=='spin' else ('FERMIONIC','FERMIONIC',"'nambu'")),
             "    dmrg=DMRG.DMRG(",
-            "        dlog=       'log',",
+            "        dlog=       'log/dmrg',",
             "        din=        'data/dmrg',",
             "        dout=       'result/dmrg',",
-            "        log=        Log('%s_%s_%s_%s.log'%(name,lattice.name.replace('+',str(2*len(targets))),parameters,repr(targets[-1]))),",
+            "        log=        '%s_%s_%s_%s_DMRG.log'%(name,lattice.name.replace('+',str(2*len(targets))),parameters,repr(targets[-1])),",
             "        name=       '%s_%s'%(name,lattice.name),",
             "        mps=        MPS(mode='NB' if targets[-1] is None else 'QN'),",
             "        lattice=    lattice,",
@@ -198,4 +201,5 @@ def dmrg(system):
             "    else:",
             "        raise ValueError('dmrgconstruct error: not supported core %s.'%core)",
             "    dmrg.summary()",
+            "    return dmrg"
             ]

@@ -62,7 +62,7 @@ class Engine(object):
         result.status=Status(name=karg.get('name',''),info=cls.__name__)
         result.status.update(const=karg.get('parameters',None))
         result.clock=Timers()
-        result.log=Log() if Engine.DEBUG else karg.get('log',Log())
+        result.log=Log() if Engine.DEBUG else Log(name=karg.get('log',None),dir=result.dlog,mode='a+')
         result.preloads=karg.get('preloads',[])
         result.apps={}
         return result

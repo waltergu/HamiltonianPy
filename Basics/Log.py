@@ -354,6 +354,8 @@ class Log(object):
     ----------
     name : string
         The name of the log file.
+    dir : string
+        The directory where to store the log file.
     mode : 'w','w+','a+'
         The mode of the log file.
     fout : file
@@ -364,15 +366,17 @@ class Log(object):
     When the log file is the stdout, the attribute `name` is set to be None.
     '''
 
-    def __init__(self,name=None,mode='a+'):
+    def __init__(self,name=None,dir=None,mode='a+'):
         '''
         Constructor.
 
         Parameters
         ----------
-        name : string
+        name : string, optional
             The name of the log file.
-        mode : 'w','w+','a+'
+        dir : string, optional
+            The directory where to store the log file.
+        mode : 'w','w+','a+', optional
             The mode of the log file.
 
         Notes
@@ -380,6 +384,7 @@ class Log(object):
         When the log file is the stdout, the parameter `name` is set to be None.
         '''
         self.name=name
+        self.dir=dir
         self.mode=mode
         self.fout=None
 
@@ -399,7 +404,7 @@ class Log(object):
             if self.name is None:
                 self.fout=sys.stdout
             else:
-                self.fout=open(self.name,self.mode)
+                self.fout=open('%s/%s'%(self.dir,self.name),self.mode)
 
     def close(self):
         '''
