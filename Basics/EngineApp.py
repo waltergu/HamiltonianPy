@@ -59,7 +59,7 @@ class Engine(object):
             setattr(result,key,karg.get(key,value))
             if not os.path.exists(getattr(result,key)):
                 os.makedirs(getattr(result,key))
-        result.status=Status(name=karg.get('name',''),info=cls.__name__)
+        result.status=Status(name=karg.get('name',''),info=cls.__name__,view=karg.get('view',None))
         result.status.update(const=karg.get('parameters',None))
         result.clock=Timers()
         result.log=Log() if Engine.DEBUG else Log(name=karg.get('log',None),dir=result.dlog,mode='a+')

@@ -44,7 +44,7 @@ def pattern(status,target,nsite,mode='re'):
         The pattern.
     '''
     assert mode in ('re','py')
-    result='%s_(%s,%s)'%(status,tuple(target) if isinstance(target,QuantumNumber) else None,nsite)
+    result='%s_%s_%s'%(status,tuple(target) if isinstance(target,QuantumNumber) else None,nsite)
     if mode=='re':
         ss=['(',')','[',']','^','+']
         rs=['\(','\)','\[','\]','\^','\+']
@@ -289,6 +289,16 @@ class DMRG(Engine):
                 self.set_HL_(pos,job='contract',tol=tol)
             for pos in xrange(SR,ER-1,-1):
                 self.set_HR_(pos,job='contract',tol=tol)
+
+    @property
+    def nspb(self):
+        '''
+        The number of site labels per block.
+        '''
+        config,degfres=deepcopy(self.config),deepcopy(self.degfres)
+        config.reset(pids=self.lattice(['__DMRG_NSPB__']).pids)
+        degfres.reset(leaves=config.table(mask=self.mask).keys())
+        return len(degfres.indices())
 
     def reset(self,lattice,mps):
         '''
@@ -642,8 +652,6 @@ class TSG(App):
     ----------
     targets : sequence of QuantumNumber
         The target space at each growth of the DMRG.
-    nspb : integer
-        The number of sites per block of the dmrg.
     nmax : integer
         The maximum singular values to be kept.
     npresweep : integer
@@ -654,7 +662,7 @@ class TSG(App):
         The tolerance of the target state energy.
     '''
 
-    def __init__(self,targets,nspb,nmax,npresweep=10,nsweep=4,tol=10**-6,**karg):
+    def __init__(self,targets,nmax,npresweep=10,nsweep=4,tol=10**-6,**karg):
         '''
         Constructor.
 
@@ -662,8 +670,6 @@ class TSG(App):
         ----------
         targets : sequence of QuantumNumber
             The target space at each growth of the DMRG.
-        nspb : integer
-            The number of sites per block of the dmrg.
         nmax : integer
             The maximum number of singular values to be kept.
         npresweep : integer, optional
@@ -674,7 +680,6 @@ class TSG(App):
             The tolerance of the target state energy.
         '''
         self.targets=targets
-        self.nspb=nspb
         self.nmax=nmax
         self.npresweep=npresweep
         self.nsweep=nsweep
@@ -695,7 +700,7 @@ class TSG(App):
             The recover code.
         '''
         for i,target in enumerate(reversed(self.targets)):
-            core=DMRG.coreload(din=engine.din,pattern=pattern(engine.status,target,(len(self.targets)-i)*self.nspb*2,mode='re'),nmax=self.nmax)
+            core=DMRG.coreload(din=engine.din,pattern=pattern(engine.status,target,(len(self.targets)-i)*engine.nspb*2,mode='re'),nmax=self.nmax)
             if core:
                 for key,value in core.iteritems():
                     setattr(engine,key,value)
@@ -714,9 +719,9 @@ def DMRGTSG(engine,app):
     '''
     engine.log.open()
     num=app.recover(engine)
-    scopes=range(len(app.targets)*2)
+    scopes,nspb=range(len(app.targets)*2),engine.nspb
     for i,target in enumerate(app.targets[num+1:]):
-        pos,nold,nnew=i+num+1,engine.mps.nsite,engine.mps.nsite+2*app.nspb
+        pos,nold,nnew=i+num+1,engine.mps.nsite,engine.mps.nsite+2*nspb
         engine.insert(scopes[pos],scopes[-pos-1],news=scopes[:pos]+scopes[-pos:] if pos>0 else None,target=target)
         assert nnew==engine.mps.nsite
         engine.iterate(info='(++)',sp=True if pos>0 else False,nmax=app.nmax,piechart=app.plot)
@@ -726,7 +731,7 @@ def DMRGTSG(engine,app):
             engine.sweep(info=' No.%s'%(sweep+1),path=path,nmax=app.nmax,piechart=app.plot)
             senew=engine.info['Esite']
             if norm(seold-senew)/norm(seold+senew)<app.tol: break
-        if app.nspb>1 and pos==0 and app.save_data: engine.coredump()
+        if nspb>1 and pos==0 and app.save_data: engine.coredump()
     if app.plot and app.save_fig:
         plt.savefig('%s/%s_%s.png'%(engine.dlog,engine.status,repr(engine.target)))
         plt.close()

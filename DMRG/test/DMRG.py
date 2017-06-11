@@ -52,11 +52,11 @@ def dmrg_spin(mode,spin,N,J,qnon=True,matvec='lo'):
         )
     targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GTOWTH',targets=targets,nspb=1,nmax=200,save_data=False,run=DMRGTSG)
+        tsg=TSG(name='GTOWTH',targets=targets,nmax=200,save_data=False,run=DMRGTSG)
         dmrg.register(tsg)
     else:
-        tsg=TSG(name='GTOWTH',targets=targets,nspb=1,nmax=200,save_data=False,plot=False,run=DMRGTSG)
-        tss=TSS(name='SWEEP',target=targets[-1],nsite=N,nmaxs=[200,200],dependences=[tsg],save_data=False,run=DMRGTSS)
+        tsg=TSG(name='GTOWTH',targets=targets,nmax=200,save_data=False,plot=False,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*dmrg.nspb,nmaxs=[200,200],dependences=[tsg],save_data=False,run=DMRGTSS)
         dmrg.register(tss)
     dmrg.summary()
     print
@@ -79,11 +79,11 @@ def dmrg_spinless_fermion(mode,N,t,qnon=True,matvec='lo'):
         )
     targets=[PQN(num) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GTOWTH',targets=targets,nspb=1,nmax=200,save_data=False,run=DMRGTSG)
+        tsg=TSG(name='GTOWTH',targets=targets,nmax=200,save_data=False,run=DMRGTSG)
         dmrg.register(tsg)
     else:
-        tsg=TSG(name='GTOWTH',targets=targets,nmax=200,nspb=1,save_data=False,plot=False,run=DMRGTSG)
-        tss=TSS(name='SWEEP',target=targets[-1],nsite=N,nmaxs=[200,200],dependences=[tsg],save_data=False,run=DMRGTSS)
+        tsg=TSG(name='GTOWTH',targets=targets,nmax=200,save_data=False,plot=False,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*dmrg.nspb,nmaxs=[200,200],dependences=[tsg],save_data=False,run=DMRGTSS)
         dmrg.register(tss)
     dmrg.summary()
     print
@@ -106,11 +106,11 @@ def dmrg_spinful_fermion(mode,N,t,U,qnon=True,matvec='lo'):
         )
     targets=[SPQN((num*2,0.0)) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GTOWTH',targets=targets,nspb=1,nmax=200,save_data=False,run=DMRGTSG)
+        tsg=TSG(name='GTOWTH',targets=targets,nmax=200,save_data=False,run=DMRGTSG)
         dmrg.register(tsg)
     else:
-        tsg=TSG(name='GTOWTH',targets=targets,nspb=1,nmax=200,save_data=False,plot=False,run=DMRGTSG)
-        tss=TSS(name='SWEEP',target=targets[-1],nsite=N,nmaxs=[200,200],dependences=[tsg],save_data=False,run=DMRGTSS)
+        tsg=TSG(name='GTOWTH',targets=targets,nmax=200,save_data=False,plot=False,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*dmrg.nspb,nmaxs=[200,200],dependences=[tsg],save_data=False,run=DMRGTSS)
         dmrg.register(tss)
     dmrg.summary()
     print
@@ -133,11 +133,11 @@ def dmrg_honeycomb_heisenberg(mode,N,J,qnon=True,matvec='lo'):
         )
     targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GROWTH',targets=targets,nspb=4,nmax=100,save_data=False,run=DMRGTSG)
+        tsg=TSG(name='GROWTH',targets=targets,nmax=100,save_data=False,run=DMRGTSG)
         dmrg.register(tsg)
     else:
-        tsg=TSG(name='GROWTH',targets=targets,nspb=4,nmax=100,save_data=False,plot=False,run=DMRGTSG)
-        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*4,nmaxs=[100,100],dependences=[tsg],save_data=False,run=DMRGTSS)
+        tsg=TSG(name='GROWTH',targets=targets,nmax=100,save_data=False,plot=False,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*dmrg.nspb,nmaxs=[100,100],dependences=[tsg],save_data=False,run=DMRGTSS)
         dmrg.register(tss)
     dmrg.summary()
     print

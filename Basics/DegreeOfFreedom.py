@@ -35,9 +35,11 @@ class Status(object):
         The constant parameters of the object.
     _alter_ : OrderedDict
         The alterable parameters of the object.
+    view : callable
+        The string view of the data of the object.
     '''
 
-    def __init__(self,name='',info='',const=None,alter=None):
+    def __init__(self,name='',info='',const=None,alter=None,view=None):
         '''
         Constructor.
 
@@ -49,11 +51,14 @@ class Status(object):
             Additional information of the object.
         const,alter : OrderedDict, optional
             The constant/alterable parameters of the object.
+        view : callable, optional
+            The string view of the data of the object.
         '''
         self.name=name
         self.info=info
         self._const_=OrderedDict() if const is None else const
         self._alter_=OrderedDict() if alter is None else alter
+        self.view=view
         self.data=OrderedDict()
         self.data.update(self._const_)
         self.data.update(self._alter_)
@@ -64,8 +69,12 @@ class Status(object):
         '''
         result=[]
         if len(str(self.name))>0:result.append(str(self.name))
-        if len(self._const_)>0:result.append('_'.join([str(v) for v in self._const_.values()]))
-        if len(self._alter_)>0:result.append('_'.join([str(v) for v in self._alter_.values()]))
+        if self.view is None:
+            if len(self._const_)>0:result.append('_'.join([str(v) for v in self._const_.values()]))
+            if len(self._alter_)>0:result.append('_'.join([str(v) for v in self._alter_.values()]))
+        else:
+            data=self.view(self.data)
+            if len(self.data)>0:result.append(data)
         if len(str(self.info))>0:result.append(str(self.info))
         return '_'.join(result)
 

@@ -178,7 +178,7 @@ class SpinMatrix(ndarray):
         Set the state of the SpinMatrix for pickle and copy.
         '''
         self.S,self.tag=state[-2:]
-        super(SpinMatrix,self).__setstate__(state[0:-1])
+        super(SpinMatrix,self).__setstate__(state[0:-2])
 
     def __str__(self):
         '''
