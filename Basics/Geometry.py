@@ -24,18 +24,18 @@ def azimuthd(self):
     Azimuth in degrees of an array-like vector.
     '''
     if self[1]>=0:
-        return np.degrees(np.arccos(self[0]/nl.norm(self)))
+        return np.degrees(np.arccos(self[0]/nl.norm(self[:-1])))
     else:
-        return 360-np.degrees(np.arccos(self[0]/nl.norm(self)))
+        return 360-np.degrees(np.arccos(self[0]/nl.norm(self[:-1])))
 
 def azimuth(self):
     '''
     Azimuth in radians of an array-like vector.
     '''
     if self[1]>=0:
-        return np.arccos(self[0]/nl.norm(self))
+        return np.arccos(self[0]/nl.norm(self[:-1]))
     else:
-        return 2*np.pi-np.arccos(self[0]/nl.norm(self))
+        return 2*np.pi-np.arccos(self[0]/nl.norm(self[:-1]))
 
 def polard(self):
     '''
