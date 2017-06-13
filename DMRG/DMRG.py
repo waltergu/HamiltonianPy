@@ -723,7 +723,7 @@ def DMRGTSG(engine,app):
     def TSGSWEEP(nsweep):
         assert engine.mps.cut==engine.mps.nsite/2
         nold,nnew=engine.mps.nsite-2*nspb,engine.mps.nsite
-        path=path=it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2))
+        path=list(it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2)))
         for sweep in xrange(nsweep):
             seold=engine.info['Esite']
             engine.sweep(info=' No.%s'%(sweep+1),path=path,nmax=app.nmax,piechart=app.plot)
