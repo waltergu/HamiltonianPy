@@ -24,5 +24,6 @@ def test_sed():
         target=     target,
         dtype=      np.float64
     )
-    print Info.from_ordereddict({'GSE':sed.eig(k=1)[0]})
+    sed.register(GSE(name='GSE',run=EDGSE))
+    sed.summary()
     print

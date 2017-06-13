@@ -720,18 +720,22 @@ def DMRGTSG(engine,app):
     engine.log.open()
     num=app.recover(engine)
     scopes,nspb=range(len(app.targets)*2),engine.nspb
-    for i,target in enumerate(app.targets[num+1:]):
-        pos,nold,nnew=i+num+1,engine.mps.nsite,engine.mps.nsite+2*nspb
-        engine.insert(scopes[pos],scopes[-pos-1],news=scopes[:pos]+scopes[-pos:] if pos>0 else None,target=target)
-        assert nnew==engine.mps.nsite
-        engine.iterate(info='(++)',sp=True if pos>0 else False,nmax=app.nmax,piechart=app.plot)
-        for sweep in xrange(app.npresweep if pos==0 else app.nsweep):
-            path=it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2))
+    def TSGSWEEP(nsweep):
+        assert engine.mps.cut==engine.mps.nsite/2
+        nold,nnew=engine.mps.nsite-2*nspb,engine.mps.nsite
+        path=path=it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2))
+        for sweep in xrange(nsweep):
             seold=engine.info['Esite']
             engine.sweep(info=' No.%s'%(sweep+1),path=path,nmax=app.nmax,piechart=app.plot)
             senew=engine.info['Esite']
             if norm(seold-senew)/norm(seold+senew)<app.tol: break
-        if nspb>1 and pos==0 and app.save_data: engine.coredump()
+    for i,target in enumerate(app.targets[num+1:]):
+        pos=i+num+1
+        engine.insert(scopes[pos],scopes[-pos-1],news=scopes[:pos]+scopes[-pos:] if pos>0 else None,target=target)
+        engine.iterate(info='(++)',sp=True if pos>0 else False,nmax=app.nmax,piechart=app.plot)
+        TSGSWEEP(app.npresweep if pos==0 else app.nsweep)
+        if nspb>1 and len(app.targets)>1 and pos==0 and app.save_data: engine.coredump()
+    if num==len(app.targets)-1 and app.nmax>engine.mps.nmax: TSGSWEEP(app.nsweep)
     if app.plot and app.save_fig:
         plt.savefig('%s/%s_%s.png'%(engine.dlog,engine.status,repr(engine.target)))
         plt.close()

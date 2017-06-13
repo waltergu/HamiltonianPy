@@ -142,6 +142,7 @@ def EDEL(engine,app):
     '''
     This method calculates the energy levels of the Hamiltonian.
     '''
+    timers=HP.Timers('Matrix','GSE')
     result=np.zeros((app.path.rank(0),app.ns*(app.nder+1)+1))
     if len(app.path.tags)==1 and app.path.mesh(0).ndim==1:
         result[:,0]=app.path.mesh(0)
@@ -149,8 +150,18 @@ def EDEL(engine,app):
         result[:,0]=array(xrange(app.path.rank(0)))
     for i,paras in enumerate(app.path('+')):
         engine.update(**paras)
-        engine.set_matrix()
-        result[i,1:app.ns+1]=eigsh(engine.matrix,k=app.ns,which='SA',return_eigenvectors=False)
+        engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.view.iteritems()))
+        with timers.get('Matrix'):
+            engine.set_matrix()
+        with timers.get('GSE'):
+            result[i,1:app.ns+1]=eigsh(engine.matrix,k=app.ns,which='SA',return_eigenvectors=False)
+        timers.record()
+        engine.log<<'%s\n'%timers.tostr(HP.Timers.ALL)
+        if app.plot: timers.graph(parents=HP.Timers.ALL)
+    else:
+        if app.plot and i>0:
+            if app.save_fig: plt.savefig('%s/%s_%s(TIMERS).png'%(engine.dlog,engine.status.const,app.status.name))
+            plt.close()
     suffix='_%s'%(app.status.name)
     if app.nder>0:
         for i in xrange(app.ns):
