@@ -125,36 +125,20 @@ class SpinTerm(Term):
                     buff=self.indexpacks
                 for obj in buff:
                     pv,tags,ms,orbitals=value*obj.value,obj.tags,obj.matrices,obj.orbitals
-                    if self.neighbour==0:
-                        if len(tags)==1:
-                            for orbital in xrange(espin.norbital):
-                                if orbitals[0] in (None,orbital):
-                                    eindex=Index(pid=epoint.pid,iid=SID(orbital=orbital,S=espin.S))
-                                    result+=SOperator(
-                                        value=      pv,
-                                        indices=    [eindex],
-                                        spins=      [SpinMatrix(espin.S,tags[0],matrix=ms[0],dtype=dtype)],
-                                        rcoords=    [epoint.rcoord],
-                                        icoords=    [epoint.icoord],
-                                        seqs=       None if table is None else (table[eindex])
-                                        )
-                        elif len(tags)==2:
-                            for eorbital in xrange(espin.norbital):
-                                if orbitals[0] in (None,eorbital):
-                                    for sorbital in xrange(sspin.norbital):
-                                        if (orbitals[0] is not None and orbitals[1]==sorbital) or (orbitals[0] is None and sorbital==eorbital):
-                                            eindex=Index(pid=epoint.pid,iid=SID(orbital=eorbital,S=espin.S))
-                                            sindex=Index(pid=spoint.pid,iid=SID(orbital=sorbital,S=sspin.S))
-                                            result+=SOperator(
-                                                value=      pv,
-                                                indices=    [eindex,sindex],
-                                                spins=      [SpinMatrix(espin.S,tags[0],ms[0],dtype=dtype),SpinMatrix(sspin.S,tags[1],ms[1],dtype=dtype)],
-                                                rcoords=    [epoint.rcoord,spoint.rcoord],
-                                                icoords=    [epoint.icoord,spoint.icoord],
-                                                seqs=       None if table is None else (table[eindex],table[sindex])
-                                                )
-                    else:
-                        assert len(tags)==2
+                    if len(tags)==1:
+                        assert self.neighbour==0
+                        for orbital in xrange(espin.norbital):
+                            if orbitals[0] in (None,orbital):
+                                eindex=Index(pid=epoint.pid,iid=SID(orbital=orbital,S=espin.S))
+                                result+=SOperator(
+                                    value=      pv,
+                                    indices=    [eindex],
+                                    spins=      [SpinMatrix(espin.S,tags[0],matrix=ms[0],dtype=dtype)],
+                                    rcoords=    [epoint.rcoord],
+                                    icoords=    [epoint.icoord],
+                                    seqs=       None if table is None else (table[eindex])
+                                    )
+                    elif len(tags)==2:
                         for eorbital in xrange(espin.norbital):
                             if orbitals[0] in (None,eorbital):
                                 for sorbital in xrange(sspin.norbital):
@@ -169,6 +153,8 @@ class SpinTerm(Term):
                                             icoords=    [epoint.icoord,spoint.icoord],
                                             seqs=       None if table is None else (table[eindex],table[sindex])
                                             )
+                    else:
+                        raise ValueError('SpinTerm operators error: not supported yet.')
         return result
 
 class SpinTerms(Terms):

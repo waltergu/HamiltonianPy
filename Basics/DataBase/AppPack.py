@@ -4,15 +4,34 @@ App pack
 --------
 
 App pack, including:
-    * classes: EB, DOS, GF, FS, BC, GP, CPFF
+    * classes: GSE, EB, DOS, GF, FS, BC, GP, CPFF
 '''
 
-__all__=['EB','DOS','GF','FS','BC','GP','CPFF']
+__all__=['GSE','EB','DOS','GF','FS','BC','GP','CPFF']
 
 import numpy as np
 from ..EngineApp import App
 from ..FermionicPackage import FLinear
 from HamiltonianPy.Misc import berry_curvature
+
+class GSE(App):
+    '''
+    Ground state energy.
+
+    Attributes
+    ----------
+    factor : integer
+    '''
+
+    def __init__(self,factor=1,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        factor : integer
+        '''
+        self.factor=factor
 
 class EB(App):
     '''

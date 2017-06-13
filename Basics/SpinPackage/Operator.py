@@ -50,6 +50,18 @@ class SOperator(Operator):
         result.append('value=%s'%self.value)
         result.append(', indices=%s'%(self.indices,))
         result.append(', spins=%s'%(self.spins,))
+        result.append(')')
+        return ''.join(result)
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        result=[]
+        result.append('SOperator(')
+        result.append('value=%s'%self.value)
+        result.append(', indices=%s'%(self.indices,))
+        result.append(', spins=(%s)'%('\n'.join(str(spin) for spin in self.spins)))
         if hasattr(self,'rcoords'): result.append(', rcoords=%s'%(self.rcoords,))
         if hasattr(self,'icoords'): result.append(', icoords=%s'%(self.icoords,))
         if hasattr(self,'seqs'): result.append(', seqs=%s'%(self.seqs,))

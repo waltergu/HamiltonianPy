@@ -4,16 +4,17 @@ TBA and BdG
 ===========
 
 Tight Binding Approximation for fermionic systems, including:
-    * classes: TBA
-    * functions: TBAEB, TBADOS, TBABC
+    * classes: TBA, GSE
+    * functions: TBAEB, TBAGSE, TBADOS, TBABC
 '''
 
-__all__=['TBA','TBAEB','TBADOS','TBABC']
+__all__=['TBA','GSE','TBAGSE','TBAEB','TBADOS','TBABC']
 
 from ..Basics import *
 from numpy import *
 from scipy.linalg import eigh
-import matplotlib.pyplot as plt 
+import HamiltonianPy as HP
+import matplotlib.pyplot as plt
 
 class TBA(Engine):
     '''
@@ -37,6 +38,7 @@ class TBA(Engine):
         ========    ==============================================
         METHODS     DESCRIPTION
         ========    ==============================================
+        `TBAGSE`    calculate the ground state energy
         `TBAEB`     calculate the energy bands
         `TBADOS`    calculate the density of states
         `TBABC`     calculate the Berry curvature and Chern number
@@ -186,6 +188,39 @@ class TBA(Engine):
             The ground state energy of the system.
         '''
         return sort(self.eigvals(kspace))[0:int(round(filling*(1 if kspace is None else kspace.rank('k'))*self.nmatrix))].sum()
+
+class GSE(HP.GSE):
+    '''
+    The ground state energy.
+
+    Attributes
+    ----------
+    filling : float64
+        The filling factor of the system.
+    kspace : BaseSpace
+        The first Brillouin zone.
+    '''
+
+    def __init__(self,filling,kspace=None,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        filling : float64
+            The filling factor of the system.
+        kspace : BaseSpace, optional
+            The first Brillouin zone.
+        '''
+        self.filling=filling
+        self.kspace=kspace
+
+def TBAGSE(engine,app):
+    '''
+    This method calculates the ground state energy.
+    '''
+    gse=engine.gse(filling=app.filling,kspace=app.kspace)
+    engine.log<<Info.from_ordereddict({'Total':gse,'Site':gse/len(engine.lattice)/app.factor/(1 if app.kspace is None else app.kspace.rank('k'))})<<'\n'
 
 def TBAEB(engine,app):
     '''

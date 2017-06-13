@@ -35,7 +35,8 @@ def soptrep(operator,table,**options):
     csr_matrix
         The matrix representation of the input operator.
     '''
-    temp=[eye(int(index.S*2)+1 if hasattr(index,'S') else 2) for index in sorted(table.keys(),key=table.get)]
+    dtype=operator.spins[0].dtype
+    temp=[eye(int(index.S*2)+1 if hasattr(index,'S') else 2,dtype=dtype) for index in sorted(table.keys(),key=table.get)]
     for index,spin in zip(operator.indices,operator.spins):
         temp[table[index]]=asarray(spin)
     if options.get('cut',None) is None:

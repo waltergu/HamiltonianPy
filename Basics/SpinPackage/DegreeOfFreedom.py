@@ -190,7 +190,7 @@ class SpinMatrix(ndarray):
         '''
         Convert an instance to string.
         '''
-        return "SpinMatrix(%s,%s,\n%s\n)"%(self.S,self.tag,super(SpinMatrix,self).__str__())
+        return "%s%s"%(self.S,self.tag)
 
 class SpinPack(IndexPack):
     '''

@@ -5,14 +5,13 @@ Exat diagonalization
 
 Base class for exact diagonalization, including:
     * classes: ED, EL, GF
-    * functions: EDEL, EDGFP, EDGF, EDDOS
+    * functions: EDGSE, EDEL, EDGFP, EDGF, EDDOS
 '''
 
-__all__=['ED','EL','EDEL','GF','EDGFP','EDGF','EDDOS']
+__all__=['ED','EDGSE','EL','EDEL','GF','EDGFP','EDGF','EDDOS']
 
-from ..Misc import Lanczos,derivatives
+from ..Misc import Lanczos,derivatives,eigsh
 from scipy.linalg import eigh,norm,solve_banded,solveh_banded
-from scipy.sparse.linalg import eigsh
 from copy import deepcopy
 import numpy as np
 import pickle as pk
@@ -42,13 +41,14 @@ class ED(HP.Engine):
         The sparse matrix representation of the Hamiltonian.
 
     Supported methods:
-        =======     ================================
+        =======     =================================
         METHODS     DESCRIPTION
-        =======     ================================
+        =======     =================================
+        `EDGSE`     calculate the ground state energy
         `EDEL`      calculates the energy spectrum
         `EDGF`      calculates the Green's function
         `EDDOS`     calculates the density of states
-        =======     ================================
+        =======     =================================
     '''
 
     def update(self,**karg):
@@ -65,7 +65,7 @@ class ED(HP.Engine):
         '''
         raise NotImplementedError("%s set_matrix err: not implemented."%(self.__class__.__name__))
 
-    def eig(self,k=1,return_eigenvectors=False):
+    def eigs(self,k=1,return_eigenvectors=False):
         '''
         Lowest k eigenvalues and optionally, the corresponding eigenvectors.
 
@@ -96,6 +96,20 @@ class ED(HP.Engine):
             The matrix representations of the input operators.
         '''
         raise NotImplementedError("%s Hmat_Omat err: not implemented."%(self.__class__.__name__))
+
+def EDGSE(engine,app):
+    '''
+    This method calculates the ground state energy.
+    '''
+    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.view.iteritems()))
+    timers=HP.Timers('Matrix','GSE')
+    with timers.get('Matrix'):
+        engine.set_matrix()
+    with timers.get('GSE'):
+        gse=eigsh(engine.matrix,k=1,which='SA',return_eigenvectors=False)[0]
+    timers.record()
+    engine.log<<'::<Time>:: matrix=%.4es, gse=%.4es\n'%(timers.time('Matrix'),timers.time('GSE'))
+    engine.log<<HP.Info.from_ordereddict({'Total':gse,'Site':gse/len(engine.lattice)/app.factor})<<'\n'
 
 class EL(HP.EB):
     '''
@@ -200,7 +214,7 @@ def EDGFP(engine,app):
     '''
     This method prepares the GF.
     '''
-    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.data.iteritems()))
+    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.view.iteritems()))
     if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine.status)):
         with open('%s/%s_coeff.dat'%(engine.din,engine.status),'rb') as fin:
             app.gse=pk.load(fin)

@@ -211,7 +211,7 @@ def truncated_svd(m,nmax=None,tol=None,return_truncation_err=False,**karg):
         u,s,v=u[:,indices],s[indices],v[indices,:]
         return u,s,v
 
-def eigsh(A,max_try=6,**karg):
+def eigsh(A,max_try=6,return_eigenvectors=True,**karg):
     '''
     Find the eigenvalues and eigenvectors of the real symmetric square matrix or complex hermitian matrix A.
     This is a wrapper for scipy.sparse.linalg.eigsh to handle the exceptions it raises.
@@ -222,25 +222,29 @@ def eigsh(A,max_try=6,**karg):
         The matrix whose eigenvalues and eigenvectors is to be computed.
     max_try : integer, optional
         The maximum number of tries to do the computation when the computed eigenvalues/eigenvectors do not converge.
+    return_eigenvectors : logical, optional
+        True for returning the eigenvectors and False for not.
     karg : dict
         Please refer to https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.sparse.linalg.eigsh.html for details.
     '''
     if A.shape==(1,1):
-        assert 'M' not in karg and 'sigma' not in karg
-        es=A.dot(np.ones(1)).reshape(-1)
-        vs=np.ones((1,1),dtype=A.dtype)
+        assert 'M' not in karg and 'sigma' not in karg and karg.get('k',1)==1
+        if return_eigenvectors:
+            return A.dot(np.ones(1)).reshape(-1),np.ones((1,1),dtype=A.dtype)
+        else:
+            return A.dot(np.ones(1)).reshape(-1)
     else:
         ntry=1
         while True:
             try:
-                es,vs=pl.eigsh(A,**karg)
+                result=pl.eigsh(A,return_eigenvectors=return_eigenvectors,**karg)
                 break
             except pl.ArpackNoConvergence as err:
                 if ntry<max_try:
                     ntry+=1
                 else:
                     raise err
-    return es,vs
+        return result
 
 def block_diag(*ms):
     '''

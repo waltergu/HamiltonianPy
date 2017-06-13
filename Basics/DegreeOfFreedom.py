@@ -35,8 +35,8 @@ class Status(object):
         The constant parameters of the object.
     _alter_ : OrderedDict
         The alterable parameters of the object.
-    view : callable
-        The string view of the data of the object.
+    _view_ : callable
+        The view of the data of the object.
     '''
 
     def __init__(self,name='',info='',const=None,alter=None,view=None):
@@ -52,16 +52,26 @@ class Status(object):
         const,alter : OrderedDict, optional
             The constant/alterable parameters of the object.
         view : callable, optional
-            The string view of the data of the object.
+            The view of the data of the object.
         '''
         self.name=name
         self.info=info
         self._const_=OrderedDict() if const is None else const
         self._alter_=OrderedDict() if alter is None else alter
-        self.view=view
+        self._view_=view
         self.data=OrderedDict()
         self.data.update(self._const_)
         self.data.update(self._alter_)
+
+    @property
+    def view(self):
+        '''
+        The view of the data of the object.
+        '''
+        if self._view_ is None:
+            return self.data
+        else:
+            return self._view_(self.data)
 
     def __str__(self):
         '''
@@ -69,12 +79,12 @@ class Status(object):
         '''
         result=[]
         if len(str(self.name))>0:result.append(str(self.name))
-        if self.view is None:
-            if len(self._const_)>0:result.append('_'.join([str(v) for v in self._const_.values()]))
-            if len(self._alter_)>0:result.append('_'.join([str(v) for v in self._alter_.values()]))
+        if self._view_ is None:
+            if len(self._const_)>0:result.append('_'.join(str(v) for v in self._const_.itervalues()))
+            if len(self._alter_)>0:result.append('_'.join(str(v) for v in self._alter_.itervalues()))
         else:
-            data=self.view(self.data)
-            if len(self.data)>0:result.append(data)
+            data=self._view_(self.data)
+            if len(self.data)>0:result.append('_'.join(str(v) for v in data.itervalues()))
         if len(str(self.info))>0:result.append(str(self.info))
         return '_'.join(result)
 
