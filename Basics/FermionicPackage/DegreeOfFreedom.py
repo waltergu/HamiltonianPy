@@ -259,15 +259,13 @@ class FermiPack(IndexPack):
         '''
         Overloaded operator(*), which supports the multiplication of an FermiPack instance with an FermiPack/IndexPacks instance or a scalar.
         '''
-        if isinstance(other,FermiPack) or type(other)==int or type(other)==long or type(other)==float or type(other)==complex:
-            result=self._mul_(other)
-        elif isinstance(other,IndexPacks):
+        if isinstance(other,IndexPacks):
             result=IndexPacks()
             for fpack in other:
                 temp=self._mul_(fpack)
                 if norm(temp.value)>RZERO: result.append(temp)
         else:
-            raise ValueError("FermiPack '*' error: the 'other' parameter must be of class FermiPack or IndexPacks, or a number.")
+            result=self._mul_(other)
         return result
 
 def sigma0(mode):
