@@ -166,7 +166,7 @@ def sequence(rep,table):
     integer
         The corresponding sequence of the basis.
     '''
-    if len(table)==0 :
+    if len(table)==0:
         return rep
     else:
         lb=0;ub=len(table)

@@ -2,13 +2,13 @@
 KSpacePack test.
 '''
 
-__all__=['test_database_kspace']
+__all__=['test_extensions_kspace']
 
 from numpy import *
-from HamiltonianPy.Basics.DataBase.KSpacePack import *
+from HamiltonianPy.Basics.Extensions.KSpacePack import *
 
-def test_database_kspace():
-    print 'test_database_kspace'
+def test_extensions_kspace():
+    print 'test_extensions_kspace'
     c=square_bz(reciprocals=[array([1.0,1.0]),array([1.0,-1.0])],nk=100)
     print 'volume: %s'%c.volume('k')
     c.plot(name='diamond')

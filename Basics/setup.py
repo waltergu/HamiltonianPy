@@ -4,7 +4,7 @@ def configuration(parent_package='',top_path=None):
     config.add_subpackage('QuantumNumber')
     config.add_subpackage('FermionicPackage')
     config.add_subpackage('SpinPackage')
-    config.add_subpackage('DataBase')
+    config.add_subpackage('Extensions')
     config.add_subpackage('test')
     return config
 

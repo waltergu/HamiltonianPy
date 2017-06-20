@@ -42,7 +42,7 @@ Concretely, the roles they play are
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
 |   `QuantumNumber`     |   An extension to deal with good quantum numbers.                                                         |
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
-|   `DataBase`          |   The data base of the subpackage.                                                                        |
+|   `Extensions`        |   The extensions of the subpackage.                                                                       |
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
 '''
 
@@ -58,4 +58,4 @@ from Log import *
 from FermionicPackage import *
 from SpinPackage import *
 from QuantumNumber import *
-from DataBase import *
+from Extensions import *

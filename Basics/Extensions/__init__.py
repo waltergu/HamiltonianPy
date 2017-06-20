@@ -3,15 +3,15 @@
 Introduction
 ============
 
-This subpackage is the data base of the package.
+This subpackage is the extensions of the package.
 
 ==============  =======================
 MODULES         DESCRIPTION
 ==============  =======================
-`LatticePack`   Data base of lattices.
-`KSpacePack`    Data base of kspaces.
-`AppPack`       Data base of apps.
-`OperatorPack`  Data base of operators.
+`LatticePack`   Extension of lattices.
+`KSpacePack`    Extension of kspaces.
+`AppPack`       Extension of apps.
+`OperatorPack`  Extension of operators.
 ==============  =======================
 '''
 

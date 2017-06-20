@@ -17,4 +17,4 @@ Basics
    FermionicPackage/index
    SpinPackage/index
    QuantumNumber/index
-   DataBase/index
+   Extensions/index

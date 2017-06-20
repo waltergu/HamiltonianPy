@@ -50,9 +50,9 @@ def test_basics(arg):
     if arg in ('sterm','spin','basics','all'):
         from HamiltonianPy.Basics.SpinPackage.test.Term import test_spin_term
         test_spin_term()
-    if arg in ('lattice','database','basics','all'):
-        from HamiltonianPy.Basics.DataBase.test.LatticePack import test_database_lattice
-        test_database_lattice()
-    if arg in ('kspace','database','basics','all'):
-        from HamiltonianPy.Basics.DataBase.test.KSpacePack import test_database_kspace
-        test_database_kspace()
+    if arg in ('lattice','extensions','basics','all'):
+        from HamiltonianPy.Basics.Extensions.test.LatticePack import test_extensions_lattice
+        test_extensions_lattice()
+    if arg in ('kspace','extensions','basics','all'):
+        from HamiltonianPy.Basics.Extensions.test.KSpacePack import test_extensions_kspace
+        test_extensions_kspace()
