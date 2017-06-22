@@ -131,15 +131,15 @@ def table_es(up,down,dtype=int64):
     '''
     This function generates the binary basis table according to the up and down tuples.
     '''
+    assert up[0]==down[0]
     result=zeros(factorial(up[0])/factorial(up[1])/factorial(up[0]-up[1])*factorial(down[0])/factorial(down[1])/factorial(down[0]-down[1]),dtype=dtype)
-    buff_up=list(combinations(xrange(up[0]),up[1]))
-    buff_dn=list(combinations(xrange(down[0]),down[1]))
+    buff_up=list(combinations(xrange(1,2*up[0],2),up[1]))
+    buff_dn=list(combinations(xrange(0,2*up[0],2),down[1]))
     count=0
     for vup in buff_up:
         buff=0
         for num in vup:
             buff+=(1<<num)
-        buff=buff<<down[0]
         for vdn in buff_dn:
             basis=buff
             for num in vdn:
@@ -169,14 +169,15 @@ def sequence(rep,table):
     if len(table)==0:
         return rep
     else:
-        lb=0;ub=len(table)
+        lb=0;ub=len(table);count=0
         result=(lb+ub)/2
         while table[result]!=rep:
+            count+=1
             if table[result]>rep:
                 ub=result
             else:
                 lb=result
-            if ub==lb:
+            if 2**(count-2)>len(table):
                 error=True
                 break
             result=(lb+ub)/2

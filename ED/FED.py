@@ -123,7 +123,12 @@ class FED(ED):
         Hmats,Omats=[],[]
         for i,operator in enumerate(operators):
             assert operator.rank==1
-            if i==0 or (self.basis.mode=='FS' and i==len(operators)/2): fed=self.__replace_basis__(nambu=operator.indices[0].nambu,spin=operator.indices[0].spin)
+            if self.basis.mode=='FS':
+                if i==0: efed=self.__replace_basis__(nambu=operator.indices[0].nambu,spin=operator.indices[0].spin)
+                if i==1: ofed=self.__replace_basis__(nambu=operator.indices[0].nambu,spin=operator.indices[0].spin)
+                fed=efed if i%2==0 else ofed
+            elif i==0:
+                fed=self.__replace_basis__(nambu=operator.indices[0].nambu,spin=operator.indices[0].spin)
             Hmats.append(fed.matrix)
             Omats.append(HP.foptrep(operator,basis=[self.basis,fed.basis],transpose=True))
         return Hmats,Omats
@@ -132,4 +137,4 @@ def FGF(**karg):
     '''
     The zero-temperature single-particle Green's functions.
     '''
-    return GF(filter=lambda engine,app,i,j: True if engine.basis.mode in ('FP','FG') or (i<app.nopt/2 and j<app.nopt/2) or (i>=app.nopt/2 and j>=app.nopt/2) else False,**karg)
+    return GF(filter=lambda engine,app,i,j: True if engine.basis.mode in ('FP','FG') or (i%2,j%2) in ((0,0),(1,1)) else False,**karg)

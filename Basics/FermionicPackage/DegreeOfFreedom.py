@@ -20,7 +20,7 @@ from copy import copy
 from collections import namedtuple
 
 ANNIHILATION,CREATION=0,1
-DEFAULT_FERMIONIC_PRIORITY=('scope','nambu','spin','site','orbital')
+DEFAULT_FERMIONIC_PRIORITY=('scope','nambu','site','orbital','spin')
 DEGFRE_FERMIONIC_PRIORITY=('scope','site','orbital','spin','nambu')
 DEGFRE_FERMIONIC_LAYERS=[('scope','site','orbital'),('spin',)]
 
