@@ -59,7 +59,7 @@ class FED(ED):
         '''
         self.matrix=0
         for operator in self.operators.itervalues():
-            self.matrix+=HP.foptrep(operator,self.basis,transpose=False)
+            self.matrix+=HP.foptrep(operator,self.basis,transpose=False,dtype=self.dtype)
         self.matrix+=self.matrix.T.conjugate()
         self.matrix=self.matrix.T
 
