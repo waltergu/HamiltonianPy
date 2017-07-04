@@ -106,10 +106,10 @@ def EDGSE(engine,app):
     with timers.get('Matrix'):
         engine.set_matrix()
     with timers.get('GSE'):
-        gse=eigsh(engine.matrix,k=1,which='SA',return_eigenvectors=False)[0]
+        app.gse=eigsh(engine.matrix,k=1,which='SA',return_eigenvectors=False)[0]
     timers.record()
-    engine.log<<'::<Time>:: matrix=%.4es, gse=%.4es\n'%(timers.time('Matrix'),timers.time('GSE'))
-    engine.log<<HP.Info.from_ordereddict({'Total':gse,'Site':gse/len(engine.lattice)/app.factor})<<'\n'
+    engine.log<<'::<Time>:: matrix(shape=%s,nnz=%s)=%.4es, gse=%.4es\n'%(engine.matrix.shape,engine.matrix.nnz,timers.time('Matrix'),timers.time('GSE'))
+    engine.log<<HP.Info.from_ordereddict({'Total':app.gse,'Site':app.gse/len(engine.lattice)/app.factor})<<'\n'
 
 class EL(HP.EB):
     '''
@@ -121,9 +121,11 @@ class EL(HP.EB):
         The order of derivatives to be computed.
     ns : integer
         The number of energy levels.
+    legend : logical
+        True for showing the legend and False for not.
     '''
     
-    def __init__(self,nder=0,ns=6,**karg):
+    def __init__(self,nder=0,ns=6,legend=True,**karg):
         '''
         Constructor.
 
@@ -133,10 +135,13 @@ class EL(HP.EB):
             The order of derivatives to be computed.
         ns : integer, optional
             The number of energy levels.
+        legend : logical, optional
+            True for showing the legend and False for not.
         '''
         super(EL,self).__init__(**karg)
         self.nder=nder
         self.ns=ns
+        self.legend=legend
 
 def EDEL(engine,app):
     '''
@@ -147,7 +152,7 @@ def EDEL(engine,app):
     if len(app.path.tags)==1 and app.path.mesh(0).ndim==1:
         result[:,0]=app.path.mesh(0)
     else:
-        result[:,0]=array(xrange(app.path.rank(0)))
+        result[:,0]=np.array(xrange(app.path.rank(0)))
     for i,paras in enumerate(app.path('+')):
         engine.update(**paras)
         engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.view.iteritems()))
@@ -174,7 +179,7 @@ def EDEL(engine,app):
         for k in xrange(1,result.shape[1]):
             i,j=divmod(k-1,app.ns)
             plt.plot(result[:,0],result[:,k],label=('%s der of '%prefixs[i] if i>0 else '')+'$E_{%s}$'%(j))
-        plt.legend(shadow=True,fancybox=True,loc='lower right')
+        if app.legend: plt.legend(shadow=True,fancybox=True,loc='lower right')
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
         if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.const,app.status.name))

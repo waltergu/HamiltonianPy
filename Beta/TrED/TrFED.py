@@ -1,22 +1,24 @@
 '''
 1D fermionic exact diagonalization with translation symmetry, including:
-    * classes: TRBasis, TrFED
-    * functions: trfoptrep
+    * classes: TRBasis, TrFED, EB
+    * functions: trfoptrep, TrFEDEB
 '''
 
-__all__=['TRBasis','trfoptrep','TrFED']
+__all__=['TRBasis','trfoptrep','TrFED','EB','TrFEDEB']
 
-from HamiltonianPy import *
 from fbasis import *
 from numba import jit
 from math import sqrt
 from scipy.sparse import csr_matrix
 import numpy as np
+import HamiltonianPy as HP
 import HamiltonianPy.ED as ED
+import HamiltonianPy.Misc as HM
+import matplotlib.pyplot as plt
 
-class TRBasis(FBasis):
+class TRBasis(HP.FBasis):
     def __init__(self,basis,dk,nk):
-        assert isinstance(basis,FBasis) and basis.mode in ('FP','FS')
+        assert isinstance(basis,HP.FBasis) and basis.mode in ('FP','FS')
         self.dk=dk
         self.nk=nk
         self.mode='%sTR'%basis.mode
@@ -41,6 +43,9 @@ class TRBasis(FBasis):
     def nbasis(self):
         return len(self.seqs)
 
+    def indices(self,k):
+        return np.concatenate(np.argwhere(self.masks[k,:]>=0))
+
 def trfoptrep(operator,k,basis,dtype=np.complex128):
     assert operator.rank%2==0 and isinstance(basis,TRBasis) and k>=0 and k<basis.nk
     value,nambus,sequences=operator.value,(np.array([index.nambu for index in operator.indices])>0)[::-1],np.array(operator.seqs)[::-1]
@@ -61,7 +66,7 @@ def _trfoptrep_(k,value,nambus,sequences,table,seqs,maps,translations,signs,mask
                 if bool(temp[m]&eye<<sequences[m])==nambus[m]: break
                 temp[m+1]=temp[m]|eye<<sequences[m] if nambus[m] else temp[m]&~(eye<<sequences[m])
             else:
-                seq=sequence(temp[-1],table)
+                seq=HP.sequence(temp[-1],table)
                 j=maps[seq]
                 if masks[k,j]>=0:
                     nsign=0
@@ -83,3 +88,27 @@ class TrFED(ED.FED):
         for operator in self.operators.itervalues():
             self.matrix+=trfoptrep(operator,k,self.basis,dtype=self.dtype)
             self.matrix+=trfoptrep(operator.dagger,k,self.basis,dtype=self.dtype)
+
+class EB(HP.EB):
+    def __init__(self,ns=6,kend=True,**karg):
+        super(EB,self).__init__(**karg)
+        self.ns=ns
+        self.kend=kend
+
+def TrFEDEB(engine,app):
+    result=np.zeros((engine.basis.nk+(1 if app.kend else 0),app.ns+1))
+    for i in xrange(engine.basis.nk):
+        engine.set_matrix(i)
+        result[i,0]=i
+        result[i,1:]=HM.eigsh(engine.matrix,return_eigenvectors=False,which='SA',k=app.ns)
+    if app.kend:
+        result[-1,0]=engine.basis.nk
+        result[-1,1:]=result[0,1:]
+    if app.save_data: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
+    if app.plot:
+        plt.title('%s_%s'%(engine.status,app.status.name))
+        plt.plot(result[:,0],result[:,1:])
+        if app.show and app.suspend: plt.show()
+        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
+        plt.close()

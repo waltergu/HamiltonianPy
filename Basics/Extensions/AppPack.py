@@ -20,7 +20,10 @@ class GSE(App):
 
     Attributes
     ----------
+    gse : np.float64
+        The groundstate energy.
     factor : integer
+        An extra factor.
     '''
 
     def __init__(self,factor=1,**karg):
@@ -32,6 +35,7 @@ class GSE(App):
         factor : integer
         '''
         self.factor=factor
+        self.gse=None
 
 class EB(App):
     '''

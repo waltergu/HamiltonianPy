@@ -220,8 +220,8 @@ def TBAGSE(engine,app):
     '''
     This method calculates the ground state energy.
     '''
-    gse=engine.gse(filling=app.filling,kspace=app.kspace)
-    engine.log<<Info.from_ordereddict({'Total':gse,'Site':gse/len(engine.lattice)/app.factor/(1 if app.kspace is None else app.kspace.rank('k'))})<<'\n'
+    app.gse=engine.gse(filling=app.filling,kspace=app.kspace)
+    engine.log<<Info.from_ordereddict({'Total':app.gse,'Site':app.gse/len(engine.lattice)/app.factor/(1 if app.kspace is None else app.kspace.rank('k'))})<<'\n'
 
 def TBAEB(engine,app):
     '''
