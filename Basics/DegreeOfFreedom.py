@@ -4,7 +4,7 @@ Descriptions of the interanl degrees of freedom on a lattice
 ============================================================
 
 This modulate defines several classes to define the way to describe the interanl degrees of freedom on a lattice, including
-    * classes: Status,Table, Index, Internal, IDFConfig, QNSConfig, IndexPack, IndexPacks
+    * classes: Status, Table, Index, Internal, IDFConfig, QNSConfig, IndexPack, IndexPacks
 '''
 
 __all__=['Status','Table','Index','Internal','IDFConfig','QNSConfig','IndexPack','IndexPacks']
