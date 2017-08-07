@@ -29,16 +29,12 @@ def test_soptrep():
                 value=      J/2,
                 indices=    [sindex,eindex],
                 spins=      [SpinMatrix(sS,'+',dtype=float64),SpinMatrix(eS,'-',dtype=float64)],
-                rcoords=     [bond.spoint.rcoord,bond.epoint.rcoord],
-                icoords=     [bond.spoint.icoord,bond.epoint.icoord],
                 seqs=       (table[sindex],table[eindex])
             )
             opts+=SOperator(
                 value=      J/2,
                 indices=    [sindex,eindex],
                 spins=      [SpinMatrix(sS,'z',dtype=float64),SpinMatrix(eS,'z',dtype=float64)],
-                rcoords=    [bond.spoint.rcoord,bond.epoint.rcoord],
-                icoords=    [bond.spoint.icoord,bond.epoint.icoord],
                 seqs=       (table[sindex],table[eindex])
                 )
     temp=None

@@ -10,6 +10,7 @@ This modulate defines several classes to define the way to describe the interanl
 __all__=['Status','Table','Index','Internal','IDFConfig','QNSConfig','IndexPack','IndexPacks']
 
 import numpy as np
+import itertools as it
 from numpy.linalg import norm
 from Constant import RZERO
 from Geometry import PID
@@ -194,22 +195,7 @@ class Table(dict):
         Table
             The union of the input tables.
         '''
-        result=Table()
-        if key is None:
-            sum=0
-            for table in tables:
-                if isinstance(table,Table):
-                    count=0
-                    for k,v in table.iteritems():
-                        result[k]=v+sum
-                        count+=1
-                    sum+=count
-        else:
-            for table in tables:
-                result.update(table)
-            for i,k in enumerate(sorted(result,key=key)):
-                result[k]=i
-        return result
+        return Table(it.chain(*(sorted(table,key=table.get) for table in tables)),key=key)
 
     def subset(self,select):
         '''
@@ -307,6 +293,13 @@ class Index(tuple):
         The iid part of the index.
         '''
         return self.icls(**{key:getattr(self,key) for key in self.names if key not in PID._fields})
+
+    @property
+    def masks(self):
+        '''
+        The masks of the index's attributes.
+        '''
+        return tuple(name for name in self.names if getattr(self,name) is None)
 
     def __str__(self):
         '''

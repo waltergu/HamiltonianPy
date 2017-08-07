@@ -193,7 +193,7 @@ class OptStr(Arithmetic,list):
         OptStr
             The corresponding OptStr.
         '''
-        assert type(operator) in (SOperator,FOperator)
+        assert isinstance(operator,SOperator) or isinstance(operator,FOperator)
         dtype,layer=np.array(operator.value).dtype,degfres.layers[layer] if type(layer) in (int,long) else layer
         table,sites=degfres.table(degfres.layers[-1]),degfres.labels('S',degfres.layers[-1])
         operator=operator if type(operator) is SOperator else JWBosonization(operator,table)

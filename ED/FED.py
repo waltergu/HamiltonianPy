@@ -48,7 +48,7 @@ class FED(ED):
         self.config=config
         self.terms=terms
         self.dtype=dtype
-        self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,dtype=dtype)
+        self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,dtype=dtype,half=True)
         self.status.update(const=self.generator.parameters['const'])
         self.status.update(alter=self.generator.parameters['alter'])
         self.operators=self.generator.operators

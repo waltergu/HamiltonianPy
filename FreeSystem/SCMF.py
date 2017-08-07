@@ -102,7 +102,7 @@ class SCMF(TBA):
         self.terms=terms
         self.orders=orders
         self.mask=mask
-        self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms+orders)
+        self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms+orders,half=True)
         self.status.update(const=self.generator.parameters['const'])
         self.status.update(alter=self.generator.parameters['alter'])
         self.ops=OrderedDict()
@@ -110,7 +110,7 @@ class SCMF(TBA):
             m=zeros((self.nmatrix,self.nmatrix),dtype=complex128)
             term=deepcopy(order)
             term.value=1
-            for opt in Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=[term]).operators.values():
+            for opt in Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=[term],half=True).operators.values():
                 m[opt.seqs]+=opt.value
             m+=conjugate(m.T)
             self.ops[order.id]=OP(order.value,m)

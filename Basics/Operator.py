@@ -191,4 +191,4 @@ class Operators(Arithmetic,dict):
         result=Operators()
         for operator in self.values():
             result+=operator.dagger
-        return self
+        return result

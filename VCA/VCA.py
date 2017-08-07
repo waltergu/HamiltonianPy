@@ -159,21 +159,24 @@ class VCA(ED.FED):
             config=     config,
             table=      config.table(mask=['nambu']),
             terms=      terms+weiss,
-            dtype=      dtype
+            dtype=      dtype,
+            half=       True
             )
         self.pthgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if not bond.isintracell()],
             config=     config,
             table=      config.table(mask=mask),
             terms=      [term for term in terms if isinstance(term,HP.Quadratic)],
-            dtype=      dtype
+            dtype=      dtype,
+            half=       True
             )
         self.ptwgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if bond.isintracell()],
             config=     config,
             table=      config.table(mask=mask),
             terms=      None if weiss is None else [term*(-1) for term in weiss],
-            dtype=      dtype
+            dtype=      dtype,
+            half=       True
             )
         self.status.update(const=self.generator.parameters['const'])
         self.status.update(alter=self.generator.parameters['alter'])
@@ -192,15 +195,15 @@ class VCA(ED.FED):
         groups=[[] for i in xrange(gf.nopt)]
         for copt in cgf.operators:
             for i,opt in enumerate(gf.operators):
-                if copt.indices[0].iid==opt.indices[0].iid and HP.issubordinate(copt.rcoords[0]-opt.rcoords[0],self.cell.vectors):
+                if copt.indices[0].iid==opt.indices[0].iid and HP.issubordinate(copt.rcoord-opt.rcoord,self.cell.vectors):
                     groups[i].append(copt)
                     break
         self.periodization['seqs']=np.zeros((gf.nopt,cgf.nopt/gf.nopt),dtype=np.int64)
-        self.periodization['coords']=np.zeros((gf.nopt,cgf.nopt/gf.nopt,len(gf.operators[0].rcoords[0])),dtype=np.float64)
+        self.periodization['coords']=np.zeros((gf.nopt,cgf.nopt/gf.nopt,len(gf.operators[0].rcoord)),dtype=np.float64)
         for i in xrange(gf.nopt):
             for j,opt in enumerate(sorted(groups[i],key=lambda operator: operator.seqs[0])):
                 self.periodization['seqs'][i,j]=opt.seqs[0]+1
-                self.periodization['coords'][i,j,:]=opt.rcoords[0]
+                self.periodization['coords'][i,j,:]=opt.rcoord
 
     def update(self,**karg):
         '''
@@ -264,7 +267,7 @@ class VCA(ED.FED):
         '''
         result=np.zeros((self.ncopt,self.ncopt),dtype=np.complex128)
         for opt in self.pthoperators.itervalues():
-            result[opt.seqs]+=opt.value*(1 if len(k)==0 else np.exp(-1j*np.inner(k,opt.icoords[0])))
+            result[opt.seqs]+=opt.value*(1 if len(k)==0 else np.exp(-1j*np.inner(k,opt.icoord)))
         for opt in self.ptwoperators.itervalues():
             result[opt.seqs]+=opt.value
         return result+result.T.conjugate()
@@ -736,7 +739,7 @@ def VCAOP(engine,app):
         order=deepcopy(term)
         order.value=1
         m=np.zeros((engine.ncopt,engine.ncopt),dtype=np.complex128)
-        for opt in HP.Generator(engine.lattice.bonds,engine.config,table=engine.config.table(mask=engine.mask),terms=[order]).operators.values():
+        for opt in HP.Generator(engine.lattice.bonds,engine.config,table=engine.config.table(mask=engine.mask),terms=[order],half=True).operators.values():
             m[opt.seqs]+=opt.value
         m+=m.T.conjugate()
         ms[i,:,:]=m

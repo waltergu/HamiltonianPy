@@ -132,7 +132,7 @@ class DMRG(Engine):
         self.mask=mask
         self.target=target
         self.dtype=dtype
-        self.generator=Generator(bonds=lattice.bonds,config=config,terms=terms,dtype=dtype)
+        self.generator=Generator(bonds=lattice.bonds,config=config,terms=terms,dtype=dtype,half=False)
         self.status.update(const=self.generator.parameters['const'])
         self.status.update(alter=self.generator.parameters['alter'])
         self.set_operators()
@@ -183,9 +183,6 @@ class DMRG(Engine):
         Set the operators of the DMRG.
         '''
         self.operators=self.generator.operators
-        if self.mask==['nambu']:
-            for operator in self.operators.values():
-                self.operators+=operator.dagger
 
     def set_mpo(self):
         '''

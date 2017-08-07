@@ -4,8 +4,7 @@ Fermionic operator
 ------------------
 
 Fermionic operator, including:
-    * classes: FOperator
-    * functions: FLinear, FQuadratic, FHubbard
+    * classes: FOperator, FLinear, FQuadratic, FHubbard
 '''
 
 __all__=['FOperator','FLinear','FQuadratic','FHubbard']
@@ -20,68 +19,51 @@ class FOperator(Operator):
 
     Attributes
     ----------
-    mode : string
-        The tag used to distinguish operators with different types or ranks.
     indices : tuple of Index
         The associated indices of the operator, whose length should be equal to the operator's rank.
-    rcoords : tuple of 1D ndarray, optional
+    seqs : tuple of integer
+        The associated sequences of the operator, whose length should be equal to the operator's rank.
+    rcoord : 1d ndarray
         The associated real coordinates of the operator.
-    icoords : tuple of 1D ndarray, optional
+    icoord : 1d ndarray
         The associated lattice coordinates of the operator.
-    seqs : tuple of integer, optional
-         The associated sequences of the operator, whose length should be equal to the operator's rank.
-
-    Notes
-    -----
-        * The lengths of `rcoords` and `icoords` are not forced to be equal to the operator's rank because:
-            * Some of its rank-1 terms may share the same `rcoord` or `icoord`;
-            * The `rcoords` and `icoords` is the whole operator's property instead of each of its rank-1 component.
-            However, for operators with the same attribute `mode`, the lengths of their `rcoords` and `icoords` should be fixed and equal to each other.
-        * Current supported modes include:
-            * 'flinear': rank==1 fermionic operators
-                The single particle operators.
-            * 'fquadratic': rank==2 fermionic operators
-                Only one rcoord and one icoord are needed which are identical to the bond's rcoord and icoord where the quadratic operator is defined.
-            * 'fhubbard': rank==4 fermionic operators
-                Only one rcoord and icoord is needed because Hubbard operators are always on-site ones.
     '''
 
-    def __init__(self,mode,value,indices,rcoords=None,icoords=None,seqs=None):
+    def __init__(self,value,indices,seqs=None,rcoord=None,icoord=None):
         '''
         Constructor.
 
         Parameters
         ----------
-        mode : string
-            The tag used to distinguish operators with different types or ranks.
+        value : number
+            The coefficient of the operator.
         indices : tuple of Index
-            The associated indices of the operator, whose length should be equal to the operator's rank.
-        rcoords : tuple of 1D ndarray, optional
-            The associated real coordinates of the operator.
-        icoords : tuple of 1D ndarray, optional
-            The associated lattice coordinates of the operator.
+            The associated indices of the operator.
         seqs : tuple of integer, optional
-             The associated sequences of the operator, whose length should be equal to the operator's rank.
+             The associated sequences of the operator.
+        rcoord : 1d ndarray, optional
+            The real coordinates of the operator.
+        icoord : 1d ndarray, optional
+            The lattice coordinates of the operator.
         '''
         super(FOperator,self).__init__(value)
-        self.mode=mode
         self.indices=tuple(indices)
-        if rcoords is not None: self.rcoords=tuple([array(obj) for obj in rcoords])
-        if rcoords is not None: self.icoords=tuple([array(obj) for obj in icoords])
-        if seqs is not None: self.seqs=tuple(seqs)
+        self.seqs=None if seqs is None else tuple(seqs)
+        if self.seqs is not None: assert len(self.seqs)==len(self.indices)
+        self.rcoord=None if rcoord is None else array(rcoord)
+        self.icoord=None if icoord is None else array(icoord)
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
         result=[]
-        result.append('FOperator(')
-        result.append('%s'%self.mode)
-        result.append(', %s'%self.value)
+        result.append('%s('%self.__class__.__name__)
+        result.append('%s'%self.value)
         result.append(', %s'%(self.indices,))
-        if hasattr(self,'rcoords'): result.append(', rcoords=(%s)'%(','.join(str(rcoord) for rcoord in self.rcoords)))
-        if hasattr(self,'icoords'): result.append(', icoords=(%s)'%(','.join(str(icoord) for icoord in self.icoords)))
-        if hasattr(self,'seqs'): result.append(', seqs=%s'%(self.seqs,))
+        if self.seqs is not None: result.append(', seqs=%s'%(self.seqs,))
+        if self.rcoord is not None: result.append(', rcoord=%s'%self.rcoord)
+        if self.icoord is not None: result.append(', icoord=%s'%self.icoord)
         result.append(')')
         return ''.join(result)
 
@@ -90,13 +72,12 @@ class FOperator(Operator):
         Convert an instance to string.
         '''
         result=[]
-        result.append('FOperator(')
-        result.append('mode=%s'%self.mode)
-        result.append(', value=%s'%self.value)
+        result.append('%s('%self.__class__.__name__)
+        result.append('value=%s'%self.value)
         result.append(', indices=(%s)'%(','.join(str(index) for index in self.indices)))
-        if hasattr(self,'rcoords'): result.append(', rcoords=(%s)'%(','.join(str(rcoord) for rcoord in self.rcoords)))
-        if hasattr(self,'icoords'): result.append(', icoords=(%s)'%(','.join(str(icoord) for icoord in self.icoords)))
-        if hasattr(self,'seqs'): result.append(', seqs=%s'%(self.seqs,))
+        if self.seqs is not None: result.append(', seqs=%s'%(self.seqs,))
+        if self.rcoord is not None: result.append(', rcoord=%s'%self.rcoord)
+        if self.icoord is not None: result.append(', icoord=%s'%self.icoord)
         result.append(')')
         return ''.join(result)
 
@@ -105,21 +86,7 @@ class FOperator(Operator):
         '''
         The unique id of this operator.
         '''
-        return (self.indices+tuple(['%f'%rcoord for rcoord in concatenate(self.rcoords)])) if hasattr(self,'rcoords') else self.indices
-
-    @property
-    def dagger(self):
-        '''
-        The dagger, i.e. the Hermitian conjugate of an operator.
-        '''
-        return FOperator(
-                mode=           self.mode,
-                value=          conjugate(self.value),
-                indices=        reversed([obj.replace(nambu=1-obj.nambu) for obj in self.indices]),
-                rcoords=        reversed(list(self.rcoords)) if hasattr(self,'rcoords') else None,
-                icoords=        reversed(list(self.icoords)) if hasattr(self,'icoords') else None,
-                seqs=           reversed(list(self.seqs)) if hasattr(self,'seqs') else None
-                )
+        return self.indices if self.rcoord is None else self.indices+tuple(['%f'%f for f in self.rcoord])
 
     @property
     def rank(self):
@@ -132,10 +99,10 @@ class FOperator(Operator):
         '''
         Judge whether an operator is normal ordered.
         '''
-        buff=True
+        flag=True
         for index in self.indices:
-            if index.nambu==ANNIHILATION: buff=False
-            if not buff and index.nambu==CREATION: return False
+            if index.nambu==ANNIHILATION: flag=False
+            if not flag and index.nambu==CREATION: return False
         return True
 
     def is_Hermitian(self):
@@ -144,20 +111,103 @@ class FOperator(Operator):
         '''
         return self==self.dagger
 
-def FLinear(value,indices,rcoords=None,icoords=None,seqs=None):
+class FLinear(FOperator):
     '''
-    A specialized constructor to create an Operator instance with mode='flinear'.
+    Linear fermionic operator.
     '''
-    return FOperator('flinear',value,indices,rcoords,icoords,seqs)
 
-def FQuadratic(value,indices,rcoords=None,icoords=None,seqs=None):
-    '''
-    A specialized constructor to create an Operator instance with mode='fquadratic'.
-    '''
-    return FOperator('fquadratic',value,indices,rcoords,icoords,seqs)
+    def __init__(self,value,index,seq=None,rcoord=None,icoord=None):
+        '''
+        Constructor.
 
-def FHubbard(value,indices,rcoords=None,icoords=None,seqs=None):
+        Parameters
+        ----------
+        value : number
+            The coefficient of the linear operator.
+        index : Index
+            The index of the linear operator.
+        seq : integer, optional
+            The associated sequence of the linear operator.
+        rcoord : 1d ndarray, optional
+            The real coordinates of the operator.
+        icoord : 1d ndarray, optional
+            The lattice coordinates of the operator.
+        '''
+        super(FLinear,self).__init__(value,indices=(index,),seqs=None if seq is None else (seq,),rcoord=rcoord,icoord=icoord)
+
+    @property
+    def index(self):
+        '''
+        The index of the linear operator.
+        '''
+        return self.indices[0]
+
+    @property
+    def seq(self):
+        '''
+        The associated sequence of the linear operator.
+        '''
+        return None if self.seqs is None else self.seqs[0]
+
+    @property
+    def dagger(self):
+        '''
+        The Hermitian conjugate of the linear operator.
+        '''
+        return FLinear(
+                value=      conjugate(self.value),
+                index=      self.index.replace(nambu=1-self.index.nambu),
+                seq=        self.seq,
+                rcoord=     self.rcoord,
+                icoord=     self.icoord
+                )
+
+class FQuadratic(FOperator):
     '''
-    A specialized constructor to create an Operator instance with mode='fhubbard'.
+    Quadratic fermionic operator.
     '''
-    return FOperator('fhubbard',value,indices,rcoords,icoords,seqs)
+
+    def __init__(self,value,indices,seqs=None,rcoord=None,icoord=None):
+        '''
+        Constructor. See FOperator.__init__ for details.
+        '''
+        assert len(indices)==2
+        super(FQuadratic,self).__init__(value,indices,seqs=seqs,rcoord=rcoord,icoord=icoord)
+
+    @property
+    def dagger(self):
+        '''
+        The Hermitian conjugate of the quadratic operator.
+        '''
+        return FQuadratic(
+                value=      conjugate(self.value),
+                indices=    [index.replace(nambu=1-index.nambu) for index in reversed(self.indices)],
+                seqs=       None if self.seqs is None else reversed(self.seqs),
+                rcoord=     None if self.rcoord is None else -self.rcoord,
+                icoord=     None if self.icoord is None else -self.icoord
+                )
+
+class FHubbard(FOperator):
+    '''
+    Fermionic Hubbard operator.
+    '''
+
+    def __init__(self,value,indices,seqs=None,rcoord=None,icoord=None):
+        '''
+        Constructor. See FOperator.__init__ for details.
+        '''
+        assert len(indices)==4
+        super(FHubbard,self).__init__(value,indices,seqs=seqs,rcoord=rcoord,icoord=icoord)
+
+    @property
+    def dagger(self):
+        '''
+        The Hermitian conjugate of the Hubbard operator.
+        '''
+        return FHubbard(
+                value=      conjugate(self.value),
+                indices=    [index.replace(nambu=1-index.nambu) for index in reversed(self.indices)],
+                seqs=       None if self.seqs is None else reversed(self.seqs),
+                rcoord=     self.rcoord,
+                icoord=     self.icoord
+                )

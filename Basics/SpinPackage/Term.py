@@ -4,10 +4,10 @@ Spin terms
 ----------
 
 Spin terms, including:
-    * classes: SpinTerm, SpinTerms
+    * classes: SpinTerm
 '''
 
-__all__=['SpinTerm','SpinTerms']
+__all__=['SpinTerm']
 
 from numpy import *
 from ..Constant import *
@@ -65,10 +65,8 @@ class SpinTerm(Term):
         result.append('value=%s'%self.value)
         result.append('neighbour=%s'%self.neighbour)
         result.append('indexpacks=%s'%self.indexpacks)
-        if self.amplitude is not None:
-            result.append('amplitude=%s'%self.amplitude)
-        if hasattr(self,'modulate'):
-            result.append('modulate=%s'%self.modulate)
+        if self.amplitude is not None: result.append('amplitude=%s'%self.amplitude)
+        if self.modulate is not None: result.append('modulate=%s'%self.modulate)
         return 'SpinTerm('+', '.join(result)+')'
 
     def __add__(self,other):
@@ -93,7 +91,7 @@ class SpinTerm(Term):
         result.append(self)
         return result
 
-    def operators(self,bond,config,table=None,dtype=complex128):
+    def operators(self,bond,config,table=None,dtype=complex128,**karg):
         '''
         This method returns all the spin operators defined on the input bond with non-zero coefficients.
 
@@ -134,8 +132,6 @@ class SpinTerm(Term):
                                     value=      pv,
                                     indices=    [eindex],
                                     spins=      [SpinMatrix(espin.S,tags[0],matrix=ms[0],dtype=dtype)],
-                                    rcoords=    [epoint.rcoord],
-                                    icoords=    [epoint.icoord],
                                     seqs=       None if table is None else (table[eindex])
                                     )
                     elif len(tags)==2:
@@ -149,40 +145,8 @@ class SpinTerm(Term):
                                             value=      pv,
                                             indices=    [eindex,sindex],
                                             spins=      [SpinMatrix(espin.S,tags[0],ms[0],dtype=dtype),SpinMatrix(sspin.S,tags[1],ms[1],dtype=dtype)],
-                                            rcoords=    [epoint.rcoord,spoint.rcoord],
-                                            icoords=    [epoint.icoord,spoint.icoord],
                                             seqs=       None if table is None else (table[eindex],table[sindex])
                                             )
                     else:
                         raise ValueError('SpinTerm operators error: not supported yet.')
-        return result
-
-class SpinTerms(Terms):
-    '''
-    This class packs several SpinTerm instances as a whole for convenience.
-    '''
-
-    def operators(self,bond,config,table,dtype=complex128):
-        '''
-        This method returns all the spin operators defined on the input bond with non-zero coefficients.
-
-        Parameters
-        ----------
-        bond : Bond
-            The bond on which the spin terms are defined.
-        config : IDFConfig
-            The configuration of spin degrees of freedom.
-        table : Table, optional
-            The index-sequence table.
-        dtype : dtype,optional
-            The data type of the coefficient of the returned operators.
-
-        Returns
-        -------
-        Operators
-            All the spin operators with non-zero coeffcients.
-        '''
-        result=Operators()
-        for spinterm in self:
-            result+=spinterm.operators(bond,config,table,dtype)
         return result

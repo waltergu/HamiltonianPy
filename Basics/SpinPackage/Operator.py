@@ -11,6 +11,7 @@ __all__=['SOperator']
 
 from numpy import *
 from ..Operator import *
+import itertools as it
 
 class SOperator(Operator):
     '''
@@ -22,24 +23,24 @@ class SOperator(Operator):
         The associated indices of the operator, whose length should be equal to the operator's rank.
     spins : list of SpinMatrix
         The associated spin matrix of the operator, whose length should be equal to the operator's rank.
-    rcoords : tuple of 1D ndarray, optional
-        The associated real coordinates of the operator.
-    icoords : tuple of 1D ndarray, optional
-        The associated lattice coordinates of the operator.
-    seqs : tuple of integer, optional
+    seqs : tuple of integer
         The associated sequences of the operator, whose length should be equal to the operator's rank.
+    rcoord : 1d ndarray
+        The associated real coordinates of the operator.
+    icoord : 1d ndarray
+        The associated lattice coordinates of the operator.
     '''
 
-    def __init__(self,value,indices,spins,rcoords=None,icoords=None,seqs=None):
+    def __init__(self,value,indices,spins,seqs=None,rcoord=None,icoord=None):
         '''
         Constructor.
         '''
         super(SOperator,self).__init__(value)
         self.indices=tuple(indices)
         self.spins=tuple(spins)
-        if rcoords is not None: self.rcoords=tuple(rcoords)
-        if icoords is not None: self.icoords=tuple(icoords)
-        if seqs is not None: self.seqs=tuple(seqs)
+        self.seqs=None if seqs is None else tuple(seqs)
+        self.rcoord=rcoord
+        self.icoord=icoord
 
     def __repr__(self):
         '''
@@ -62,9 +63,9 @@ class SOperator(Operator):
         result.append('value=%s'%self.value)
         result.append(', indices=%s'%(self.indices,))
         result.append(', spins=(%s)'%('\n'.join(str(spin) for spin in self.spins)))
-        if hasattr(self,'rcoords'): result.append(', rcoords=%s'%(self.rcoords,))
-        if hasattr(self,'icoords'): result.append(', icoords=%s'%(self.icoords,))
-        if hasattr(self,'seqs'): result.append(', seqs=%s'%(self.seqs,))
+        if self.seqs is not None: result.append(', seqs=%s'%(self.seqs,))
+        if self.rcoord is not None: result.append(', rcoord=%s'%self.rcoord)
+        if self.icoord is not None: result.append(', icoord=%s'%self.icoord)
         result.append(')')
         return ''.join(result)
 
@@ -73,10 +74,10 @@ class SOperator(Operator):
         '''
         The unique id of this operator.
         '''
-        if hasattr(self,'rcoords'):
-            return tuple(list(self.indices)+[spin.tag for spin in self.spins]+['%f'%i for i in concatenate(self.rcoords)])
+        if self.rcoord is not None:
+            return tuple(it.chain(self.indices,(spin.tag for spin in self.spins),('%f'%f for f in self.rcoord)))
         else:
-            return tuple(list(self.indices)+[spin.tag for spin in self.spins])
+            return tuple(it.chain(self.indices,(spin.tag for spin in self.spins)))
 
     @property
     def rank(self):

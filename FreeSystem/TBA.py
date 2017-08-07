@@ -64,7 +64,7 @@ class TBA(Engine):
         self.config=config
         self.terms=terms
         self.mask=mask
-        self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms)
+        self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms,half=True)
         self.status.update(const=self.generator.parameters['const'],alter=self.generator.parameters['alter'])
 
     def update(self,**karg):
@@ -101,7 +101,7 @@ class TBA(Engine):
         nmatrix=self.nmatrix
         result=zeros((nmatrix,nmatrix),dtype=complex128)
         for opt in self.generator.operators.values():
-            phase=1 if len(k)==0 else exp(-1j*inner(k,opt.rcoords[0]))
+            phase=1 if len(k)==0 else exp(-1j*inner(k,opt.rcoord))
             result[opt.seqs]+=opt.value*phase
             if len(self.mask)==0:
                 i,j=opt.seqs

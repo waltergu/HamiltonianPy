@@ -3,17 +3,18 @@
 Term descriptions
 =================
 
-This module defines the way to desribe a term and a set of terms of the Hamiltonian, including:
-    * classes: Term and Terms
+This module defines the way to desribe a term of the Hamiltonian, including:
+    * classes: Term
 '''
 
-__all__=['Term','Terms']
+__all__=['Term']
 
-from numpy import complex128
+from numpy import ndarray,complex128
 from ..Misc import Arithmetic
+from collections import Iterable
 from copy import copy
 
-class Term(Arithmetic,object):
+class Term(Arithmetic):
     '''
     This class is the base class for all kinds of terms contained in a Hamiltonian.
 
@@ -47,87 +48,31 @@ class Term(Arithmetic,object):
         self.id=id
         self.mode=mode
         self.value=value
-        if modulate is not None:
-            self.modulate=modulate if callable(modulate) else lambda **karg: karg.get(self.id,'None')
+        self.modulate=modulate if callable(modulate) or modulate is None else lambda **karg: karg.get(self.id,'None')
 
     def __mul__(self,other):
         '''
         Overloaded operator(*) which supports the left multiplication with a scalar.
         '''
         result=copy(self)
-        if isinstance(result.value,list):
-            result.value=[value*other for value in result.value]
-        else:
+        if isinstance(result.value,ndarray) or not isinstance(result.value,Iterable):
             result.value*=other
-            if hasattr(self,'modulate'):
-                result.modulate=lambda *arg,**karg: self.modulate(*arg,**karg)*other if self.modulate(*arg,**karg) is not None else None
+        else:
+            result.value=type(result.value)([value*other for value in result.value])
+        if result.modulate is not None:
+            result.modulate=lambda *arg,**karg: self.modulate(*arg,**karg)*other if self.modulate(*arg,**karg) is not None else None
         return result
 
     def replace(self,**karg):
         '''
-        Replace 
+        Replace some attributes of the term.
         '''
         result=copy(self)
         assert all(key in self.__dict__ for key in karg)
         result.__dict__.update(**karg)
         return result
 
-class Terms(Arithmetic,list):
-    '''
-    This class packs several instances of Term's subclasses as a whole for convenience.
-    '''
-
-    def __new__(cls,*arg):
-        '''
-        Constructor.
-        '''
-        self=list.__new__(cls)
-        for obj in arg:
-            if issubclass(obj.__class__,Term):
-                self.append(obj)
-            else:
-                raise ValueError("%s init error: the input argument should be instances of Term's subclasses."%self.__class__.__name__)
-        return self
-
-    def __init__(self,*arg):
-        '''
-        Constructor. It is needed to change the interface of list construction.
-        '''
-        pass
-
-    def __str__(self):
-        '''
-        Convert an instance to string.
-        '''
-        return '\n'.join(['Node[%s]:%s'%(i,obj) for i,obj in enumerate(self)])
-
-    def __add__(self,other):
-        '''
-        Overloaded operator(+), which supports the left addition of a Terms instance with a Term/Terms instance.
-        '''
-        result=copy(self)
-        if issubclass(other.__class__,Term):
-            result.append(other)
-        elif issubclass(other.__class__,Terms):
-            result.extend(other)
-        else:
-            raise ValueError("%s '+' error: the other parameter must be an instance of Term's or Terms's subclasses."%self.__class__.__name__)
-        return result
-
-    __iadd__=__add__
-
-    def __mul__(self,other):
-        '''
-        Overloaded operator(*), which supports the left multiplication with a scalar.
-        '''
-        result=list.__new__(self.__class__)
-        for obj in self:
-            result.append(obj*other)
-        return result
-
-    __imul__=__mul__
-
-    def operators(self,bond,config,table=None,dtype=complex128):
+    def operators(self,bond,config,table=None,dtype=complex128,**karg):
         '''
         This method returns all the desired operators which are described those terms in self.
 

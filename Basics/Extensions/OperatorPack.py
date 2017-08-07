@@ -33,7 +33,7 @@ def fspoperators(table,lattice):
     '''
     result=[]
     for ndx in sorted(table,key=table.get):
-        result.append(FLinear(1,indices=[ndx],rcoords=[lattice.rcoord(ndx.pid)],icoords=[lattice.icoord(ndx.pid)],seqs=[table[ndx]]))
+        result.append(FLinear(1,index=ndx,seq=table[ndx],rcoord=lattice.rcoord(ndx.pid),icoord=lattice.icoord(ndx.pid)))
     return result
 
 def JWBosonization(operator,table):

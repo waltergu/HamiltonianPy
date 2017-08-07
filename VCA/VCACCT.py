@@ -91,14 +91,16 @@ class VCACCT(VCA):
                     config=         config,
                     table=          config.table(mask=mask),
                     terms=          [term for term in terms if isinstance(term,HP.Quadratic)],
-                    dtype=          dtype
+                    dtype=          dtype,
+                    half=           True
                     )
         self.ptwgenerator=HP.Generator(
                     bonds=          [bond for bond in lattice.bonds if bond.isintracell() and bond.spoint.pid.scope==bond.epoint.pid.scope],
                     config=         config,
                     table=          config.table(mask=mask),
                     terms=          [term*(-1) for term in weiss],
-                    dtype=          dtype
+                    dtype=          dtype,
+                    half=           True
                     )
         self.pthoperators=self.pthgenerator.operators
         self.ptwoperators=self.ptwgenerator.operators

@@ -11,50 +11,46 @@ from HamiltonianPy.Basics.FermionicPackage import *
 
 def test_foperator():
     print 'test_foperator'
-    a=FOperator(
-        mode=       'fquadratic',
+    a=FQuadratic(
         value=      1.0j,
         indices=    [   Index(PID(site=1),FID(orbital=0,spin=0,nambu=CREATION)),
                         Index(PID(site=1),FID(orbital=0,spin=0))
                     ],
-        rcoords=    [[0.0,0.0]],
-        icoords=    [[0.0,0.0]],
-        seqs=       [1,1]
+        seqs=       [1,1],
+        rcoord=     [0.0,0.0],
+        icoord=     [0.0,0.0]
         )
-    b=FOperator(
-        mode=       'fquadratic',
+    b=FQuadratic(
         value=      2.0,
         indices=    [   Index(PID(site=0),FID(orbital=0,spin=0)),
                         Index(PID(site=0),FID(orbital=0,spin=0,nambu=CREATION))
                     ],
-        rcoords=    [[1.0,0.0]],
-        icoords=    [[0.0,0.0]],
-        seqs=       [0,1]
+        seqs=       [0,1],
+        rcoord=     [1.0,0.0],
+        icoord=     [0.0,0.0]
         )
     print 'a: %s'%a
     print 'a.dagger: %s'%a.dagger
     print 'b: %s'%b
     print 'a.is_Hermitian: %s'%a.is_Hermitian()
     print 'a.is_normal_ordered, a.dagger.is_normal_ordered: %s, %s'%(a.is_normal_ordered(),a.dagger.is_normal_ordered())
-    c=FOperator(
-        mode=       'fquadratic',
+    c=FQuadratic(
         value=      1.0j,
         indices=    [   Index(PID(site=1),FID(orbital=0,spin=0)),
                         Index(PID(site=1),FID(orbital=0,spin=0,nambu=CREATION))
                     ],
-        rcoords=    [[0.0,0.0]],
-        icoords=    [[0.0,0.0]],
-        seqs=       [1,1]
+        seqs=       [1,1],
+        rcoord=     [0.0,0.0],
+        icoord=     [0.0,0.0],
         )
-    d=FOperator(
-        mode=       'fquadratic',
+    d=FQuadratic(
         value=      2.0,
         indices=    [   Index(PID(site=1),FID(orbital=0,spin=0)),
                         Index(PID(site=1),FID(orbital=0,spin=0,nambu=CREATION))
                     ],
-        rcoords=    [[1.0,0.0]],
-        icoords=    [[0.0,0.0]],
-        seqs=       [0,1]
+        seqs=       [0,1],
+        rcoord=     [1.0,0.0],
+        icoord=     [0.0,0.0]
         )
     print 'c: %s'%c
     print 'd: %s'%d

@@ -21,7 +21,7 @@ class Arithmetic(object):
 
     Notes
     -----
-        * The addition('+') and multiplication('+') operations are assumed to be commutable.
+        * The addition('+') and multiplication('*') operations are assumed to be commutable.
         * The minus sign ('-' in the negative operator and subtraction operator) are interpreted as the multiplication by -1.0
         * The division operation is interpreted as the multiplication by the inverse of the second argument, which should be a scalar.
     '''

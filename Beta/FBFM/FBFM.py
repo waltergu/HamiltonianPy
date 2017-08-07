@@ -66,4 +66,4 @@ class FBFM(HP.Engine):
     def matrix(self,k=None,**karg):
         self.update(**karg)
         result=np.zeros((self.nk*self.nsp**2/16,self.nk*self.nsp**2/16),dtype=np.complex128)
-        for 
+        pass
