@@ -22,8 +22,8 @@ class FBFM(HP.Engine):
         self.terms=terms
         self.interactions=interactions
         self.bz=bz
-        self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms)
-        self.igenerator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=interactions)
+        self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,half=True)
+        self.igenerator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['spin','nambu']),terms=interactions,half=False)
         self.status.update(const=self.generator.parameters['const'],alter=self.generator.parameters['alter'])
         self.status.update(const=self.igenerator.parameters['const'],alter=self.igenerator.parameters['alter'])
         self.spdiagonalize()
@@ -37,25 +37,24 @@ class FBFM(HP.Engine):
         return 1 if self.bz is None else len(self.bz.mesh('k'))
 
     def spdiagonalize(self):
+        def matrix(k=[]):
+            result=np.zeros((self.nsp,self.nsp),dtype=np.complex128)
+            for opt in self.generator.operators.values():
+                result[opt.seqs]+=opt.value*(1 if len(k)==0 else np.exp(-1j*np.inner(k,opt.rcoords[0])))
+            result+=conjugate(result.T)
+            return result
         dwesmesh,dwvsmesh=[],[]
         upesmesh,upvsmesh=[],[]
         for k in self.bz.mesh('k'):
-            matrix=self.spmatrix(k)
-            es,vs=sl.eigh(matrix[:self.nsp/2,:self.nsp/2],eigvals=(0,self.nsp/4))
+            m=matrix(k)
+            es,vs=sl.eigh(m[:self.nsp/2,:self.nsp/2],eigvals=(0,self.nsp/4))
             dwesmesh.append(es)
             dwvsmesh.append(vs)
-            es,vs=sl.eigh(matrix[self.nsp/2:,self.nsp/2:],eigvals=(0,self.nsp/4))
+            es,vs=sl.eigh(m[self.nsp/2:,self.nsp/2:],eigvals=(0,self.nsp/4))
             upesmesh.append(es)
             upvsmesh.append(vs)
         self.esmesh=np.array([dwesmesh,upesmesh])
         self.vsmesh=np.array([dwvsmesh,upvsmesh])
-
-    def spmatrix(self,k=[]):
-        result=np.zeros((self.nsp,self.nsp),dtype=np.complex128)
-        for opt in self.generator.operators.values():
-            result[opt.seqs]+=opt.value*(1 if len(k)==0 else np.exp(-1j*np.inner(k,opt.rcoords[0])))
-        result+=conjugate(result.T)
-        return result
 
     def update(self,**karg):
         self.generator.update(**karg)
