@@ -48,7 +48,7 @@ class Term(Arithmetic):
         self.id=id
         self.mode=mode
         self.value=value
-        self.modulate=modulate if callable(modulate) or modulate is None else lambda **karg: karg.get(self.id,'None')
+        self.modulate=modulate if callable(modulate) or modulate is None else lambda **karg: karg.get(self.id,None)
 
     def __mul__(self,other):
         '''

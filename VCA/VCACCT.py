@@ -12,6 +12,8 @@ __all__=['VCACCT','VCACCTGFP','VCACCTGF']
 
 from VCA import *
 from scipy.linalg import block_diag
+from copy import deepcopy
+from collections import Counter
 import numpy as np
 import HamiltonianPy as HP
 import HamiltonianPy.ED as ED
@@ -70,7 +72,7 @@ class VCACCT(VCA):
                     basis=          subbasis,
                     lattice=        sublattice,
                     config=         subconfig,
-                    terms=          terms+weiss,
+                    terms=          deepcopy(terms+weiss),
                     dtype=          dtype,
                     **extras
                     )
@@ -123,8 +125,11 @@ def VCACCTGFP(engine,app):
     '''
     This method prepares the cluster Green's function.
     '''
-    for subsystem in engine.subsystems.values():
+    app.gse=0.0
+    counter=Counter(engine.groups)
+    for group,subsystem in engine.subsystems.iteritems():
         subsystem.apps['gf'].prepare(subsystem,subsystem.apps['gf'])
+        app.gse+=subsystem.apps['gf'].gse*counter[group]
 
 def VCACCTGF(engine,app):
     '''

@@ -87,7 +87,7 @@ class Cluster(object):
         ts,bcs=re.findall('\d+',tbs),re.findall('[P,p,O,o]',tbs)
         assert len(ts)==len(self.vectors) and len(bcs)==len(self.vectors)
         return Lattice(
-                name=       '%s(%s)'%(self.name,tbs.upper()),
+                name=       '%s(%s)'%(self.name,tbs.upper()) if len(tbs)>0 else self.name,
                 rcoords=    tiling(cluster=self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts])),
                 vectors=    [self.vectors[i]*int(t) for i,(t,bc) in enumerate(zip(ts,bcs)) if bc.lower()=='p'],
                 nneighbour= nneighbour
@@ -163,7 +163,7 @@ def Hexagon(name):
     Cluster
         The cluster of hexagonal lattices.
     '''
-    if name not in ['H2','H4','H6','H8O','H8P','H10']:
+    if name not in ['H2','H4','H6','H8O','H8P','H10','H4A','H4B']:
         raise ValueError('Hexagon error: unexpected name(%s).'%name)
     rcoords,vectors=[],[]
     if name=='H2':
@@ -178,6 +178,16 @@ def Hexagon(name):
         rcoords.append(array([0.5,-sqrt(3)/6]))
         vectors.append(array([1.0,0.0]))
         vectors.append(array([0.0,sqrt(3.0)]))
+    elif name=='H4A':
+        rcoords.append(array([0.5,-sqrt(3)/6]))
+        rcoords.append(array([0.0,0.0]))
+        rcoords.append(array([0.5,-sqrt(3)/2]))
+        rcoords.append(array([1.0,0.0]))
+    elif name=='H4B':
+        rcoords.append(array([0.5,sqrt(3)/2]))
+        rcoords.append(array([0.0,sqrt(3)/3]))
+        rcoords.append(array([1.0,sqrt(3)/3]))
+        rcoords.append(array([0.5,sqrt(3)*5/6]))
     elif name=='H6':
         rcoords.append(array([0.0,0.0]))
         rcoords.append(array([0.0,sqrt(3)/3]))
