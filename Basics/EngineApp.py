@@ -48,6 +48,7 @@ class Engine(object):
         The log of the engine.
     '''
     DEBUG=False
+    MKDIR=True
 
     def __new__(cls,*arg,**karg):
         '''
@@ -57,7 +58,7 @@ class Engine(object):
         dirs={'dlog':'.','din':'.','dout':'.'}
         for key,value in dirs.items():
             setattr(result,key,karg.get(key,value))
-            if not os.path.exists(getattr(result,key)):
+            if cls.MKDIR and not os.path.exists(getattr(result,key)):
                 os.makedirs(getattr(result,key))
         result.status=Status(name=karg.get('name',''),info=cls.__name__,view=karg.get('view',None))
         result.status.update(const=karg.get('parameters',None))
