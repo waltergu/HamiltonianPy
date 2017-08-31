@@ -23,4 +23,12 @@ def test_basespace():
         print i,paras
     for i,paras in enumerate(f('+')):
         print i,paras
+
+    c=FBZ(reciprocals=[array([2*pi,0.0]),array([0.0,2*pi])],nks=100)
+    print 'volume: %s'%(c.volume('k')/(2*pi)**2)
+    c.plot(name='square(fbz)')
+
+    d=FBZ(reciprocals=[array([1.0,0.0]),array([0.5,sqrt(3.0)/2])],nks=100)
+    print 'volume: %s'%d.volume('k')
+    d.plot(name='hexagon(fbz)')
     print

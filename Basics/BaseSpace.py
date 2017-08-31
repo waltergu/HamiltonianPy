@@ -4,14 +4,16 @@ Parameter spaces and K-spaces
 -----------------------------
 
 BaseSpace, including
-    * classes: BaseSpace
+    * classes: BaseSpace, FBZ
     * functions: KSpace, TSpace.
 '''
 
-__all__=['BaseSpace', 'KSpace', 'TSpace']
+__all__=['BaseSpace', 'KSpace', 'TSpace', 'FBZ']
 
-from numpy import *
-from numpy.linalg import norm
+from Geometry import volume
+from QuantumNumber import QuantumNumbers,NewQuantumNumber
+import numpy as np
+import numpy.linalg as nl
 import matplotlib.pyplot as plt
 import itertools as it
 
@@ -29,13 +31,13 @@ class BaseSpace(object):
         The volumes of the parameter spaces.
     '''
 
-    def __init__(self,*paras):
+    def __init__(self,*contents):
         '''
         Constructor.
 
         Parameters
         ----------
-        paras : list of 2/3-tuples
+        contents : list of 2/3-tuples
             * tuple[0]: string
                 The tag of the parameter space.
             * tuple[1]: ndarray
@@ -43,9 +45,9 @@ class BaseSpace(object):
             * tuple[2]: float64, optional
                 The volume of the parameter space..
         '''
-        self.tags=[para[0] for para in paras]
-        self.meshes=[para[1] for para in paras]
-        self.volumes=[para[2] if len(para)==3 else None for para in paras]
+        self.tags=[para[0] for para in contents]
+        self.meshes=[para[1] for para in contents]
+        self.volumes=[para[2] if len(para)==3 else None for para in contents]
 
     def __str__(self):
         '''
@@ -135,12 +137,62 @@ def KSpace(reciprocals,nk=100,segments=None,end=False):
     nvectors=len(reciprocals)
     segments=[(-0.5,0.5)]*nvectors if segments is None else segments
     assert len(segments)==nvectors and nvectors in (1,2,3)
-    vol=(norm if nvectors==1 else (cross if nvectors==2 else volume))(*reciprocals)
-    mesh=[dot([a+(b-a)*i/(nk-1 if end else nk) for (a,b),i in zip(segments,pos)],reciprocals) for pos in it.product(*([xrange(nk)]*nvectors))]
-    return BaseSpace(('k',asarray(mesh),abs(vol)))
+    vol=(nl.norm if nvectors==1 else (np.cross if nvectors==2 else volume))(*reciprocals)
+    mesh=[np.dot([a+(b-a)*i/(nk-1 if end else nk) for (a,b),i in zip(segments,pos)],reciprocals) for pos in it.product(*([xrange(nk)]*nvectors))]
+    return BaseSpace(('k',np.asarray(mesh),np.abs(vol)))
 
 def TSpace(mesh):
     '''
     The time space.
     '''
     return BaseSpace(('t',mesh,mesh.max()-mesh.min()))
+
+class FBZ(QuantumNumbers,BaseSpace):
+    '''
+    First Brillouin zone.
+
+    Attributes
+    ----------
+    reciprocals : 2d ndarray
+        The translation vectors of the reciprocal lattice.
+    '''
+
+    def __init__(self,reciprocals,nks=None):
+        '''
+        Constructor.
+        '''
+        nks=(100 or nks,)*len(reciprocals) if type(nks) in (int,long,type(None)) else nks
+        assert len(nks)==len(reciprocals)
+        qntype=NewQuantumNumber('kp',tuple('k%s'%(i+1) for i in xrange(len(nks))),nks)
+        data=np.array(list(it.product(*[xrange(nk) for nk in nks])))
+        counts=np.ones(np.product(nks),dtype=np.int64)
+        super(FBZ,self).__init__('C',(qntype,data,counts),protocal=QuantumNumbers.COUNTS)
+        self.tags=['k']
+        self.volumes=[(nl.norm if len(nks)==1 else (np.cross if len(nks)==2 else volume))(*reciprocals)]
+        self.reciprocals=np.asarray(reciprocals)
+
+    @property
+    def meshes(self):
+        '''
+        The mesh of the FBZ.
+        '''
+        nks=np.array(self.type.periods,dtype=np.float64)
+        mesh=np.zeros(self.contents.shape,dtype=self.reciprocals.dtype)
+        for i,icoords in enumerate(self.contents):
+            mesh[i,:]=np.dot(self.reciprocals.T,icoords/nks)
+        return [mesh]
+
+    def path(self,*paths):
+        '''
+        Select a path from the FBZ.
+
+        Parameters
+        ----------
+        paths : 
+
+        Returns
+        -------
+        BaseSpace
+            The selected path.
+        '''
+        pass

@@ -11,8 +11,9 @@ __all__=['line_bz', 'rectangle_gxm', 'rectangle_gym', 'rectangle_bz', 'square_gx
 
 from ..Constant import *
 from ..BaseSpace import *
+from ..Geometry import isintriangle
 from numpy import array,zeros,pi,sqrt,cross,dot
-from numpy.linalg import norm,inv
+from numpy.linalg import norm
 
 def line_bz(reciprocals=None,nk=100):
     '''
@@ -120,52 +121,8 @@ def hexagon_bz(reciprocals=None,nk=100,vh='H'):
     for i in xrange(nk):
         for j in xrange(nk):
             coords=b1*i/nk+b2*j/nk+p0
-            if in_triangle(coords,p1,p2,p3,vertexes=(False,True,False),edges=(True,True,False)): coords=coords-b1
-            if in_triangle(coords,p1,p2,p4,vertexes=(False,True,False),edges=(True,True,False)): coords=coords-b2
+            if isintriangle(coords,p1,p2,p3,vertexes=(False,True,False),edges=(True,True,False)): coords=coords-b1
+            if isintriangle(coords,p1,p2,p4,vertexes=(False,True,False),edges=(True,True,False)): coords=coords-b2
             mesh[i*nk+j,:]=coords
     volume=abs(cross(b1,b2))
     return BaseSpace(('k',mesh,volume))
-    
-def in_triangle(p0,p1,p2,p3,vertexes=(True,True,True),edges=(True,True,True)):
-    '''
-    Judge whether a point belongs to the interior of a triangle.
-    
-    Parameters
-    ----------
-    p0 : 1d ndarray
-        The coordinates of the point.
-    p1,p2,p3 : 1d ndarray
-        The coordinates of the vertexes of the triangle.
-    vertexes : 3-tuple of logical, optional
-        Define whether the "interior" contains the vertexes of the triangle. True for YES and False for NO..
-    edges : 3-tuple of logical, optional
-        Define whether the "interior" contains the edges of the triangle. True for YES and False for NO.
-
-    Returns
-    -------
-    logical
-        True for belonging to the interior and False for not.
-
-    Notes
-    -----
-        * Whether or not the boundary of the triangle belongs to its interior is defined by the parameters `vertexes` and `edges`.
-        * The vertexes are in the order (p1,p2,p3) and the edges are in the order (p1p2,p2p3,p3p1).
-        * The edges do not contain the vertexes.
-    '''
-    a,b,x,ndim=zeros((3,3)),zeros(3),zeros(3),p0.shape[0]
-    a[0:ndim,0]=p2-p1
-    a[0:ndim,1]=p3-p1
-    a[(2 if ndim==2 else 0):3,2]=cross(p2-p1,p3-p1)
-    b[0:ndim]=p0-p1
-    x=dot(inv(a),b)
-    assert x[2]==0
-    onvertexes=[x[0]==0 and x[1]==0,x[0]==1 and x[1]==0,x[0]==0 and x[1]==1]
-    onedges=[x[1]==0 and x[0]>0 and x[0]<1,x[0]==0 and x[1]>0 and x[1]<1,x[0]+x[1]==1 and x[0]>0 and x[0]<1]
-    if any(onvertexes):
-        return any([on and condition for on,condition in zip(onvertexes,vertexes)])
-    elif any(onedges):
-        return any([on and condition for on,condition in zip(onedges,edges)])
-    elif x[0]>0 and x[0]<1 and x[1]>0 and x[1]<1 and x[0]+x[1]<1:
-        return True
-    else:
-        return False

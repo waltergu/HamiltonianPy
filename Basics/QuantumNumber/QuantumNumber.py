@@ -52,7 +52,7 @@ class QuantumNumber(np.ndarray):
         ----------
         names : list of str
             The names of the quantum number.
-        periods : list of None/posotive integer
+        periods : list of None/integer
             The periods of the quantum number.
         '''
         assert len(names)==len(periods)
