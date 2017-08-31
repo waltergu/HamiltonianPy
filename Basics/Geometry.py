@@ -4,11 +4,11 @@ Lattice construction
 ====================
 
 This module provides enormous functions and classes to construct a lattice, including
-    * functions: azimuthd, azimuth, polard, polar, volume, isparallel, isintriangle, issubordinate, reciprocals, translation, rotation, tiling, intralinks, interlinks
+    * functions: azimuthd, azimuth, polard, polar, volume, isparallel, isintratriangle, issubordinate, reciprocals, translation, rotation, tiling, intralinks, interlinks
     * classes: PID, Point, Bond, Link, Lattice, SuperLattice, Cylinder
 '''
 
-__all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'isparallel', 'isintriangle', 'issubordinate', 'reciprocals', 'translation', 'rotation', 'tiling', 'intralinks', 'interlinks', 'PID', 'Point', 'Bond', 'Link', 'Lattice', 'SuperLattice','Cylinder']
+__all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'isparallel', 'isintratriangle', 'issubordinate', 'reciprocals', 'translation', 'rotation', 'tiling', 'intralinks', 'interlinks', 'PID', 'Point', 'Bond', 'Link', 'Lattice', 'SuperLattice','Cylinder']
 
 from Constant import RZERO
 from collections import namedtuple,OrderedDict,Iterable
@@ -120,7 +120,7 @@ def isonline(p0,p1,p2,ends=(True,True),rtol=RZERO):
     d1,d2,d=nl.norm(p0-p1),nl.norm(p0-p2),nl.norm(p1-p2)
     return (np.abs(d1)<d*rtol and ends[0]) or (np.abs(d2)<d*rtol and ends[0]) or (np.abs(d1+d2-d)<d*rtol)
 
-def isintriangle(p0,p1,p2,p3,vertexes=(True,True,True),edges=(True,True,True)):
+def isintratriangle(p0,p1,p2,p3,vertexes=(True,True,True),edges=(True,True,True)):
     '''
     Judge whether a point belongs to the interior of a triangle.
 

@@ -10,7 +10,7 @@ BaseSpace, including
 
 __all__=['BaseSpace', 'KSpace', 'TSpace', 'FBZ']
 
-from Geometry import volume
+from Geometry import volume,isonline
 from QuantumNumber import QuantumNumbers,NewQuantumNumber
 import numpy as np
 import numpy.linalg as nl
@@ -161,7 +161,7 @@ class FBZ(QuantumNumbers,BaseSpace):
         '''
         Constructor.
         '''
-        nks=(100 or nks,)*len(reciprocals) if type(nks) in (int,long,type(None)) else nks
+        nks=(nks or 100,)*len(reciprocals) if type(nks) in (int,long,type(None)) else nks
         assert len(nks)==len(reciprocals)
         qntype=NewQuantumNumber('kp',tuple('k%s'%(i+1) for i in xrange(len(nks))),nks)
         data=np.array(list(it.product(*[xrange(nk) for nk in nks])))
@@ -178,8 +178,8 @@ class FBZ(QuantumNumbers,BaseSpace):
         '''
         nks=np.array(self.type.periods,dtype=np.float64)
         mesh=np.zeros(self.contents.shape,dtype=self.reciprocals.dtype)
-        for i,icoords in enumerate(self.contents):
-            mesh[i,:]=np.dot(self.reciprocals.T,icoords/nks)
+        for i,icoord in enumerate(self.contents):
+            mesh[i,:]=np.dot(self.reciprocals.T,icoord/nks)
         return [mesh]
 
     def path(self,*paths):
@@ -195,4 +195,14 @@ class FBZ(QuantumNumbers,BaseSpace):
         BaseSpace
             The selected path.
         '''
-        pass
+        disps=[np.dot(self.reciprocals.T,disp) for disp in list(it.product(*([[0,-1]]*len(self.reciprocals))))]
+        maxp=max(self.type.periods)
+        segments=[[] for i in xrange(len(paths))]
+        for rcoord0 in self.mesh('k'):
+            for disp in disps:
+                rcoord=rcoord0+disp
+                for i,(start,end) in enumerate(paths):
+                    if isonline(rcoord,start,end,ends=(True,False),rtol=10**-3/maxp):segments[i].append(rcoord)
+        for i,segment in enumerate(segments):
+            segment.sort(key=lambda rcoord: nl.norm(rcoord-paths[i][0]))
+        return BaseSpace(('k',np.concatenate(segments)))

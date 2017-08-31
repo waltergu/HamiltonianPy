@@ -11,7 +11,7 @@ __all__=['line_bz', 'rectangle_gxm', 'rectangle_gym', 'rectangle_bz', 'square_gx
 
 from ..Constant import *
 from ..BaseSpace import *
-from ..Geometry import isintriangle
+from ..Geometry import isintratriangle
 from numpy import array,zeros,pi,sqrt,cross,dot
 from numpy.linalg import norm
 
@@ -121,8 +121,8 @@ def hexagon_bz(reciprocals=None,nk=100,vh='H'):
     for i in xrange(nk):
         for j in xrange(nk):
             coords=b1*i/nk+b2*j/nk+p0
-            if isintriangle(coords,p1,p2,p3,vertexes=(False,True,False),edges=(True,True,False)): coords=coords-b1
-            if isintriangle(coords,p1,p2,p4,vertexes=(False,True,False),edges=(True,True,False)): coords=coords-b2
+            if isintratriangle(coords,p1,p2,p3,vertexes=(False,True,False),edges=(True,True,False)): coords=coords-b1
+            if isintratriangle(coords,p1,p2,p4,vertexes=(False,True,False),edges=(True,True,False)): coords=coords-b2
             mesh[i*nk+j,:]=coords
     volume=abs(cross(b1,b2))
     return BaseSpace(('k',mesh,volume))
