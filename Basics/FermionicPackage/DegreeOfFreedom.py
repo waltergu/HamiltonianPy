@@ -97,7 +97,7 @@ class Fermi(Internal):
         '''
         return self.atom==other.atom and self.norbital==other.norbital and self.nspin==other.nspin and self.nnambu==other.nnambu
 
-    def indices(self,pid,mask=[]):
+    def indices(self,pid,mask=()):
         '''
         Return a list of all the masked indices within this internal degrees of freedom combined with an extra spatial part.
 

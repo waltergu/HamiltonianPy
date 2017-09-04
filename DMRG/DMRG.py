@@ -15,13 +15,12 @@ import re
 import numpy as np
 import pickle as pk
 import itertools as it
-import scipy.sparse as sp
 import HamiltonianPy.Misc as hm
 import matplotlib.pyplot as plt
 from numpy.linalg import norm
 from HamiltonianPy import *
 from HamiltonianPy.TensorNetwork import *
-from copy import copy,deepcopy
+from copy import deepcopy
 
 def pattern(status,target,nsite,mode='re'):
     '''
@@ -96,7 +95,7 @@ class DMRG(Engine):
             The old singular values of the DMRG.
     '''
 
-    def __init__(self,mps,lattice,terms,config,degfres,matvec='lo',mask=[],target=None,dtype=np.complex128,**karg):
+    def __init__(self,mps,lattice,terms,config,degfres,matvec='lo',mask=(),target=None,dtype=np.complex128,**karg):
         '''
         Constructor.
 
@@ -104,7 +103,7 @@ class DMRG(Engine):
         ----------
         mps : MPS
             The matrix product state of the DMRG.
-        lattice : Lattice
+        lattice : Cylinder
             The lattice of the DMRG.
         terms : list of Term
             The terms of the DMRG.
@@ -172,8 +171,8 @@ class DMRG(Engine):
         '''
         Update the DMRG with new parameters.
         '''
-        self.generators['h'].update(**karg)
-        self.status.update(alter=self.generators['h'].parameters['alter'])
+        self.generator.update(**karg)
+        self.status.update(alter=self.generator.parameters['alter'])
         self.set_operators()
         self.set_mpo()
         self.set_Hs_()
@@ -261,9 +260,9 @@ class DMRG(Engine):
 
         Parameters
         ----------
-        SL/EL : integer, optional
+        SL,EL : integer, optional
             The start/end position of the left Hamiltonians to be set.
-        SR/ER : integer, optional
+        SR,ER : integer, optional
             The start/end position of the right Hamiltonians to be set.
         keep : logical, optional
             True for keeping the old `_Hs_` and False for not.
@@ -327,7 +326,7 @@ class DMRG(Engine):
         Parameters
         ----------
         info : str, optional
-            The infomation string passed to self.log.
+            The information string passed to self.log.
         sp : logical, optional
             True for state prediction False for not.
         nmax : integer, optional
@@ -442,7 +441,7 @@ class DMRG(Engine):
         ----------
         mps : MPS
             The mps to be predicted.
-        sites/bonds : list of Label
+        sites,bonds : list of Label
             The new site/bond labels of the mps.
         osvs : 1d ndarray
             The old singular values.
@@ -527,7 +526,7 @@ class DMRG(Engine):
         ----------
         mpo : MPO
             The mpo to be generated.
-        sites/bonds : list of Label
+        sites,bonds : list of Label
             The site/bond labels of the mpo.
         '''
         ob,nb,obonds=mpo.nsite/2+1,(len(bonds)+1)/2,mpo.bonds
@@ -612,7 +611,7 @@ class DMRG(Engine):
     @staticmethod
     def coreload(din,pattern,nmax):
         '''
-        Use pickle to laod the core of the dmrg from existing data files.
+        Use pickle to load the core of the dmrg from existing data files.
 
         Parameters
         ----------
@@ -706,13 +705,13 @@ class TSG(App):
                 engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
                 code=len(self.targets)-i-1
                 break
-            else:
-                code=-1
+        else:
+            code=-1
         return code
 
 def DMRGTSG(engine,app):
     '''
-    This method iterativey update the DMRG by increasing its lattice in the center by 2 blocks at each iteration.
+    This method iterative update the DMRG by increasing its lattice in the center by 2 blocks at each iteration.
     '''
     engine.log.open()
     num=app.recover(engine)
@@ -752,7 +751,7 @@ class TSS(App):
     nmaxs : list of integer
         The maximum numbers of singular values to be kept for the sweeps.
     BS : BaseSpace
-        The basespace of the DMRG's parametes for the sweeps.
+        The basespace of the DMRG's parameters for the sweeps.
     paths : list of list of '<<' or '>>'
         The paths along which the sweeps are performed.
     force_sweep : logical
@@ -822,7 +821,7 @@ class TSS(App):
 
 def DMRGTSS(engine,app):
     '''
-    This method iterativey sweep the DMRG with 2 sites updated at each iteration.
+    This method iterative sweep the DMRG with 2 sites updated at each iteration.
     '''
     engine.log.open()
     num=app.recover(engine)

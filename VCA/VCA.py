@@ -16,7 +16,7 @@ from scipy.linalg import eigh
 from scipy import interpolate
 from scipy.sparse import csr_matrix
 from scipy.integrate import quad
-from scipy.optimize import minimize,newton,brenth,brentq,broyden1,broyden2
+from scipy.optimize import minimize,broyden2
 from collections import OrderedDict
 from copy import deepcopy
 import numpy as np
@@ -84,7 +84,7 @@ class VCA(ED.FED):
     pthgenerator : Generator
         The generator for the perturbation coming from the inter-cluster single-particle terms.
     ptwgenerator : Generator
-        The generator for the perturbation cominig from the Weiss terms.
+        The generator for the perturbation coming from the Weiss terms.
     operators : Operators
         The 'half' of the operators for the cluster Hamiltonian, including the Weiss terms.
     pthoperators : Operators
@@ -118,7 +118,7 @@ class VCA(ED.FED):
         =========   ======================================================================================================================
     '''
 
-    def __init__(self,cgf,basis,cell,lattice,config,terms=[],weiss=[],mask=['nambu'],dtype=np.complex128,**karg):
+    def __init__(self,cgf,basis,cell,lattice,config,terms=(),weiss=(),mask=('nambu',),dtype=np.complex128,**karg):
         '''
         Constructor.
 
@@ -136,7 +136,7 @@ class VCA(ED.FED):
             The configuration of the internal degrees of freedom on the lattice.
         terms : list of Term, optional
             The terms of the system.
-        weiss : lsit of Term, optional
+        weiss : list of Term, optional
             The Weiss terms of the system.
         mask : [] or ['nambu']
             * []: using the nambu space and computing the anomalous Green's functions;
@@ -251,7 +251,7 @@ class VCA(ED.FED):
             app.run(self,app)
         return app.gf
 
-    def pt(self,k=[]):
+    def pt(self,k=()):
         '''
         Returns the matrix form of the inter-cluster perturbations.
 
@@ -296,7 +296,7 @@ class VCA(ED.FED):
             self.cache['pt_kmesh']=result
             return result
 
-    def mgf(self,omega=None,k=[]):
+    def mgf(self,omega=None,k=()):
         '''
         Returns the Green's function in the mixed representation.
 
@@ -335,7 +335,7 @@ class VCA(ED.FED):
         cgf=self.cgf(omega)
         return np.einsum('jk,ikl->ijl',cgf,inv(np.identity(cgf.shape[0],dtype=cgf.dtype)-self.pt_kmesh(kmesh).dot(cgf)))
 
-    def gf(self,omega=None,k=[]):
+    def gf(self,omega=None,k=()):
         '''
         Returns the VCA Green's function.
 
@@ -643,7 +643,7 @@ class CPFF(HP.CPFF):
     Attributes
     ----------
     p : np.float64
-        A tunale parameter used in the calculation.
+        A tunable parameter used in the calculation.
         For details, please refer arXiv:0806.2690.
     tol : np.float64
         The tolerance of the result.
@@ -656,7 +656,7 @@ class CPFF(HP.CPFF):
         Parameters
         -----------
         p : np.float64
-            A tunale parameter used in the calculation.
+            A tunable parameter used in the calculation.
         tol : np.float64
             The tolerance of the result.
         '''
@@ -694,7 +694,7 @@ class OP(HP.App):
     mu : np.float64
         The Fermi level.
     p : np.float64
-        A tunale parameter used in the calculation.
+        A tunable parameter used in the calculation.
         For details, please refer arXiv:0806.2690.
     dtypes : list of np.float32/np.float64/np.complex64,np.complex128, optional
         The data types of the order parameters.
@@ -715,7 +715,7 @@ class OP(HP.App):
         mu : np.float64, optional
             The Fermi level.
         p : float, optional
-            A tunale parameter used in the calculation.
+            A tunable parameter used in the calculation.
         dtypes : list of np.float32/np.float64/np.complex64,np.complex128, optional
             The data types of the order parameters.
         '''
@@ -761,7 +761,7 @@ class DTBT(HP.App):
     mu : np.float64
         The Fermi level.
     p : np.float64
-        A tunale parameter used in the calculation.
+        A tunable parameter used in the calculation.
     '''
 
     def __init__(self,path,mu,p=1.0,**karg):
@@ -775,7 +775,7 @@ class DTBT(HP.App):
         mu : np.float64
             The Fermi level.
         p : np.float64, optional
-            A tunale parameter used in the calculation.
+            A tunable parameter used in the calculation.
         '''
         self.path=path
         self.mu=mu
@@ -783,7 +783,7 @@ class DTBT(HP.App):
 
 def VCADTBT(engine,app):
     '''
-    This method calculates the ditribution of fermions along a path in the Brillouin zone.
+    This method calculates the distribution of fermions along a path in the Brillouin zone.
     '''
     engine.rundependences(app.status.name)
     nk,kmesh=app.path.rank('k'),app.path.mesh('k')

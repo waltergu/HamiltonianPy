@@ -10,8 +10,6 @@ Fermionic operator representation, including:
 __all__=['foptrep']
 
 import numpy as np
-from DegreeOfFreedom import *
-from Operator import *
 from Basis import *
 from scipy.sparse import *
 from numba import jit
@@ -48,7 +46,7 @@ def foptrep(operator,basis,transpose=False,dtype=np.complex128):
         result=csr_matrix(content,shape=(basis.nbasis,basis.nbasis))
     else:
         assert len(basis)==2
-        content=foptrep_odd(value,nambus,seqs,basis[0].table,basis[1].table,basis[0].nbasis,basis[1].nbasis,dtype)
+        content=foptrep_odd(value,nambus,seqs,basis[0].table,basis[1].table,basis[0].nbasis,dtype)
         result=csr_matrix(content,shape=(basis[0].nbasis,basis[1].nbasis))
     return result.T if transpose else result
 
@@ -74,10 +72,10 @@ def foptrep_even(value,nambus,seqs,table,nbasis,dtype):
     return data,indices,indptr
 
 @jit
-def foptrep_odd(value,nambus,seqs,table1,table2,nbasis1,nbasis2,dtype):
-    ndata,data,indices,indptr=0,np.zeros(nbasis1,dtype=dtype),np.zeros(nbasis1,dtype=np.int32),np.zeros(nbasis1+1,dtype=np.int32)
+def foptrep_odd(value,nambus,seqs,table1,table2,nbasis,dtype):
+    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int32),np.zeros(nbasis+1,dtype=np.int32)
     eye,temp=long(1),np.zeros(len(seqs)+1,dtype=np.int64)
-    for i in xrange(nbasis1):
+    for i in xrange(nbasis):
         indptr[i]=ndata
         temp[0]=i if len(table1)==0 else table1[i]
         for j in xrange(len(seqs)):

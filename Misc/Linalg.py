@@ -326,7 +326,7 @@ def deparallelization(m,mode='R',zero=10**-8,tol=10**-6,return_indices=False):
         The absolute value to identity zero vectors.
     tol : np.float64, optional
         The relative tolerance for rows or columns that can be considered as paralleled.
-    return_truncation_err : logical, optional
+    return_indices : logical, optional
         When True, the indices of the kept rows or columns will be returned.
         Otherwise not.
 

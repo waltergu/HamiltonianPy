@@ -53,7 +53,7 @@ class BaseSpace(object):
         '''
         Convert an instance to string.
         '''
-        return '\n'.join('%s: volume=%s,\nmesh=%s'%(tag,volume,mesh) for tag,volume,mesh in zip(self.tags,self.volumes,self.meshes))
+        return '\n'.join('%s: volume=%s,\nmesh=%s'%(tag,vol,mesh) for tag,vol,mesh in zip(self.tags,self.volumes,self.meshes))
 
     def __call__(self,mode="*"):
         '''
@@ -121,7 +121,7 @@ class BaseSpace(object):
 
 def KSpace(reciprocals,nk=100,segments=None,end=False):
     '''
-    This function constructs an instance of BaseSpace that represents a region in the reciprocal space, e.g. the first Broullouin zone(FBZ).
+    This function constructs an instance of BaseSpace that represents a region in the reciprocal space, e.g. the first Brillouin zone(FBZ).
 
     Parameters
     ----------
@@ -166,7 +166,7 @@ class FBZ(QuantumNumbers,BaseSpace):
         qntype=NewQuantumNumber('kp',tuple('k%s'%(i+1) for i in xrange(len(nks))),nks)
         data=np.array(list(it.product(*[xrange(nk) for nk in nks])))
         counts=np.ones(np.product(nks),dtype=np.int64)
-        super(FBZ,self).__init__('C',(qntype,data,counts),protocal=QuantumNumbers.COUNTS)
+        super(FBZ,self).__init__('C',(qntype,data,counts),protocol=QuantumNumbers.COUNTS)
         self.tags=['k']
         self.volumes=[(nl.norm if len(nks)==1 else (np.cross if len(nks)==2 else volume))(*reciprocals)]
         self.reciprocals=np.asarray(reciprocals)
@@ -204,5 +204,5 @@ class FBZ(QuantumNumbers,BaseSpace):
                 for i,(start,end) in enumerate(paths):
                     if isonline(rcoord,start,end,ends=(True,False),rtol=10**-3/maxp):segments[i].append(rcoord)
         for i,segment in enumerate(segments):
-            segment.sort(key=lambda rcoord: nl.norm(rcoord-paths[i][0]))
+            segment.sort(key=lambda k: nl.norm(k-paths[i][0]))
         return BaseSpace(('k',np.concatenate(segments)))

@@ -69,28 +69,6 @@ class SpinTerm(Term):
         if self.modulate is not None: result.append('modulate=%s'%self.modulate)
         return 'SpinTerm('+', '.join(result)+')'
 
-    def __add__(self,other):
-        '''
-        Overloaded operator(+), which supports the addition of a SpinTerm instance with a SpinTerm/SpinTerms instance.
-        '''
-        result=SpinTerms()
-        result.append(self)
-        if isinstance(other,SpinTerm):
-            result.append(other)
-        elif isinstance(other,SpinTerms):
-            result.extend(other)
-        else:
-            raise ValueError('SpinTerm "+" error: the other parameter must be an instance of SpinTerm or SpinTerms.')
-        return result
-
-    def __pos__(self):
-        '''
-        Overloaded operator(+), i.e. +self.
-        '''
-        result=SpinTerms()
-        result.append(self)
-        return result
-
     def operators(self,bond,config,table=None,dtype=complex128,**karg):
         '''
         This method returns all the spin operators defined on the input bond with non-zero coefficients.
@@ -109,13 +87,13 @@ class SpinTerm(Term):
         Returns
         -------
         Operators
-            All the spin operators with non-zero coeffcients.
+            All the spin operators with non-zero coefficients.
         '''
         result=Operators()
         epoint,spoint=bond.epoint,bond.spoint
         espin,sspin=config[epoint.pid],config[spoint.pid]
         if bond.neighbour==self.neighbour:
-            value=self.value*(1 if self.amplitude==None else self.amplitude(bond))
+            value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
             if abs(value)>RZERO:
                 if callable(self.indexpacks):
                     buff=self.indexpacks(bond)

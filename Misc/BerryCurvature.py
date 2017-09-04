@@ -15,7 +15,7 @@ def berry_curvature(H,kx,ky,mu,d=10**-6):
 
     Parameters
     ----------
-    H : function
+    H : callable
         Input function which returns the Hamiltonian as a 2D array.
     kx,ky : float
         The two parameters which specify the 2D point at which the Berry curvature is to be calculated.
@@ -23,7 +23,7 @@ def berry_curvature(H,kx,ky,mu,d=10**-6):
     mu : float
         The chemical potential.
     d : float, optional
-        The spacing to be used to calculate the derivates.
+        The spacing to be used to calculate the derivatives.
 
     Returns
     -------

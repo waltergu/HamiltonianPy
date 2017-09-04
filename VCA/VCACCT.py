@@ -11,7 +11,6 @@ CPT and VCA with concatenated lattice, including:
 __all__=['VCACCT','VCACCTGFP','VCACCTGF']
 
 from VCA import *
-from scipy.linalg import block_diag
 from copy import deepcopy
 from collections import Counter
 import numpy as np
@@ -35,7 +34,7 @@ class VCACCT(VCA):
             A representative subsystem of the same group.
     '''
 
-    def __init__(self,cgf,cell,lattice,config,terms=[],weiss=[],mask=['nambu'],subsystems=None,dtype=np.complex128,**karg):
+    def __init__(self,cgf,cell,lattice,config,terms=(),weiss=(),mask=('nambu',),subsystems=None,dtype=np.complex128,**karg):
         '''
         Constructor.
 
@@ -76,7 +75,7 @@ class VCACCT(VCA):
                     dtype=          dtype,
                     **extras
                     )
-            attributes={attr:vars(cgf)[attr] for attr in set(vars(cgf))-set(['status','operators','gf','k','omega','prepare','run'])}
+            attributes={attr:vars(cgf)[attr] for attr in set(vars(cgf))-{'status','operators','gf','k','omega','prepare','run'}}
             gf=ED.GF(
                     name=           'gf',
                     operators=      HP.fspoperators(subconfig.table(),lattice),

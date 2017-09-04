@@ -12,7 +12,7 @@ __all__=['Manager','init','add']
 
 class Manager(object):
     '''
-    The manager of project construction and maitenance.
+    The manager of project construction and maintenance.
 
     Attributes
     ----------
@@ -64,7 +64,7 @@ class Manager(object):
         subcommand=self.add_subcommand('init',init)
         subcommand.add_argument('project',help='The project name')
         subcommand.add_argument('-d','--directory',help='The directory where to store the project.',default='.')
-        subcommand.add_argument('-a','--authors',help='The authors, seperated by commas, of the project.',default='Anonymous')
+        subcommand.add_argument('-a','--authors',help='The authors, separated by commas, of the project.',default='Anonymous')
         subcommand.add_argument('-e','--email',help='The contact email.',default='.')
         subcommand.add_argument('-r','--readme',help='The description of the project.',default='')
         subcommand.add_argument('-l','--license',help="'T'/'t' for adding a GNU GPL v3.0 LICENSE file and 'F'/'f' for not.",default='t',choices=['T','t','F','f'])
@@ -86,7 +86,7 @@ class Manager(object):
         namespace.subcommand(**{key:value for key,value in vars(namespace).iteritems() if key!='subcommand'})
 
     @classmethod
-    def has_project(self):
+    def has_project(cls):
         '''
         Judge whether the current folder contains a project.
         '''
@@ -109,7 +109,7 @@ def init(directory,project,authors,email,readme,license,gitignore):
     project : str
         The project name.
     authors : str
-        The authors, seperated by commas, of the project.
+        The authors, separated by commas, of the project.
     email : str
         The contact email.
     readme : str

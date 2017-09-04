@@ -6,7 +6,7 @@ __all__=['B','Bs']
 
 import numpy as np
 from numpy.linalg import svd
-from copy import copy,deepcopy
+from copy import copy
 
 class B(object):
     '''

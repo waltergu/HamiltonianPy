@@ -19,6 +19,7 @@ import copy
 
 DEFAULT_SPIN_PRIORITY=('scope','site','orbital','S')
 
+# noinspection PyUnresolvedReferences
 class SID(namedtuple('SID',['orbital','S'])):
     '''
     Internal spin ID.
@@ -80,7 +81,7 @@ class Spin(Internal):
         '''
         return self.norbital==other.norbital and self.S==other.S
 
-    def indices(self,pid,mask=[]):
+    def indices(self,pid,mask=()):
         '''
         Return a list of all the masked indices within this internal degrees of freedom combined with an extra spatial part.
 
@@ -127,7 +128,7 @@ class SpinMatrix(ndarray):
         matrix : 2d ndarray, optional
             The matrix of the SpinMatrix beyond the predefined set, which will be omitted when ``tag`` is in ('I','i','X','x','Y','y','Z','z','+','-').
         dtype : float64 or complex128, optional
-            The data type of the matirx.
+            The data type of the matrix.
         '''
         delta=lambda i,j: 1 if i==j else 0
         result=zeros((int(S*2)+1,int(S*2)+1),dtype=dtype).view(cls)
@@ -142,12 +143,12 @@ class SpinMatrix(ndarray):
                     elif tag in ('X','x'):
                         result[row,col]=(delta(i+1,j)+delta(i,j+1))*sqrt(S*(S+1)-m*n)/2
                     elif tag in ('Y','y'):
-                        result[row,col]=(delta(i+1,j)-delta(i,j+1))*sqrt(S*(S+1)-m*n)/(2j)
+                        result[row,col]=(delta(i+1,j)-delta(i,j+1))*sqrt(S*(S+1)-m*n)/2j
                     elif tag in ('Z','z'):
                         result[row,col]=delta(i,j)*m
-                    elif tag in ('+'):
+                    elif tag in '+':
                         result[row,col]=delta(i+1,j)*sqrt(S*(S+1)-m*n)
-                    elif tag in ('-'):
+                    elif tag in '-':
                         result[row,col]=delta(i,j+1)*sqrt(S*(S+1)-m*n)
         elif matrix is not None:
             assert matrix.shape==result.shape
@@ -158,7 +159,7 @@ class SpinMatrix(ndarray):
 
     def __array_finalize__(self,obj):
         '''
-        Initialize an instance through both explicit and implicit constructions, i.e. construtor, view and slice.
+        Initialize an instance through both explicit and implicit constructions, i.e. constructor, view and slice.
         '''
         if obj is None:
             return
@@ -168,10 +169,10 @@ class SpinMatrix(ndarray):
 
     def __reduce__(self):
         '''
-        numpy.ndarray uses __reduce__ to pickle. Therefore this mehtod needs overriding for subclasses.
+        numpy.ndarray uses __reduce__ to pickle. Therefore this method needs overriding for subclasses.
         '''
         pickle=super(SpinMatrix,self).__reduce__()
-        return (pickle[0],pickle[1],pickle[2]+(self.S,self.tag))
+        return pickle[0],pickle[1],pickle[2]+(self.S,self.tag)
 
     def __setstate__(self,state):
         '''

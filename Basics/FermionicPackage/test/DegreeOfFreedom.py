@@ -7,7 +7,6 @@ __all__=['test_fermionic_deg_fre']
 from HamiltonianPy.Basics.Geometry import *
 from HamiltonianPy.Basics.DegreeOfFreedom import *
 from HamiltonianPy.Basics.FermionicPackage import *
-from HamiltonianPy.Basics.QuantumNumber import *
 
 def test_fermionic_deg_fre():
     test_index()

@@ -11,7 +11,6 @@ __all__=['GSE','EB','DOS','GF','FS','BC','GP','CPFF']
 
 import numpy as np
 from ..EngineApp import App
-from ..FermionicPackage import FLinear
 from HamiltonianPy.Misc import berry_curvature
 
 class GSE(App):
@@ -212,7 +211,7 @@ class BC(App):
         mu : np.float64, optional
             The Fermi level.
         d : np.float64, optional
-            The step used to calculate the derivates.
+            The step used to calculate the derivatives.
         '''
         self.BZ=BZ
         self.mu=mu

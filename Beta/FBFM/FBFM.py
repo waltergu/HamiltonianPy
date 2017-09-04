@@ -10,7 +10,6 @@ __all__=[]
 import numpy as np
 import HamiltonianPy as HP
 import scipy.linalg as sl
-import matplotlib.pyplot as plt
 
 FBFM_PRIORITY=('spin','scope','nambu','site','orbital')
 
@@ -37,11 +36,11 @@ class FBFM(HP.Engine):
         return 1 if self.bz is None else len(self.bz.mesh('k'))
 
     def spdiagonalize(self):
-        def matrix(k=[]):
+        def matrix(k=()):
             result=np.zeros((self.nsp,self.nsp),dtype=np.complex128)
             for opt in self.generator.operators.values():
                 result[opt.seqs]+=opt.value*(1 if len(k)==0 else np.exp(-1j*np.inner(k,opt.rcoords[0])))
-            result+=conjugate(result.T)
+            result+=result.T.conjugate()
             return result
         dwesmesh,dwvsmesh=[],[]
         upesmesh,upvsmesh=[],[]

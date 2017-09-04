@@ -39,7 +39,7 @@ class Lanczos(object):
             The csr-formed sparse Hermitian matrix.
         v0 : 1d ndarray, optional
             The initial vector to begin with the Lanczos iterations. It must be normalized already.
-        check_nomalization : logical, optional
+        check_normalization : logical, optional
             When it is True, the input v0 will be check to see whether it is normalized.
         vtype : string, optional
             A flag to tell what type of initial vectors to use when the parameter vector is None.
@@ -129,7 +129,7 @@ class Lanczos(object):
             The ground state. Present when the parameter job is set to be 'V' or 'v'.
         '''
         if job in ('V','v'):gs=copy(self.new)
-        delta=1.0;buff=np.inf
+        delta=1.0;buff=np.inf;gse=None;v=[]
         while not self.cut and delta>precision:
             self.iter()
             if job in ('V','v'):

@@ -8,7 +8,7 @@ Based on this, it implements several algorithms, including:
 
 * tight binding approximation (TBA) and Bogoliubov de Gennes (BdG) equations for fermionic systems,
 * exact diagonalization (ED) for electron systems and spin systems,
-* cluster pertubation theory (CPT) and variational cluster approach (VCA) for fermionic systems,
+* cluster perturbation theory (CPT) and variational cluster approach (VCA) for fermionic systems,
 * density matrix renormalization group (DMRG) for electron systems and spin systems.
 
 It works with python 2.7, and requires several packages:

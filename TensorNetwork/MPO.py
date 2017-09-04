@@ -12,7 +12,6 @@ __all__=['Opt','OptStr','OptMPO','MPO']
 import numpy as np
 import itertools as it
 from numpy.linalg import norm
-from collections import OrderedDict
 from HamiltonianPy import QuantumNumbers,Operator,FOperator,SOperator,JWBosonization
 from HamiltonianPy.Misc import TOL,Arithmetic
 from Tensor import Label,Tensor,contract
@@ -58,7 +57,7 @@ class Opt(Operator.Operator):
     @staticmethod
     def identity(site,dtype=np.float64):
         '''
-        Construt an identity single site operator.
+        Construct an identity single site operator.
 
         Parameters
         ----------
@@ -77,7 +76,7 @@ class Opt(Operator.Operator):
     @staticmethod
     def zero(site,dtype=np.float64):
         '''
-        Construt a zero single site operator.
+        Construct a zero single site operator.
 
         Parameters
         ----------
@@ -144,7 +143,7 @@ class Opt(Operator.Operator):
             if self.tag==other.tag:
                 return Opt(self.value+other.value,self.site,self.tag,self.matrix)
             else:
-                return Opt(1.0,self.site,'%s(%s)+%s(%s)'%(self.value,self.tag,other.value,other.tag,self.value*self.matrix+other.value*other.matrix))
+                return Opt(1.0,self.site,'%s(%s)+%s(%s)'%(self.value,self.tag,other.value,other.tag),self.value*self.matrix+other.value*other.matrix)
 
 class OptStr(Arithmetic,list):
     '''
@@ -283,7 +282,7 @@ class OptStr(Arithmetic,list):
 
     def to_mpo(self,degfres):
         '''
-        Convert an optstr to the full-formated mpo.
+        Convert an optstr to the full-formatted mpo.
 
         Parameters
         ----------
@@ -336,7 +335,7 @@ class OptStr(Arithmetic,list):
 
     def relayer(self,degfres,layer):
         '''
-        Construt a new optstr with the site labels living on a specific layer of degfres.
+        Construct a new optstr with the site labels living on a specific layer of degfres.
 
         Parameters
         ----------
@@ -352,7 +351,7 @@ class OptStr(Arithmetic,list):
         '''
         new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
         old=degfres.level(self[0].site.identifier)-1
-        assert new>=0 and new<len(degfres.layers) and old>=new
+        assert 0<=new<len(degfres.layers) and old>=new
         if old==new:
             return copy(self)
         else:
@@ -462,7 +461,7 @@ class OptMPO(list):
 
     def to_mpo(self,**karg):
         '''
-        Convert to the tensor-formated mpo.
+        Convert to the tensor-formatted mpo.
 
         Parameters
         ----------
@@ -472,7 +471,7 @@ class OptMPO(list):
         Returns
         -------
         MPO
-            The corresponding tensor-formated MPO.
+            The corresponding tensor-formatted MPO.
         '''
         Ms=[]
         dtype,type=self[0][0,0].value.dtype,self[0][0,0].site.qns.type if isinstance(self[0][0,0].site.qns,QuantumNumbers) else None
@@ -611,7 +610,7 @@ class MPO(Arithmetic,list):
             l2,r2=Label('__MPO_MUL_L2__',qns=L2.qns),Label('__MPO_MUL_R2__',qns=R2.qns)
             m1.relabel(olds=[L1,D1,R1],news=[l1,s,r1])
             m2.relabel(olds=[L2,U2,R2],news=[l2,s,r2])
-            ms.append(contract([m1,m2],engine='tensordot').transpose((l1,l2,U1,D2,r1,r2)).merge((([l1,l2],L)),([r1,r2],R)))
+            ms.append(contract([m1,m2],engine='tensordot').transpose((l1,l2,U1,D2,r1,r2)).merge(([l1,l2],L),([r1,r2],R)))
         return MPO(ms)
 
     def _mul_mps_(self,other):
@@ -732,7 +731,7 @@ class MPO(Arithmetic,list):
         assert result.shape==(1,1)
         return result[0,0]
 
-    def compress(self,nsweep=1,method='dpl',options={}):
+    def compress(self,nsweep=1,method='dpl',options=None):
         '''
         Compress the mpo.
 
@@ -751,6 +750,7 @@ class MPO(Arithmetic,list):
             The compressed mpo.
         '''
         assert method in ('svd','dpl','dln')
+        options=options or {}
         if method=='svd':
             tol=options.get('tol',TOL)
             for sweep in xrange(nsweep):
@@ -797,7 +797,7 @@ class MPO(Arithmetic,list):
 
     def relayer(self,degfres,layer,nmax=None,tol=None):
         '''
-        Construt a new mpo with the site labels living on a specific layer of degfres.
+        Construct a new mpo with the site labels living on a specific layer of degfres.
 
         Parameters
         ----------
@@ -817,7 +817,7 @@ class MPO(Arithmetic,list):
         '''
         new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
         old=degfres.level(next(iter(self)).labels[MPO.U].identifier)-1
-        assert new>=0 and new<len(degfres.layers)
+        assert 0<=new<len(degfres.layers)
         if new==old:
             return copy(self)
         else:
@@ -846,13 +846,13 @@ class MPO(Arithmetic,list):
                     indices=degfres.descendants(D.identifier,generation=new-old)
                     start,stop=table[indices[0]],table[indices[-1]]+1
                     ups,dws,orders,labels,qnses=[],[],[],[],[]
-                    for i,site in enumerate(sites[start:stop]):
+                    for j,site in enumerate(sites[start:stop]):
                         ups.append(site.prime)
                         dws.append(site)
                         orders.append(ups[-1])
                         orders.append(dws[-1])
                         qns=QuantumNumbers.kron([site.qns]*2,signs='+-') if site.qnon else site.dim**2
-                        labels.append(Label('__MPO_RELAYER_%s__'%i,qns=qns))
+                        labels.append(Label('__MPO_RELAYER_%s__'%j,qns=qns))
                         qnses.append(qns)
                     S=Label('__MPO_RELAYER__',qns=QuantumNumbers.kron(qnses) if U.qnon else np.product(qnses))
                     m=m.split((U,ups),(D,dws)).transpose([L]+orders+[R]).merge((orders,S))

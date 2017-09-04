@@ -38,9 +38,9 @@ def NewQuantumNumber(typename,names,periods,doc=None):
     ----------
     typename : str
         The type name of the subclass.
-    names : list of str
+    names : tuple of str
         The names of the quantum number of the subclass.
-    periods : list of None/integer
+    periods : tuple of None/integer
         The periods of the quantum number of the subclass.
     doc : str, optional
         The docstring of the subclass.
@@ -81,7 +81,7 @@ def SQNS(S):
     QuantumNumbers
         The corresponding collection of quantum numbers.
     '''
-    return QuantumNumbers('C',([SQN(sz) for sz in np.arange(-S,S+1)],range(int(2*S)+2)),protocal=QuantumNumbers.INDPTR)
+    return QuantumNumbers('C',([SQN(sz) for sz in np.arange(-S,S+1)],range(int(2*S)+2)),protocol=QuantumNumbers.INDPTR)
 
 def PQNS(N):
     '''
@@ -97,7 +97,7 @@ def PQNS(N):
     QuantumNumbers
         The corresponding collection of quantum numbers.
     '''
-    return QuantumNumbers('C',([PQN(n) for n in xrange(N+1)],range(N+2)),protocal=QuantumNumbers.INDPTR)
+    return QuantumNumbers('C',([PQN(n) for n in xrange(N+1)],range(N+2)),protocol=QuantumNumbers.INDPTR)
 
 def SzPQNS(Sz):
     '''
@@ -134,7 +134,7 @@ def SPQNS(S):
         pn=PQN(n)
         for ss in it.combinations(spins,n):
             qns.append(SPQN.directsum(pn,sum(ss)))
-    return QuantumNumbers('G',(qns,range(len(qns)+1)),protocal=QuantumNumbers.INDPTR).sort()
+    return QuantumNumbers('G',(qns,range(len(qns)+1)),protocol=QuantumNumbers.INDPTR).sort()
 
 def Z2QNS():
     '''
@@ -145,4 +145,4 @@ def Z2QNS():
     QuantumNumbers
         As above.
     '''
-    return QuantumNumbers('C',([Z2QN(0.0),Z2QN(1.0)],range(3)),protocal=QuantumNumbers.INDPTR)
+    return QuantumNumbers('C',([Z2QN(0.0),Z2QN(1.0)],range(3)),protocol=QuantumNumbers.INDPTR)

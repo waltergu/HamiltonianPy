@@ -3,7 +3,7 @@
 Term descriptions
 =================
 
-This module defines the way to desribe a term of the Hamiltonian, including:
+This module defines the way to describe a term of the Hamiltonian, including:
     * classes: Term
 '''
 
@@ -90,7 +90,7 @@ class Term(Arithmetic):
         Returns
         -------
         Operators
-            All the desired operators with non-zero coeffcients.
+            All the desired operators with non-zero coefficients.
 
         Notes
         -----

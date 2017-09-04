@@ -28,7 +28,7 @@ def test_quantumnumber():
 
 def test_quantumnumbers_ordinary():
     print 'test_quantumnumbers_ordinary'
-    a=QuantumNumbers('C',([SQN(-1.0),SQN(0.0),SQN(1.0)],[1,1,1]),protocal=QuantumNumbers.COUNTS)
+    a=QuantumNumbers('C',([SQN(-1.0),SQN(0.0),SQN(1.0)],[1,1,1]),protocol=QuantumNumbers.COUNTS)
     print 'a: %s'%a
     print 'copy(a): %s'%copy(a)
     print 'deepcopy(a): %s'%deepcopy(a)
@@ -36,16 +36,16 @@ def test_quantumnumbers_ordinary():
     b,permutation=QuantumNumbers.kron([a]*2).sort(history=True)
     print 'b: ',b
     print 'permutation of b:%s'%permutation
-    print 'b.reorder(permutation,protocal="EXPANSION"): \n%s'%b.reorder(permutation,protocal="EXPANSION")
-    print 'b.reorder([4,3,2,1,0],protocal="CONTENTS"): \n%s'%b.reorder([4,3,2,1,0],protocal="CONTENTS")
+    print 'b.reorder(permutation,protocol="EXPANSION"): \n%s'%b.reorder(permutation,protocol="EXPANSION")
+    print 'b.reorder([4,3,2,1,0],protocol="CONTENTS"): \n%s'%b.reorder([4,3,2,1,0],protocol="CONTENTS")
 
-    c=b.to_ordereddict(protocal=QuantumNumbers.COUNTS)
-    print 'c(b.to_ordereddict(protocal=QuantumNumbers.COUNTS)):\n%s'%('\n'.join('%s: %s'%(key,value) for key,value in c.iteritems()))
-    print 'QuantumNumbers.from_ordereddict(SQN,c,protocal=QuantumNumbers.COUNTS):\n%s'%QuantumNumbers.from_ordereddict(SQN,c,protocal=QuantumNumbers.COUNTS)
+    c=b.to_ordereddict(protocol=QuantumNumbers.COUNTS)
+    print 'c(b.to_ordereddict(protocol=QuantumNumbers.COUNTS)):\n%s'%('\n'.join('%s: %s'%(key,value) for key,value in c.iteritems()))
+    print 'QuantumNumbers.from_ordereddict(SQN,c,protocol=QuantumNumbers.COUNTS):\n%s'%QuantumNumbers.from_ordereddict(SQN,c,protocol=QuantumNumbers.COUNTS)
 
-    d=b.to_ordereddict(protocal=QuantumNumbers.INDPTR)
-    print 'd(b.to_ordereddict(protocal=QuantumNumbers.INDPTR)):\n%s'%('\n'.join('%s: %s'%(key,value)for key,value in d.iteritems()))
-    print 'QuantumNumbers.from_ordereddict(SQN,d,protocal=QuantumNumbers.INDPTR):\n%s'%QuantumNumbers.from_ordereddict(SQN,d,protocal=QuantumNumbers.INDPTR)
+    d=b.to_ordereddict(protocol=QuantumNumbers.INDPTR)
+    print 'd(b.to_ordereddict(protocol=QuantumNumbers.INDPTR)):\n%s'%('\n'.join('%s: %s'%(key,value)for key,value in d.iteritems()))
+    print 'QuantumNumbers.from_ordereddict(SQN,d,protocol=QuantumNumbers.INDPTR):\n%s'%QuantumNumbers.from_ordereddict(SQN,d,protocol=QuantumNumbers.INDPTR)
     print
 
 def test_quantumnumbers_time():

@@ -58,7 +58,7 @@ class FBasis(object):
             These two tuples contain the information to generate a spin-conserved basis:
                 * up[0]/down[0]: integer
                     The number of spin-up/spin-down orbitals.
-                * up[1]/down[1]: intger
+                * up[1]/down[1]: integer
                     The number of spin-up/spin-down electrons.
         nstate : integer,optional
             The number of states which is used to generate a particle-non-conserved basis.
@@ -111,7 +111,7 @@ class FBasis(object):
         elif 'FS' in self.mode:
             return 'FS(%s-%s,%s-%s)'%(self.nstate[0],self.nparticle[0],self.nstate[1],self.nparticle[1])
         else:
-            return 'FG(%s)'%(self.nstate)
+            return 'FG(%s)'%self.nstate
 
 def table_ep(nstate,nparticle,dtype=int64):
     '''
@@ -177,9 +177,7 @@ def sequence(rep,table):
                 ub=result
             else:
                 lb=result
-            if 2**(count-2)>len(table):
-                error=True
-                break
+            if 2**(count-2)>len(table): break
             result=(lb+ub)/2
         else:
             return result

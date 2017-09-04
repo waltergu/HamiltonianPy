@@ -26,7 +26,7 @@ class Cluster(object):
     rcoords : 2d ndarray
         The rcoords of the cluster.
     vectors : 2d ndarray
-        The tanslation vectors of the cluster.
+        The translation vectors of the cluster.
     '''
 
     def __init__(self,name,rcoords,vectors):
@@ -40,7 +40,7 @@ class Cluster(object):
         rcoords : 2d ndarray
             The rcoords of the cluster.
         vectors : 2d ndarray
-            The tanslation vectors of the cluster.
+            The translation vectors of the cluster.
         '''
         self.name=name
         self.rcoords=asarray(rcoords)
@@ -69,7 +69,7 @@ class Cluster(object):
 
     def __call__(self,tbs=None,nneighbour=1):
         '''
-        Construct a lattice acoording the translation and boundary conditions.
+        Construct a lattice according the translation and boundary conditions.
 
         Parameters
         ----------
@@ -95,7 +95,7 @@ class Cluster(object):
 
     def cylinder(self,dt,tbs=None,nneighbour=1):
         '''
-        Construct a cylinder acoording the extension direction and the translation and boundary conditions.
+        Construct a cylinder according the extension direction and the translation and boundary conditions.
 
         Parameters
         ----------

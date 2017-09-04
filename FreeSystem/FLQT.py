@@ -28,7 +28,7 @@ class FLQT(TBA):
         =========     ================================
     '''
 
-    def evolution(self,t=[],**karg):
+    def evolution(self,t=(),**karg):
         '''
         This method returns the matrix representation of the time evolution operator.
 
@@ -77,7 +77,7 @@ def FLQTQEB(engine,app):
     '''
     This method calculates the Floquet quasi-energy bands.
     '''
-    if app.path!=None:
+    if app.path is not None:
         assert len(app.path.tags)==1
         rank,mesh=app.path.rank(0),app.path.mesh(0)
         result=zeros((rank,engine.nmatrix+1))
@@ -86,7 +86,7 @@ def FLQTQEB(engine,app):
         else:
             result[:,0]=array(xrange(rank))
         for i,paras in app.path():
-            result[i,1:]=phase(eig(engine.evolution(t=app.ts.mesh('t'),**paras))[0])/app.ts.volume('t')
+            result[i,1:]=angle(eig(engine.evolution(t=app.ts.mesh('t'),**paras))[0])/app.ts.volume('t')
     else:
         result=zeros((2,engine.nmatrix+1))
         result[:,0]=array(xrange(2))
@@ -95,7 +95,7 @@ def FLQTQEB(engine,app):
     if app.save_data:
         savetxt('%s/%s_QEB.dat'%(engine.dout,engine.status),result)
     if app.plot:
-        plt.title('%s_QEB'%(engine.status))
+        plt.title('%s_QEB'%engine.status)
         plt.plot(result[:,0],result[:,1:])
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)

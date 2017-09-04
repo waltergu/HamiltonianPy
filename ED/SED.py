@@ -1,7 +1,7 @@
 '''
-=========================
-Spin exat diagonalization
-=========================
+==========================
+Spin exact diagonalization
+==========================
 
 Exact diagonalization for spin systems, including:
     * classes: SED

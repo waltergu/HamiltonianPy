@@ -45,7 +45,7 @@ class TBA(Engine):
         ========    ==============================================
     '''
 
-    def __init__(self,lattice=None,config=None,terms=None,mask=['nambu'],**karg):
+    def __init__(self,lattice=None,config=None,terms=None,mask=('nambu',),**karg):
         '''
         Constructor.
 
@@ -81,7 +81,7 @@ class TBA(Engine):
         '''
         return len(self.generator.table)
 
-    def matrix(self,k=[],**karg):
+    def matrix(self,k=(),**karg):
         '''
         This method returns the matrix representation of the Hamiltonian.
 
@@ -228,7 +228,7 @@ def TBAEB(engine,app):
     This method calculates the energy bands of the Hamiltonian.
     '''
     nmatrix=engine.nmatrix
-    if app.path!=None:
+    if app.path is not None:
         assert len(app.path.tags)==1
         result=zeros((app.path.rank(0),nmatrix+1))
         if app.path.mesh(0).ndim==1:
@@ -245,7 +245,7 @@ def TBAEB(engine,app):
     if app.save_data:
         savetxt('%s/%s_EB.dat'%(engine.dout,engine.status),result)
     if app.plot:
-        plt.title('%s_EB'%(engine.status))
+        plt.title('%s_EB'%engine.status)
         plt.plot(result[:,0],result[:,1:])
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
@@ -266,7 +266,7 @@ def TBADOS(engine,app):
     if app.save_data:
         savetxt('%s/%s_DOS.dat'%(engine.dout,engine.status),result)
     if app.plot:
-        plt.title('%s_DOS'%(engine.status))
+        plt.title('%s_DOS'%engine.status)
         plt.plot(result[:,0],result[:,1])
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
@@ -283,17 +283,16 @@ def TBABC(engine,app):
         result=zeros((app.BZ.rank('k'),3))
         result[:,0:2]=app.BZ.mesh('k')
         result[:,2]=app.bc
-    if app.save_data:
-        savetxt('%s/%s_BC.dat'%(engine.dout,engine.status),result)
-    if app.plot:
-        nk=int(round(sqrt(app.BZ.rank('k'))))
-        plt.title('%s_BC'%(engine.status))
-        plt.axis('equal')
-        plt.colorbar(plt.pcolormesh(result[:,0].reshape((nk,nk)),result[:,1].reshape((nk,nk)),result[:,2].reshape((nk,nk))))
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_BC.png'%(engine.dout,engine.status))
-        plt.close()
+        if app.save_data: savetxt('%s/%s_BC.dat'%(engine.dout,engine.status),result)
+        if app.plot:
+            nk=int(round(sqrt(app.BZ.rank('k'))))
+            plt.title('%s_BC'%engine.status)
+            plt.axis('equal')
+            plt.colorbar(plt.pcolormesh(result[:,0].reshape((nk,nk)),result[:,1].reshape((nk,nk)),result[:,2].reshape((nk,nk))))
+            if app.show and app.suspend: plt.show()
+            if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+            if app.save_fig: plt.savefig('%s/%s_BC.png'%(engine.dout,engine.status))
+            plt.close()
 
 def TBAGF(engine,app):
     pass

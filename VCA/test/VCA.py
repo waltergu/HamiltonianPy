@@ -8,7 +8,6 @@ from HamiltonianPy import *
 import HamiltonianPy.ED as ED
 import HamiltonianPy.VCA as VCA
 import numpy as np
-import itertools as it
 
 def test_vca():
     print 'test_vca'

@@ -96,12 +96,8 @@ class Generator(object):
         '''
         Set the parameters and terms of the generator.
         '''
-        self.parameters={}
-        self.terms={}
-        self.parameters['const']=OrderedDict()
-        self.parameters['alter']=OrderedDict()
-        self.terms['const']={}
-        self.terms['alter']={}
+        self.parameters={'const':OrderedDict(),'alter':OrderedDict()}
+        self.terms={'const':{},'alter':{}}
         if terms is not None:
             for term in terms:
                 if term.modulate is not None:

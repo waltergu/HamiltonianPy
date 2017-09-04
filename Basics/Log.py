@@ -259,7 +259,8 @@ class Timers(Tree):
         '''
         return self[key].time
 
-    def close(self):
+    @staticmethod
+    def close():
         '''
         Close the graph.
         '''

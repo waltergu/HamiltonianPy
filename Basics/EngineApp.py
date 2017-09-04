@@ -3,20 +3,16 @@
 Engine and app
 ==============
 
-This module defines the general framework to apply algrithms to tasks, including:
+This module defines the general framework to apply algorithms to tasks, including:
     * classes: Engine, App
 '''
 
 __all__=['Engine','App']
 
-from collections import OrderedDict
-from numpy import array
 from DegreeOfFreedom import Status
 from Log import *
 from warnings import warn
 import os
-import time
-
 
 class Engine(object):
     '''
@@ -120,7 +116,7 @@ class Engine(object):
         name : any hashable object
             The name to specify whose dependences to be run.
         enforce_run : logical, optional
-            When it is True, the run attributes of all the dependences, which are functions themsevles, will be called.
+            When it is True, the run attributes of all the dependences, which are functions themselves, will be called.
         '''
         if name in self.apps:
             for app in self.apps[name].dependences:

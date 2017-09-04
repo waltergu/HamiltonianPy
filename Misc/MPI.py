@@ -15,7 +15,7 @@ def mpirun(f,arguments,bcast=True):
     Parameters
     ----------
     f : callable
-        The function to be parallelly runned using the mpi4py.
+        The function to be parallelly run using the mpi4py.
     arguments : list of tuple
         The list of arguments passed to the function f.
     bcast : True or False

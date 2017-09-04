@@ -5,9 +5,7 @@ Spin degree of freedom test.
 __all__=['test_spin_deg_fre']
 
 from HamiltonianPy.Basics.Geometry import *
-from HamiltonianPy.Basics.DegreeOfFreedom import *
 from HamiltonianPy.Basics.SpinPackage import *
-from HamiltonianPy.Basics.QuantumNumber import *
 from numpy import *
 
 def test_spin_deg_fre():

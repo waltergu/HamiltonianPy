@@ -8,7 +8,6 @@ import numpy as np
 from HamiltonianPy import *
 from numpy.linalg import norm
 from HamiltonianPy.TensorNetwork import *
-from copy import copy,deepcopy
 
 def test_mps():
     print 'test_mps'
@@ -39,7 +38,6 @@ def test_mps_random():
     print 'test_mps_random'
     N=20
     np.random.seed()
-    breakpoints=set(np.random.randint(1,N,size=N/2))|set([0,N])
     sites=[SQNS(0.5) for i in xrange(N)]
     bonds=[SQN(0.0),SQN(0.0)]
     mps=MPS.random(sites,bonds,cut=np.random.randint(0,N+1),nmax=10)

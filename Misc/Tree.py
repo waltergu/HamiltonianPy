@@ -200,7 +200,7 @@ class Tree(dict):
         ----------
         node : hashable object
             The node whose descendants are inquired.
-        generation : posotive integer
+        generation : positive integer
             The generation of the descendants.
 
         Returns

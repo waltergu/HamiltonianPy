@@ -7,8 +7,6 @@ __all__=['test_spin_term']
 from numpy import *
 from HamiltonianPy.Basics.Geometry import *
 from HamiltonianPy.Basics.DegreeOfFreedom import *
-from HamiltonianPy.Basics.Operator import *
-from HamiltonianPy.Basics.Term import *
 from HamiltonianPy.Basics.Generator import *
 from HamiltonianPy.Basics.SpinPackage import *
 

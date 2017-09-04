@@ -16,7 +16,6 @@ from copy import deepcopy
 from collections import OrderedDict
 from scipy.optimize import broyden2
 from scipy.linalg import eigh
-import time
 
 class OP(object):
     '''
@@ -72,7 +71,7 @@ class SCMF(TBA):
         The timer to record the consumed time of the iteration.
     '''
 
-    def __init__(self,filling=0.5,temperature=0,lattice=None,config=None,terms=None,orders=None,mask=['nambu'],**karg):
+    def __init__(self,filling=0.5,temperature=0,lattice=None,config=None,terms=None,orders=None,mask=('nambu',),**karg):
         '''
         Constructor.
 
@@ -150,7 +149,7 @@ class SCMF(TBA):
             The Brillouin zone of the system.
         tol : float64, optional
             The tolerance of the order parameter.
-        n : integer, optional
+        maxiter : integer, optional
             The maximum times of the iteration.
         '''
         def gx(values):

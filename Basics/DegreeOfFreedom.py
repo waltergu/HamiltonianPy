@@ -1,9 +1,9 @@
 '''
 ============================================================
-Descriptions of the interanl degrees of freedom on a lattice
+Descriptions of the internal degrees of freedom on a lattice
 ============================================================
 
-This modulate defines several classes to define the way to describe the interanl degrees of freedom on a lattice, including
+This modulate defines several classes to define the way to describe the internal degrees of freedom on a lattice, including
     * classes: Status, Table, Index, Internal, IDFConfig, QNSConfig, IndexPack, IndexPacks
 '''
 
@@ -16,12 +16,11 @@ from Constant import RZERO
 from Geometry import PID
 from QuantumNumber import QuantumNumbers
 from ..Misc import Arithmetic
-from copy import copy,deepcopy
 from collections import OrderedDict
 
 class Status(object):
     '''
-    This class provides an object with a stauts.
+    This class provides an object with a status.
 
     Attributes
     ----------
@@ -159,7 +158,7 @@ class Table(dict):
     This class provides the methods to get an index from its sequence number or vice versa.
     '''
 
-    def __init__(self,indices=[],key=None):
+    def __init__(self,indices=(),key=None):
         '''
         Constructor.
 
@@ -232,14 +231,14 @@ class Table(dict):
 
 class Index(tuple):
     '''
-    This class provides an index for a microscopic degree of freedom, including the spatial part and interanl part.
+    This class provides an index for a microscopic degree of freedom, including the spatial part and internal part.
 
     Attributes
     ----------
     names : tuple of string
         The names of the microscopic degrees of freedom.
     icls : Class
-        The class of the interanl part of the index.
+        The class of the internal part of the index.
     '''
 
     def __new__(cls,pid,iid):
@@ -263,7 +262,7 @@ class Index(tuple):
         '''
         Return the arguments for Index.__new__, required by copy and pickle.
         '''
-        return (self.pid,self.iid)
+        return self.pid,self.iid
 
     def __getstate__(self):
         '''
@@ -278,7 +277,7 @@ class Index(tuple):
         try:
             return self[self.names.index(key)]
         except ValueError:
-            raise AttributeError("'Index' has no attribute %s."%(key))
+            raise AttributeError("'Index' has no attribute %s."%key)
 
     @property
     def pid(self):
@@ -311,9 +310,8 @@ class Index(tuple):
         '''
         Return a new Index object with specified fields replaced with new values.
         '''
-        result=tuple.__new__(Index,map(karg.pop,self.names,self))
-        if karg:
-            raise ValueError('Index replace error: it got unexpected field names: %r'%karg.keys())
+        result=super(Index,type(self)).__new__(type(self),map(karg.pop,self.names,self))
+        if karg: raise ValueError('Index replace error: it got unexpected field names: %r'%karg.keys())
         result.names=self.names
         result.icls=self.icls
         return result
@@ -377,7 +375,7 @@ class Internal(object):
     This class is the base class for all internal degrees of freedom in a single point.
     '''
 
-    def indices(self,pid,mask=[]):
+    def indices(self,pid,mask=()):
         '''
         Return a list of all the masked indices within this internal degrees of freedom combined with an extra spatial part.
 
@@ -399,7 +397,7 @@ class IDFConfig(dict):
     '''
     Configuration of the internal degrees of freedom in a lattice. For each of its (key,value) pairs,
         * key: PID
-            The pid of the lattice point where the interanl degrees of freedom live.
+            The pid of the lattice point where the internal degrees of freedom live.
         * value: subclasses of Internal
             The internal degrees of freedom on the corresponding point.
 
@@ -408,10 +406,10 @@ class IDFConfig(dict):
     priority : list of string
         The sequence priority of the allowed indices that can be defined on a lattice.
     map : function
-        This function maps the pid of a lattice point to the interanl degrees of freedom on it.
+        This function maps the pid of a lattice point to the internal degrees of freedom on it.
     '''
 
-    def __init__(self,priority,pids=[],map=None):
+    def __init__(self,priority,pids=(),map=None):
         '''
         Constructor.
 
@@ -420,22 +418,22 @@ class IDFConfig(dict):
         priority : list of string
             The sequence priority of the allowed indices that can be defined on the lattice.
         pids : list of PID, optional
-            The pids of the lattice points where the interanl degrees of freedom live.
+            The pids of the lattice points where the internal degrees of freedom live.
         map : function, optional
-            This function maps the pid of a lattice point to the interanl degrees of freedom on it.
+            This function maps the pid of a lattice point to the internal degrees of freedom on it.
         '''
         self.reset(priority=priority,pids=pids,map=map)
 
-    def reset(self,priority=None,pids=[],map=None):
+    def reset(self,priority=None,pids=(),map=None):
         '''
         Reset the idfconfig.
 
         Parameters
         ----------
         pids : list of PID, optional
-            The pids of the lattice points where the interanl degrees of freedom live.
+            The pids of the lattice points where the internal degrees of freedom live.
         map : function, optional
-            This function maps the pid of a lattice point to the interanl degrees of freedom on it.
+            This function maps the pid of a lattice point to the internal degrees of freedom on it.
         priority : list of string, optional
             The sequence priority of the allowed indices that can be defined on the lattice.
         '''
@@ -480,7 +478,7 @@ class IDFConfig(dict):
             if select(pid): result[pid]=interanl
         return result
 
-    def table(self,mask=[]):
+    def table(self,mask=()):
         '''
         Return a Table instance that contains all the allowed indices which can be defined on a lattice.
         '''
@@ -502,7 +500,7 @@ class QNSConfig(dict):
         This function maps a index of the QNSConfig to its corresponding quantum numbers.
     '''
 
-    def __init__(self,priority,indices=[],map=None):
+    def __init__(self,priority,indices=None,map=None):
         '''
         Constructor.
 
@@ -517,7 +515,7 @@ class QNSConfig(dict):
         '''
         self.reset(priority=priority,indices=indices,map=map)
 
-    def reset(self,priority,indices=[],map=None):
+    def reset(self,priority,indices=(),map=None):
         '''
         Reset the QNSConfig.
 
@@ -660,7 +658,7 @@ class IndexPacks(Arithmetic,list):
             elif issubclass(temp.__class__,IndexPack):
                 result.append(temp)
             else:
-                raise ValueError("IndexPacks *' error: the element(%s) in self multiplied by other is not of IndexPack/IndexPacks."%(obj))
+                raise ValueError("IndexPacks *' error: the element(%s) in self multiplied by other is not of IndexPack/IndexPacks."%obj)
         return result
 
     __imul__=__mul__

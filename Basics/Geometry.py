@@ -11,9 +11,8 @@ This module provides enormous functions and classes to construct a lattice, incl
 __all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'isparallel', 'isintratriangle', 'issubordinate', 'reciprocals', 'translation', 'rotation', 'tiling', 'intralinks', 'interlinks', 'PID', 'Point', 'Bond', 'Link', 'Lattice', 'SuperLattice','Cylinder']
 
 from Constant import RZERO
-from collections import namedtuple,OrderedDict,Iterable
+from collections import namedtuple,Iterable
 from scipy.spatial import cKDTree
-from copy import copy,deepcopy
 import numpy as np
 import numpy.linalg as nl
 import matplotlib.pyplot as plt
@@ -154,12 +153,12 @@ def isintratriangle(p0,p1,p2,p3,vertexes=(True,True,True),edges=(True,True,True)
     x=np.dot(nl.inv(a),b)
     assert x[2]==0
     onvertexes=[x[0]==0 and x[1]==0,x[0]==1 and x[1]==0,x[0]==0 and x[1]==1]
-    onedges=[x[1]==0 and x[0]>0 and x[0]<1,x[0]==0 and x[1]>0 and x[1]<1,x[0]+x[1]==1 and x[0]>0 and x[0]<1]
+    onedges=[x[1]==0 and 0<x[0]<1,x[0]==0 and 0<x[1]<1,x[0]+x[1]==1 and 0<x[0]<1]
     if any(onvertexes):
         return any([on and condition for on,condition in zip(onvertexes,vertexes)])
     elif any(onedges):
         return any([on and condition for on,condition in zip(onedges,edges)])
-    elif x[0]>0 and x[0]<1 and x[1]>0 and x[1]<1 and x[0]+x[1]<1:
+    elif 0<x[0]<1 and 0<x[1]<1 and x[0]+x[1]<1:
         return True
     else:
         return False
@@ -197,9 +196,9 @@ def issubordinate(rcoord,vectors):
             buff=np.cross(vectors[0],vectors[1])
         a[:,2]=buff
     if nvectors==1:
-        buff1=a[:,0]
+        buff1,buff2=a[:,0],np.zeros(3)
         for i in xrange(3):
-            buff2=np.zeros(3)
+            buff2[...]=0.0
             buff2[i]=np.pi
             if not isparallel(buff1,buff2): break
         buff3=np.cross(buff1,buff2)
@@ -208,7 +207,7 @@ def issubordinate(rcoord,vectors):
     b=np.zeros(3)
     b[0:len(rcoord)]=rcoord
     x=nl.inv(a).dot(b)
-    if max(abs(x-np.around(x)))<RZERO:
+    if max(np.abs(x-np.around(x)))<RZERO:
         return True
     else:
         return False
@@ -269,7 +268,7 @@ def translation(cluster,vector):
     '''
     return [np.asarray(coord)+np.asarray(vector) for coord in cluster]
 
-def rotation(cluster,angle=0,axis=None,center=None):
+def rotation(cluster,angle=0,center=None):
     '''
     This function returns the rotated cluster.
 
@@ -279,10 +278,8 @@ def rotation(cluster,angle=0,axis=None,center=None):
         The original cluster.
     angle : float
         The rotated angle
-    axis : 1d array-like, optional
-        The rotation axis. Default the z-axis. *Not supported yet*.
     center : 1d array-like, optional
-        The center of the axis. Defualt the origin.
+        The center of the axis. Default the origin.
 
     Returns
     -------
@@ -294,7 +291,7 @@ def rotation(cluster,angle=0,axis=None,center=None):
     m=np.array([[m11,m12],[m21,m22]])
     return [m.dot(np.asarray(coord)-np.asarray(center))+np.asarray(center) for coord in cluster]
 
-def tiling(cluster,vectors=[],translations=[]):
+def tiling(cluster,vectors=(),translations=()):
     '''
     Tile a supercluster by translations of the input cluster.
 
@@ -320,6 +317,7 @@ def tiling(cluster,vectors=[],translations=[]):
             supercluster.append(coord+disp)
     return supercluster
 
+# noinspection PyUnresolvedReferences
 class PID(namedtuple('PID',['scope','site'])):
     '''
     The ID of a point.
@@ -367,7 +365,7 @@ class Point(np.ndarray):
 
     def __array_finalize__(self,obj):
         '''
-        Initialize an instance through both explicit and implicit constructions, i.e. construtor, view and slice.
+        Initialize an instance through both explicit and implicit constructions, i.e. constructor, view and slice.
         '''
         if obj is None:
             return
@@ -376,10 +374,10 @@ class Point(np.ndarray):
 
     def __reduce__(self):
         '''
-        numpy.ndarray uses __reduce__ to pickle. Therefore this mehtod needs overriding for subclasses.
+        numpy.ndarray uses __reduce__ to pickle. Therefore this method needs overriding for subclasses.
         '''
         data=super(Point,self).__reduce__()
-        return (data[0],data[1],data[2]+(self.pid,))
+        return data[0],data[1],data[2]+(self.pid,)
 
     def __setstate__(self,state):
         '''
@@ -545,7 +543,7 @@ class Link(object):
         '''
         return 'Link(%s, %s, %s, %s)'%(self.neighbour,self.sindex,self.eindex,self.disp)
 
-def intralinks(mode='nb',cluster=[],indices=None,vectors=[],**options):
+def intralinks(mode='nb',cluster=(),indices=None,vectors=(),**options):
     '''
     This function searches the wanted links intra a cluster.
 
@@ -567,7 +565,7 @@ def intralinks(mode='nb',cluster=[],indices=None,vectors=[],**options):
             * `max_coordinate_number`: integer, optional, default 8
                 The max coordinate number for every neighbour.
             * `return_mindists`: logical, optional, default False
-                When True, the nneighbour minimum distances will alse be returned.
+                When True, the nneighbour minimum distances will also be returned.
         When mode is 'dt', it contains:
             * `r`: float64, optional, default 1.0
                 The distance upper bound within which the links are searched.
@@ -625,7 +623,7 @@ def __links_nb__(cluster,indices,vectors,nneighbour,max_coordinate_number,return
         disps=tiling([np.zeros(len(next(iter(cluster))))]*len(cluster),vectors=vectors,translations=translations)
         tree=cKDTree(supercluster)
         distances,eseqses=tree.query(cluster,k=nneighbour*max_coordinate_number if nneighbour>0 else 2)
-        mindists=[np.inf for i in xrange(nneighbour+1)]
+        mindists=[np.inf]*(nneighbour+1)
         for dist in np.concatenate(distances):
             for i,mindist in enumerate(mindists):
                 if abs(dist-mindist)<RZERO:
@@ -677,7 +675,7 @@ def __links_dt__(cluster,indices,vectors,r,max_translations,mindists):
                 result.append(Link(neighbour,sindex=sindex,eindex=eindex,disp=disps[j]))
     return result
 
-def interlinks(cluster1,cluster2,maxdist,indices1=None,indices2=None,mindists=[]):
+def interlinks(cluster1,cluster2,maxdist,indices1=None,indices2=None,mindists=()):
     '''
     This function searches the links between two clusters with the distances less than a certain value.
 
@@ -739,7 +737,7 @@ class Lattice(object):
     '''
     max_coordinate_number=8
 
-    def __init__(self,name=None,rcoords=[],icoords=None,vectors=[],nneighbour=1,max_coordinate_number=None):
+    def __init__(self,name=None,rcoords=(),icoords=None,vectors=(),nneighbour=1,max_coordinate_number=None):
         '''
         Construct a lattice directly from its coordinates.
 
@@ -772,7 +770,7 @@ class Lattice(object):
         self.mindists=mindists
 
     @classmethod
-    def compose(cls,name=None,points=[],vectors=[],nneighbour=1,max_coordinate_number=None):
+    def compose(cls,name=None,points=(),vectors=(),nneighbour=1,max_coordinate_number=None):
         '''
         Construct a lattice from its contained points.
 
@@ -929,7 +927,7 @@ class Lattice(object):
                 ax.scatter(x,y)
                 if pid_on:
                     pid=bond.spoint.pid
-                    if pid.scope==None:
+                    if pid.scope is None:
                         tag=str(pid.site)
                     else:
                         tag=str(pid.scope)+'*'+str(pid.site)
@@ -958,7 +956,7 @@ class SuperLattice(Lattice):
         The pairs of names of sublattices that are united to form new links.
     '''
 
-    def __init__(self,name,sublattices,vectors=[],nneighbour=1,merge=None,union=None,mindists=None,maxdist=None,max_coordinate_number=None):
+    def __init__(self,name,sublattices,vectors=(),nneighbour=1,merge=None,union=None,mindists=None,maxdist=None,max_coordinate_number=None):
         '''
         Constructor.
 
@@ -1025,7 +1023,7 @@ class SuperLattice(Lattice):
                     ))
 
     @staticmethod
-    def merge(name,sublattices,vectors=[],nneighbour=1,max_coordinate_number=None):
+    def merge(name,sublattices,vectors=(),nneighbour=1,max_coordinate_number=None):
         '''
         This is a simplified version of SuperLattice.__init__ by just merging sublattices to construct the superlattice.
         For details, see SuperLattice.__init__.
@@ -1040,7 +1038,7 @@ class SuperLattice(Lattice):
             )
 
     @staticmethod
-    def union(name,sublattices,mindists,vectors=[],union=None,maxdist=None):
+    def union(name,sublattices,mindists,vectors=(),union=None,maxdist=None):
         '''
         This is a simplified version of SuperLattice.__init__ by just uniting sublattices to construct the superlattice.
         For details, see SuperLattice.__init__.

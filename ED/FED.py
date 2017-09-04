@@ -1,7 +1,7 @@
 '''
-==============================
-Fermionic exat diagonalization
-==============================
+===============================
+Fermionic exact diagonalization
+===============================
 
 Exact diagonalization for fermionic systems, including:
     * classes: FED
@@ -26,7 +26,7 @@ class FED(ED):
         The occupation number basis of the system.
     '''
 
-    def __init__(self,basis,lattice,config,terms=[],dtype=np.complex128,**karg):
+    def __init__(self,basis,lattice,config,terms=(),dtype=np.complex128,**karg):
         '''
         Constructor.
 

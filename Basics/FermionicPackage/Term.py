@@ -34,10 +34,10 @@ class Quadratic(Term):
 
     Notes
     -----
-    The final coefficient comes from three parts, the value of itself, the value of the indexpacakge, and the value amplitude returns.
+    The final coefficient comes from three parts, the value of itself, the value of the indexpack, and the value amplitude returns.
     '''
     
-    def __init__(self,id,mode,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpacks=None,amplitude=None,modulate=None):
+    def __init__(self,id,mode,value,neighbour=0,atoms=(),orbitals=(),spins=(),indexpacks=None,amplitude=None,modulate=None):
         '''
         Constructor.
 
@@ -222,19 +222,19 @@ class Quadratic(Term):
             if not half: result+=result.dagger
         return result
 
-def Hopping(id,value,neighbour=1,atoms=[],orbitals=[],spins=[],indexpacks=None,amplitude=None,modulate=None):
+def Hopping(id,value,neighbour=1,atoms=(),orbitals=(),spins=(),indexpacks=None,amplitude=None,modulate=None):
     '''
     A specified function to construct a hopping term.
     '''
     return Quadratic(id,'hp',value,neighbour,atoms,orbitals,spins,indexpacks,amplitude,modulate)
 
-def Onsite(id,value,atoms=[],orbitals=[],spins=[],indexpacks=None,amplitude=None,modulate=None):
+def Onsite(id,value,atoms=(),orbitals=(),spins=(),indexpacks=None,amplitude=None,modulate=None):
     '''
     A specified function to construct an onsite term.
     '''
     return Quadratic(id,'st',value,0,atoms,orbitals,spins,indexpacks,amplitude,modulate)
 
-def Pairing(id,value,neighbour=0,atoms=[],orbitals=[],spins=[],indexpacks=None,amplitude=None,modulate=None):
+def Pairing(id,value,neighbour=0,atoms=(),orbitals=(),spins=(),indexpacks=None,amplitude=None,modulate=None):
     '''
     A specified function to construct an pairing term.
     '''
@@ -368,7 +368,7 @@ class Hubbard(Term):
         Returns
         -------
         Operators
-            All the Hubbard operators with non-zero coeffcients.
+            All the Hubbard operators with non-zero coefficients.
         '''
         result=Operators()
         dgr=config[bond.epoint.pid]

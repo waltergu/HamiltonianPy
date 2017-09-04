@@ -32,9 +32,9 @@ class TRBasis(HP.FBasis):
         self.signs=signs
         self.masks=trmasks(self.seqs,self.translations,self.signs,nk)
 
-    def tostr(self,protocal=0):
-        assert protocal in (0,1)
-        if protocal==0:
+    def tostr(self,protocol=0):
+        assert protocol in (0,1)
+        if protocol==0:
             return '\n'.join('{}({}): {:b}'.format(i,self.translations[index],self.table[index]) for i,index in enumerate(self.seqs))
         else:
             return '\n'.join('{:b}({},{}): {:b}'.format(basis,translation,sign,self.table[self.seqs[index]]) for basis,index,translation,sign in zip(self.table,self.maps,self.translations,self.signs))
@@ -47,7 +47,7 @@ class TRBasis(HP.FBasis):
         return np.concatenate(np.argwhere(self.masks[k,:]>=0))
 
 def trfoptrep(operator,k,basis,dtype=np.complex128):
-    assert operator.rank%2==0 and isinstance(basis,TRBasis) and k>=0 and k<basis.nk
+    assert operator.rank%2==0 and isinstance(basis,TRBasis) and 0<=k<basis.nk
     value,nambus,sequences=operator.value,(np.array([index.nambu for index in operator.indices])>0)[::-1],np.array(operator.seqs)[::-1]
     table,seqs,maps,translations,signs,masks,nk=basis.table,basis.seqs,basis.maps,basis.translations,basis.signs,basis.masks,basis.nk
     data,indices,indptr,dim=_trfoptrep_(k,value,nambus,sequences,table,seqs,maps,translations,signs,masks,nk,dtype)

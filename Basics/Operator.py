@@ -51,7 +51,7 @@ class Operator(Arithmetic):
         -----
         * This property must be overridden by its child class.
         '''
-        raise ValueError("%s dagger error: it is not implemented."%(self.__class__.__name__))
+        raise ValueError("%s dagger error: it is not implemented."%self.__class__.__name__)
 
     def __add__(self,other):
         '''

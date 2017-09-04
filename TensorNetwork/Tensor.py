@@ -69,7 +69,7 @@ class Label(tuple):
         try:
             return self[type(self).names.index(key)]
         except ValueError:
-            raise AttributeError("'Label' object has no attribute %s."%(key))
+            raise AttributeError("'Label' object has no attribute %s."%key)
 
     def __str__(self):
         '''
@@ -183,7 +183,7 @@ class Tensor(np.ndarray):
 
     def __array_finalize__(self,obj):
         '''
-        Initialize an instance through both explicit and implicit constructions, i.e. construtor, view and slice.
+        Initialize an instance through both explicit and implicit constructions, i.e. constructor, view and slice.
         '''
         if obj is None:
             return
@@ -192,7 +192,7 @@ class Tensor(np.ndarray):
 
     def __reduce__(self):
         '''
-        numpy.ndarray uses __reduce__ to pickle. Therefore this mehtod needs overriding for subclasses.
+        numpy.ndarray uses __reduce__ to pickle. Therefore this method needs overriding for subclasses.
         '''
         temp=super(Tensor,self).__reduce__()
         return temp[0],temp[1],temp[2]+(self.labels,)
@@ -362,7 +362,7 @@ class Tensor(np.ndarray):
             * permutation: 1d ndarray of integers
                 The permutation array.
             * qns: QuantumNumbers, optional
-                The new qantum number collection of the dimension if good quantum numbers are used.
+                The new quantum number collection of the dimension if good quantum numbers are used.
 
         Returns
         -------
@@ -383,7 +383,7 @@ class Tensor(np.ndarray):
         return result
 
     @staticmethod
-    def directsum(tensors,labels,axes=[]):
+    def directsum(tensors,labels,axes=()):
         '''
         The directsum of a couple of tensors.
 
@@ -427,7 +427,7 @@ class Tensor(np.ndarray):
 
     def merge(self,*args):
         '''
-        Merge some continous and accending labels of a tensor into a new one with an optional permutation.
+        Merge some continuous and ascending labels of a tensor into a new one with an optional permutation.
 
         Usage: ``tensor.merge((olds,new,<permutation>),(olds,new,<permutation>),...)``
             * olds: list of Label/integer
@@ -447,7 +447,7 @@ class Tensor(np.ndarray):
             assert len(arg) in (2,3)
             axes=np.array([self.axis(old) if isinstance(old,Label) else old for old in arg[0]])
             if len(axes)!=axes.max()-axes.min()+1 or not (axes[1:]>axes[:-1]).all():
-                raise ValueError('Tensor merge error: the axes to be merged should be continous and accending, please call transpose first.')
+                raise ValueError('Tensor merge error: the axes to be merged should be continuous and ascending, please call transpose first.')
             masks.add(axes[0])
             for axis in axes[1:]:
                 indptr.remove(axis)
@@ -474,7 +474,7 @@ class Tensor(np.ndarray):
 
         Usage: ``tensor.split((old,news,<permutation>),(old,news,<permutation>),...)``
             * old: Label/integer
-                The label/axis to be splitted.
+                The label/axis to be split.
             * news: list of Label
                 The new labels.
             * permutation: 1d ndarray of integers, optional
@@ -510,11 +510,11 @@ class Tensor(np.ndarray):
         Parameters
         ----------
         axes : list of Label/integer
-            The labels/axes whose quantum numer collections are known.
+            The labels/axes whose quantum number collections are known.
         qnses : list of QuantumNumbers
             The quantum number collections of the known axes.
         signs : string, optional
-            The signs of the quantum numbers to get the unkown one.
+            The signs of the quantum numbers to get the unknown one.
         tol : float64, optional
             The tolerance of the non-zeros.
         '''
@@ -534,12 +534,12 @@ class Tensor(np.ndarray):
                 contents[index[unkownaxis]]=qn
             else:
                 assert (contents[index[unkownaxis]]==qn).all()
-        self.labels[unkownaxis].qns=QuantumNumbers('G',(type,contents,np.arange(len(contents)+1)),protocal=QuantumNumbers.INDPTR)
+        self.labels[unkownaxis].qns=QuantumNumbers('G',(type,contents,np.arange(len(contents)+1)),protocol=QuantumNumbers.INDPTR)
 
     @staticmethod
     def random(shape,labels,signs=None,dtype=np.float64):
         '''
-        Construt a random block-stuctured tensor.
+        Construct a random block-structured tensor.
 
         Parameters
         ----------
@@ -555,7 +555,7 @@ class Tensor(np.ndarray):
         Returns
         -------
         Tensor
-            A random block-stuctured tensor.
+            A random block-structured tensor.
         '''
         np.random.seed()
         assert dtype in (np.float32,np.float64,np.complex64,np.complex128)
@@ -615,12 +615,12 @@ class Tensor(np.ndarray):
 
         Parameters
         ----------
-        row/col : list of Label or Integer
+        row,col : list of Label or Integer
             The axes or labels to be merged as the row/column dimension during the eigenvalue decomposition.
             The positive direction is IN for row and OUT for col if good quantum numbers are used.
         new : Label
             The label for the eigenvalues.
-        row_signs/col_signs : string, optional
+        row_signs,col_signs : string, optional
             The signs of the quantum number collections of the row/col labels if good quantum numbers are used.
         return_dagger : logical, optional
             True for returning the Hermitian conjugate of the eigenvalue matrix and False for not.
@@ -628,7 +628,7 @@ class Tensor(np.ndarray):
         Returns
         -------
         E,U : Tensor
-            The eigenvalue decomposition of the tensor, such taht `self=U*E*U^{\daager}`.
+            The eigenvalue decomposition of the tensor, such that `self=U*E*U^{\dagger}`.
         UD : Tensor, optional
             The Hermitian conjugate of the tensor `U`, with the column split in accordance with `self`.
 
@@ -665,7 +665,7 @@ class Tensor(np.ndarray):
         else:
             row_label=Label('__TENSOR_EIGH_ROW__',qns=np.product([label.dim for label in row]))
             col_label=Label('__TENSOR_EIGH_COL__',qns=np.product([label.dim for label in col]))
-            assert len(row_qns)==len(col_qns)
+            assert len(row_label)==len(col_label)
             e,u=sl.eigh(np.asarray(self.merge((row,row_label),(col,col_label))),check_finite=False)
             new=new.replace(qns=len(row_label))
             E=Tensor(e,labels=[new])
@@ -682,7 +682,7 @@ class Tensor(np.ndarray):
 
         Parameters
         ----------
-        L/R : Label
+        L,R : Label
             The left/right part of the partition.
         new : Label
             The label for the singular values.
@@ -758,12 +758,12 @@ class Tensor(np.ndarray):
 
         Parameters
         ----------
-        row/col : list of Label or integer
+        row,col : list of Label or integer
             The labels or axes to be merged as the row/column dimension during the svd.
             The positive direction is IN for row and OUT for col if good quantum numbers are used.
         new : Label
             The label for the singular values.
-        row_signs/col_signs : string, optional
+        row_signs,col_signs : string, optional
             The signs of the quantum number collections of the row/col labels if good quantum numbers are used.
         nmax,tol,return_truncation_err :
             Please refer to HamiltonianPy.Misc.Linalg.truncated_svd for details.
@@ -805,7 +805,7 @@ class Tensor(np.ndarray):
                     contents[1].append(qn)
                     contents[2].append(cut)
             S=np.concatenate(Ss)
-            new=new.replace(qns=QuantumNumbers('U',contents,protocal=QuantumNumbers.COUNTS))
+            new=new.replace(qns=QuantumNumbers('U',contents,protocol=QuantumNumbers.COUNTS))
             od=new.qns.to_ordereddict()
             U=np.zeros((len(row_qns),len(new.qns)),dtype=self.dtype)
             V=np.zeros((len(new.qns),len(col_qns)),dtype=self.dtype)
@@ -842,7 +842,7 @@ class Tensor(np.ndarray):
 
         Parameters
         ----------
-        L/R : list of Label or integer
+        L,R : list of Label or integer
             The labels or axes to be merged as the left/right dimension during the expanded svd.
             The positive direction is IN for L and OUT for R if good quantum numbers are used.
         S : Label/integer
@@ -853,12 +853,12 @@ class Tensor(np.ndarray):
             The positive direction is IN for E if good quantum numbers are used.
         I : list of Label
             The labels of the newly generated internal legs during the expanded svd.
-        ls/rs/es : string, optional
+        ls,rs,es : string, optional
             The signs of the quantum number collections of the L/R/E labels if good quantum numbers are used.
         cut : integer, optional
             The labels in E whose sequences are less than cut will be tied with the u matrices of the svds from the left;
             The labels in E whose sequences are equal to or greater than cut will be tied with the v matrices of the svds from the right.
-        namx : integer, optional
+        nmax : integer, optional
             The maximum number of singular values to be kept.
         tol : float64, optional
             The tolerance of the singular values.
@@ -868,7 +868,7 @@ class Tensor(np.ndarray):
         list of Tensor
             The results of the expanded svd.
         '''
-        assert len(L)+len(R)==self.ndim-1 and cut>=0 and cut<=len(E)
+        assert len(L)+len(R)==self.ndim-1 and 0<=cut<=len(E)
         L=[l if isinstance(l,Label) else self.label(l) for l in L]
         S=S if isinstance(S,Label) else self.label(S)
         R=[r if isinstance(r,Label) else self.label(r) for r in R]
@@ -927,7 +927,7 @@ class Tensor(np.ndarray):
 
         Parameters
         ----------
-        row/col : list of Label or integer
+        row,col : list of Label or integer
             The labels or axes to be merged as the row/column dimension during the deparallelization.
         new : Label
             The label for the new axis after the deparallelization.
@@ -955,12 +955,12 @@ class Tensor(np.ndarray):
         data=np.asarray(self.merge((row,rlabel),(col,clabel)))
         m1,m2,indices=hm.deparallelization(data,mode=mode,zero=zero,tol=tol,return_indices=True)
         if mode=='R':
-            new=new.replace(qns=rlabel.qns.reorder(permutation=indices,protocal='EXPANSION') if self.qnon else len(indices))
+            new=new.replace(qns=rlabel.qns.reorder(permutation=indices,protocol='EXPANSION') if self.qnon else len(indices))
             T=Tensor(m1,labels=[rlabel,new]).split((rlabel,row))
             M=Tensor(m2,labels=[new,clabel]).split((clabel,col))
             return T,M
         else:
-            new=new.replace(qns=clabel.qns.reorder(permutation=indices,protocal='EXPANSION') if self.qnon else len(indices))
+            new=new.replace(qns=clabel.qns.reorder(permutation=indices,protocol='EXPANSION') if self.qnon else len(indices))
             M=Tensor(m1,labels=[rlabel,new]).split((rlabel,row))
             T=Tensor(m2,labels=[new,clabel]).split((clabel,col))
             return M,T

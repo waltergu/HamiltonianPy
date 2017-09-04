@@ -8,8 +8,7 @@ Quantum number, including:
 '''
 
 from collections import OrderedDict
-from copy import copy,deepcopy
-from fpermutation import fpermutation
+from fpermutation import *
 import numpy as np
 import numpy.linalg as nl
 import random
@@ -86,7 +85,7 @@ class QuantumNumber(np.ndarray):
             for i,t in enumerate(cls.periods):
                 if t is not None: array[:,i]%=t
         else:
-            raise ValueError('%s regularization error: array should be 1d or 2d.'%(cls.__name__))
+            raise ValueError('%s regularization error: array should be 1d or 2d.'%cls.__name__)
         return array
 
     def __getattr__(self,key):
@@ -112,7 +111,7 @@ class QuantumNumber(np.ndarray):
         for name,value,period in zip(self.__class__.names,self,self.__class__.periods):
             temp.append(name)
             temp.append(value)
-            temp.append('U1' if period is None else 'Z%s'%(period))
+            temp.append('U1' if period is None else 'Z%s'%period)
         return ''.join(['QN','(',','.join(['%s=%r(%s)']*len(self)),')'])%tuple(temp)
 
     @classmethod
@@ -120,7 +119,7 @@ class QuantumNumber(np.ndarray):
         '''
         Return a new quantum number with all the values equal to zero.
         '''
-        return cls([0 for i in xrange(len(cls.names))])
+        return cls([0]*len(cls.names))
 
     def __hash__(self):
         '''
@@ -158,7 +157,7 @@ class QuantumNumber(np.ndarray):
 
     __isub__=__sub__
 
-    def __mul__(self):
+    def __mul__(self,other):
         '''
         Overloaded multiplication(*) operator.
         '''
@@ -212,7 +211,7 @@ class QuantumNumber(np.ndarray):
 
 class QuantumNumbers(object):
     '''
-    A collection of quantum numbers in a stroage format similiar to that of compressed-sparse-row vectors.
+    A collection of quantum numbers in a storage format similar to that of compressed-sparse-row vectors.
 
     Attributes
     ----------
@@ -222,7 +221,7 @@ class QuantumNumbers(object):
         * 'U': unitary form
             The contents of the collection have no duplicates with respect to the rows.
         * 'C': canonical form
-            The contents of the collection must be arranged in a accending order with no duplicates by the rows.
+            The contents of the collection must be arranged in an ascending order with no duplicates by the rows.
     type : class
         The class of the quantum numbers contained in the collection.
     contents : 2d ndarray
@@ -232,7 +231,7 @@ class QuantumNumbers(object):
     '''
     COUNTS,INDPTR=0,1
 
-    def __init__(self,form,data,protocal=COUNTS):
+    def __init__(self,form,data,protocol=COUNTS):
         '''
         Constructor, supporting the following usages:
             * ``QuantumNumbers(form,(qns,counts),QuantumNumbers.COUNTS)``, with
@@ -268,9 +267,9 @@ class QuantumNumbers(object):
                 indptr: list of integer
                     The indptr of the collection.
         '''
-        assert form in ('G','g','U','u','C','c') and len(data) in (2,3) and protocal in (QuantumNumbers.COUNTS,QuantumNumbers.INDPTR)
+        assert form in ('G','g','U','u','C','c') and len(data) in (2,3) and protocol in (QuantumNumbers.COUNTS,QuantumNumbers.INDPTR)
         self.form=form.upper()
-        if protocal==QuantumNumbers.COUNTS:
+        if protocol==QuantumNumbers.COUNTS:
             if len(data)==2:
                 self.type=next(iter(data[0])).__class__
                 self.contents=np.asarray(data[0])
@@ -309,7 +308,7 @@ class QuantumNumbers(object):
         QuantumNumbers
             The constructed collection.
         '''
-        return QuantumNumbers('C',((qn,),[0,count]),protocal=QuantumNumbers.INDPTR)
+        return QuantumNumbers('C',((qn,),[0,count]),protocol=QuantumNumbers.INDPTR)
 
     def sort(self,history=False):
         '''
@@ -406,7 +405,7 @@ class QuantumNumbers(object):
                     L=pos
                 pos,last=(L+R)/2,pos
                 if pos==last:
-                    raise ValueError('QuantumNumbers index error: %s not in QuantumNumbers.'%(qn))
+                    raise ValueError('QuantumNumbers index error: %s not in QuantumNumbers.'%qn)
                 current=tuple(self.contents[pos])
             else:
                 return [pos]
@@ -425,7 +424,7 @@ class QuantumNumbers(object):
 
     def __pos__(self):
         '''
-        Overloaed positive(+) operator.
+        Overloaded positive(+) operator.
         '''
         return self
 
@@ -436,7 +435,7 @@ class QuantumNumbers(object):
         return QuantumNumbers(
                 form=       'U' if self.form=='C' else self.form,
                 data=       (self.type,self.type.regularization(-self.contents),self.indptr),
-                protocal=   QuantumNumbers.INDPTR
+                protocol=   QuantumNumbers.INDPTR
                 )
 
     def __add__(self,other):
@@ -447,7 +446,7 @@ class QuantumNumbers(object):
         return QuantumNumbers(
                 form=       'U' if self.form=='C' else self.form,
                 data=       (self.type,self.type.regularization(self.contents+np.asarray(other)[np.newaxis,:]),self.indptr),
-                protocal=   QuantumNumbers.INDPTR
+                protocol=   QuantumNumbers.INDPTR
                 )
 
     __iadd__=__add__
@@ -466,7 +465,7 @@ class QuantumNumbers(object):
         return QuantumNumbers(
                 form=       'U' if self.form=='C' else self.form,
                 data=       (self.type,self.type.regularization(self.contents-np.asarray(other)[np.newaxis,:]),self.indptr),
-                protocal=   QuantumNumbers.INDPTR
+                protocol=   QuantumNumbers.INDPTR
                 )
 
     __isub__=__sub__
@@ -516,7 +515,7 @@ class QuantumNumbers(object):
         return QuantumNumbers(
                     form=       'G' if self.form=='G' else 'U',
                     data=       (self.type,self.contents[indices],self.indptr[indices+1]-self.indptr[indices]),
-                    protocal=   QuantumNumbers.COUNTS
+                    protocol=   QuantumNumbers.COUNTS
                     )
 
     def subslice(self,targets=()):
@@ -578,7 +577,7 @@ class QuantumNumbers(object):
         cumsums=np.concatenate(([0],np.cumsum([len(arg) for arg in args])))
         contents=np.concatenate([arg.contents if sign=='+' else -arg.contents for arg,sign in zip(args,signs)])
         indptr=np.concatenate([arg.indptr[:-1]+cumsum for arg,cumsum in zip(args,cumsums[:-1])]+[(cumsums[-1],)])
-        return QuantumNumbers('G',(next(iter(args)).type,contents,indptr),protocal=QuantumNumbers.INDPTR)
+        return QuantumNumbers('G',(next(iter(args)).type,contents,indptr),protocol=QuantumNumbers.INDPTR)
 
     @staticmethod
     def kron(args,signs=None):
@@ -599,7 +598,7 @@ class QuantumNumbers(object):
         '''
         signs=len(args)*'+' if signs is None else signs
         assert len(signs)==len(args)
-        contents=np.zeros((1))
+        type,counts,contents=None,None,np.zeros(1)
         for i,(qns,sign) in enumerate(zip(args,signs)):
             if i==len(args)-1:
                 type=qns.type
@@ -612,15 +611,15 @@ class QuantumNumbers(object):
             else:
                 contents=(contents[:,np.newaxis,...]-temp[np.newaxis,:,...]).reshape((len(contents)*len(temp),-1))
         assert all([qns.type is type for qns in args])
-        return QuantumNumbers('G',(type,type.regularization(contents),counts),protocal=QuantumNumbers.COUNTS)
+        return QuantumNumbers('G',(type,type.regularization(contents),counts),protocol=QuantumNumbers.COUNTS)
 
-    def to_ordereddict(self,protocal=INDPTR):
+    def to_ordereddict(self,protocol=INDPTR):
         '''
         Convert a canonical collection of quantum numbers to an OrderedDict.
 
         Parameters
         ----------
-        protocal : QuantumNumbers.INDPTR, QuantumNumbers.COUNTS, optional
+        protocol : QuantumNumbers.INDPTR, QuantumNumbers.COUNTS, optional
             * When QuantumNumbers.INDPTR, the values of the result are the slices of the quantum numbers in the collection.
             * When QuantumNumbers.COUNTS, the values of the result are the counts of the duplicates of the quantum numbers.
 
@@ -629,9 +628,9 @@ class QuantumNumbers(object):
         OrderedDict
             The converted OrderedDict.
         '''
-        assert protocal in (QuantumNumbers.INDPTR,QuantumNumbers.COUNTS) and self.form in ('U','C')
+        assert protocol in (QuantumNumbers.INDPTR,QuantumNumbers.COUNTS) and self.form in ('U','C')
         result=OrderedDict()
-        if protocal==QuantumNumbers.INDPTR:
+        if protocol==QuantumNumbers.INDPTR:
             for i,qn in enumerate(self.contents):
                 result[tuple(qn)]=slice(self.indptr[i],self.indptr[i+1],None)
         else:
@@ -640,7 +639,7 @@ class QuantumNumbers(object):
         return result
 
     @staticmethod
-    def from_ordereddict(type,ordereddict,protocal=INDPTR):
+    def from_ordereddict(type,ordereddict,protocol=INDPTR):
         '''
         Convert an ordered dict to a quantum number collection.
 
@@ -650,7 +649,7 @@ class QuantumNumbers(object):
             The class of the quantum numbers.
         ordereddict : OrderedDict
             The OrderedDict that contains the contents of the collection.
-        protocal : QuantumNumbers.INDPTR, QuantumNumbers.COUNTS, optional
+        protocol : QuantumNumbers.INDPTR, QuantumNumbers.COUNTS, optional
             * When QuantumNumbers.INDPTR, the values of the ordereddict are the slices of the quantum numbers in the collection;
             * When QuantumNumbers.COUNTS, the values of the ordereddict are the counts of the duplicates of the quantum numbers.
 
@@ -659,16 +658,16 @@ class QuantumNumbers(object):
         QuantumNumbers
             The converted collection.
         '''
-        assert protocal in (QuantumNumbers.COUNTS,QuantumNumbers.INDPTR)
+        assert protocol in (QuantumNumbers.COUNTS,QuantumNumbers.INDPTR)
         contents=np.asarray(ordereddict.keys())
-        if protocal==QuantumNumbers.COUNTS:
+        if protocol==QuantumNumbers.COUNTS:
             counts=ordereddict.values()
-            return QuantumNumbers('U',(type,contents,counts),protocal=QuantumNumbers.COUNTS)
+            return QuantumNumbers('U',(type,contents,counts),protocol=QuantumNumbers.COUNTS)
         else:
             indptr=np.concatenate(([0],[slice.stop for slice in ordereddict.itervalues()]))
-            return QuantumNumbers('U',(type,contents,indptr),protocal=QuantumNumbers.INDPTR)
+            return QuantumNumbers('U',(type,contents,indptr),protocol=QuantumNumbers.INDPTR)
 
-    def reorder(self,permutation,protocal='EXPANSION'):
+    def reorder(self,permutation,protocol='EXPANSION'):
         '''
         Reorder the quantum numbers of the collection and return the new one.
 
@@ -676,7 +675,7 @@ class QuantumNumbers(object):
         ----------
         permutation : 1d ndarray
             The permutation array.
-        protocal : 'EXPANSION', 'CONTENTS'
+        protocol : 'EXPANSION', 'CONTENTS'
             * 'EXPANSION' for the reorder of the expansion of the collection;
             * 'CONTENTS' for the reorder of the contents of the collection.
 
@@ -688,18 +687,18 @@ class QuantumNumbers(object):
         if permutation is None:
             return self
         else:
-            assert protocal in ('EXPANSION','CONTENTS')
-            if protocal=='EXPANSION':
+            assert protocol in ('EXPANSION','CONTENTS')
+            if protocol=='EXPANSION':
                 return QuantumNumbers(
                         form=       'G',
                         data=       (self.type,self.expansion()[permutation],range(len(permutation)+1)),
-                        protocal=   QuantumNumbers.INDPTR
+                        protocol=   QuantumNumbers.INDPTR
                         )
             else:
                 return QuantumNumbers(
                         form=       'G' if self.form=='G' else 'U',
                         data=       (self.type,self.contents[permutation],(self.indptr[1:]-self.indptr[:-1])[permutation]),
-                        protocal=   QuantumNumbers.COUNTS
+                        protocol=   QuantumNumbers.COUNTS
                         )
 
     @staticmethod

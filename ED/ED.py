@@ -1,7 +1,7 @@
 '''
-====================
-Exat diagonalization
-====================
+=====================
+Exact diagonalization
+=====================
 
 Base class for exact diagonalization, including:
     * classes: ED, EL, GF
@@ -11,13 +11,12 @@ Base class for exact diagonalization, including:
 __all__=['ED','EDGSE','EL','EDEL','GF','EDGFP','EDGF','EDDOS']
 
 from ..Misc import Lanczos,derivatives,eigsh
-from scipy.linalg import eigh,norm,solve_banded,solveh_banded
-from copy import deepcopy
+from scipy.linalg import norm,solve_banded
 import numpy as np
 import pickle as pk
 import HamiltonianPy as HP
 import matplotlib.pyplot as plt
-import os.path,sys,time
+import os.path,time
 
 class ED(HP.Engine):
     '''
@@ -63,7 +62,7 @@ class ED(HP.Engine):
         '''
         Set the csr_matrix representation of the Hamiltonian.
         '''
-        raise NotImplementedError("%s set_matrix err: not implemented."%(self.__class__.__name__))
+        raise NotImplementedError("%s set_matrix err: not implemented."%self.__class__.__name__)
 
     def eigs(self,k=1,return_eigenvectors=False):
         '''
@@ -95,7 +94,7 @@ class ED(HP.Engine):
         Omats : list of csr_matrix
             The matrix representations of the input operators.
         '''
-        raise NotImplementedError("%s Hmat_Omat err: not implemented."%(self.__class__.__name__))
+        raise NotImplementedError("%s Hmat_Omat err: not implemented."%self.__class__.__name__)
 
 def EDGSE(engine,app):
     '''
@@ -167,7 +166,6 @@ def EDEL(engine,app):
         if app.plot and i>0:
             if app.save_fig: plt.savefig('%s/%s_%s(TIMERS).png'%(engine.dlog,engine.status.const,app.status.name))
             plt.close()
-    suffix='_%s'%(app.status.name)
     if app.nder>0:
         for i in xrange(app.ns):
             result.T[[j*app.ns+i+1 for j in xrange(1,app.nder+1)]]=derivatives(result[:,0],result[:,i+1],ders=range(1,app.nder+1))
@@ -178,7 +176,7 @@ def EDEL(engine,app):
         prefixs={i:'1st' if i==1 else ('2nd' if i==2 else ('3rd' if i==3 else '%sth'%i)) for i in xrange(app.nder+1)}
         for k in xrange(1,result.shape[1]):
             i,j=divmod(k-1,app.ns)
-            plt.plot(result[:,0],result[:,k],label=('%s der of '%prefixs[i] if i>0 else '')+'$E_{%s}$'%(j))
+            plt.plot(result[:,0],result[:,k],label=('%s der of '%prefixs[i] if i>0 else '')+'$E_{%s}$'%j)
         if app.legend: plt.legend(shadow=True,fancybox=True,loc='lower right')
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)

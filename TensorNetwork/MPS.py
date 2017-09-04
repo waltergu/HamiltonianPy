@@ -11,13 +11,11 @@ __all__=['MPS','Vidal']
 
 import numpy as np
 from numpy.linalg import norm
-from HamiltonianPy import Status
 from HamiltonianPy import QuantumNumber as QN
 from HamiltonianPy import QuantumNumbers as QNS
 from ..Misc import TOL,Arithmetic
 from Tensor import *
 from copy import copy,deepcopy
-from collections import OrderedDict
 
 class MPS(Arithmetic,list):
     '''
@@ -39,7 +37,7 @@ class MPS(Arithmetic,list):
     '''
     L,S,R=0,1,2
 
-    def __init__(self,mode='NB',ms=[],Lambda=None,cut=None,sites=None,bonds=None):
+    def __init__(self,mode='NB',ms=(),Lambda=None,cut=None,sites=None,bonds=None):
         '''
         Constructor.
 
@@ -65,7 +63,7 @@ class MPS(Arithmetic,list):
             self.Lambda=None
             self.cut=None
         else:
-            assert cut>=0 and cut<=len(ms)
+            assert 0<cut<=len(ms)
         if sites is None:
             for i,m in enumerate(ms):
                 assert isinstance(m,Tensor) and m.ndim==3
@@ -98,7 +96,7 @@ class MPS(Arithmetic,list):
             The labels for the virtual legs.
         cut : integer, optional
             The index of the connecting link.
-        namx : integer, optional
+        nmax : integer, optional
             The maximum number of singular values to be kept.
         tol : float64, optional
             The tolerance of the singular values.
@@ -204,7 +202,7 @@ class MPS(Arithmetic,list):
                 The quantum numbers of the last virtual legs.
         cut : integer, optional
             The index of the connecting link.
-        namx : integer, optional
+        nmax : integer, optional
             The maximum number of singular values to be kept.
         dtype : np.float32, np.float64, np.complex64, np.complex128, optional
             The data type of the random mps.
@@ -426,7 +424,7 @@ class MPS(Arithmetic,list):
         ----------
         cut : integer, optional
             The position of the connecting bond after the canonicalization.
-        namx : integer, optional
+        nmax : integer, optional
             The maximum number of singular values to be kept.
         tol : float64, optional
             The tolerance of the singular values.
@@ -450,7 +448,7 @@ class MPS(Arithmetic,list):
             The number of sweeps to compress the mps.
         cut : integer, optional
             The position of the connecting bond after the compression.
-        namx : integer, optional
+        nmax : integer, optional
             The maximum number of singular values to be kept.
         tol : float64, optional
             The tolerance of the singular values.
@@ -469,7 +467,7 @@ class MPS(Arithmetic,list):
         '''
         self._merge_ABL_()
         if cut is not None:
-            if cut>=0 and cut<=self.nsite:
+            if 0<=cut<=self.nsite:
                 self.cut=cut
                 self.Lambda=Tensor(1.0,labels=[])
             else:
@@ -756,7 +754,7 @@ class MPS(Arithmetic,list):
 
     def relayer(self,degfres,layer,nmax=None,tol=None):
         '''
-        Construt a new mps with the physical indices confined on a specific layer of degfres.
+        Construct a new mps with the physical indices confined on a specific layer of degfres.
 
         Parameters
         ----------
@@ -775,7 +773,7 @@ class MPS(Arithmetic,list):
             The new mps.
         '''
         new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
-        assert new>=0 and new<len(degfres.layers)
+        assert 0<=new<len(degfres.layers)
         old=degfres.level(next(iter(self)).labels[MPS.S].identifier)-1
         if new==old:
             return copy(self)
@@ -829,7 +827,7 @@ class Vidal(object):
         ----------
         Gammas : list of 3d ndarray/Tensor
             The Gamma matrices on the site.
-        Lamdas : list of 1d ndarray/Tensor
+        Lambdas : list of 1d ndarray/Tensor
             The Lambda matrices (singular values) on the link.
         sites : list of Label, optional
             The labels for the physical legs.

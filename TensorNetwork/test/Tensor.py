@@ -129,7 +129,7 @@ def test_tensor_expanded_svd():
     print 'test_tensor_expanded_svd'
     N=5
 
-    print 'Using good quantum numers'
+    print 'Using good quantum numbers'
     random.seed()
     signs=''.join('+' if i==0 else '-' for i in random.randint(2,size=N-1))
     print 'signs: %s'%signs

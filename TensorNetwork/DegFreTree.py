@@ -13,7 +13,6 @@ import numpy as np
 from HamiltonianPy import PID,Table,QuantumNumbers
 from ..Misc import Tree
 from Tensor import Label
-from collections import OrderedDict
 
 DEGFRE_FERMIONIC_PRIORITY=('scope','site','orbital','spin','nambu')
 DEGFRE_FERMIONIC_LAYERS=[('scope','site','orbital'),('spin',)]
@@ -35,7 +34,7 @@ class DegFreTree(Tree):
         The mode of the DegFreTree.
     layers : list of tuples of string
         The tag of each layer of indices.
-    priority : lsit of string
+    priority : list of string
         The sequence priority of the allowed indices.
     map : function
         This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
@@ -43,7 +42,7 @@ class DegFreTree(Tree):
         The cache of the degfretree.
     '''
 
-    def __init__(self,mode,layers,priority,leaves=[],map=None):
+    def __init__(self,mode,layers,priority,leaves=(),map=None):
         '''
         Constructor.
         Parameters
@@ -52,7 +51,7 @@ class DegFreTree(Tree):
             The mode of the DegFreTree.
         layers : list of tuples of string
             The tag of each layer of indices.
-        priority : lsit of string
+        priority : list of string
             The sequence priority of the allowed indices.
         leaves : list of Index, optional
             The leaves (bottom indices) of the DegFreTree.
@@ -61,7 +60,7 @@ class DegFreTree(Tree):
         '''
         self.reset(mode=mode,layers=layers,priority=priority,leaves=leaves,map=map)
 
-    def reset(self,mode=None,layers=None,priority=None,leaves=[],map=None):
+    def reset(self,mode=None,layers=None,priority=None,leaves=(),map=None):
         '''
         Reset the DegFreTree.
         Parameters
