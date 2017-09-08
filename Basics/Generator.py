@@ -10,9 +10,9 @@ __all__=['Generator']
 
 from Constant import *
 from Operator import *
-from numpy import *
-from numpy.linalg import norm
 from collections import OrderedDict
+import numpy as np
+import numpy.linalg as nl
 
 class Generator(object):
     '''
@@ -38,7 +38,7 @@ class Generator(object):
         The extra key word arguments for Term.operators.
     '''
 
-    def __init__(self,bonds,config,table=None,terms=None,dtype=complex128,**options):
+    def __init__(self,bonds,config,table=None,terms=None,dtype=np.complex128,**options):
         '''
         Constructor.
 
@@ -153,7 +153,7 @@ class Generator(object):
             selects={key:False for key in self.terms['alter'].iterkeys()}
             for key,term in self.terms['alter'].iteritems():
                 nv=term.modulate(**karg)
-                if nv is not None and norm(array(nv)-array(term.value))>RZERO:
+                if nv is not None and nl.norm(np.array(nv)-np.array(term.value))>RZERO:
                     term.value=nv
                     self.parameters['alter'][key]=nv
                     selects[key]=True

@@ -277,7 +277,7 @@ def rotation(cluster,angle=0,center=None):
     cluster : list of 1d array-like
         The original cluster.
     angle : float
-        The rotated angle
+        The rotated angle. Clockwise for negative and anticlockwise for positive.
     center : 1d array-like, optional
         The center of the axis. Default the origin.
 

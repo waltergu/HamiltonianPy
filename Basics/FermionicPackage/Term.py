@@ -10,13 +10,13 @@ Fermionic terms, including:
 
 __all__=['Quadratic','Hopping','Onsite','Pairing','Hubbard']
 
-from numpy import *
 from ..Constant import *
 from ..Term import *
 from ..DegreeOfFreedom import *
 from ..Operator import * 
 from DegreeOfFreedom import *
 from Operator import * 
+import numpy as np
 
 class Quadratic(Term):
     '''
@@ -94,7 +94,7 @@ class Quadratic(Term):
             result.append('modulate=%s'%self.modulate)
         return 'Quadratic('+', '.join(result)+')'
 
-    def mesh(self,bond,config,dtype=complex128):
+    def mesh(self,bond,config,dtype=np.complex128):
         '''
         This method returns the mesh of a quadratic term defined on a bond.
 
@@ -116,7 +116,7 @@ class Quadratic(Term):
         sdgr=config[bond.spoint.pid]
         n1=edgr.norbital*edgr.nspin*edgr.nnambu
         n2=sdgr.norbital*sdgr.nspin*sdgr.nnambu
-        result=zeros((n1,n2),dtype=dtype)
+        result=np.zeros((n1,n2),dtype=dtype)
         if self.neighbour==bond.neighbour:
             value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
             for obj in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
@@ -152,7 +152,7 @@ class Quadratic(Term):
                         raise ValueError("Quadratic mesh error: the nspin of epoint and spoint of the input bond should be equal.")
         return result
 
-    def operators(self,bond,config,table=None,half=True,dtype=complex128,**karg):
+    def operators(self,bond,config,table=None,half=True,dtype=np.complex128,**karg):
         '''
         This method returns all the desired quadratic operators defined on the input bond with non-zero coefficients.
 
@@ -183,7 +183,7 @@ class Quadratic(Term):
         '''
         def _operators_(mesh,bond,config,table=None):
             result=Operators()
-            indices=argwhere(abs(mesh)>RZERO)
+            indices=np.argwhere(np.abs(mesh)>RZERO)
             for (i,j) in indices:
                 eindex=Index(bond.epoint.pid,config[bond.epoint.pid].state_index(i))
                 sindex=Index(bond.spoint.pid,config[bond.spoint.pid].state_index(j))
@@ -214,7 +214,7 @@ class Quadratic(Term):
                 for i in xrange(mesh.shape[0]):
                     mesh[i,i]/=2.0
                     for j in xrange(i):
-                        if abs(mesh[i,j]-conjugate(mesh[j,i]))<RZERO: mesh[i,j]=0
+                        if np.abs(mesh[i,j]-np.conjugate(mesh[j,i]))<RZERO: mesh[i,j]=0
             result=_operators_(mesh,bond,config,table)
         else:
             result=_operators_(self.mesh(bond,config,dtype=dtype),bond,config,table)
@@ -276,7 +276,7 @@ class Hubbard(Term):
         result.append('value=%s'%self.value)
         return 'Hubbard('+', '.join(result)+')'
 
-    def mesh(self,bond,config,dtype=float64):
+    def mesh(self,bond,config,dtype=np.float64):
         '''
         This method returns the mesh of Hubbard terms.
 
@@ -298,7 +298,7 @@ class Hubbard(Term):
             dgr=config[bond.epoint.pid]
             assert dgr.nspin==2
             ndim=dgr.norbital*dgr.nspin
-            result=zeros((ndim,ndim,ndim,ndim),dtype=dtype)
+            result=np.zeros((ndim,ndim,ndim,ndim),dtype=dtype)
             if self.atom is None or self.atom==dgr.atom:
                 try:
                     nv=len(self.value)
@@ -346,7 +346,7 @@ class Hubbard(Term):
         else:
             return 0
 
-    def operators(self,bond,config,table=None,half=True,dtype=float64,**karg):
+    def operators(self,bond,config,table=None,half=True,dtype=np.float64,**karg):
         '''
         This method returns all the Hubbard operators defined on the input bond with non-zero coefficients.
 
@@ -354,16 +354,19 @@ class Hubbard(Term):
         ----------
         bond : Bond
             The bond on which the Hubbard terms are defined.
-        config: IDFConfig
+        config : IDFConfig
             The configuration of internal degrees of freedom.
-        table: Table, optional
+        table : Table, optional
             The index-sequence table. Since Hubbard terms are quartic, it never uses the Nambu space.
         half : logical, optional
             When True, only one half of the operators are returned, which means
                 * The Hermitian conjugate of non-Hermitian operators is not included;
                 * The coefficient of the self-Hermitian operators is divided by a factor 2.
-        dtype: dtype,optional
+        dtype : dtype,optional
             The data type of the coefficient of the returned operators.
+        karg : dict
+            * entry 'order': 'normal' or 'density'
+                'normal' for normal ordered order and 'density' for density-density formed order.
  
         Returns
         -------
@@ -373,14 +376,14 @@ class Hubbard(Term):
         result=Operators()
         dgr=config[bond.epoint.pid]
         mesh=self.mesh(bond,config,dtype=dtype)
-        indices=argwhere(abs(mesh)>RZERO)
+        indices=np.argwhere(np.abs(mesh)>RZERO)
         for (i,j,k,l) in indices:
             index1=Index(bond.epoint.pid,dgr.state_index(i))
             index2=Index(bond.epoint.pid,dgr.state_index(j))
             index3=Index(bond.epoint.pid,dgr.state_index(k))
             index4=Index(bond.epoint.pid,dgr.state_index(l))
             if table is None:
-                result+=FHubbard(
+                opt=FHubbard(
                     value=      mesh[i,j,k,l],
                     indices=    (index1.replace(nambu=CREATION),index2.replace(nambu=CREATION),index3,index4),
                     seqs=       None,
@@ -394,12 +397,13 @@ class Hubbard(Term):
                 temp3=index3.mask(*masks)
                 temp4=index4.mask(*masks)
                 if temp1 in table and temp2 in table and temp3 in table and temp4 in table:
-                    result+=FHubbard(
+                    opt=FHubbard(
                         value=      mesh[i,j,k,l],
                         indices=    (index1.replace(nambu=CREATION),index2.replace(nambu=CREATION),index3,index4),
                         seqs=       (table[temp1],table[temp2],table[temp3],table[temp4]),
                         rcoord=     bond.epoint.rcoord,
                         icoord=     bond.epoint.icoord
                         )
+            result+=opt.reorder([0,3,1,2],reverse_coord=False) if karg.get('order','normal')=='density' else opt
         if not half: result+=result.dagger
         return result

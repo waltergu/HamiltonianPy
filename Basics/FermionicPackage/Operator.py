@@ -9,9 +9,10 @@ Fermionic operator, including:
 
 __all__=['FOperator','FLinear','FQuadratic','FHubbard']
 
-from numpy import *
-from DegreeOfFreedom import ANNIHILATION,CREATION
 from ..Operator import *
+from DegreeOfFreedom import ANNIHILATION,CREATION
+from ...Misc import parity
+import numpy as np
 
 class FOperator(Operator):
     '''
@@ -50,8 +51,8 @@ class FOperator(Operator):
         self.indices=tuple(indices)
         self.seqs=None if seqs is None else tuple(seqs)
         if self.seqs is not None: assert len(self.seqs)==len(self.indices)
-        self.rcoord=None if rcoord is None else array(rcoord)
-        self.icoord=None if icoord is None else array(icoord)
+        self.rcoord=None if rcoord is None else np.array(rcoord)
+        self.icoord=None if icoord is None else np.array(icoord)
 
     def __repr__(self):
         '''
@@ -111,6 +112,31 @@ class FOperator(Operator):
         '''
         return self==self.dagger
 
+    def reorder(self,permutation,reverse_coord=False):
+        '''
+        Return the reordered fermionic operator according to the permutation information.
+
+        Parameters
+        ----------
+        permutation : list of integer
+            The permutation of the fermionic operator.
+        reverse_coord : logical, optional
+            True for reversing the rcoord and icoord of the operator and False for not.
+
+        Returns
+        -------
+        FOperator
+            The reordered operator.
+        '''
+        assert len(permutation)==self.rank
+        return FOperator(
+            value=      self.value*parity(permutation),
+            indices=    tuple(self.indices[i] for i in permutation),
+            seqs=       None if self.seqs is None else tuple(self.seqs[i] for i in permutation),
+            rcoord=     None if self.rcoord is None else (-1)**reverse_coord*self.rcoord,
+            icoord=     None if self.icoord is None else (-1)**reverse_coord*self.icoord
+        )
+
 class FLinear(FOperator):
     '''
     Linear fermionic operator.
@@ -155,7 +181,7 @@ class FLinear(FOperator):
         The Hermitian conjugate of the linear operator.
         '''
         return FLinear(
-                value=      conjugate(self.value),
+                value=      np.conjugate(self.value),
                 index=      self.index.replace(nambu=1-self.index.nambu),
                 seq=        self.seq,
                 rcoord=     self.rcoord,
@@ -180,7 +206,7 @@ class FQuadratic(FOperator):
         The Hermitian conjugate of the quadratic operator.
         '''
         return FQuadratic(
-                value=      conjugate(self.value),
+                value=      np.conjugate(self.value),
                 indices=    [index.replace(nambu=1-index.nambu) for index in reversed(self.indices)],
                 seqs=       None if self.seqs is None else reversed(self.seqs),
                 rcoord=     None if self.rcoord is None else -self.rcoord,
@@ -205,7 +231,7 @@ class FHubbard(FOperator):
         The Hermitian conjugate of the Hubbard operator.
         '''
         return FHubbard(
-                value=      conjugate(self.value),
+                value=      np.conjugate(self.value),
                 indices=    [index.replace(nambu=1-index.nambu) for index in reversed(self.indices)],
                 seqs=       None if self.seqs is None else reversed(self.seqs),
                 rcoord=     self.rcoord,

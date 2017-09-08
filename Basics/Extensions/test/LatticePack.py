@@ -24,14 +24,14 @@ def test_extensions_hexagon():
 
 def test_extensions_triangle():
     print 'test_extensions_triangle'
-    for name in ['T1','T12']:
+    for name in ['T1','T3','T12']:
         lattice=Triangle(name)('1P-1P')
         lattice.plot(pid_on=True)
     print
 
 def test_extensions_kagome():
     print 'test_extensions_kagome'
-    for name in ['K3']:
+    for name in ['K3','K9','K12']:
         lattice=Kagome(name)('1P-1P')
         lattice.plot(pid_on=True)
     print

@@ -10,7 +10,7 @@ Lattice pack, including:
 
 __all__=['Cluster','Square','Hexagon','Triangle','Kagome']
 
-from ..Geometry import Lattice,Cylinder,tiling
+from ..Geometry import Lattice,Cylinder,tiling,rotation,translation
 from numpy import asarray,array,sqrt
 import itertools as it
 import re
@@ -125,6 +125,44 @@ class Cluster(object):
                 vectors=        [self.vectors[i]*int(t) for i,(t,bc) in enumerate(zip(ts,bcs)) if bc.upper()=='P'],
                 nneighbour=     nneighbour
                 )
+
+    def translation(self,name=None,vector=0):
+        '''
+        Return a translated cluster.
+
+        Parameters
+        ----------
+        name : string, optional
+            The name of the new cluster.
+        vector : 1d array-like, optional
+            The translation vector.
+
+        Returns
+        -------
+        Cluster
+            The translated cluster.
+        '''
+        return Cluster(name or self.name,translation(self.rcoords,vector),self.vectors)
+
+    def rotation(self,name=None,angle=0,center=None):
+        '''
+        Return a rotated cluster.
+
+        Parameters
+        ----------
+        name : string, optional
+            The name of the new cluster.
+        angle : float
+            The rotated angle.
+        center : 1d array-like, optional
+            The center of the axis. Default the origin.
+
+        Returns
+        -------
+        Cluster
+            The rotated cluster.
+        '''
+        return Cluster(name or self.name,rotation(self.rcoords,angle,center),rotation(self.vectors,angle,center))
 
 def Square(name):
     '''
@@ -248,13 +286,19 @@ def Triangle(name):
     Cluster
         The cluster of triangular lattices.
     '''
-    if name not in ['T1','T12']:
+    if name not in ['T1','T3','T12']:
         raise ValueError('Triangle error: unexpected name(%s).'%name)
     rcoords,vectors=[],[]
     if name=='T1':
         rcoords.append(array([0.0,0.0]))
         vectors.append(array([1.0,0.0]))
         vectors.append(array([0.5,sqrt(3)/2]))
+    elif name=='T3':
+        rcoords.append(array([0.0,0.0]))
+        rcoords.append(array([1.0,0.0]))
+        rcoords.append(array([0.5,sqrt(3.0)/2]))
+        vectors.append(array([1.5,sqrt(3.0)/2]))
+        vectors.append(array([1.5,-sqrt(3.0)/2]))
     elif name=='T12':
         rcoords.append(array([0.0,0.0]))
         rcoords.append(array([1.0,0.0]))
@@ -286,13 +330,40 @@ def Kagome(name):
     Cluster
         The cluster of Kagome lattices.
     '''
-    if name not in ['K3']:
+    if name not in ['K3','K9','K12']:
         raise ValueError('Kagome error: unexpected name(%s).'%name)
     rcoords,vectors=[],[]
     if name=='K3':
         rcoords.append(array([0.0,0.0]))
         rcoords.append(array([0.5,0.0]))
-        rcoords.append(array([0.25,sqrt(3)/4]))
+        rcoords.append(array([0.25,sqrt(3.0)/4]))
         vectors.append(array([1.0,0.0]))
-        vectors.append(array([0.5,sqrt(3)/2]))
+        vectors.append(array([0.5,sqrt(3.0)/2]))
+    elif name=='K9':
+        rcoords.append(array([0.0,0.0]))
+        rcoords.append(array([0.5,0.0]))
+        rcoords.append(array([0.25,sqrt(3.0)/4]))
+        rcoords.append(array([1.0,0.0]))
+        rcoords.append(array([1.5,0.0]))
+        rcoords.append(array([1.25,sqrt(3.0)/4]))
+        rcoords.append(array([0.5,sqrt(3.0)/2]))
+        rcoords.append(array([1.0,sqrt(3.0)/2]))
+        rcoords.append(array([0.75,sqrt(3.0)*3/4]))
+        vectors.append(array([1.5,sqrt(3.0)/2]))
+        vectors.append(array([1.5,-sqrt(3.0)/2]))
+    elif name=='K12':
+        rcoords.append(array([0.0,0.0]))
+        rcoords.append(array([0.5,0.0]))
+        rcoords.append(array([0.25,sqrt(3.0)/4]))
+        rcoords.append(array([1.0,0.0]))
+        rcoords.append(array([1.5,0.0]))
+        rcoords.append(array([1.25,sqrt(3.0)/4]))
+        rcoords.append(array([0.5,sqrt(3.0)/2]))
+        rcoords.append(array([1.0,sqrt(3.0)/2]))
+        rcoords.append(array([0.75,sqrt(3.0)*3/4]))
+        rcoords.append(array([1.5,sqrt(3.0)/2]))
+        rcoords.append(array([0.0,sqrt(3.0)/2]))
+        rcoords.append(array([0.75,-sqrt(3.0)/4]))
+        vectors.append(array([2.0,0.0]))
+        vectors.append(array([1.0,sqrt(3.0)]))
     return Cluster(name,rcoords,vectors)
