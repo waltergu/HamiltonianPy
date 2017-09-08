@@ -65,7 +65,7 @@ class Manager(object):
         subcommand.add_argument('project',help='The project name')
         subcommand.add_argument('-d','--directory',help='The directory where to store the project.',default='.')
         subcommand.add_argument('-a','--authors',help='The authors, separated by commas, of the project.',default='Anonymous')
-        subcommand.add_argument('-e','--email',help='The contact email.',default='.')
+        subcommand.add_argument('-e','--email',help='The contact email.',default='')
         subcommand.add_argument('-r','--readme',help='The description of the project.',default='')
         subcommand.add_argument('-l','--license',help="'T'/'t' for adding a GNU GPL v3.0 LICENSE file and 'F'/'f' for not.",default='t',choices=['T','t','F','f'])
         subcommand.add_argument('-g','--gitignore',help="'T'/'t' for adding a gitignore file and 'F'/'f' for not.",default='t',choices=['T','t','F','f'])
@@ -142,29 +142,16 @@ def init(directory,project,authors,email,readme,license,gitignore):
             fout.write('\n')
     if license.upper()=='T':
         with open('%s/LICENSE'%pdir,'w') as fout:
-            for line in Template.license(authors):
-                if line is not None:
-                    fout.write(line)
-                    fout.write('\n')
+            fout.write(Template.license(authors))
     if gitignore.upper()=='T':
         with open('%s/.gitignore'%pdir,'w') as fout:
-            for line in Template.gitignore():
-                if line is not None:
-                    fout.write(line)
-                    fout.write('\n')
+            fout.write(Template.gitignore())
     with open('%s/manager.py'%pdir,'w') as fout:
-        for line in Template.manager():
-            if line is not None:
-                fout.write(line)
-                fout.write('\n')
+        fout.write(Template.manager())
     with open('%s/config.py'%sdir,'w') as fout:
-        for line in Template.config():
-            if line is not None:
-                fout.write(line)
-                fout.write('\n')
+        fout.write(Template.config())
     with open('%s/__init__.py'%sdir,'w') as fout:
-        fout.write('from config import *')
-        fout.write('\n')
+        fout.write('from config import *\n')
 
 def add(engine,system):
     '''
@@ -178,14 +165,10 @@ def add(engine,system):
         'spin' for spin systems and 'fermi' for fermionic systems.
     '''
     if Manager.has_project():
-        if not os.path.exists('log/%s'%engine): os.makedirs('log/%s'%engine)
-        if not os.path.exists('data/%s'%engine): os.makedirs('data/%s'%engine)
-        if not os.path.exists('result/%s'%engine): os.makedirs('result/%s'%engine)
+        if not os.path.exists('result/%s'%engine):
+            os.makedirs('result/%s'%engine)
         with open('source/%s.py'%engine,'w') as fout:
-            for line in getattr(Template,engine)(system):
-                if line is not None:
-                    fout.write(line)
-                    fout.write('\n')
+            fout.write(getattr(Template,engine)(system))
         with open('source/__init__.py') as fin:
             content=set(fin.readlines())
         with open('source/__init__.py','a+') as fout:
