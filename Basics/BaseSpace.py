@@ -182,6 +182,22 @@ class FBZ(QuantumNumbers,BaseSpace):
             mesh[i,:]=np.dot(self.reciprocals.T,icoord/nks)
         return [mesh]
 
+    def kcoord(self,k):
+        '''
+        The coordinates of a k point.
+
+        Parameters
+        ----------
+        k : iterable of integers
+            The quantum-number-formed k point.
+
+        Returns
+        -------
+        1d ndarray
+            The corresponding coordinates of the k point.
+        '''
+        return np.dot(self.reciprocals.T,np.asarray(k)/np.array(self.type.periods,dtype=np.float64))
+
     def path(self,*paths):
         '''
         Select a path from the FBZ.

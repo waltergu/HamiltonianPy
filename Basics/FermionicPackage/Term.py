@@ -4,11 +4,11 @@ Fermionic terms
 ---------------
 
 Fermionic terms, including:
-    * classes: Quadratic, Hubbard
+    * classes: Quadratic, Hubbard, Coulomb
     * functions: Hopping, Onsite, Pairing
 '''
 
-__all__=['Quadratic','Hopping','Onsite','Pairing','Hubbard']
+__all__=['Quadratic','Hopping','Onsite','Pairing','Hubbard','Coulomb']
 
 from ..Constant import *
 from ..Term import *
@@ -36,7 +36,7 @@ class Quadratic(Term):
     -----
     The final coefficient comes from three parts, the value of itself, the value of the indexpack, and the value amplitude returns.
     '''
-    
+
     def __init__(self,id,mode,value,neighbour=0,atoms=(),orbitals=(),spins=(),indexpacks=None,amplitude=None,modulate=None):
         '''
         Constructor.
@@ -407,3 +407,6 @@ class Hubbard(Term):
             result+=opt.reorder([0,3,1,2],reverse_coord=False) if karg.get('order','normal')=='density' else opt
         if not half: result+=result.dagger
         return result
+
+class Coulomb(Term):
+    pass

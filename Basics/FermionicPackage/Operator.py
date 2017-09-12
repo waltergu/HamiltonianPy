@@ -4,10 +4,10 @@ Fermionic operator
 ------------------
 
 Fermionic operator, including:
-    * classes: FOperator, FLinear, FQuadratic, FHubbard
+    * classes: FOperator, FLinear, FQuadratic, FHubbard, FCoulomb
 '''
 
-__all__=['FOperator','FLinear','FQuadratic','FHubbard']
+__all__=['FOperator','FLinear','FQuadratic','FHubbard','FCoulomb']
 
 from ..Operator import *
 from DegreeOfFreedom import ANNIHILATION,CREATION
@@ -237,3 +237,28 @@ class FHubbard(FOperator):
                 rcoord=     self.rcoord,
                 icoord=     self.icoord
                 )
+
+class FCoulomb(FOperator):
+    '''
+    Fermionic density-density interaction operator.
+    '''
+
+    def __init__(self,value,indices,seqs=None,rcoord=None,icoord=None):
+        '''
+        Constructor. See FOperator.__init__ for details.
+        '''
+        assert len(indices)==4
+        super(FCoulomb,self).__init__(value,indices,seqs=seqs,rcoord=rcoord,icoord=icoord)
+
+    @property
+    def dagger(self):
+        '''
+        The Hermitian conjugate of the density-density interaction operator.
+        '''
+        return FCoulomb(
+                value=      np.conjugate(self.value),
+                indices=    [index.replace(nambu=1-index.nambu) for index in reversed(self.indices)],
+                seqs=       None if self.seqs is None else reversed(self.seqs),
+                rcoord=     None if self.rcoord is None else -self.rcoord,
+                icoord=     None if self.icoord is None else -self.icoord
+        )
