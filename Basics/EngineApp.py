@@ -10,7 +10,7 @@ This module defines the general framework to apply algorithms to tasks, includin
 __all__=['Engine','App']
 
 from DegreeOfFreedom import Status
-from Log import *
+from Utilities import Timers,Log
 from warnings import warn
 import os
 

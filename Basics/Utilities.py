@@ -1,19 +1,127 @@
 '''
------------------------------------------------------------
-Time statistics, information record and log file management
------------------------------------------------------------
+---------
+Utilities
+---------
 
-Log for code executing, including:
-    * classes: Timer, Timers, Info, Log
+The utilities of the subpackage, including:
+1) constants: RZERO
+2) classes: Arithmetic, Timer, Timers, Info, Log
+3) functions: parity, berry_curvature, decimaltostr, mpirun
 '''
 
+__all__=['RZERO','Arithmetic','Timer','Timers','Info','Log','parity','berry_curvature','decimaltostr','mpirun']
+
+from copy import copy
+from mpi4py import MPI
 from ..Misc import Tree
 import numpy as np
+from scipy.linalg import eigh
 import matplotlib.pyplot as plt
 import time
 import sys
 
-__all__=['Timer','Timers','Info','Log']
+RZERO=10**-10
+
+class Arithmetic(object):
+    '''
+    This class defines the base class for those that support arithmetic operations(+,-,*,/,==,!=).
+    To realize the full basic arithmetics, the following methods must be overloaded by its subclasses:
+        * __iadd__
+        * __add__
+        * __imul__
+        * __mul__
+        * __eq__
+
+    Notes
+    -----
+        * The addition('+') and multiplication('*') operations are assumed to be commutable.
+        * The minus sign ('-' in the negative operator and subtraction operator) are interpreted as the multiplication by -1.0
+        * The division operation is interpreted as the multiplication by the inverse of the second argument, which should be a scalar.
+    '''
+
+    def __pos__(self):
+        '''
+        Overloaded positive(+) operator.
+        '''
+        return self
+
+    def __neg__(self):
+        '''
+        Overloaded negative(-) operator.
+        '''
+        return self*(-1)
+
+    def __iadd__(self,other):
+        '''
+        Overloaded self-addition(+=) operator.
+        '''
+        raise NotImplementedError("%s (+=) error: not implemented."%self.__class__.__name__)
+
+    def __add__(self,other):
+        '''
+        Overloaded left addition(+) operator.
+        '''
+        raise NotImplementedError("%s (+) error: not implemented."%self.__class__.__name__)
+
+    def __radd__(self,other):
+        '''
+        Overloaded right addition(+) operator.
+        '''
+        return self+other
+
+    def __isub__(self,other):
+        '''
+        Overloaded self-subtraction(-=) operator.
+        '''
+        return self.__iadd__(-other)
+
+    def __sub__(self,other):
+        '''
+        Overloaded subtraction(-) operator.
+        '''
+        return self+other*(-1.0)
+
+    def __imul__(self,other):
+        '''
+        Overloaded self-multiplication(*=) operator.
+        '''
+        raise NotImplementedError("%s (*=) error: not implemented."%self.__class__.__name__)
+
+    def __mul__(self,other):
+        '''
+        Overloaded left multiplication(*) operator.
+        '''
+        raise NotImplementedError("%s (*) error: not implemented."%self.__class__.__name__)
+
+    def __rmul__(self,other):
+        '''
+        Overloaded right multiplication(*) operator.
+        '''
+        return self*other
+
+    def __idiv__(self,other):
+        '''
+        Overloaded self-division(/=) operator.
+        '''
+        return self.__imul__(1.0/other)
+
+    def __div__(self,other):
+        '''
+        Overloaded left division(/) operator.
+        '''
+        return self*(1.0/other)
+
+    def __eq__(self,other):
+        '''
+        Overloaded equivalent(==) operator.
+        '''
+        raise NotImplementedError("%s (==) error: not implemented."%self.__class__.__name__)
+
+    def __ne__(self,other):
+        '''
+        Overloaded not-equivalent(!=) operator.
+        '''
+        return not self==other
 
 class Timer(object):
     '''
@@ -428,3 +536,128 @@ class Log(object):
         self.fout.write(str(info))
         self.fout.flush()
         return self
+
+def parity(permutation):
+    '''
+    Determine the parity of a permutation.
+
+    Parameters
+    ----------
+    permutation : list of integer
+        A permutation of integers from 0 to N-1.
+
+    Returns
+    -------
+    -1 or +1
+        * -1 for odd permutation
+        * +1 for even permutation
+    '''
+    permutation=copy(permutation)
+    result=1
+    for i in xrange(len(permutation)-1):
+        if permutation[i]!=i:
+            result*=-1
+            pos=min(xrange(i,len(permutation)),key=permutation.__getitem__)
+            permutation[i],permutation[pos]=permutation[pos],permutation[i]
+    return result
+
+def berry_curvature(H,kx,ky,mu,d=10**-6):
+    '''
+    Calculate the Berry curvature of the occupied bands for a Hamiltonian with the given chemical potential using the Kubo formula.
+
+    Parameters
+    ----------
+    H : callable
+        Input function which returns the Hamiltonian as a 2D array.
+    kx,ky : float
+        The two parameters which specify the 2D point at which the Berry curvature is to be calculated.
+        They are also the input parameters to be conveyed to the function H.
+    mu : float
+        The chemical potential.
+    d : float, optional
+        The spacing to be used to calculate the derivatives.
+
+    Returns
+    -------
+    float
+        The calculated Berry curvature for function H at point kx,ky with chemical potential mu.
+    '''
+    result=0
+    Vx=(H(kx+d,ky)-H(kx-d,ky))/(2*d)
+    Vy=(H(kx,ky+d)-H(kx,ky-d))/(2*d)
+    Es,Evs=eigh(H(kx,ky))
+    for n in xrange(Es.shape[0]):
+        for m in xrange(Es.shape[0]):
+            if Es[n]<=mu and Es[m]>mu:
+                result-=2*(np.vdot(np.dot(Vx,Evs[:,n]),Evs[:,m])*np.vdot(Evs[:,m],np.dot(Vy,Evs[:,n]))/(Es[n]-Es[m])**2).imag
+    return result
+
+def decimaltostr(number,n=3):
+    '''
+    Convert a number to string.
+
+    Parameters
+    ----------
+    number : int/long/float/complex
+        The number to be converted to string.
+    n : int, optional
+        The number of decimal fraction to be kept.
+
+    Returns
+    -------
+    str
+        The string representation of the input number.
+    '''
+    if isinstance(number,int) or isinstance(number,long):
+        result=str(number)
+    elif isinstance(number,float):
+        result='{:.3f}'.format(number).rstrip('0')
+        if result[-1]=='.': result+='0'
+    elif isinstance(number,complex):
+        real='{:.3f}'.format(number.real).rstrip('0')
+        imag='{:.3f}'.format(number.imag).rstrip('0')
+        temp=[]
+        if real!='0.': temp.append('%s%s'%(real,'0' if real[-1]=='.' else ''))
+        if imag!='0.': temp.append('%s%s%sj'%('+' if number.imag>0 and len(temp)>0 else '',imag,'0' if imag[-1]=='.' else ''))
+        result=''.join(temp)
+    else:
+        raise TypeError('decimaltostr error: not supported class(%s).'%number.__class__.__name__)
+    return result
+
+def mpirun(f,arguments,bcast=True):
+    '''
+    Wrapper for the parallel running of f using the mpi4py.
+
+    Parameters
+    ----------
+    f : callable
+        The function to be parallelly run using the mpi4py.
+    arguments : list of tuple
+        The list of arguments passed to the function f.
+    bcast : True or False
+        When True, broadcast the result for all processes;
+        Otherwise only the rank 0 process hold the result.
+
+    Returns
+    -------
+    list
+        The returned values of f with respect to the arguments.
+    '''
+    comm=MPI.COMM_WORLD
+    size=comm.Get_size()
+    rank=comm.Get_rank()
+    if size>1:
+        import mkl
+        mkl.set_num_threads(1)
+    temp=[]
+    for i,argument in enumerate(arguments):
+        if i%size==rank:
+            temp.append(f(*argument))
+    temp=comm.gather(temp,root=0)
+    result=[]
+    if rank==0:
+        for i in xrange(len(arguments)):
+            result.append(temp[i%size][i/size])
+    if bcast:
+        result=comm.bcast(result,root=0)
+    return result

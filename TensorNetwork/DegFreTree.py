@@ -28,6 +28,7 @@ class DegFreTree(Tree):
         * data: integer or QuantumNumbers
             When an integer, it is the number of degrees of freedom that the index represents;
             When a QuantumNumbers, it is the quantum number collection that the index is associated with.
+
     Attributes
     ----------
     mode : 'QN' or 'NB'
@@ -45,6 +46,7 @@ class DegFreTree(Tree):
     def __init__(self,mode,layers,priority,leaves=(),map=None):
         '''
         Constructor.
+
         Parameters
         ----------
         mode : 'QN' or 'NB'
@@ -63,6 +65,7 @@ class DegFreTree(Tree):
     def reset(self,mode=None,layers=None,priority=None,leaves=(),map=None):
         '''
         Reset the DegFreTree.
+
         Parameters
         ----------
         mode,layers,priority,leaves,map :
@@ -102,10 +105,12 @@ class DegFreTree(Tree):
     def ndegfre(self,index):
         '''
         The number of degrees of freedom represented by index.
+
         Parameters
         ----------
         index : Index
             The index of the degrees of freedom.
+
         Returns
         -------
         integer
@@ -119,10 +124,12 @@ class DegFreTree(Tree):
     def indices(self,layer=0):
         '''
         The indices in a layer.
+
         Parameters
         ----------
         layer : integer/tuple-of-string, optional
             The layer where the indices are restricted.
+
         Returns
         -------
         list of Index
@@ -133,10 +140,12 @@ class DegFreTree(Tree):
     def table(self,layer=0):
         '''
         Return a index-sequence table with the index restricted on a specific layer.
+
         Parameters
         ----------
         layer : integer/tuple-of-string
             The layer where the indices are restricted.
+
         Returns
         -------
         Table
@@ -147,6 +156,7 @@ class DegFreTree(Tree):
     def labels(self,mode,layer=0):
         '''
         Return the inquired labels.
+
         Parameters
         ----------
         mode : 'B','S','O'
@@ -155,6 +165,7 @@ class DegFreTree(Tree):
             * 'O' for bond labels of an mpo.
         layer : integer/tuple-of-string, optional
             The layer information of the inquired labels.
+
         Returns
         -------
         list of Label

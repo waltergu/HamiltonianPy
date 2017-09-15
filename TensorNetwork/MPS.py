@@ -11,9 +11,10 @@ __all__=['MPS','Vidal']
 
 import numpy as np
 from numpy.linalg import norm
+from HamiltonianPy import Arithmetic
 from HamiltonianPy import QuantumNumber as QN
 from HamiltonianPy import QuantumNumbers as QNS
-from ..Misc import TOL,Arithmetic
+from ..Misc import TOL
 from Tensor import *
 from copy import copy,deepcopy
 
@@ -63,7 +64,7 @@ class MPS(Arithmetic,list):
             self.Lambda=None
             self.cut=None
         else:
-            assert 0<cut<=len(ms)
+            assert 0<=cut<=len(ms)
         if sites is None:
             for i,m in enumerate(ms):
                 assert isinstance(m,Tensor) and m.ndim==3

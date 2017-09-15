@@ -10,7 +10,7 @@ This module defines the way to describe a term of the Hamiltonian, including:
 __all__=['Term']
 
 from numpy import ndarray,complex128
-from ..Misc import Arithmetic
+from Utilities import Arithmetic
 from collections import Iterable
 from copy import copy
 
@@ -22,15 +22,13 @@ class Term(Arithmetic):
     ----------
     id : string
         The specific id of the term.
-    mode : string
-        The type of the term.
-    value : scalar of 1D array-like of float, complex
+    value : scalar of 1d array-like of float/complex
         The overall coefficient(s) of the term.
-    modulate : function
+    modulate : callable
         A function used to alter the value of the term.
     '''
 
-    def __init__(self,id,mode,value,modulate=None):
+    def __init__(self,id,value,modulate=None):
         '''
         Constructor.
 
@@ -38,15 +36,12 @@ class Term(Arithmetic):
         ----------
         id : string
             The specific id of the term.
-        mode : string
-            The type of the term.
         value : scalar of 1D array-like of float, complex
             The overall coefficient(s) of the term.
-        modulate : function, optional
+        modulate : callable, optional
             A function used to alter the value of the term.
         '''
         self.id=id
-        self.mode=mode
         self.value=value
         self.modulate=modulate if callable(modulate) or modulate is None else lambda **karg: karg.get(self.id,None)
 
@@ -84,7 +79,7 @@ class Term(Arithmetic):
             The configuration of degrees of freedom.
         table : Table, optional
             The index-sequence table.
-        dtype : dtype,optional
+        dtype : np.complex128, np.float64, optional
             The data type of the coefficient of the returned operators.
 
         Returns
@@ -97,3 +92,21 @@ class Term(Arithmetic):
         To use this method, the subclass must override it.
         '''
         raise ValueError('%s operators error: it is not implemented.'%self.__class__.__name__)
+
+    def strrep(self,bond,config):
+        '''
+        The string representation of the term on a bond.
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond where the term is to be represented.
+        config : IDFConfig
+            The configuration of internal degrees of freedom.
+
+        Returns
+        -------
+        str
+            The string representation of the term on the bond.
+        '''
+        raise NotImplementedError('%s strreps error: it is not implemented.'%self.__class__.__name__)

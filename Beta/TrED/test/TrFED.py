@@ -24,7 +24,7 @@ def test_fbasis():
     t2=time.time()
     print 'NRM basis: %ss.'%(t2-t1)
     t3=time.time()
-    trbasis=TRBasis(nmbasis,dk=4,nk=8)
+    TRBasis(nmbasis,dk=4,nk=8)
     t4=time.time()
     print 'TRI basis: %ss'%(t4-t3)
     print

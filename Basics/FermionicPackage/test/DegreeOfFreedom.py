@@ -43,10 +43,6 @@ def test_fermi():
     print 'a!=b: %s'%(a!=b)
     print 'a.indices(mask=["nambu"]): %s'%a.indices(pid=PID(site=0),mask=['nambu'])
     print 'a.indices(mask=[]): %s'%a.indices(pid=PID(site=0),mask=[])
-    for i in xrange(a.norbital*a.nspin*a.nnambu):
-        fid=a.state_index(i)
-        print 'a.state_index(%s): '%i,fid
-        print 'a.seq_state(%s): %s'%(fid,a.seq_state(fid))
     print
 
 def test_idfconfig():

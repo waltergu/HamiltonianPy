@@ -11,6 +11,7 @@ Spin degree of freedom package, including:
 
 __all__=['DEFAULT_SPIN_PRIORITY','SID','Spin','SpinMatrix','SpinPack','Heisenberg','Ising','S']
 
+from ..Utilities import decimaltostr
 from ..Geometry import PID
 from ..DegreeOfFreedom import *
 from numpy import *
@@ -19,7 +20,6 @@ import copy
 
 DEFAULT_SPIN_PRIORITY=('scope','site','orbital','S')
 
-# noinspection PyUnresolvedReferences
 class SID(namedtuple('SID',['orbital','S'])):
     '''
     Internal spin ID.
@@ -230,6 +230,12 @@ class SpinPack(IndexPack):
         self.orbitals=(None,)*len(tags) if orbitals is None else orbitals
 
     def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return '%s*%s'%(decimaltostr(self.value),''.join('%s%s'%('' if orbital is None else orbital,tag) for orbital,tag in zip(self.orbitals,self.tags)))
+
+    def __str__(self):
         '''
         Convert an instance to string.
         '''

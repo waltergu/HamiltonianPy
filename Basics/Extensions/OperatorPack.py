@@ -11,8 +11,8 @@ __all__=['fspoperators','JWBosonization']
 
 from ..FermionicPackage import FLinear,CREATION
 from ..SpinPackage import SOperator,SpinMatrix
+from ..Utilities import parity
 from collections import OrderedDict
-from HamiltonianPy.Misc import parity
 import numpy as np
 
 def fspoperators(table,lattice):

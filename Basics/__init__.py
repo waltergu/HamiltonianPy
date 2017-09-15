@@ -18,6 +18,8 @@ Concretely, the roles they play are
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
 |   MODULES             |   DESCRIPTION                                                                                             |
 +=======================+===========================================================================================================+
+|   `Utilities`         |   The utilities of the subpackage.                                                                        |
++-----------------------+-----------------------------------------------------------------------------------------------------------+
 |   `Geometry`          |   Provide enormous functions and classes to describe and construct any lattice in 1,2 and 3 dimension.    |
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
 |   `DegreeOfFreedom`   |   Define the way to describe the internal degrees of freedom.                                             |
@@ -34,8 +36,6 @@ Concretely, the roles they play are
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
 |   `BaseSpace`         |   Define a unified way to describe parameter spaces (e.g. k-space, etc).                                  |
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
-|   `Log`               |   Define several tools to make the code debug and result records more convenient.                         |
-+-----------------------+-----------------------------------------------------------------------------------------------------------+
 |   `FermionicPackage`  |   An extension to deal with fermionic systems.                                                            |
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
 |   `SpinPackage`       |   An extension to deal with spin systems.                                                                 |
@@ -46,7 +46,7 @@ Concretely, the roles they play are
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
 '''
 
-from Constant import *
+from Utilities import *
 from BaseSpace import *
 from Geometry import *
 from DegreeOfFreedom import *
@@ -54,7 +54,6 @@ from Operator import *
 from Term import *
 from EngineApp import *
 from Generator import *
-from Log import *
 from FermionicPackage import *
 from SpinPackage import *
 from QuantumNumber import *

@@ -92,14 +92,14 @@ def test_lattice():
     a=Lattice(name,rcoords,vectors=[a1*m,a2*n],nneighbour=2)
     etime=time.time()
     print 'Construction time for %s*%s lattice: %s'%(m,n,etime-stime)
-    a.plot(show=True,pid_on=False,suspend=False)
+    a.plot(show=True,pidon=False,suspend=False)
     stime=time.time()
     b=Lattice(name,rcoords,nneighbour=2)
     etime=time.time()
     print 'Construction time for %s*%s cluster: %s'%(m,n,etime-stime)
-    b.plot(show=True,pid_on=False,suspend=False)
+    b.plot(show=True,pidon=False,suspend=False)
     c=Lattice('WG',rcoords=[array([0.0,0.0])],vectors=[a1,a2],nneighbour=2)
-    c.plot(show=True,pid_on=True,suspend=False)
+    c.plot(show=True,pidon=True,suspend=False)
     print
 
 def test_super_lattice_merge():
@@ -113,7 +113,7 @@ def test_super_lattice_merge():
         vectors=[a1*m*M,a2*n],
         nneighbour=2
         )
-    a.plot(pid_on=True)
+    a.plot(pidon=True)
     print
 
 def test_super_lattice_union():
@@ -129,5 +129,5 @@ def test_super_lattice_union():
             maxdist=        1.0,
             mindists=       [0.0,1.0]
             )
-        a.plot(pid_on=True,suspend=False)
+        a.plot(pidon=True,suspend=False)
     print

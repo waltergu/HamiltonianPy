@@ -10,7 +10,7 @@ This module provides enormous functions and classes to construct a lattice, incl
 
 __all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'isparallel', 'isintratriangle', 'issubordinate', 'reciprocals', 'translation', 'rotation', 'tiling', 'intralinks', 'interlinks', 'PID', 'Point', 'Bond', 'Link', 'Lattice', 'SuperLattice','Cylinder']
 
-from Constant import RZERO
+from Utilities import RZERO
 from collections import namedtuple,Iterable
 from scipy.spatial import cKDTree
 import numpy as np
@@ -317,7 +317,6 @@ def tiling(cluster,vectors=(),translations=()):
             supercluster.append(coord+disp)
     return supercluster
 
-# noinspection PyUnresolvedReferences
 class PID(namedtuple('PID',['scope','site'])):
     '''
     The ID of a point.
@@ -906,7 +905,7 @@ class Lattice(object):
             for pid,point in zip(pids,self.points):
                 point.pid=pid
 
-    def plot(self,fig=None,ax=None,show=True,suspend=False,save=True,close=True,pid_on=False):
+    def plot(self,fig=None,ax=None,show=True,suspend=False,save=True,close=True,pidon=False):
         '''
         Plot the lattice points and bonds. Only 2D or quasi 1d systems are supported.
         '''
@@ -925,13 +924,13 @@ class Lattice(object):
             if nb==0:
                 x,y=bond.spoint.rcoord[0],bond.spoint.rcoord[1]
                 ax.scatter(x,y)
-                if pid_on:
+                if pidon:
                     pid=bond.spoint.pid
                     if pid.scope is None:
                         tag=str(pid.site)
                     else:
                         tag=str(pid.scope)+'*'+str(pid.site)
-                    ax.text(x-0.2,y+0.1,tag,fontsize=10,color='blue')
+                    ax.text(x,y,tag,fontsize=10,color='blue',horizontalalignment='center')
             else:
                 if bond.isintracell():
                     ax.plot([bond.spoint.rcoord[0],bond.epoint.rcoord[0]],[bond.spoint.rcoord[1],bond.epoint.rcoord[1]],color=color)

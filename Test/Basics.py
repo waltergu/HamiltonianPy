@@ -5,9 +5,9 @@ Basics test.
 __all__=['test_basics']
 
 def test_basics(arg):
-    if arg in ('log','basics','all'):
-        from HamiltonianPy.Basics.test.Log import test_log
-        test_log()
+    if arg in ('utilities','basics','all'):
+        from HamiltonianPy.Basics.test.Utilities import test_utilities
+        test_utilities()
     if arg in ('geometry','basics','all'):
         from HamiltonianPy.Basics.test.Geometry import test_geometry
         test_geometry()

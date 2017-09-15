@@ -1,17 +1,20 @@
 '''
-Log test.
+Utilities test.
 '''
 
-__all__=['test_log']
+__all__=['test_utilities']
 
-from HamiltonianPy.Basics.Log import *
-from time import sleep
+from HamiltonianPy.Basics.Utilities import *
+from mpi4py import MPI
 import numpy as np
+from time import sleep
 
-def test_log():
-    print 'test_log'
+def test_utilities():
+    print 'test_utilities'
     test_timers()
     test_info()
+    test_mpi()
+    print
 
 def test_timers():
     print 'test_timers'
@@ -36,4 +39,14 @@ def test_info():
     info['overlap']=0.99999899
     info['nbasis']=200
     print info
+    print
+
+def test_mpi():
+    print 'test_mpi'
+    if MPI.COMM_WORLD.Get_rank()==0:
+        print 'test_mpi'
+    def test(n):
+        with open('%s.dat'%n,'w+') as fout:
+            fout.write(str(np.array(xrange(4))+n))
+    mpirun(test,[(i,) for i in range(4)])
     print

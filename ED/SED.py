@@ -25,7 +25,7 @@ class SED(ED):
         The target space of the SED.
     '''
 
-    def __init__(self,lattice,config,qnses,terms=[],target=None,dtype=np.complex128,**karg):
+    def __init__(self,lattice,config,qnses,terms=(),target=None,dtype=np.complex128,**karg):
         '''
         Constructor.
 

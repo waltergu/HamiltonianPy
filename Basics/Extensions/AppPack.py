@@ -11,7 +11,7 @@ __all__=['GSE','EB','DOS','GF','FS','BC','GP','CPFF']
 
 import numpy as np
 from ..EngineApp import App
-from HamiltonianPy.Misc import berry_curvature
+from ..Utilities import berry_curvature
 
 class GSE(App):
     '''

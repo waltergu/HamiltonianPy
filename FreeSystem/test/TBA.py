@@ -20,14 +20,14 @@ def test_tba():
     print 'periodic boundary conditions'
     print '------------------------'
     pd=tba_construct(bc='pd')
-    pd.register(EB(name='EB',parameters={'mu':0.2},path=line_bz(nk=200),save_data=False,run=TBAEB))
-    pd.register(DOS(name='DOS',parameters={'mu':0.0},BZ=line_bz(nk=10000),eta=0.01,ne=400,save_data=False,run=TBADOS))
+    pd.register(EB(name='EB',parameters={'mu':0.2},path=KSpace(reciprocals=pd.lattice.reciprocals,nk=200),save_data=False,run=TBAEB))
+    pd.register(DOS(name='DOS',parameters={'mu':0.0},BZ=KSpace(reciprocals=pd.lattice.reciprocals,nk=10000),eta=0.01,ne=400,save_data=False,run=TBADOS))
     pd.summary()
     print
 
 def tba_construct(bc='op'):
-    p1,p2=array([0.0]),array([0.5])
-    a1=array([1.0])
+    p1,p2=array([0.0,0.0]),array([0.5,0.0])
+    a1=array([1.0,0.0])
     if bc in ('op',):
         lattice=Lattice(name='WG',rcoords=tiling(cluster=[p1,p2],vectors=[a1],translations=xrange(20)))
     else:

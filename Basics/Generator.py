@@ -8,11 +8,14 @@ This module defines the core class of the `Basics` subpackage: `Generator`.
 
 __all__=['Generator']
 
-from Constant import *
+from Utilities import RZERO
 from Operator import *
 from collections import OrderedDict
+from matplotlib.font_manager import FontProperties
 import numpy as np
+import itertools as it
 import numpy.linalg as nl
+import matplotlib.pyplot as plt
 
 class Generator(object):
     '''
@@ -162,3 +165,52 @@ class Generator(object):
                     self.cache['alter'][key]=Operators()
                     for bond in self.bonds:
                         self.cache['alter'][key]+=self.terms['alter'][key].operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+
+    def view(self,bondmask=None,termmask=None,pidon=True,bonddr='+',show=True,suspend=False,close=True):
+        '''
+        View the index packs of the terms on the bonds.
+
+        Parameters
+        ----------
+        bondmask : callable, optional
+            The mask function of the bonds.
+        termmask : callable, optional
+            The mask function of the terms.
+        pidon : logical, optional
+            True for showing the pids of the points of the bonds.
+        bonddr : '+'/'-', optional
+            The direction of the bonds.
+        show : logical, optional
+            True for showing the view and False for not.
+        suspend : logical, optional
+            True for suspending the view and False for not.
+        close : logical, optional
+            True for closing the view and False for not.
+        '''
+        plt.axis('off')
+        plt.axis('equal')
+        xmax,xmin,ymax,ymin=0,0,0,0
+        points,font=set(),FontProperties(style='italic',weight='bold',size='large')
+        for bond in self.bonds:
+            assert len(bond.rcoord)==2
+            for i,point in enumerate([bond.spoint,bond.epoint]):
+                pid=point.pid
+                xmax,xmin=max(xmax,point.rcoord[0]),min(xmin,point.rcoord[0])
+                ymax,ymin=max(ymax,point.rcoord[1]),min(ymin,point.rcoord[1])
+                if pid not in points:
+                    x,y=point.rcoord if i==0 else point.rcoord-bond.icoord
+                    plt.scatter(x,y,zorder=2,alpha=0.5)
+                    if pidon: plt.text(x,y,'%s%s'%('' if pid.scope is None else '%s*'%pid.scope,pid.site),color='blue',horizontalalignment='center',fontproperties=font)
+                    points.add(point.pid)
+            if bondmask is None or bondmask(bond):
+                assert bonddr in ('+','-')
+                (x,y),(dx,dy)=(bond.spoint.rcoord,bond.rcoord) if bonddr=='+' else (bond.epoint.rcoord,bond.reversed.rcoord)
+                if nl.norm(bond.rcoord)>RZERO: plt.arrow(x,y,dx,dy,ls='--' if nl.norm(bond.icoord)>RZERO else '-',lw=2,color='red',length_includes_head=True,alpha=0.5)
+                packs=[term.strrep(bond,self.config) for term in it.chain(self.terms['const'].values(),self.terms['alter'].values()) if termmask is None or termmask(term)]
+                if len(packs)>0:
+                    plt.text(x+dx/2,y+dy/2,'\n'.join(sorted(packs,key=len)),color='green',horizontalalignment='center',verticalalignment='center',fontproperties=font)
+        plt.xlim([xmin-(xmax-xmin)*0.30,xmax+(xmax-xmin)*0.30])
+        plt.ylim([ymin-(ymax-ymin)*0.30,ymax+(ymax-ymin)*0.30])
+        if show and suspend: plt.show()
+        if show and not suspend: plt.pause(1)
+        if close: plt.close()

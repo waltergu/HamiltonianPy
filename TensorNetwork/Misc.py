@@ -26,4 +26,4 @@ def SSF(mps1,mps2,sys):
     '''
     assert mps1.nsite==mps2.nsite
     if sys.start in (None,0):
-        return 
+        return

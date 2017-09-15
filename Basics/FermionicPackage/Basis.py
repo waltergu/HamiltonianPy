@@ -10,7 +10,7 @@ The basis of fermionic systems in the occupation number representation, includin
 
 __all__=['FBasis','sequence']
 
-from numpy import *
+import numpy as np
 from math import factorial
 from itertools import combinations
 from numba import jit
@@ -39,7 +39,7 @@ class FBasis(object):
         The dimension of the Hilbert space.
     '''
     
-    def __init__(self,tuple=(),up=(),down=(),nstate=0,dtype=int64):
+    def __init__(self,tuple=(),up=(),down=(),nstate=0,dtype=np.int64):
         '''
         Constructor. It can be used in three different ways:
             * ``FBasis(nstate=...,dtype=...)``, which generates a a particle-non-conserved basis.
@@ -71,21 +71,21 @@ class FBasis(object):
         '''
         if len(tuple)==2:
             self.mode="FP"
-            self.nstate=array(tuple[0])
-            self.nparticle=array(tuple[1])
+            self.nstate=np.array(tuple[0])
+            self.nparticle=np.array(tuple[1])
             self.table=table_ep(tuple[0],tuple[1],dtype=dtype)
             self.nbasis=len(self.table)
         elif len(up)==2 and len(down)==2:
             self.mode="FS"
-            self.nstate=array([up[0],down[0]])
-            self.nparticle=array([up[1],down[1]])
+            self.nstate=np.array([up[0],down[0]])
+            self.nparticle=np.array([up[1],down[1]])
             self.table=table_es(up,down,dtype=dtype)
             self.nbasis=len(self.table)
         else:
             self.mode="FG"
-            self.nstate=array(nstate)
-            self.nparticle=array([])
-            self.table=array([])
+            self.nstate=np.array(nstate)
+            self.nparticle=np.array([])
+            self.table=np.array([])
             self.nbasis=2**nstate
 
     def __str__(self):
@@ -113,11 +113,11 @@ class FBasis(object):
         else:
             return 'FG(%s)'%self.nstate
 
-def table_ep(nstate,nparticle,dtype=int64):
+def table_ep(nstate,nparticle,dtype=np.int64):
     '''
     This function generates the binary basis table with nstate orbitals occupied by nparticle electrons.
     '''
-    result=zeros(factorial(nstate)/factorial(nparticle)/factorial(nstate-nparticle),dtype=dtype)
+    result=np.zeros(factorial(nstate)/factorial(nparticle)/factorial(nstate-nparticle),dtype=dtype)
     buff=combinations(xrange(nstate),nparticle)
     for i,v in enumerate(buff):
         basis=0
@@ -127,12 +127,12 @@ def table_ep(nstate,nparticle,dtype=int64):
     result.sort()
     return result
 
-def table_es(up,down,dtype=int64):
+def table_es(up,down,dtype=np.int64):
     '''
     This function generates the binary basis table according to the up and down tuples.
     '''
     assert up[0]==down[0]
-    result=zeros(factorial(up[0])/factorial(up[1])/factorial(up[0]-up[1])*factorial(down[0])/factorial(down[1])/factorial(down[0]-down[1]),dtype=dtype)
+    result=np.zeros(factorial(up[0])/factorial(up[1])/factorial(up[0]-up[1])*factorial(down[0])/factorial(down[1])/factorial(down[0]-down[1]),dtype=dtype)
     buff_up=list(combinations(xrange(1,2*up[0],2),up[1]))
     buff_dn=list(combinations(xrange(0,2*up[0],2),down[1]))
     count=0

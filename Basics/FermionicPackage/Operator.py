@@ -10,8 +10,8 @@ Fermionic operator, including:
 __all__=['FOperator','FLinear','FQuadratic','FHubbard','FCoulomb']
 
 from ..Operator import *
+from ..Utilities import parity
 from DegreeOfFreedom import ANNIHILATION,CREATION
-from ...Misc import parity
 import numpy as np
 
 class FOperator(Operator):

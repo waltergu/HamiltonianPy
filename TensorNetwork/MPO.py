@@ -12,8 +12,8 @@ __all__=['Opt','OptStr','OptMPO','MPO']
 import numpy as np
 import itertools as it
 from numpy.linalg import norm
-from HamiltonianPy import QuantumNumbers,Operator,FOperator,SOperator,JWBosonization
-from HamiltonianPy.Misc import TOL,Arithmetic
+from HamiltonianPy import QuantumNumbers,Operator,FOperator,SOperator,JWBosonization,Arithmetic
+from HamiltonianPy.Misc import TOL
 from Tensor import Label,Tensor,contract
 from MPS import MPS
 from copy import copy

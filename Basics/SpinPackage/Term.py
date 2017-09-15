@@ -9,13 +9,13 @@ Spin terms, including:
 
 __all__=['SpinTerm']
 
-from numpy import *
-from ..Constant import *
+from ..Utilities import RZERO,decimaltostr
 from ..Term import *
 from ..DegreeOfFreedom import *
 from ..Operator import * 
 from DegreeOfFreedom import *
-from Operator import * 
+from Operator import *
+import numpy as np
 
 class SpinTerm(Term):
     '''
@@ -27,9 +27,9 @@ class SpinTerm(Term):
         The order of neighbour of this spin term.
     indexpacks : IndexPacks or function which returns IndexPacks
         The indexpacks of the spin term.
-        When it is a function, it can return bond dependent indexpacks as needed.
+        When it is a function, it returns bond dependent indexpacks as needed.
     amplitude : function which returns float or complex
-        This function can return bond dependent coefficient as needed.
+        This function returns bond dependent coefficient as needed.
     '''
 
     def __init__(self,id,value,neighbour,indexpacks,amplitude=None,modulate=None):
@@ -44,14 +44,17 @@ class SpinTerm(Term):
             The overall coefficient of the term.
         neighbour : integer
             The order of neighbour of the term.
-        indexpacks : IndexPacks or function
-            When it is a function, it must return an instance of IndexPacks and take an instance of Bond as its only argument.
-        amplitude : function, optional
-            It must return a float or complex and take an instance of Bond as its only argument.
-        modulate : function, optional
-            It must return a float or complex and its arguments are unlimited.
+        indexpacks : IndexPacks or callable
+            * IndexPacks:
+                The indexpacks of the term.
+            * callable in the form ``indexpacks(bond)``:
+                It returns the bond-dependent indexpacks of the term.
+        amplitude: callable in the form ``amplitude(bond)``, optional
+            It returns the bond-dependent amplitude of the term.
+        modulate: callable in the form ``modulate(*arg,**karg)``, optional
+            This function defines the way to change the overall coefficient of the term dynamically.
         '''
-        super(SpinTerm,self).__init__(id=id,mode='sp',value=value,modulate=modulate)
+        super(SpinTerm,self).__init__(id=id,value=value,modulate=modulate)
         self.neighbour=neighbour
         self.indexpacks=indexpacks
         self.amplitude=amplitude
@@ -69,7 +72,7 @@ class SpinTerm(Term):
         if self.modulate is not None: result.append('modulate=%s'%self.modulate)
         return 'SpinTerm('+', '.join(result)+')'
 
-    def operators(self,bond,config,table=None,dtype=complex128,**karg):
+    def operators(self,bond,config,table=None,dtype=np.complex128,**karg):
         '''
         This method returns all the spin operators defined on the input bond with non-zero coefficients.
 
@@ -81,7 +84,7 @@ class SpinTerm(Term):
             The configuration of spin degrees of freedom.
         table: Table, optional
             The index-sequence table.
-        dtype: dtype,optional
+        dtype : np.complex128, np.float64, optional
             The data type of the coefficient of the returned operators.
 
         Returns
@@ -95,12 +98,8 @@ class SpinTerm(Term):
         if bond.neighbour==self.neighbour:
             value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
             if abs(value)>RZERO:
-                if callable(self.indexpacks):
-                    buff=self.indexpacks(bond)
-                else:
-                    buff=self.indexpacks
-                for obj in buff:
-                    pv,tags,ms,orbitals=value*obj.value,obj.tags,obj.matrices,obj.orbitals
+                for spack in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
+                    pv,tags,ms,orbitals=value*spack.value,spack.tags,spack.matrices,spack.orbitals
                     if len(tags)==1:
                         assert self.neighbour==0
                         for orbital in xrange(espin.norbital):
@@ -128,3 +127,27 @@ class SpinTerm(Term):
                     else:
                         raise ValueError('SpinTerm operators error: not supported yet.')
         return result
+
+    def strrep(self,bond,config):
+        '''
+        The string representation of the term on a bond.
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond where the term is to be represented.
+        config : IDFConfig
+            The configuration of internal degrees of freedom.
+
+        Returns
+        -------
+        str
+            The string representation of the term on the bond.
+        '''
+        result=[]
+        if self.neighbour==bond.neighbour:
+            value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
+            if np.abs(value)>RZERO:
+                for spack in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
+                    result.append('sp:%s*%s'%(decimaltostr(value),repr(spack)))
+        return '\n'.join(result)

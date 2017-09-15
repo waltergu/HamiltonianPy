@@ -9,7 +9,7 @@ KSpace pack, including:
 
 __all__=['line_bz', 'rectangle_gxm', 'rectangle_gym', 'rectangle_bz', 'square_gxm', 'square_gym', 'square_bz', 'hexagon_gkm', 'hexagon_bz']
 
-from ..Constant import *
+from ..Utilities import *
 from ..BaseSpace import *
 from ..Geometry import isintratriangle
 import numpy as np

@@ -6,14 +6,13 @@ Fermionic degrees of freedom
 Fermionic degree of freedom package, including:
     * constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY
     * classes: FID, Fermi, FermiPack
-    * functions: sigma0, sigmax, sigmay, sigmaz
+    * functions: sigma0, sigmax, sigmay, sigmaz, sigmap,sigmam
 '''
 
-__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','FermiPack','sigma0','sigmax','sigmay','sigmaz']
+__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','FermiPack','sigma0','sigmax','sigmay','sigmaz','sigmap','sigmam']
 
-from numpy import *
 from numpy.linalg import norm
-from ..Constant import RZERO
+from ..Utilities import RZERO,decimaltostr
 from ..Geometry import PID
 from ..DegreeOfFreedom import *
 from copy import copy
@@ -121,221 +120,290 @@ class Fermi(Internal):
                     result.append(Index(pid=pid,iid=FID(orbital=orbital,spin=spin,nambu=nambu)))
         return result
 
-    def seq_state(self,fid):
-        '''
-        This methods is the oversimplified version of returning the sequence of a input state with orbital, spin and nambu index assigned.
-
-        Notes
-        -----
-        The priority to generate the sequence cannot be modified by the users and is always "NSO".
-        '''
-        if fid.nambu in (0,1):
-            return fid.orbital+fid.spin*self.norbital+fid.nambu*self.norbital*self.nspin
-        else:
-            raise ValueError("Fermi seq_state error: the nambu index must be 0 or 1.")
-
-    def state_index(self,seq_state):
-        '''
-        This methods returns an instance of FID that contains the orbital, spin and nambu index of a state whose sequence equals the input `seq_state`.
-
-        Parameters
-        ----------
-        seq_state : integer
-            The sequence of the state.
-
-        Returns
-        -------
-        FID
-            The corresponding FID.
-
-        Notes
-        -----
-        This method should be used in pairs with the method `seq_state` to ensure the correct sequence-index correspondence.
-        '''
-        spin=seq_state%(self.norbital*self.nspin)/self.norbital
-        orbital=seq_state%(self.norbital*self.nspin)%self.norbital
-        nambu=seq_state/(self.norbital*self.nspin)
-        return FID(spin=spin,orbital=orbital,nambu=nambu)
-
 class FermiPack(IndexPack):
     '''
-    This class assumes part of a systematic description of a general fermionic quadratic term.
+    This class is a part of a systematic description of a general fermionic quadratic term.
 
     Attributes
     ----------
-    atoms : tuple of integers with len==2, optional
-        The atom indices for the quadratic term.
-    orbitals : tuple of integers with len==2, optional
-        The orbital indices for the quadratic term.
-    spins : tuple of integers with len==2, optional
-            The spin indices for the quadratic term.
+    atoms : 2-tuple of integer, optional
+        The atom indices of a quadratic term.
+    orbitals : 2-tuple of integer, optional
+        The orbital indices of a quadratic term.
+    spins : 2-tuple of integer, optional
+        The spin indices of a quadratic term.
+    nambus : 2-tuple of integer, optional
+        The nambu indices of a quadratic term.
     '''
-    
-    def __init__(self,value,atom1=None,atom2=None,orbital1=None,orbital2=None,spin1=None,spin2=None,atoms=None,orbitals=None,spins=None):
+
+    def __init__(self,value=1.0,atoms=None,orbitals=None,spins=None,nambus=None):
         '''
-        Constructor, which can be used in two different ways:
-            * FermiPack(value,atom1=...,atom2=...,orbital1=...,orbital2=...,spin1=...,spin2=...)
-            * FermiPack(value,atoms=...,orbitals=...,spins=...)
+        Constructor.
 
         Parameters
         ----------
-        value : float or complex
+        value : float or complex, optional
             The overall coefficient of the Fermi pack
-        atom1,atom2 : integer, optional
+        atoms : 2-tuple of integer, optional
             The atom indices.
-        orbital1,orbital2 : integer, optional
+        orbitals : 2-tuple of integer, optional
             The orbital indices.
-        spin1,spin2 : integer, optional
+        spins : 2-tuple of integer, optional
             The spin indices.
-        atoms : 1d array-like of integers with len==1,2, optional
-            The atom indices.
-        orbitals : 1d array-like of integers with len==1,2, optional
-            The orbital indices.
-        spins : 1d array-like of integers with len==1,2, optional
-            The spin indices.
+        nambus : 2-tuple of integer, optional
+            The nambu indices.
         '''
         super(FermiPack,self).__init__(value)
-        if atom1 is not None and atom2 is not None: self.atoms=(atom1,atom2)
-        if orbital1 is not None and orbital2 is not None: self.orbitals=(orbital1,orbital2)
-        if spin1 is not None and spin2 is not None: self.spins=(spin1,spin2)
         if atoms is not None:
-            if len(atoms)==2: self.atoms=tuple(atoms)
-            elif len(atoms)==1: self.atoms=(atoms[0],atoms[0])
+            assert len(atoms)==2
+            self.atoms=tuple(atoms)
         if orbitals is not None:
-            if len(orbitals)==2: self.orbitals=tuple(orbitals)
-            elif len(orbitals)==1: self.orbitals=([orbitals[0],orbitals[0]])
+            assert len(orbitals)==2
+            self.orbitals=tuple(orbitals)
         if spins is not None:
-            if len(spins)==2: self.spins=tuple(spins)
-            elif len(spins)==1: self.spins=([spins[0],spins[0]])
+            assert len(spins)==2
+            self.spins=tuple(spins)
+        if nambus is not None:
+            assert len(nambus)==2
+            self.nambus=tuple(nambus)
+
+    def tostr(self,mask=(),form='repr'):
+        '''
+        Convert an instance to string.
+
+        Parameters
+        ----------
+        mask : tuple with elements from ('atoms','orbitals','spins','nambus'), optional
+            The mask for the attributes of the fermi pack.
+        form : 'repr' or 'str'
+            The form of the string representation.
+
+        Returns
+        -------
+        str
+            The string representation of the fermi pack.
+        '''
+        assert form in ('repr','str')
+        if form=='repr':
+            temp=[decimaltostr(self.value)]
+            if hasattr(self,'atoms') and 'atoms' not in mask: temp.append('sl%s%s'%self.atoms)
+            if hasattr(self,'orbitals') and 'orbitals' not in mask: temp.append('ob%s%s'%self.orbitals)
+            if hasattr(self,'spins') and 'spins' not in mask: temp.append('sp%s%s'%self.spins)
+            if hasattr(self,'nambus') and 'nambus' not in mask: temp.append('ph%s%s'%self.nambus)
+            return '*'.join(temp)
+        else:
+            temp=['value=%s'%self.value]
+            if hasattr(self,'atoms') and 'atoms' not in mask: temp.append('atoms='+str(self.atoms))
+            if hasattr(self,'orbitals') and 'orbitals' not in mask: temp.append('orbitals='+str(self.orbitals))
+            if hasattr(self,'spins') and 'spins' not in mask: temp.append('spins='+str(self.spins))
+            if hasattr(self,'nambus') and 'nambus' not in mask: temp.append('nambus='+str(self.nambus))
+            return ''.join(['FermiPack(',', '.join(temp),')'])
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        temp=[]
-        temp.append('value=%s'%self.value)
-        if hasattr(self,'atoms'):
-            temp.append('atoms='+str(self.atoms))
-        if hasattr(self,'orbitals'):
-            temp.append('orbitals='+str(self.orbitals))
-        if hasattr(self,'spins'):
-            temp.append('spins='+str(self.spins))
-        return ''.join(['FermiPack(',', '.join(temp),')'])
+        return self.tostr(form='repr')
 
-    def _mul_(self,other):
+    def __str__(self):
         '''
-        Private methods used for operator(*) overloading.
+        Convert an instance to string.
         '''
-        if isinstance(other,FermiPack):
-            delta=lambda i,j: 1.0 if i==j else 0.0
-            result=FermiPack(self.value*other.value)
-            if hasattr(self,'atoms') and hasattr(other,'atoms'):
-                result.atoms=(self.atoms[0],other.atoms[1])
-                result.value*=delta(self.atoms[1],other.atoms[0])
-            elif hasattr(self,'atoms'):
-                result.atoms=self.atoms
-            elif hasattr(other,'atoms'):
-                result.atoms=other.atoms
-            if hasattr(self,'orbitals') and hasattr(other,'orbitals'):
-                result.orbitals=(self.orbitals[0],other.orbitals[1])
-                result.value*=delta(self.orbitals[1],other.orbitals[0])
-            elif hasattr(self,'orbitals'):
-                result.orbitals=self.orbitals
-            elif hasattr(other,'orbitals'):
-                result.orbitals=other.orbitals
-            if hasattr(self,'spins') and hasattr(other,'spins'):
-                result.spins=(self.spins[0],other.spins[1])
-                result.value*=delta(self.spins[1],other.spins[0])
-            elif hasattr(self,'spins'):
-                result.spins=self.spins
-            elif hasattr(other,'spins'):
-                result.spins=other.spins
-        else:
-            result=copy(self)
-            result.value=self.value*other
-        return result
+        return self.tostr(form='str')
 
     def __mul__(self,other):
         '''
         Overloaded operator(*), which supports the multiplication of an FermiPack instance with an FermiPack/IndexPacks instance or a scalar.
         '''
+        def MUL(self,other):
+            if isinstance(other,FermiPack):
+                delta=lambda i,j: 1.0 if i==j else 0.0
+                result=FermiPack(self.value*other.value)
+                for attr in ('atoms','orbitals','spins','nambus'):
+                    if hasattr(self,attr) and hasattr(other,attr):
+                        setattr(result,attr,(getattr(self,attr)[0],getattr(other,attr)[1]))
+                        result.value*=delta(getattr(self,attr)[1],getattr(other,attr)[0])
+                    elif hasattr(self,attr):
+                        setattr(result,attr,getattr(self,attr))
+                    elif hasattr(other,attr):
+                        setattr(result,attr,getattr(other,attr))
+            else:
+                result=copy(self)
+                result.value=self.value*other
+            return result
         if isinstance(other,IndexPacks):
             result=IndexPacks()
             for fpack in other:
-                temp=self._mul_(fpack)
+                temp=MUL(self,fpack)
                 if norm(temp.value)>RZERO: result.append(temp)
         else:
-            result=self._mul_(other)
+            result=MUL(self,other)
         return result
+
+    def expand(self,bond,sdgr,edgr):
+        '''
+        Expand the quadratics of the Fermi pack on a bond.
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond on which the expansion is performed.
+        sdgr,edgr : Fermi
+            The internal degrees of freedom of the start point and end point of the bond.
+
+        Returns
+        -------
+        generator of tuples in the form (value,index1,index2)
+            * value : float or complex
+                The coefficient of the quadratic.
+            * index1,index2 : Index
+                The indices of the quadratic.
+        '''
+        if not hasattr(self,'atoms') or (edgr.atom,sdgr.atom)==self.atoms:
+            enambu,snambu=self.nambus if hasattr(self,'nambus') else (CREATION,ANNIHILATION)
+            if hasattr(self,'spins'):
+                if hasattr(self,'orbitals'):
+                    index1=Index(bond.epoint.pid,FID(self.orbitals[0],self.spins[0],enambu))
+                    index2=Index(bond.spoint.pid,FID(self.orbitals[1],self.spins[1],snambu))
+                    yield self.value,index1,index2
+                else:
+                    assert edgr.norbital==sdgr.norbital
+                    for k in xrange(edgr.norbital):
+                        index1=Index(bond.epoint.pid,FID(k,self.spins[0],enambu))
+                        index2=Index(bond.spoint.pid,FID(k,self.spins[1],snambu))
+                        yield self.value,index1,index2
+            else:
+                assert edgr.nspin==sdgr.nspin
+                if hasattr(self,'orbitals'):
+                    for k in xrange(edgr.nspin):
+                        index1=Index(bond.epoint.pid,FID(self.orbitals[0],k,enambu))
+                        index2=Index(bond.spoint.pid,FID(self.orbitals[1],k,snambu))
+                        yield self.value,index1,index2
+                else:
+                    assert edgr.norbital==sdgr.norbital
+                    for k in xrange(edgr.nspin):
+                        for j in xrange(edgr.norbital):
+                            index1=Index(bond.epoint.pid,FID(j,k,enambu))
+                            index2=Index(bond.spoint.pid,FID(j,k,snambu))
+                            yield self.value,index1,index2
+        else:
+            return
+            yield
 
 def sigma0(mode):
     '''
-    The 2-dimensional identity matrix, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
+    The 2-dimensional identity matrix, which can act on the space of spins('sp'), orbitals('ob'), sublattices('sl') or particle-holes('ph').
     '''
     result=IndexPacks()
     if mode.lower()=='sp':
-        result.append(FermiPack(1.0,spin1=0,spin2=0))
-        result.append(FermiPack(1.0,spin1=1,spin2=1))
+        result.append(FermiPack(1.0,spins=(0,0)))
+        result.append(FermiPack(1.0,spins=(1,1)))
     elif mode.lower()=='ob':
-        result.append(FermiPack(1.0,orbital1=0,orbital2=0))
-        result.append(FermiPack(1.0,orbital1=1,orbital2=1))
+        result.append(FermiPack(1.0,orbitals=(0,0)))
+        result.append(FermiPack(1.0,orbitals=(1,1)))
     elif mode.lower()=='sl':
-        result.append(FermiPack(1.0,atom1=0,atom2=0))
-        result.append(FermiPack(1.0,atom1=1,atom2=1))
+        result.append(FermiPack(1.0,atoms=(0,0)))
+        result.append(FermiPack(1.0,atoms=(1,1)))
+    elif mode.lower()=='ph':
+        result.append(FermiPack(1.0,nambus=(ANNIHILATION,CREATION)))
+        result.append(FermiPack(1.0,nambus=(CREATION,ANNIHILATION)))
     else:
-        raise ValueError("sigma0 error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
+        raise ValueError("sigma0 error: mode '%s' not supported, which must be 'sp', 'ob', 'sl' or 'ph'."%mode)
     return result
 
 def sigmax(mode):
     '''
-    The Pauli matrix sigmax, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
+    The Pauli matrix sigmax, which can act on the space of spins('sp'), orbitals('ob'), sublattices('sl') or particle-holes('ph').
     '''
     result=IndexPacks()
     if mode.lower()=='sp':
-        result.append(FermiPack(1.0,spin1=0,spin2=1))
-        result.append(FermiPack(1.0,spin1=1,spin2=0))
+        result.append(FermiPack(1.0,spins=(0,1)))
+        result.append(FermiPack(1.0,spins=(1,0)))
     elif mode.lower()=='ob':
-        result.append(FermiPack(1.0,orbital1=0,orbital2=1))
-        result.append(FermiPack(1.0,orbital1=1,orbital2=0))
+        result.append(FermiPack(1.0,orbitals=(0,1)))
+        result.append(FermiPack(1.0,orbitals=(1,0)))
     elif mode.lower()=='sl':
-        result.append(FermiPack(1.0,atom1=0,atom2=1))
-        result.append(FermiPack(1.0,atom1=1,atom2=0))
+        result.append(FermiPack(1.0,atoms=(0,1)))
+        result.append(FermiPack(1.0,atoms=(1,0)))
+    elif mode.lower()=='ph':
+        result.append(FermiPack(1.0,nambus=(ANNIHILATION,ANNIHILATION)))
+        result.append(FermiPack(1.0,nambus=(CREATION,CREATION)))
     else:
-        raise ValueError("sigmax error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
+        raise ValueError("sigmax error: mode '%s' not supported, which must be 'sp', 'ob', 'sl' or 'ph'."%mode)
     return result
 
 def sigmay(mode):
     '''
-    The Pauli matrix sigmay, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
+    The Pauli matrix sigmay, which can act on the space of spins('sp'), orbitals('ob'), sublattices('sl') or particle-holes('ph').
     '''
     result=IndexPacks()
     if mode.lower()=='sp':
-        result.append(FermiPack(1.0j,spin1=0,spin2=1))
-        result.append(FermiPack(-1.0j,spin1=1,spin2=0))
+        result.append(FermiPack(1.0j,spins=(0,1)))
+        result.append(FermiPack(-1.0j,spins=(1,0)))
     elif mode.lower()=='ob':
-        result.append(FermiPack(1.0j,orbital1=0,orbital2=1))
-        result.append(FermiPack(-1.0j,orbital1=1,orbital2=0))
+        result.append(FermiPack(1.0j,orbitals=(0,1)))
+        result.append(FermiPack(-1.0j,orbitals=(1,0)))
     elif mode.lower()=='sl':
-        result.append(FermiPack(1.0j,atom1=0,atom2=1))
-        result.append(FermiPack(-1.0j,atom1=1,atom2=0))
+        result.append(FermiPack(1.0j,atoms=(0,1)))
+        result.append(FermiPack(-1.0j,atoms=(1,0)))
+    elif mode.lower()=='ph':
+        result.append(FermiPack(1.0j,nambus=(ANNIHILATION,ANNIHILATION)))
+        result.append(FermiPack(-1.0j,nambus=(CREATION,CREATION)))
     else:
-        raise ValueError("sigmay error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
+        raise ValueError("sigmay error: mode '%s' not supported, which must be 'sp', 'ob', 'sl' or 'ph'."%mode)
     return result
 
 def sigmaz(mode):
     '''
-    The Pauli matrix sigmaz, which can act on the space of spins('sp'), orbitals('ob') or sublattices('sl').
+    The Pauli matrix sigmaz, which can act on the space of spins('sp'), orbitals('ob'), sublattices('sl') or particle-holes('ph').
     '''
     result=IndexPacks()
     if mode.lower()=='sp':
-        result.append(FermiPack(-1.0,spin1=0,spin2=0))
-        result.append(FermiPack(1.0,spin1=1,spin2=1))
+        result.append(FermiPack(-1.0,spins=(0,0)))
+        result.append(FermiPack(1.0,spins=(1,1)))
     elif mode.lower()=='ob':
-        result.append(FermiPack(-1.0,orbital1=0,orbital2=0))
-        result.append(FermiPack(1.0,orbital1=1,orbital2=1))
+        result.append(FermiPack(-1.0,orbitals=(0,0)))
+        result.append(FermiPack(1.0,orbitals=(1,1)))
     elif mode.lower()=='sl':
-        result.append(FermiPack(-1.0,atom1=0,atom2=0))
-        result.append(FermiPack(1.0,atom1=1,atom2=1))
+        result.append(FermiPack(-1.0,atoms=(0,0)))
+        result.append(FermiPack(1.0,atoms=(1,1)))
+    elif mode.lower()=='ph':
+        result.append(FermiPack(-1.0,nambus=(ANNIHILATION,CREATION)))
+        result.append(FermiPack(1.0,nambus=(CREATION,ANNIHILATION)))
     else:
-        raise ValueError("sigmaz error: mode '%s' not supported, which must be 'sp', 'ob', or 'sl'."%mode)
+        raise ValueError("sigmaz error: mode '%s' not supported, which must be 'sp', 'ob', 'sl' or 'ph'."%mode)
+    return result
+
+def sigmap(mode):
+    '''
+    The Pauli matrix sigma plus, which can act on the space of spins('sp'), orbitals('ob'), sublattices('sl') or particle-holes('ph').
+    '''
+    result=IndexPacks()
+    if mode.lower()=='sp':
+        result.append(FermiPack(1.0,spins=(1,0)))
+    elif mode.lower()=='ob':
+        result.append(FermiPack(1.0,orbitals=(1,0)))
+    elif mode.lower()=='sl':
+        result.append(FermiPack(1.0,atoms=(1,0)))
+    elif mode.lower()=='ph':
+        result.append(FermiPack(1.0,nambus=(CREATION,CREATION)))
+    else:
+        raise ValueError("sigmap error: mode '%s' not supported, which must be 'sp', 'ob', 'sl' or 'ph'."%mode)
+    return result
+
+def sigmam(mode):
+    '''
+    The Pauli matrix sigma minus, which can act on the space of spins('sp'), orbitals('ob'), sublattices('sl') or particle-holes('ph').
+    '''
+    result=IndexPacks()
+    if mode.lower()=='sp':
+        result.append(FermiPack(1.0,spins=(0,1)))
+    elif mode.lower()=='ob':
+        result.append(FermiPack(1.0,orbitals=(0,1)))
+    elif mode.lower()=='sl':
+        result.append(FermiPack(1.0,atoms=(0,1)))
+    elif mode.lower()=='ph':
+        result.append(FermiPack(1.0,nambus=(ANNIHILATION,ANNIHILATION)))
+    else:
+        raise ValueError("sigmam error: mode '%s' not supported, which must be 'sp', 'ob', 'sl' or 'ph'."%mode)
     return result

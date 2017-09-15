@@ -9,8 +9,7 @@ This modulate defines the way to describe an operator and a set of operators, in
 
 __all__=['Operator','Operators']
 
-from Constant import *
-from ..Misc import Arithmetic
+from Utilities import RZERO,Arithmetic
 from copy import copy
 from numpy.linalg import norm
 
@@ -105,6 +104,12 @@ class Operators(Arithmetic,dict):
         * value: Operator
             The corresponding operator.
     '''
+
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return '\n'.join(['[%s]:%s'%(i,repr(obj)) for i,obj in enumerate(self.values())])
 
     def __str__(self):
         '''

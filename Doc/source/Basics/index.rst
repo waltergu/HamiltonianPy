@@ -6,6 +6,7 @@ Basics
    :maxdepth: 2
 
    Introduction
+   Utilities
    Geometry
    DegreeOfFreedom
    Term
@@ -13,7 +14,6 @@ Basics
    Generator
    EngineApp
    BaseSpace
-   Log
    FermionicPackage/index
    SpinPackage/index
    QuantumNumber/index

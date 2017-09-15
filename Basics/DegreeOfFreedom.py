@@ -12,10 +12,9 @@ __all__=['Status','Table','Index','Internal','IDFConfig','QNSConfig','IndexPack'
 import numpy as np
 import itertools as it
 from numpy.linalg import norm
-from Constant import RZERO
+from Utilities import RZERO,Arithmetic
 from Geometry import PID
 from QuantumNumber import QuantumNumbers
-from ..Misc import Arithmetic
 from collections import OrderedDict
 
 class Status(object):
@@ -299,6 +298,12 @@ class Index(tuple):
         The masks of the index's attributes.
         '''
         return tuple(name for name in self.names if getattr(self,name) is None)
+
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return (':'.join(['%s']*len(self)))%self
 
     def __str__(self):
         '''
@@ -619,7 +624,7 @@ class IndexPacks(Arithmetic,list):
         '''
         Convert an instance to string.
         '''
-        return 'IndexPacks('+', '.join([str(obj) for obj in self])
+        return ''.join(['IndexPacks(',','.join([repr(obj) for obj in self]),')'])
 
     def __iadd__(self,other):
         '''

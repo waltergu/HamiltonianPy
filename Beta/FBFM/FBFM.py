@@ -10,6 +10,7 @@ __all__=['FBFM_PRIORITY','FBFMBasis','optrep','FBFM']
 import numpy as np
 import HamiltonianPy as HP
 import scipy.linalg as sl
+import itertools as it
 
 FBFM_PRIORITY=('spin','scope','nambu','site','orbital')
 
@@ -117,14 +118,14 @@ def optrep(operator,k,basis):
         assert index1.spin==index2.spin and index1.nambu==HP.CREATION and index2.nambu==HP.ANNIHILATION
         result=np.zeros((nk,nk,nsp*nsp,nsp*nsp),dtype=basis.dtype)
         if index1.spin==(0 if basis.polarization=='dw' else 1):
-            diag=operator.value*(1 if len(k)==0 else np.exp(-1j*np.inner(basis.kcoord(k),opt.rcoord)))*np.identity(nsp,dtype=basis.dtype)
+            diag=operator.value*(1 if len(k)==0 else np.exp(-1j*np.inner(basis.BZ.kcoord(k),operator.rcoord)))*np.identity(nsp,dtype=basis.dtype)
             for i in xrange(nk):
                 result[i,i,:,:]=np.kron(np.kron(basis.U1[seq2,i,:],basis.U1[seq1,i,:].conjugate()),diag)
         else:
             diagsum=(basis.U2[seq1,:,:].conjugate()*basis.U2[seq2,:,:]).sum()*np.identity(nsp,dtype=basis.dtype)
             for i in xrange(nk):
                 result[i,i,:,:]=diagsum-np.kron(basis.U2[seq1,i,:].conjugate(),basis.U2[seq2,i,:])
-            result*=operator.value*(1 if len(k)==0 else np.exp(-1j*np.inner(basis.kcoord(k),opt.rcoord)))
+            result*=operator.value*(1 if len(k)==0 else np.exp(-1j*np.inner(basis.BZ.kcoord(k),operator.rcoord)))
         return result.transpose(axes=(0,2,1,3)).reshape((nk*nsp**2,nk*nsp**2))
     elif isinstance(operator,HP.FHubbard):
         assert len(set(operator.seqs))==1
@@ -207,6 +208,6 @@ class FBFM(HP.Engine):
         '''
         self.update(**karg)
         result=0
-        for opreator in it.chain([None],self.igenerator.operators.itervalues()):
+        for operator in it.chain([None],self.igenerator.operators.itervalues()):
             result+=optrep(operator,k,self.basis)
         return result

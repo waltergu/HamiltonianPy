@@ -10,34 +10,37 @@ Fermionic terms, including:
 
 __all__=['Quadratic','Hopping','Onsite','Pairing','Hubbard','Coulomb']
 
-from ..Constant import *
+from ..Utilities import RZERO,decimaltostr
 from ..Term import *
 from ..DegreeOfFreedom import *
-from ..Operator import * 
+from ..Operator import *
+from ..Geometry import Bond
 from DegreeOfFreedom import *
 from Operator import * 
 import numpy as np
 
 class Quadratic(Term):
     '''
-    This class provides a complete and unified description for fermionic quadratic terms, i.e. hopping terms, onsite terms and pairing terms.
+    This class provides a complete and unified description for fermionic quadratic terms, e.g. hopping terms, onsite terms and pairing terms.
 
     Attributes
     ----------
+    mode : 'hp','st','pr'
+        The type of the term.
     neighbour : integer
         The order of neighbour of this quadratic term.
     indexpacks : IndexPacks or function which returns IndexPacks
         The indexpacks of the quadratic term.
-        When it is a function, it can return bond dependent indexpacks as needed.
+        When it is a function, it returns bond dependent indexpacks as needed.
     amplitude : function which returns float or complex
-            This function can return bond dependent coefficient as needed.
+        This function returns bond dependent coefficient as needed.
 
     Notes
     -----
     The final coefficient comes from three parts, the value of itself, the value of the indexpack, and the value amplitude returns.
     '''
 
-    def __init__(self,id,mode,value,neighbour=0,atoms=(),orbitals=(),spins=(),indexpacks=None,amplitude=None,modulate=None):
+    def __init__(self,id,mode,value,neighbour=0,atoms=None,orbitals=None,spins=None,nambus=None,indexpacks=None,amplitude=None,modulate=None):
         '''
         Constructor.
 
@@ -51,31 +54,31 @@ class Quadratic(Term):
             The overall coefficient of the term.
         neighbour : integer, optional
             The order of neighbour of the term.
-        atoms,orbitals,spins : list of integer, optional
-            The atom, orbital and spin index used to construct a wanted instance of FermiPack.
-            When the parameter indexpacks is a function, these parameters will be omitted.
-        indexpacks : IndexPacks or function, optional
+        atoms,orbitals,spins,nambus : 2-tuple of integer, optional
+            The atom, orbital, spin and nambu indices complementary to the indexpacks specific by the parameter `indexpacks`.
+        indexpacks : IndexPacks or callable, optional
             * IndexPacks:
-                It will be multiplied by an instance of FermiPack constructed from atoms, orbitals and spins as the final indexpacks. 
-            * function:
-                It must return an instance of IndexPacks and take an instance of Bond as its only argument.
-        amplitude: function, optional
-            It must return a float or complex and take an instance of Bond as its only argument.
-        modulate: function, optional
-            It must return a float or complex and its arguments are unlimited.
+                The indexpacks of the quadratic term.
+            * callable in the form ``indexpacks(bond)``:
+                It returns the bond-dependent indexpacks of the quadratic term.
+        amplitude: callable in the form ``amplitude(bond)``, optional
+            It returns the bond-dependent amplitude of the quadratic term.
+        modulate: callable in the form ``modulate(*arg,**karg)``, optional
+            This function defines the way to change the overall coefficient of the term dynamically.
         '''
         assert mode in ('hp','st','pr')
-        super(Quadratic,self).__init__(id=id,mode=mode,value=value,modulate=modulate)
+        super(Quadratic,self).__init__(id=id,value=value,modulate=modulate)
+        self.mode=mode
         self.neighbour=neighbour
+        fpack=FermiPack(1.0,atoms=atoms,orbitals=orbitals,spins=spins,nambus=nambus)
         if indexpacks is None:
-            self.indexpacks=IndexPacks(FermiPack(1,atoms=atoms,orbitals=orbitals,spins=spins))
+            self.indexpacks=IndexPacks(fpack)
+        elif isinstance(indexpacks,IndexPacks):
+            self.indexpacks=fpack*indexpacks
+        elif callable(indexpacks):
+            self.indexpacks=lambda bond: fpack*indexpacks(bond)
         else:
-            if isinstance(indexpacks,IndexPacks):
-                self.indexpacks=FermiPack(1,atoms=atoms,orbitals=orbitals,spins=spins)*indexpacks
-            elif callable(indexpacks):
-                self.indexpacks=lambda bond: FermiPack(1,atoms=atoms,orbitals=orbitals,spins=spins)*indexpacks(bond)
-            else:
-                raise ValueError('Quadratic init error: the input indexpacks should be an instance of IndexPacks or a function.')
+            raise ValueError('Quadratic init error: the input indexpacks should be an instance of IndexPacks or a function.')
         self.amplitude=amplitude
 
     def __repr__(self):
@@ -94,64 +97,6 @@ class Quadratic(Term):
             result.append('modulate=%s'%self.modulate)
         return 'Quadratic('+', '.join(result)+')'
 
-    def mesh(self,bond,config,dtype=np.complex128):
-        '''
-        This method returns the mesh of a quadratic term defined on a bond.
-
-        Parameters
-        ----------
-        bond : Bond
-            The bond on which the quadratic term is defined.
-        config : IDFConfig
-            The configuration of the internal degrees of freedom.
-        dtype : complex128,complex64,float64,float32, optional
-            The data type of the returned mesh.
-
-        Returns
-        -------
-        2D ndarray
-            The mesh.
-        '''
-        edgr=config[bond.epoint.pid]
-        sdgr=config[bond.spoint.pid]
-        n1=edgr.norbital*edgr.nspin*edgr.nnambu
-        n2=sdgr.norbital*sdgr.nspin*sdgr.nnambu
-        result=np.zeros((n1,n2),dtype=dtype)
-        if self.neighbour==bond.neighbour:
-            value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
-            for obj in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
-                pv=value*obj.value
-                if not hasattr(obj,'atoms') or (edgr.atom,sdgr.atom)==obj.atoms:
-                    enambu=CREATION if self.mode=='pr' else ANNIHILATION
-                    snambu=ANNIHILATION
-                    if hasattr(obj,'spins'):
-                        if hasattr(obj,'orbitals'):
-                            i=edgr.seq_state(FID(obj.orbitals[0],obj.spins[0],enambu))
-                            j=sdgr.seq_state(FID(obj.orbitals[1],obj.spins[1],snambu))
-                            result[i,j]+=pv
-                        elif edgr.norbital==sdgr.norbital:
-                            for k in xrange(edgr.norbital):
-                                i=edgr.seq_state(FID(k,obj.spins[0],enambu))
-                                j=sdgr.seq_state(FID(k,obj.spins[1],snambu))
-                                result[i,j]+=pv
-                        else:
-                            raise ValueError("Quadratic mesh error: the norbital on the epoint and the spoint of the input bond should be equal.")
-                    elif edgr.nspin==sdgr.nspin:
-                        if hasattr(obj,'orbitals'):
-                            for k in xrange(edgr.nspin):
-                                i=edgr.seq_state(FID(obj.orbitals[0],k,enambu))
-                                j=sdgr.seq_state(FID(obj.orbitals[1],k,snambu))
-                                result[i,j]+=pv
-                        elif n1==n2:
-                            dn=edgr.norbital*edgr.nspin if self.mode=='pr' else 0
-                            for k in xrange(edgr.norbital*edgr.nspin):
-                                result[k,k+dn]+=pv
-                        else:
-                            raise ValueError("Quadratic mesh error: the norbital of epoint and spoint of the input bond should be equal.")
-                    else:
-                        raise ValueError("Quadratic mesh error: the nspin of epoint and spoint of the input bond should be equal.")
-        return result
-
     def operators(self,bond,config,table=None,half=True,dtype=np.complex128,**karg):
         '''
         This method returns all the desired quadratic operators defined on the input bond with non-zero coefficients.
@@ -167,9 +112,9 @@ class Quadratic(Term):
             When it not None, only those operators with indices in it will be returned.
         half : logical, optional
             When True, only one half of the operators are returned, which means
-                * The Hermitian conjugate of non-Hermitian operators is not included;
-                * The coefficient of the self-Hermitian operators is divided by a factor 2.
-        dtype : dtype, optional
+                * The Hermitian conjugate of non-Hermitian operators are not included;
+                * The coefficient of the self-Hermitian operators are divided by a factor 2.
+        dtype : np.complex128, np.float64, optional
             The data type of the coefficient of the returned operators.
 
         Returns
@@ -181,64 +126,88 @@ class Quadratic(Term):
         -----
         No matter whether or not ``half`` is True, for the BdG case, only the electron part of the hopping terms and onsite terms are contained.
         '''
-        def _operators_(mesh,bond,config,table=None):
-            result=Operators()
-            indices=np.argwhere(np.abs(mesh)>RZERO)
-            for (i,j) in indices:
-                eindex=Index(bond.epoint.pid,config[bond.epoint.pid].state_index(i))
-                sindex=Index(bond.spoint.pid,config[bond.spoint.pid].state_index(j))
-                if table is None:
-                    result+=FQuadratic(
-                            value=      mesh[i,j],
-                            indices=    (eindex.replace(nambu=1-eindex.nambu),sindex),
-                            seqs=       None,
-                            rcoord=     bond.rcoord,
-                            icoord=     bond.icoord
-                            )
-                else:
-                    masks=next(iter(table)).masks
-                    etemp=eindex.mask(*masks)
-                    stemp=sindex.mask(*masks)
-                    if stemp in table and etemp in table:
-                        result+=FQuadratic(
-                            value=      mesh[i,j],
-                            indices=    (eindex.replace(nambu=1-eindex.nambu),sindex),
-                            seqs=       (table[etemp],table[stemp]),
-                            rcoord=     bond.rcoord,
-                            icoord=     bond.icoord
-                            )
+        def expansion(bond,config,half):
+            result={}
+            if self.neighbour==bond.neighbour:
+                value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
+                for fpack in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
+                    if self.mode=='pr':
+                        assert getattr(fpack,'nambus',None) in ((ANNIHILATION,ANNIHILATION),(CREATION,CREATION))
+                    else:
+                        assert not hasattr(fpack,'nambus')
+                    for coeff,index1,index2 in fpack.expand(bond,config[bond.spoint.pid],config[bond.epoint.pid]):
+                        dagger1,dagger2=index1.replace(nambu=1-index1.nambu),index2.replace(nambu=1-index2.nambu)
+                        if half:
+                            if self.mode=='st' and index1==dagger2:
+                                result[(index1,index2)]=value*coeff/2+result.get((index1,index2),0.0)
+                            elif self.mode in ('hp','pr') or (self.mode=='st' and (dagger2,dagger1) not in result):
+                                result[(index1,index2)]=value*coeff+result.get((index1,index2),0.0)
+                        else:
+                            result[(index1,index2)]=value*coeff+result.get((index1,index2),0.0)
+                            if self.mode in ('hp','pr'):
+                                result[(dagger2,dagger1)]=np.conjugate(value*coeff)+result.get((dagger2,dagger1),0.0)
             return result
-        if self.mode=='st':
-            mesh=self.mesh(bond,config,dtype=dtype)
-            if half:
-                for i in xrange(mesh.shape[0]):
-                    mesh[i,i]/=2.0
-                    for j in xrange(i):
-                        if np.abs(mesh[i,j]-np.conjugate(mesh[j,i]))<RZERO: mesh[i,j]=0
-            result=_operators_(mesh,bond,config,table)
-        else:
-            result=_operators_(self.mesh(bond,config,dtype=dtype),bond,config,table)
-            if self.mode=='pr' and bond.neighbour!=0: result+=_operators_(self.mesh(bond.reversed,config,dtype=dtype),bond.reversed,config,table)
-            if not half: result+=result.dagger
+        def operators(expansion,bond,table):
+            result=Operators()
+            for (eindex,sindex),value in expansion.iteritems():
+                if np.abs(value)>RZERO:
+                    if table is None:
+                        result+=FQuadratic(value=dtype(value),indices=(eindex,sindex),seqs=None,rcoord=bond.rcoord,icoord=bond.icoord)
+                    else:
+                        masks=next(iter(table)).masks
+                        etemp=eindex.replace(nambu=1-eindex.nambu).mask(*masks)
+                        stemp=sindex.mask(*masks)
+                        if stemp in table and etemp in table:
+                            result+=FQuadratic(value=dtype(value),indices=(eindex,sindex),seqs=(table[etemp],table[stemp]),rcoord=bond.rcoord,icoord=bond.icoord)
+            return result
+        result=operators(expansion(bond,config,half),bond,table)
+        if self.mode=='pr':
+            result+=operators(expansion(bond.reversed,config,half),bond.reversed,table)
         return result
 
-def Hopping(id,value,neighbour=1,atoms=(),orbitals=(),spins=(),indexpacks=None,amplitude=None,modulate=None):
+    def strrep(self,bond,config):
+        '''
+        The string representation of the term on a bond.
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond where the term is to be represented.
+        config : IDFConfig
+            The configuration of internal degrees of freedom.
+
+        Returns
+        -------
+        str
+            The string representation of the term on the bond.
+        '''
+        result=[]
+        if self.neighbour==bond.neighbour:
+            value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
+            if np.abs(value)>RZERO:
+                edgr,sdgr=config[bond.epoint.pid],config[bond.spoint.pid]
+                for fpack in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
+                    if not hasattr(fpack,'atoms') or (edgr.atom,sdgr.atom)==fpack.atoms:
+                        result.append('qd:%s*%s'%(decimaltostr(value),fpack.tostr(mask=('atoms',),form='repr')))
+        return '\n'.join(result)
+
+def Hopping(id,value,neighbour=1,atoms=None,orbitals=None,spins=None,indexpacks=None,amplitude=None,modulate=None):
     '''
     A specified function to construct a hopping term.
     '''
-    return Quadratic(id,'hp',value,neighbour,atoms,orbitals,spins,indexpacks,amplitude,modulate)
+    return Quadratic(id,'hp',value,neighbour,atoms,orbitals,spins,None,indexpacks,amplitude,modulate)
 
-def Onsite(id,value,atoms=(),orbitals=(),spins=(),indexpacks=None,amplitude=None,modulate=None):
+def Onsite(id,value,atoms=None,orbitals=None,spins=None,indexpacks=None,amplitude=None,modulate=None):
     '''
     A specified function to construct an onsite term.
     '''
-    return Quadratic(id,'st',value,0,atoms,orbitals,spins,indexpacks,amplitude,modulate)
+    return Quadratic(id,'st',value,0,atoms,orbitals,spins,None,indexpacks,amplitude,modulate)
 
-def Pairing(id,value,neighbour=0,atoms=(),orbitals=(),spins=(),indexpacks=None,amplitude=None,modulate=None):
+def Pairing(id,value,neighbour=0,atoms=None,orbitals=None,spins=None,indexpacks=None,amplitude=None,modulate=None):
     '''
     A specified function to construct an pairing term.
     '''
-    return Quadratic(id,'pr',value,neighbour,atoms,orbitals,spins,indexpacks,amplitude,modulate)
+    return Quadratic(id,'pr',value,neighbour,atoms,orbitals,spins,(ANNIHILATION,ANNIHILATION),indexpacks,amplitude,modulate)
 
 class Hubbard(Term):
     '''
@@ -263,7 +232,7 @@ class Hubbard(Term):
         '''
         Constructor.
         '''
-        super(Hubbard,self).__init__(id=id,mode='hb',value=value,modulate=modulate)
+        super(Hubbard,self).__init__(id=id,value=value,modulate=modulate)
         self.atom=atom
 
     def __repr__(self):
@@ -276,77 +245,13 @@ class Hubbard(Term):
         result.append('value=%s'%self.value)
         return 'Hubbard('+', '.join(result)+')'
 
-    def mesh(self,bond,config,dtype=np.float64):
+    def __len__(self):
         '''
-        This method returns the mesh of Hubbard terms.
-
-        Parameters
-        ----------
-        bond : Bond
-            The bond on which the Hubbard term is defined.
-        config : IDFConfig
-            The configuration of internal degrees of freedom.
-        dtype : complex128,complex64,float128,float64, optional
-            The data type of the returned mesh.
-
-        Returns
-        -------
-        4d ndarray
-            The mesh.
+        1 for single-orbital Hubbard term and 4 for multi-orbital Hubbard term.
         '''
-        if bond.neighbour==0:
-            dgr=config[bond.epoint.pid]
-            assert dgr.nspin==2
-            ndim=dgr.norbital*dgr.nspin
-            result=np.zeros((ndim,ndim,ndim,ndim),dtype=dtype)
-            if self.atom is None or self.atom==dgr.atom:
-                try:
-                    nv=len(self.value)
-                except TypeError:
-                    nv=1
-                if nv>=1:
-                    for h in xrange(dgr.norbital):
-                        i=dgr.seq_state(FID(h,1,ANNIHILATION))
-                        j=dgr.seq_state(FID(h,0,ANNIHILATION))
-                        k=j
-                        l=i
-                        result[i,j,k,l]=self.value/2 if nv==1 else self.value[0]/2
-                if nv==4:
-                    for h in xrange(dgr.norbital):
-                        for g in xrange(dgr.norbital):
-                          if g!=h:
-                            i=dgr.seq_state(FID(g,1,ANNIHILATION))
-                            j=dgr.seq_state(FID(h,0,ANNIHILATION))
-                            k=j
-                            l=i
-                            result[i,j,k,l]=self.value[1]/2
-                    for h in xrange(dgr.norbital):
-                        for g in xrange(h):
-                            for f in xrange(2):
-                                i=dgr.seq_state(FID(g,f,ANNIHILATION))
-                                j=dgr.seq_state(FID(h,f,ANNIHILATION))
-                                k=j
-                                l=i
-                                result[i,j,k,l]=(self.value[1]-self.value[2])/2
-                    for h in xrange(dgr.norbital):
-                        for g in xrange(h):
-                            i=dgr.seq_state(FID(g,1,ANNIHILATION))
-                            j=dgr.seq_state(FID(h,0,ANNIHILATION))
-                            k=dgr.seq_state(FID(g,0,ANNIHILATION))
-                            l=dgr.seq_state(FID(h,1,ANNIHILATION))
-                            result[i,j,k,l]=self.value[2]
-                    for h in xrange(dgr.norbital):
-                        for g in xrange(h):
-                            i=dgr.seq_state(FID(g,1,ANNIHILATION))
-                            j=dgr.seq_state(FID(g,0,ANNIHILATION))
-                            k=dgr.seq_state(FID(h,0,ANNIHILATION))
-                            l=dgr.seq_state(FID(h,1,ANNIHILATION))
-                            result[i,j,k,l]=self.value[3]
-            return result
-        else:
-            return 0
+        return 4 if hasattr(self.value,'__len__') else 1
 
-    def operators(self,bond,config,table=None,half=True,dtype=np.float64,**karg):
+    def operators(self,bond,config,table=None,half=True,order='normal',dtype=np.float64,**karg):
         '''
         This method returns all the Hubbard operators defined on the input bond with non-zero coefficients.
 
@@ -357,16 +262,15 @@ class Hubbard(Term):
         config : IDFConfig
             The configuration of internal degrees of freedom.
         table : Table, optional
-            The index-sequence table. Since Hubbard terms are quartic, it never uses the Nambu space.
+            The index-sequence table.
         half : logical, optional
             When True, only one half of the operators are returned, which means
-                * The Hermitian conjugate of non-Hermitian operators is not included;
-                * The coefficient of the self-Hermitian operators is divided by a factor 2.
-        dtype : dtype,optional
+                * The Hermitian conjugate of non-Hermitian operators are not included;
+                * The coefficient of the self-Hermitian operators are divided by a factor 2.
+        order : 'normal' or 'density'
+            'normal' for normal ordered order and 'density' for density-density formed order.
+        dtype : np.complex128, np.float64, optional
             The data type of the coefficient of the returned operators.
-        karg : dict
-            * entry 'order': 'normal' or 'density'
-                'normal' for normal ordered order and 'density' for density-density formed order.
  
         Returns
         -------
@@ -374,39 +278,254 @@ class Hubbard(Term):
             All the Hubbard operators with non-zero coefficients.
         '''
         result=Operators()
-        dgr=config[bond.epoint.pid]
-        mesh=self.mesh(bond,config,dtype=dtype)
-        indices=np.argwhere(np.abs(mesh)>RZERO)
-        for (i,j,k,l) in indices:
-            index1=Index(bond.epoint.pid,dgr.state_index(i))
-            index2=Index(bond.epoint.pid,dgr.state_index(j))
-            index3=Index(bond.epoint.pid,dgr.state_index(k))
-            index4=Index(bond.epoint.pid,dgr.state_index(l))
-            if table is None:
-                opt=FHubbard(
-                    value=      mesh[i,j,k,l],
-                    indices=    (index1.replace(nambu=CREATION),index2.replace(nambu=CREATION),index3,index4),
-                    seqs=       None,
-                    rcoord=     bond.epoint.rcoord,
-                    icoord=     bond.epoint.icoord
-                    )
-            else:
-                masks=next(iter(table)).masks
-                temp1=index1.mask(*masks)
-                temp2=index2.mask(*masks)
-                temp3=index3.mask(*masks)
-                temp4=index4.mask(*masks)
-                if temp1 in table and temp2 in table and temp3 in table and temp4 in table:
-                    opt=FHubbard(
-                        value=      mesh[i,j,k,l],
-                        indices=    (index1.replace(nambu=CREATION),index2.replace(nambu=CREATION),index3,index4),
-                        seqs=       (table[temp1],table[temp2],table[temp3],table[temp4]),
-                        rcoord=     bond.epoint.rcoord,
-                        icoord=     bond.epoint.icoord
-                        )
-            result+=opt.reorder([0,3,1,2],reverse_coord=False) if karg.get('order','normal')=='density' else opt
-        if not half: result+=result.dagger
+        nv,pid,dgr=len(self),bond.epoint.pid,config[bond.epoint.pid]
+        if bond.neighbour==0 and self.atom in (None,dgr.atom):
+            assert nv in (1,4) and dgr.nspin==2 and order in ('normal','density')
+            expansion=[]
+            if nv>=1:
+                for h in xrange(dgr.norbital):
+                    value=self.value/2 if nv==1 else self.value[0]/2
+                    index1=Index(pid,FID(h,1,CREATION))
+                    index2=Index(pid,FID(h,0,CREATION))
+                    index3=Index(pid,FID(h,0,ANNIHILATION))
+                    index4=Index(pid,FID(h,1,ANNIHILATION))
+                    expansion.append((value,index1,index2,index3,index4))
+            if nv==4:
+                for h in xrange(dgr.norbital):
+                    for g in xrange(dgr.norbital):
+                        if g!=h:
+                            value=self.value[1]/2
+                            index1=Index(pid,FID(g,1,CREATION))
+                            index2=Index(pid,FID(h,0,CREATION))
+                            index3=Index(pid,FID(h,0,ANNIHILATION))
+                            index4=Index(pid,FID(g,1,ANNIHILATION))
+                            expansion.append((value,index1,index2,index3,index4))
+                for h in xrange(dgr.norbital):
+                    for g in xrange(h):
+                        for f in xrange(2):
+                            value=(self.value[1]-self.value[2])/2
+                            index1=Index(pid,FID(g,f,CREATION))
+                            index2=Index(pid,FID(h,f,CREATION))
+                            index3=Index(pid,FID(h,f,ANNIHILATION))
+                            index4=Index(pid,FID(g,f,ANNIHILATION))
+                            expansion.append((value,index1,index2,index3,index4))
+                for h in xrange(dgr.norbital):
+                    for g in xrange(h):
+                        value=self.value[2]
+                        index1=Index(pid,FID(g,1,CREATION))
+                        index2=Index(pid,FID(h,0,CREATION))
+                        index3=Index(pid,FID(g,0,ANNIHILATION))
+                        index4=Index(pid,FID(h,1,ANNIHILATION))
+                        expansion.append((value,index1,index2,index3,index4))
+                for h in xrange(dgr.norbital):
+                    for g in xrange(h):
+                        value=self.value[3]
+                        index1=Index(pid,FID(g,1,CREATION))
+                        index2=Index(pid,FID(g,0,CREATION))
+                        index3=Index(pid,FID(h,0,ANNIHILATION))
+                        index4=Index(pid,FID(h,1,ANNIHILATION))
+                        expansion.append((value,index1,index2,index3,index4))
+            for value,index1,index2,index3,index4 in expansion:
+                if np.abs(value)>RZERO:
+                    if table is None:
+                        opt=FHubbard(value=dtype(value),indices=(index1,index2,index3,index4),seqs=None,rcoord=bond.epoint.rcoord,icoord=bond.epoint.icoord)
+                    else:
+                        masks=next(iter(table)).masks
+                        temp1=index1.replace(nambu=1-index1.nambu).mask(*masks)
+                        temp2=index2.replace(nambu=1-index2.nambu).mask(*masks)
+                        temp3=index3.mask(*masks)
+                        temp4=index4.mask(*masks)
+                        if temp1 in table and temp2 in table and temp3 in table and temp4 in table:
+                            opt=FHubbard(
+                                value=      dtype(value),
+                                indices=    (index1,index2,index3,index4),
+                                seqs=       (table[temp1],table[temp2],table[temp3],table[temp4]),
+                                rcoord=     bond.epoint.rcoord,
+                                icoord=     bond.epoint.icoord
+                                )
+                    result+=opt.reorder([0,3,1,2],reverse_coord=False) if order=='density' else opt
+            if not half: result+=result.dagger
         return result
 
+    def strrep(self,bond,config):
+        '''
+        The string representation of the term on a bond.
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond where the term is to be represented.
+        config : IDFConfig
+            The configuration of internal degrees of freedom.
+
+        Returns
+        -------
+        str
+            The string representation of the term on the bond.
+        '''
+        if bond.neighbour==0 and self.atom in (None,config[bond.epoint.pid].atom):
+            return 'hb:%s'%('_'.join(decimaltostr(value) for value in (self.value if len(self)==4 else [self.value])))
+        else:
+            return ''
+
 class Coulomb(Term):
-    pass
+    '''
+    This class provides a complete description of Coulomb interactions.
+
+    Attributes
+    ----------
+    neighbour : integer
+        The order of neighbour of this Coulomb term.
+    indexpacks : 2-tuple of IndexPacks or function which returns a 2-tuple of IndexPacks
+        * 2-tuple of IndexPacks
+            The indexpacks at the end point and start point of the Coulomb term.
+        * function which returns a 2-tuple of IndexPacks
+            This function returns bond dependent indexpacks at the end point and start point of the Coulomb term.
+    amplitude : function which returns float or complex
+        This function returns bond dependent coefficient as needed.
+    '''
+
+    def __init__(self,id,value,neighbour=0,indexpacks=None,amplitude=None,modulate=None):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        id : string
+            The specific id of the term.
+        value : float or complex
+            The overall coefficient of the term.
+        neighbour : integer, optional
+            The order of neighbour of the term.
+        indexpacks : 2-tuple of IndexPacks or callable which returns a 2-tuple of IndexPacks, optional
+            * 2-tuple of IndexPacks
+                The indexpacks at the end point and start point of the Coulomb term.
+            * callable in the form ``indexpacks(bond)`` which returns a 2-tuple of IndexPacks
+                This function returns bond dependent indexpacks at the end point and start point of the Coulomb term.
+        amplitude: callable in the form ``amplitude(bond)``, optional
+            It returns the bond-dependent amplitude of the Coulomb term.
+        modulate: callable in the form ``modulate(*arg,**karg)``, optional
+            This function defines the way to change the overall coefficient of the term dynamically.
+        '''
+        super(Coulomb,self).__init__(id=id,value=value,modulate=modulate)
+        self.neighbour=neighbour
+        if indexpacks is None:
+            self.indexpacks=(IndexPacks(FermiPack(value=1.0)),IndexPacks(FermiPack(value=1.0)))
+        elif callable(indexpacks):
+            self.indexpacks=indexpacks
+        else:
+            assert len(indexpacks)==2
+            self.indexpacks=tuple(indexpacks)
+        self.amplitude=amplitude
+
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        result=[]
+        result.append('id=%s'%self.id)
+        result.append('value=%s'%self.value)
+        result.append('neighbour=%s'%self.neighbour)
+        result.append('indexpacks=%s'%(self.indexpacks if callable(self.indexpacks) else (self.indexpacks,)))
+        if self.amplitude is not None:
+            result.append('amplitude=%s'%self.amplitude)
+        if self.modulate is not None:
+            result.append('modulate=%s'%self.modulate)
+        return 'Coulomb('+', '.join(result)+')'
+
+    def operators(self,bond,config,table=None,half=True,dtype=np.complex128,**karg):
+        '''
+        This method returns all the Coulomb operators defined on the input bond with non-zero coefficients.
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond on which the Coulomb term is defined.
+        config : IDFConfig
+            The configuration of internal degrees of freedom.
+        table : Table, optional
+            The index-sequence table.
+        half : logical, optional
+            When True, only one half of the operators are returned, which means
+                * The Hermitian conjugate of non-Hermitian operators are not included;
+                * The coefficient of the self-Hermitian operators are divided by a factor 2.
+        dtype : np.complex128, np.float64, optional
+            The data type of the coefficient of the returned operators.
+
+        Returns
+        -------
+        Operators
+            All the Coulomb operators with non-zero coefficients.
+        '''
+        result=Operators()
+        if self.neighbour==bond.neighbour:
+            expansion={}
+            value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
+            eindexpacks,sindexpacks=self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks
+            for epack in eindexpacks:
+                for ecoeff,index1,index2 in epack.expand(Bond(0,bond.epoint,bond.epoint),config[bond.epoint.pid],config[bond.epoint.pid]):
+                    dagger1,dagger2=index1.replace(nambu=1-index1.nambu),index2.replace(nambu=1-index2.nambu)
+                    for spack in sindexpacks:
+                        for scoeff,index3,index4 in spack.expand(Bond(0,bond.spoint,bond.spoint),config[bond.spoint.pid],config[bond.spoint.pid]):
+                            dagger3,dagger4=index3.replace(nambu=1-index3.nambu),index4.replace(nambu=1-index4.nambu)
+                            coeff,key=value*ecoeff*scoeff,(index1,index2,index3,index4)
+                            if index1==dagger2 and index3==dagger4:
+                                expansion[key]=coeff/(2.0 if half else 1.0)+expansion.get(key,0.0)
+                            else:
+                                expansion[key]=coeff+expansion.get(key,0.0)
+                                if not half:
+                                    key=(dagger4,dagger3,dagger2,dagger1) if self.neighbour==0 else (dagger2,dagger1,dagger4,dagger3)
+                                    expansion[key]=np.conjugate(coeff)+expansion.get(key,0.0)
+            for (index1,index2,index3,index4),value in expansion.iteritems():
+                if np.abs(value)>RZERO:
+                    if table is None:
+                        result+=FCoulomb(value=dtype(value),indices=(index1,index2,index3,index4),seqs=None,rcoord=bond.rcoord,icoord=bond.icoord)
+                    else:
+                        masks=next(iter(table)).masks
+                        temp1=index1.replace(nambu=1-index1.nambu).mask(*masks)
+                        temp2=index2.replace(nambu=1-index2.nambu).mask(*masks)
+                        temp3=index3.mask(*masks)
+                        temp4=index4.mask(*masks)
+                        if temp1 in table and temp2 in table and temp3 in table and temp4 in table:
+                            result+=FCoulomb(
+                                value=      dtype(value),
+                                indices=    (index1,index2,index3,index4),
+                                seqs=       (table[temp1],table[temp2],table[temp3],table[temp4]),
+                                rcoord=     bond.rcoord,
+                                icoord=     bond.icoord
+                                )
+        return result
+
+    def strrep(self,bond,config):
+        '''
+        The string representation of the term on a bond.
+
+        Parameters
+        ----------
+        bond : Bond
+            The bond where the term is to be represented.
+        config : IDFConfig
+            The configuration of internal degrees of freedom.
+
+        Returns
+        -------
+        str
+            The string representation of the term on the bond.
+        '''
+        result=''
+        if self.neighbour==bond.neighbour:
+            value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
+            if np.abs(value)>RZERO:
+                edgr,sdgr=config[bond.epoint.pid],config[bond.spoint.pid]
+                eindexpacks,sindexpacks=self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks
+                epacks,spacks=[],[]
+                for epack in eindexpacks:
+                    if not hasattr(epack,'atoms') or (edgr.atom,edgr.atom)==epack.atoms:
+                        epacks.append(epack.tostr(mask=('atoms',),form='repr'))
+                epacks='%s%s%s'%('(' if len(epacks)>1 else '','+'.join(epacks),')' if len(epacks)>1 else '')
+                for spack in sindexpacks:
+                    if not hasattr(spack,'atoms') or (sdgr.atom,sdgr.atom)==spack.atoms:
+                        spacks.append(spack.tostr(mask=('atoms',),form='repr'))
+                spacks='%s%s%s'%('(' if len(spacks)>1 else '','+'.join(spacks),')' if len(spacks)>1 else '')
+                result='cl:%s*%s*%s'%(decimaltostr(value),epacks,spacks)
+        return result
