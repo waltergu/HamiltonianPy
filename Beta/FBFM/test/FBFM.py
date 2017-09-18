@@ -11,6 +11,7 @@ from HamiltonianPy.Beta.FBFM import *
 
 def test_fbfm():
     print 'test_fbfm'
+    print
 
 if __name__=='__main__':
     test_fbfm()

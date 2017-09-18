@@ -170,7 +170,7 @@ def Square(name):
 
     Parameters
     ----------
-    name : 'S1'
+    name : 'S1','S2x','S2y','S4','S10','S12','S13'
         The name of the cluster.
 
     Returns
@@ -178,13 +178,74 @@ def Square(name):
     Cluster
         The cluster of square lattices.
     '''
-    if name not in ['S1']:
+    if name not in ['S1','S2x','S2y','S4','S10','S12','S13']:
         raise ValueError('Square error: unexpected name(%s).'%name)
     rcoords,vectors=[],[]
     if name=='S1':
         rcoords.append(array([0.0,0.0]))
         vectors.append(array([1.0,0.0]))
         vectors.append(array([0.0,1.0]))
+    elif name=='S2x':
+        rcoords.append(array([0.0,0.0]))
+        rcoords.append(array([1.0,0.0]))
+        vectors.append(array([2.0,0.0]))
+        vectors.append(array([0.0,1.0]))
+    elif name=='S2y':
+        rcoords.append(array([0.0,0.0]))
+        rcoords.append(array([0.0,1.0]))
+        vectors.append(array([1.0,0.0]))
+        vectors.append(array([0.0,2.0]))
+    elif name=='S4':
+        rcoords.append(array([0.0,0.0]))
+        rcoords.append(array([1.0,0.0]))
+        rcoords.append(array([0.0,1.0]))
+        rcoords.append(array([1.0,1.0]))
+        vectors.append(array([2.0,0.0]))
+        vectors.append(array([0.0,2.0]))
+    elif name=='S10':
+        rcoords.append(array([0.0,0.0]))
+        rcoords.append(array([1.0,0.0]))
+        rcoords.append(array([0.0,1.0]))
+        rcoords.append(array([1.0,1.0]))
+        rcoords.append(array([0.0,2.0]))
+        rcoords.append(array([2.0,1.0]))
+        rcoords.append(array([1.0,2.0]))
+        rcoords.append(array([2.0,2.0]))
+        rcoords.append(array([1.0,3.0]))
+        rcoords.append(array([2.0,3.0]))
+        vectors.append(array([3.0,1.0]))
+        vectors.append(array([-1.0,3.0]))
+    elif name=='S12':
+        rcoords.append(array([0.0,0.0]))
+        rcoords.append(array([1.0,0.0]))
+        rcoords.append(array([0.0,1.0]))
+        rcoords.append(array([1.0,1.0]))
+        rcoords.append(array([-1.0,1.0]))
+        rcoords.append(array([2.0,1.0]))
+        rcoords.append(array([0.0,2.0]))
+        rcoords.append(array([1.0,2.0]))
+        rcoords.append(array([-1.0,2.0]))
+        rcoords.append(array([2.0,2.0]))
+        rcoords.append(array([0.0,3.0]))
+        rcoords.append(array([1.0,3.0]))
+        vectors.append(array([2.0,3.0]))
+        vectors.append(array([-2.0,3.0]))
+    elif name=='S13':
+        rcoords.append(array([0.0,0.0]))
+        rcoords.append(array([1.0,0.0]))
+        rcoords.append(array([-1.0,0.0]))
+        rcoords.append(array([0.0,1.0]))
+        rcoords.append(array([0.0,-1.0]))
+        rcoords.append(array([1.0,1.0]))
+        rcoords.append(array([-1.0,1.0]))
+        rcoords.append(array([1.0,-1.0]))
+        rcoords.append(array([-1.0,-1.0]))
+        rcoords.append(array([2.0,0.0]))
+        rcoords.append(array([-2.0,0.0]))
+        rcoords.append(array([0.0,2.0]))
+        rcoords.append(array([0.0,-2.0]))
+        vectors.append(array([3.0,2.0]))
+        vectors.append(array([-2.0,3.0]))
     return Cluster(name,rcoords,vectors)
 
 def Hexagon(name):

@@ -8,9 +8,17 @@ from HamiltonianPy.Basics.Extensions.LatticePack import *
 
 def test_extensions_lattice():
     print 'test_extensions_lattice'
+    test_extensions_square()
     test_extensions_hexagon()
     test_extensions_triangle()
     test_extensions_kagome()
+
+def test_extensions_square():
+    print 'test_extensions_square'
+    for name in ['S1','S2x','S2y','S4','S10','S12','S13']:
+        lattice=Square(name)('1P-1P')
+        lattice.plot(pidon=True)
+    print
 
 def test_extensions_hexagon():
     print 'test_extensions_hexagon'
