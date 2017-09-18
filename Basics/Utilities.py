@@ -4,9 +4,9 @@ Utilities
 ---------
 
 The utilities of the subpackage, including:
-1) constants: RZERO
-2) classes: Arithmetic, Timer, Timers, Info, Log
-3) functions: parity, berry_curvature, decimaltostr, mpirun
+    * constants: RZERO
+    * classes: Arithmetic, Timer, Timers, Info, Log
+    * functions: parity, berry_curvature, decimaltostr, mpirun
 '''
 
 __all__=['RZERO','Arithmetic','Timer','Timers','Info','Log','parity','berry_curvature','decimaltostr','mpirun']

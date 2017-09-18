@@ -87,7 +87,7 @@ class Engine(object):
 
         Notes
         -----
-        The CRITERION to judge whether `app`. `run` should be called when ``run==True and enforce_run==False``:
+        The CRITERION to judge whether `app.run` should be called when ``run==True and enforce_run==False``:
         Whether ``not app.status.info or not app.status<=self.status``.
         '''
         self.apps[app.status.name]=app
