@@ -34,6 +34,7 @@ log/
 *.rar
 *.log
 *.blg
+*Notes.bib
 """
 
 manager_template="""\
@@ -90,7 +91,7 @@ def tbaconstruct(parameters,lattice,terms,**karg):
         dlog=       'log',
         din=        'data',
         dout=       'result/tba',
-        log=        '%s_%s_%s_TBA.log'%(name,lattice.name,parameters.values()),
+        log=        '%s_%s_[%s]_TBA.log'%(name,lattice.name,','.join(decimaltostr(v) for v in parameters.itervalues())),
         name=       '%s_%s'%(name,lattice.name),
         lattice=    lattice,
         config=     config,
@@ -115,7 +116,7 @@ def edconstruct(parameters,lattice,target,terms,**karg):
         dlog=       'log',
         din=        'data',
         dout=       'result/ed',
-        log=        '%s_%s_%s_%s_ED.log'%(name,lattice.name,repr(target),parameters.values()),
+        log=        '%s_%s_%s_[%s]_ED.log'%(name,lattice.name,repr(target),','.join(decimaltostr(v) for v in parameters.itervalues())),
         name=       '%s_%s_%s'%(name,lattice.name,repr(target)),
         qnses=      qnses,
         lattice=    lattice,
@@ -141,7 +142,7 @@ def edconstruct(parameters,basis,lattice,terms,**karg):
         dlog=       'log',
         din=        'data',
         dout=       'result/ed',
-        log=        '%s_%s_%s_%s_ED.log'%(name,lattice.name,basis.rep,parameters.values()),
+        log=        '%s_%s_%s_[%s]_ED.log'%(name,lattice.name,basis.rep,','.join(decimaltostr(v) for v in parameters.itervalues())),
         name=       '%s_%s_%s'%(name,lattice.name,basis.rep),
         basis=      basis,
         lattice=    lattice,
@@ -169,7 +170,7 @@ def vcaconstruct(parameters,basis,cell,lattice,terms,weiss,mask=['nambu'],**karg
         dlog=       'log',
         din=        'data',
         dout=       'result/vca',
-        log=        '%s_%s_%s_%s_VCA.log'%(name,lattice.name,basis.rep,parameters.values()),
+        log=        '%s_%s_%s_[%s]_VCA.log'%(name,lattice.name,basis.rep,','.join(decimaltostr(v) for v in parameters.itervalues())),
         cgf=        cgf,
         name=       '%s_%s_%s'%(name,lattice.name,basis.rep),
         basis=      basis,
@@ -199,7 +200,7 @@ def dmrgconstruct(parameters,lattice,terms,targets,core='idmrg',**karg):
         dlog=       'log',
         din=        'data',
         dout=       'result/dmrg',
-        log=        '%s_%s_%s_%s_DMRG.log'%(name,lattice.name.replace('+',str(2*len(targets))),parameters.values(),repr(targets[-1])),
+        log=        '%s_%s_[%s]_%s_DMRG.log'%(name,lattice.name.replace('+',str(2*len(targets))),','.join(decimaltostr(v) for v in parameters.itervalues()),repr(targets[-1])),
         name=       '%s_%s'%(name,lattice.name),
         mps=        MPS(mode='NB' if targets[-1] is None else 'QN'),
         lattice=    lattice,

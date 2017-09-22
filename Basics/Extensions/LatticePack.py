@@ -254,7 +254,7 @@ def Hexagon(name):
 
     Parameters
     ----------
-    name : 'H2','H4','H6','H8O','H8P','H10'
+    name : 'H2','H4','H6','H8O','H8P','H10','H24','H4A','H4B'
         The name of the cluster.
 
     Returns
@@ -262,7 +262,7 @@ def Hexagon(name):
     Cluster
         The cluster of hexagonal lattices.
     '''
-    if name not in ['H2','H4','H6','H8O','H8P','H10','H4A','H4B']:
+    if name not in ['H2','H4','H6','H8O','H8P','H10','H24','H4A','H4B']:
         raise ValueError('Hexagon error: unexpected name(%s).'%name)
     rcoords,vectors=[],[]
     if name=='H2':
@@ -331,6 +331,33 @@ def Hexagon(name):
         rcoords.append(array([2.0,sqrt(3)/3]))
         vectors.append(array([2.5,sqrt(3)/2]))
         vectors.append(array([0.0,sqrt(3)]))
+    elif name=='H24':
+        rcoords.append(array([0.0,0.0]))
+        rcoords.append(array([0.0,sqrt(3)/3]))
+        rcoords.append(array([0.5,sqrt(3)/2]))
+        rcoords.append(array([0.5,-sqrt(3)/6]))
+        rcoords.append(array([1.0,0.0]))
+        rcoords.append(array([1.0,sqrt(3)/3]))
+        rcoords.append(array([1.5,sqrt(3)/2]))
+        rcoords.append(array([1.5,-sqrt(3)/6]))
+        rcoords.append(array([2.0,0.0]))
+        rcoords.append(array([2.0,sqrt(3)/3]))
+        rcoords.append(array([2.5,sqrt(3)/2]))
+        rcoords.append(array([2.5,-sqrt(3)/6]))
+        rcoords.append(array([3.0,0.0]))
+        rcoords.append(array([3.0,sqrt(3)/3]))
+        rcoords.append(array([0.5,-sqrt(3)/2]))
+        rcoords.append(array([1.0,-sqrt(3)*2/3]))
+        rcoords.append(array([1.5,-sqrt(3)/2]))
+        rcoords.append(array([2.0,-sqrt(3)*2/3]))
+        rcoords.append(array([2.5,-sqrt(3)/2]))
+        rcoords.append(array([0.5,sqrt(3)*5/6]))
+        rcoords.append(array([1.0,sqrt(3)]))
+        rcoords.append(array([1.5,sqrt(3)*5/6]))
+        rcoords.append(array([2.0,sqrt(3)]))
+        rcoords.append(array([2.5,sqrt(3)*5/6]))
+        vectors.append(array([3.0,sqrt(3)]))
+        vectors.append(array([3.0,-sqrt(3)]))
     return Cluster(name,rcoords,vectors)
 
 def Triangle(name):
