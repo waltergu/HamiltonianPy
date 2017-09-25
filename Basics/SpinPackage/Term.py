@@ -32,7 +32,7 @@ class SpinTerm(Term):
         This function returns bond dependent coefficient as needed.
     '''
 
-    def __init__(self,id,value,neighbour,indexpacks,amplitude=None,modulate=None):
+    def __init__(self,id,value=1.0,neighbour=1,indexpacks=None,amplitude=None,modulate=None):
         '''
         Constructor.
 

@@ -28,12 +28,6 @@ class Engine(object):
         The directory where the program writes data.
     status : Status
         The status of this engine.
-
-        * status.name: string
-            The name of the engine.
-        * status.info: string
-            The name of the class of the engine.
-
     preloads : list of App
         The preloaded apps of the engine, which will become the dependences of all the other apps registered on it.
     apps : dict of App
@@ -71,7 +65,7 @@ class Engine(object):
         if len(paras)>0:
             raise NotImplementedError()
 
-    def register(self,app,run=True,enforce_run=False):
+    def register(self,app,run=True):
         '''
         This method register a new app on the engine.
 
@@ -81,14 +75,6 @@ class Engine(object):
             The app to be registered on this engine.
         run : logical, optional
             When it is True, the app will be run immediately after the registration. Otherwise not.
-        enforce_run : logical, optional
-            When it is True, app.run will be called to run the app.
-            Otherwise, even when run is True, app.run may not be called if the engine thinks that this app has already been run.
-
-        Notes
-        -----
-        The CRITERION to judge whether `app.run` should be called when ``run==True and enforce_run==False``:
-        Whether ``not app.status.info or not app.status<=self.status``.
         '''
         self.apps[app.status.name]=app
         app.dependences=self.preloads+app.dependences
@@ -98,7 +84,7 @@ class Engine(object):
             self.clock.add(name=name)
             with self.clock.get(name):
                 cmp=app.status<=self.status
-                if enforce_run or (not app.status.info) or (not cmp):
+                if not (app.status.info and cmp):
                     if not cmp:self.update(**app.status._alter_)
                     if app.prepare is not None:app.prepare(self,app)
                     if app.run is not None:app.run(self,app)
@@ -107,7 +93,7 @@ class Engine(object):
             self.log<<'App %s(%s): time consumed %ss.\n\n'%(name,app.__class__.__name__,self.clock.time(name))
             self.log.close()
 
-    def rundependences(self,name,enforce_run=False):
+    def rundependences(self,name):
         '''
         This method runs the dependences of the app specified by name.
 
@@ -115,13 +101,11 @@ class Engine(object):
         ----------
         name : any hashable object
             The name to specify whose dependences to be run.
-        enforce_run : logical, optional
-            When it is True, the run attributes of all the dependences, which are functions themselves, will be called.
         '''
         if name in self.apps:
             for app in self.apps[name].dependences:
                 cmp=self.status<=app.status
-                if enforce_run or (not app.status.info) or (not cmp):
+                if not (app.status.info and cmp):
                     if not cmp:app.status.update(const=self.status._const_,alter=self.status._alter_)
                     if app.prepare is not None:app.prepare(self,app)
                     if app.run is not None:app.run(self,app)
@@ -147,13 +131,7 @@ class App(object):
     Attributes
     ----------
     status : Status
-        The status of the app. In current version,
-
-        * status.name: any hashable object
-            The id of the app.
-        * status.info: logical
-            When True, it means the function app.run has been called by the engine it registered on at least once. Otherwise not.
-
+        The status of the app.
     dependences : list of App
         The apps on which this app depends.
     plot : logical

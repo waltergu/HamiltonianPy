@@ -40,7 +40,7 @@ class Quadratic(Term):
     The final coefficient comes from three parts, the value of itself, the value of the indexpack, and the value amplitude returns.
     '''
 
-    def __init__(self,id,mode,value,neighbour=0,atoms=None,orbitals=None,spins=None,nambus=None,indexpacks=None,amplitude=None,modulate=None):
+    def __init__(self,id,mode,value=1.0,neighbour=0,atoms=None,orbitals=None,spins=None,nambus=None,indexpacks=None,amplitude=None,modulate=None):
         '''
         Constructor.
 
@@ -235,7 +235,7 @@ class Hubbard(Term):
         The atom index of the point where the Hubbard interactions are defined.
     '''
 
-    def __init__(self,id,value,atom=None,modulate=None):
+    def __init__(self,id,value=1.0,atom=None,modulate=None):
         '''
         Constructor.
         '''
@@ -402,7 +402,7 @@ class Coulomb(Term):
         This function returns bond dependent coefficient as needed.
     '''
 
-    def __init__(self,id,value,neighbour=0,indexpacks=None,amplitude=None,modulate=None):
+    def __init__(self,id,value=1.0,neighbour=0,indexpacks=None,amplitude=None,modulate=None):
         '''
         Constructor.
 

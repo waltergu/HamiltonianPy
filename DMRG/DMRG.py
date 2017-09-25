@@ -59,7 +59,7 @@ class DMRG(Engine):
     ----------
     mps : MPS
         The matrix product state of the DMRG.
-    lattice : Cylinder/Lattice
+    lattice : Cylinder, Lattice
         The lattice of the DMRG.
     terms : list of Term
         The terms of the DMRG.

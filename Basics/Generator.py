@@ -97,19 +97,20 @@ class Generator(object):
         '''
         Set the terms and _operators_ of the generator.
         '''
-        self.terms={'const':OrderedDict(),'alter':OrderedDict()}
-        self._operators_={'const':Operators(),'alter':OrderedDict()}
+        self.terms={'const':[],'alter':[]}
+        self._operators_={'const':Operators(),'alter':[]}
         if terms is not None:
             for term in terms:
-                if term.modulate is not None:
-                    self.terms['alter'][term.id]=term
-                    self._operators_['alter'][term.id]=Operators()
-                    for bond in self.bonds:
-                        self._operators_['alter'][term.id]+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
-                else:
-                    self.terms['const'][term.id]=term
+                if term.modulate is None:
+                    self.terms['const'].append(term)
                     for bond in self.bonds:
                         self._operators_['const']+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+                else:
+                    self.terms['alter'].append(term)
+                    operators=Operators()
+                    for bond in self.bonds:
+                        operators+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+                    self._operators_['alter'].append(operators)
 
     def __str__(self):
         '''
@@ -117,8 +118,8 @@ class Generator(object):
         '''
         result=[]
         result.append('Generator(')
-        result.append('terms=(%s'%(', '.join(['%s:%s'%(key,term) for key,term in self.terms['const'].iteritems()])))
-        result.append('%s%s='%(', '.join(['%s:%s'%(key,term) for key,term in self.terms['alter'].iteritems()]),')'))
+        result.append('terms=(%s'%(', '.join('%s'%term for term in self.terms['const'])))
+        result.append('%s%s='%(', '.join('%s'%term for key,term in self.terms['alter']),')'))
         result.append(')')
         return ', '.join(result)
 
@@ -128,10 +129,10 @@ class Generator(object):
         The parameters of the generator.
         '''
         result={'const':OrderedDict(),'alter':OrderedDict()}
-        for key,term in self.terms['const'].iteritems():
-            result['const'][key]=term.value
-        for key,term in self.terms['alter'].iteritems():
-            result['alter'][key]=term.value
+        for term in self.terms['const']:
+            result['const'][term.id]=term.value
+        for term in self.terms['alter']:
+            result['alter'][term.id]=term.value
         return result
 
     @property
@@ -141,7 +142,7 @@ class Generator(object):
         '''
         result=Operators()
         result.update(self._operators_['const'])
-        for opts in self._operators_['alter'].itervalues():
+        for opts in self._operators_['alter']:
             result+=opts
         return result
 
@@ -152,7 +153,7 @@ class Generator(object):
         '''
         result=0
         result+=self._matrix_['const']
-        for term,matrix in zip(self.terms['alter'].itervalues(),self._matrix_['alter'].itervalues()):
+        for term,matrix in zip(self.terms['alter'],self._matrix_['alter']):
             result+=matrix*term.value
         return result
 
@@ -160,17 +161,13 @@ class Generator(object):
         '''
         This method updates the alterable operators by keyword arguments.
         '''
-        selects={key:False for key in self.terms['alter'].iterkeys()}
-        for key,term in self.terms['alter'].iteritems():
+        for pos,term in enumerate(self.terms['alter']):
             nv=term.modulate(**karg)
             if nv is not None and nl.norm(np.array(nv)-np.array(term.value))>RZERO:
                 term.value=nv
-                selects[key]=True
-        for key,select in selects.iteritems():
-            if select:
-                self._operators_['alter'][key]=Operators()
+                self._operators_['alter'][pos]=Operators()
                 for bond in self.bonds:
-                    self._operators_['alter'][key]+=self.terms['alter'][key].operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+                    self._operators_['alter'][pos]+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
 
     def refresh(self,optrep,*args,**kargs):
         '''
@@ -183,15 +180,15 @@ class Generator(object):
         args,kargs : optional
             The extra arguments of the function `optrep`.
         '''
-        self._matrix_={'const':0,'alter':OrderedDict()}
+        self._matrix_={'const':0,'alter':[]}
         for operator in self._operators_['const'].itervalues():
             self._matrix_['const']+=optrep(operator,*args,**kargs)
-        for key,term in self.terms['alter'].iteritems():
-            term=term.unit
-            self._matrix_['alter'][key]=0
+        for term in self.terms['alter']:
+            term,matrix=term.unit,0
             for bond in self.bonds:
                 for operator in term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options).itervalues():
-                    self._matrix_['alter'][key]+=optrep(operator,*args,**kargs)
+                    matrix+=optrep(operator,*args,**kargs)
+            self._matrix_['alter'].append(matrix)
 
     def view(self,bondmask=None,termmask=None,pidon=True,bonddr='+',show=True,suspend=False,close=True):
         '''
@@ -233,7 +230,7 @@ class Generator(object):
                 assert bonddr in ('+','-')
                 (x,y),(dx,dy)=(bond.spoint.rcoord,bond.rcoord) if bonddr=='+' else (bond.epoint.rcoord,bond.reversed.rcoord)
                 if nl.norm(bond.rcoord)>RZERO: plt.arrow(x,y,dx,dy,ls='--' if nl.norm(bond.icoord)>RZERO else '-',lw=2,color='red',length_includes_head=True,alpha=0.5)
-                packs=[term.strrep(bond,self.config) for term in it.chain(self.terms['const'].values(),self.terms['alter'].values()) if termmask is None or termmask(term)]
+                packs=[term.strrep(bond,self.config) for term in it.chain(self.terms['const'],self.terms['alter']) if termmask is None or termmask(term)]
                 if len(packs)>0:
                     plt.text(x+dx/2,y+dy/2,'\n'.join(sorted(packs,key=len)),color='green',horizontalalignment='center',verticalalignment='center',fontproperties=font)
         plt.xlim([xmin-(xmax-xmin)*0.30,xmax+(xmax-xmin)*0.30])

@@ -28,7 +28,7 @@ class Term(Arithmetic):
         A function used to alter the value of the term.
     '''
 
-    def __init__(self,id,value,modulate=None):
+    def __init__(self,id,value=1.0,modulate=None):
         '''
         Constructor.
 
@@ -36,7 +36,7 @@ class Term(Arithmetic):
         ----------
         id : string
             The specific id of the term.
-        value : scalar of 1D array-like of float, complex
+        value : scalar of 1D array-like of float, complex, optional
             The overall coefficient(s) of the term.
         modulate : callable, optional
             A function used to alter the value of the term.
