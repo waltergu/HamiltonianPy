@@ -592,7 +592,7 @@ def berry_curvature(H,kx,ky,mu,d=10**-6):
                 result-=2*(np.vdot(np.dot(Vx,Evs[:,n]),Evs[:,m])*np.vdot(Evs[:,m],np.dot(Vy,Evs[:,n]))/(Es[n]-Es[m])**2).imag
     return result
 
-def decimaltostr(number,n=3):
+def decimaltostr(number,n=5):
     '''
     Convert a number to string.
 
@@ -611,11 +611,11 @@ def decimaltostr(number,n=3):
     if isinstance(number,int) or isinstance(number,long):
         result=str(number)
     elif isinstance(number,float):
-        result='{:.3f}'.format(number).rstrip('0')
+        result=('{:.%sf}'%n).format(number).rstrip('0')
         if result[-1]=='.': result+='0'
     elif isinstance(number,complex):
-        real='{:.3f}'.format(number.real).rstrip('0')
-        imag='{:.3f}'.format(number.imag).rstrip('0')
+        real=('{:.%sf}'%n).format(number.real).rstrip('0')
+        imag=('{:.%sf}'%n).format(number.imag).rstrip('0')
         temp=[]
         if real!='0.': temp.append('%s%s'%(real,'0' if real[-1]=='.' else ''))
         if imag!='0.': temp.append('%s%s%sj'%('+' if number.imag>0 and len(temp)>0 else '',imag,'0' if imag[-1]=='.' else ''))

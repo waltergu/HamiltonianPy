@@ -54,9 +54,9 @@ class ED(HP.Engine):
         '''
         Update the engine.
         '''
-        self.generator.update(**karg)
+        self.status.update(karg)
+        self.generator.update(**self.status.parameters(karg))
         self.operators=self.generator.operators
-        self.status.update(alter=self.generator.parameters['alter'])
 
     def set_matrix(self,refresh=True):
         '''
@@ -100,7 +100,7 @@ def EDGSE(engine,app):
     '''
     This method calculates the ground state energy.
     '''
-    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.view.iteritems()))
+    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.data.iteritems()))
     timers=HP.Timers('Matrix','GSE')
     with timers.get('Matrix'):
         engine.set_matrix()
@@ -154,7 +154,7 @@ def EDEL(engine,app):
         result[:,0]=np.array(xrange(app.path.rank(0)))
     for i,paras in enumerate(app.path('+')):
         engine.update(**paras)
-        engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.view.iteritems()))
+        engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.data.iteritems()))
         with timers.get('Matrix'):
             engine.set_matrix(refresh=True if i==0 else False)
         with timers.get('GSE'):
@@ -164,15 +164,15 @@ def EDEL(engine,app):
         if app.plot: timers.graph(parents=HP.Timers.ALL)
     else:
         if app.plot and i>0:
-            if app.save_fig: plt.savefig('%s/%s_%s(TIMERS).png'%(engine.dlog,engine.status.const,app.status.name))
+            if app.save_fig: plt.savefig('%s/%s_%s(TIMERS).png'%(engine.dlog,engine.status.tostr(mask=app.path.tags),app.status.name))
             plt.close()
     if app.nder>0:
         for i in xrange(app.ns):
             result.T[[j*app.ns+i+1 for j in xrange(1,app.nder+1)]]=derivatives(result[:,0],result[:,i+1],ders=range(1,app.nder+1))
     if app.save_data:
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.const,app.status.name),result)
+        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=app.path.tags),app.status.name),result)
     if app.plot:
-        plt.title('%s_%s'%(engine.status.const,app.status.name))
+        plt.title('%s_%s'%(engine.status.tostr(mask=app.path.tags),app.status.name))
         prefixs={i:'1st' if i==1 else ('2nd' if i==2 else ('3rd' if i==3 else '%sth'%i)) for i in xrange(app.nder+1)}
         for k in xrange(1,result.shape[1]):
             i,j=divmod(k-1,app.ns)
@@ -180,7 +180,7 @@ def EDEL(engine,app):
         if app.legend: plt.legend(shadow=True,fancybox=True,loc='lower right')
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.const,app.status.name))
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.tostr(mask=app.path.tags),app.status.name))
         plt.close()
 
 class GF(HP.GF):
@@ -228,7 +228,7 @@ def EDGFP(engine,app):
     '''
     This method prepares the GF.
     '''
-    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.view.iteritems()))
+    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.data.iteritems()))
     if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine.status)):
         with open('%s/%s_coeff.dat'%(engine.din,engine.status),'rb') as fin:
             app.gse=pk.load(fin)

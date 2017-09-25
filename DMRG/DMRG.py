@@ -21,6 +21,7 @@ from numpy.linalg import norm
 from HamiltonianPy import *
 from HamiltonianPy.TensorNetwork import *
 from copy import deepcopy
+from collections import OrderedDict
 
 def pattern(status,target,nsite,mode='re'):
     '''
@@ -132,7 +133,7 @@ class DMRG(Engine):
         self.target=target
         self.dtype=dtype
         self.generator=Generator(bonds=lattice.bonds,config=config,terms=terms,dtype=dtype,half=False)
-        self.status.update(**self.generator.parameters)
+        if self.status.map is None: self.status.update(OrderedDict((term.id,term.value) for term in terms))
         self.set_operators()
         self.set_mpo()
         self.set_Hs_()
@@ -170,8 +171,8 @@ class DMRG(Engine):
         '''
         Update the DMRG with new parameters.
         '''
-        self.generator.update(**karg)
-        self.status.update(alter=self.generator.parameters['alter'])
+        self.status.update(karg)
+        self.generator.update(**self.status.parameters(karg))
         self.set_operators()
         self.set_mpo()
         self.set_Hs_()
@@ -802,7 +803,7 @@ class TSS(App):
         '''
         status=deepcopy(engine.status)
         for i,(nmax,parameters) in enumerate(reversed(zip(self.nmaxs,self.BS))):
-            status.update(alter=parameters)
+            status.update(parameters)
             core=DMRG.coreload(din=engine.din,pattern=pattern(status,self.target,self.nsite,mode='re'),nmax=nmax)
             if core:
                 for key,value in core.iteritems():
@@ -828,7 +829,7 @@ def DMRGTSS(engine,app):
         if app.status.name in engine.apps: engine.rundependences(app.status.name)
         num=-1
     for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs[num+1:],app.BS[num+1:],app.paths[num+1:])):
-        app.status.update(alter=parameters)
+        app.status.update(parameters)
         if not (app.status<=engine.status): engine.update(**parameters)
         engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,piechart=app.plot)
         if app.save_data: engine.coredump()

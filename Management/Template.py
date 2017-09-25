@@ -60,11 +60,14 @@ if __name__=='__main__':
 config_template="""\
 from HamiltonianPy import *
 
-__all__=['name','nneighbour','idfmap','qnsmap']
+__all__=['name','nneighbour','map','idfmap','qnsmap']
 
 # The configs of the model
 name=None
 nneighbour=None
+
+# parameter map
+map=None
 
 # idfmap
 idfmap=lambda pid: None
@@ -93,6 +96,8 @@ def tbaconstruct(parameters,lattice,terms,**karg):
         dout=       'result/tba',
         log=        '%s_%s_[%s]_TBA.log'%(name,lattice.name,','.join(decimaltostr(v) for v in parameters.itervalues())),
         name=       '%s_%s'%(name,lattice.name),
+        parameters= parameters,
+        map=        map,
         lattice=    lattice,
         config=     config,
         terms=      [term(**parameters) for term in terms],
@@ -118,6 +123,8 @@ def edconstruct(parameters,lattice,target,terms,**karg):
         dout=       'result/ed',
         log=        '%s_%s_%s_[%s]_ED.log'%(name,lattice.name,repr(target),','.join(decimaltostr(v) for v in parameters.itervalues())),
         name=       '%s_%s_%s'%(name,lattice.name,repr(target)),
+        parameters= parameters,
+        map=        map,
         qnses=      qnses,
         lattice=    lattice,
         config=     config,
@@ -144,6 +151,8 @@ def edconstruct(parameters,basis,lattice,terms,**karg):
         dout=       'result/ed',
         log=        '%s_%s_%s_[%s]_ED.log'%(name,lattice.name,basis.rep,','.join(decimaltostr(v) for v in parameters.itervalues())),
         name=       '%s_%s_%s'%(name,lattice.name,basis.rep),
+        parameters= parameters,
+        map=        map,
         basis=      basis,
         lattice=    lattice,
         config=     config,
@@ -173,6 +182,8 @@ def vcaconstruct(parameters,basis,cell,lattice,terms,weiss,mask=['nambu'],**karg
         log=        '%s_%s_%s_[%s]_VCA.log'%(name,lattice.name,basis.rep,','.join(decimaltostr(v) for v in parameters.itervalues())),
         cgf=        cgf,
         name=       '%s_%s_%s'%(name,lattice.name,basis.rep),
+        parameters= parameters,
+        map=        map,
         basis=      basis,
         cell=       cell,
         lattice=    lattice,
@@ -202,6 +213,8 @@ def dmrgconstruct(parameters,lattice,terms,targets,core='idmrg',**karg):
         dout=       'result/dmrg',
         log=        '%s_%s_[%s]_%s_DMRG.log'%(name,lattice.name.replace('+',str(2*len(targets))),','.join(decimaltostr(v) for v in parameters.itervalues()),repr(targets[-1])),
         name=       '%s_%s'%(name,lattice.name),
+        parameters= parameters,
+        map=        map,
         mps=        MPS(mode='NB' if targets[-1] is None else 'QN'),
         lattice=    lattice,
         config=     IDFConfig(priority=priority,map=idfmap),

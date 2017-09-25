@@ -27,6 +27,7 @@ class Term(Arithmetic):
     modulate : callable
         A function used to alter the value of the term.
     '''
+    NDECIMAL=3
 
     def __init__(self,id,value=1.0,modulate=None):
         '''

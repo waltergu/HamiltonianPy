@@ -178,7 +178,7 @@ class VCA(ED.FED):
             dtype=      dtype,
             half=       True
             )
-        self.status.update(**self.generator.parameters)
+        if self.status.map is None: self.status.update(OrderedDict((term.id,term.value) for term in terms+weiss))
         self.operators=self.generator.operators
         self.pthoperators=self.pthgenerator.operators
         self.ptwoperators=self.ptwgenerator.operators
@@ -208,13 +208,14 @@ class VCA(ED.FED):
         '''
         Update the engine.
         '''
+        self.status.update(karg)
+        karg=self.status.parameters(karg)
         self.generator.update(**karg)
         self.pthgenerator.update(**karg)
         self.ptwgenerator.update(**karg)
         self.operators=self.generator.operators
         self.pthoperators=self.pthgenerator.operators
         self.ptwoperators=self.ptwgenerator.operators
-        self.status.update(alter=self.generator.parameters['alter'])
 
     @property
     def ncopt(self):
@@ -605,10 +606,10 @@ def VCAGPM(engine,app):
         app.bsm={key:value for key,value in zip(paras.keys(),result[index,0:nbs])}
         engine.log<<'Summary of Minimization:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bsm.items()+[('value',app.gpm)]))
         if app.save_data:
-            np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.const,app.status.name),result)
+            np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=app.BS.tags),app.status.name),result)
         if app.plot:
             if len(app.BS.tags)==1:
-                plt.title('%s_%s'%(engine.status.const,app.status.name))
+                plt.title('%s_%s'%(engine.status.tostr(mask=app.BS.tags),app.status.name))
                 X=np.linspace(result[:,0].min(),result[:,0].max(),300)
                 for i in xrange(1,result.shape[1]):
                     tck=interpolate.splrep(result[:,0],result[:,i],k=3)
@@ -617,16 +618,16 @@ def VCAGPM(engine,app):
                 plt.plot(result[:,0],result[:,1],'r.')
                 if app.show and app.suspend: plt.show()
                 if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-                if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.const,app.status.name))
+                if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.tostr(mask=app.BS.tags),app.status.name))
                 plt.close()
-    else:
+    elif isinstance(app.BS,dict):
         temp=minimize(gp,app.BS.values(),args=(app.BS.keys()),method=app.extras['method'],options=app.extras['options'])
         app.bsm,app.gpm={key:value for key,value in zip(app.BS.keys(),temp.x)},temp.fun
         engine.log<<'Summary of Minimization:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bsm.items()+[('gp',app.gpm)]))
         if app.save_data:
             result=np.array([app.bsm.values()+[app.gpm]])
             if app.fout is None:
-                np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.const,app.status.name),result)
+                np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=app.BS.keys()),app.status.name),result)
             else:
                 if os.path.isfile(app.fout):
                     with open(app.fout,'a') as fout:
@@ -634,6 +635,8 @@ def VCAGPM(engine,app):
                         fout.write('\n')
                 else:
                     np.savetxt(app.fout,result)
+    else:
+        raise TypeError('VCAGPM error: app.BS must be an instance of BaseSpace or dict.')
 
 class CPFF(HP.CPFF):
     '''

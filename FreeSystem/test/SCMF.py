@@ -25,8 +25,8 @@ def test_scmf():
     for pid in lattice.pids:
         config[pid]=Fermi(atom=pid.site%2,norbital=1,nspin=2,nnambu=1)
     h2=SCMF(
-        parameters= {'U':U},
         name=       'H2_SCMF',
+        parameters= {'U':U},
         lattice=    lattice,
         config=     config,
         filling=    0.5,

@@ -50,10 +50,9 @@ class Engine(object):
             setattr(result,key,karg.get(key,value))
             if cls.MKDIR and not os.path.exists(getattr(result,key)):
                 os.makedirs(getattr(result,key))
-        result.status=Status(name=karg.get('name',''),info=cls.__name__,view=karg.get('view',None))
-        result.status.update(const=karg.get('parameters',None))
-        result.clock=Timers()
         result.log=Log() if Engine.DEBUG else Log(name=karg.get('log',None),dir=result.dlog,mode='a+')
+        result.status=Status(name=karg.get('name',None),info=cls.__name__,data=karg.get('parameters',()),map=karg.get('map',None))
+        result.clock=Timers()
         result.preloads=karg.get('preloads',[])
         result.apps={}
         return result
@@ -85,11 +84,11 @@ class Engine(object):
             with self.clock.get(name):
                 cmp=app.status<=self.status
                 if not (app.status.info and cmp):
-                    if not cmp:self.update(**app.status._alter_)
+                    if not cmp:self.update(**app.status.data)
                     if app.prepare is not None:app.prepare(self,app)
                     if app.run is not None:app.run(self,app)
                     app.status.info=True
-                    app.status.update(const=self.status._const_,alter=self.status._alter_)
+                    app.status.update(self.status.data)
             self.log<<'App %s(%s): time consumed %ss.\n\n'%(name,app.__class__.__name__,self.clock.time(name))
             self.log.close()
 
@@ -106,7 +105,7 @@ class Engine(object):
             for app in self.apps[name].dependences:
                 cmp=self.status<=app.status
                 if not (app.status.info and cmp):
-                    if not cmp:app.status.update(const=self.status._const_,alter=self.status._alter_)
+                    if not cmp:app.status.update(self.status.data)
                     if app.prepare is not None:app.prepare(self,app)
                     if app.run is not None:app.run(self,app)
                     app.status.info=True
@@ -161,7 +160,7 @@ class App(object):
         '''
         result=object.__new__(cls)
         result.status=Status(name=karg.get('name',id(result)),info=False)
-        result.status.update(alter=karg.get('parameters',None))
+        result.status.update(karg.get('parameters',{}))
         attr_def={'dependences':[],'plot':True,'show':True,'suspend':False,'parallel':False,'np':0,'save_data':True,'save_fig':True,'prepare':None,'run':None}
         for key,value in attr_def.items():
             setattr(result,key,karg.get(key,value))

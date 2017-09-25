@@ -195,7 +195,7 @@ class Quadratic(Term):
                 edgr,sdgr=config[bond.epoint.pid],config[bond.spoint.pid]
                 for fpack in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
                     if not hasattr(fpack,'atoms') or (edgr.atom,sdgr.atom)==fpack.atoms:
-                        result.append('qd:%s*%s'%(decimaltostr(value),fpack.tostr(mask=('atoms',),form='repr')))
+                        result.append('qd:%s*%s'%(decimaltostr(value,Term.NDECIMAL),fpack.tostr(mask=('atoms',),form='repr')))
         return '\n'.join(result)
 
 def Hopping(id,value,neighbour=1,atoms=None,orbitals=None,spins=None,indexpacks=None,amplitude=None,modulate=None):
@@ -381,7 +381,7 @@ class Hubbard(Term):
             The string representation of the term on the bond.
         '''
         if bond.neighbour==0 and self.atom in (None,config[bond.epoint.pid].atom):
-            return 'hb:%s'%('_'.join(decimaltostr(value) for value in (self.value if len(self)==4 else [self.value])))
+            return 'hb:%s'%('_'.join(decimaltostr(value,Term.NDECIMAL) for value in (self.value if len(self)==4 else [self.value])))
         else:
             return ''
 
@@ -551,5 +551,5 @@ class Coulomb(Term):
                     if not hasattr(spack,'atoms') or (sdgr.atom,sdgr.atom)==spack.atoms:
                         spacks.append(spack.tostr(mask=('atoms',),form='repr'))
                 spacks='%s%s%s'%('(' if len(spacks)>1 else '','+'.join(spacks),')' if len(spacks)>1 else '')
-                result='cl:%s*%s*%s'%(decimaltostr(value),epacks,spacks)
+                result='cl:%s*%s*%s'%(decimaltostr(value,Term.NDECIMAL),epacks,spacks)
         return result

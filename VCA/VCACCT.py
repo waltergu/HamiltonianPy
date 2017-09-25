@@ -12,7 +12,7 @@ __all__=['VCACCT','VCACCTGFP','VCACCTGF']
 
 from VCA import *
 from copy import deepcopy
-from collections import Counter
+from collections import Counter,OrderedDict
 import numpy as np
 import HamiltonianPy as HP
 import HamiltonianPy.ED as ED
@@ -62,7 +62,7 @@ class VCACCT(VCA):
         self.groups=[subsystem.get('group',subsystem['lattice'].name) for subsystem in subsystems]
         self.subsystems={}
         extras={key:value for key,value in karg.iteritems() if key!='name'}
-        for i,group in enumerate(set(self.groups)):
+        for group in set(self.groups):
             subsystem=subsystems[self.groups.index(group)]
             subbasis,sublattice=subsystem['basis'],subsystem['lattice']
             subconfig=HP.IDFConfig(priority=config.priority,pids=subsystem['lattice'].pids,map=config.map)
@@ -84,8 +84,7 @@ class VCACCT(VCA):
                     **attributes
                     )
             self.subsystems[group].register(gf,run=False)
-            if i==0:
-                self.status.update(**self.subsystems[group].generator.parameters)
+        if self.status.map is None: self.status.update(OrderedDict((term.id,term.value) for term in terms+weiss))
         self.pthgenerator=HP.Generator(
                     bonds=          [bond for bond in lattice.bonds if not bond.isintracell() or bond.spoint.pid.scope!=bond.epoint.pid.scope],
                     config=         config,
@@ -111,9 +110,10 @@ class VCACCT(VCA):
         '''
         Update the engine.
         '''
-        for i,subsystem in enumerate(self.subsystems.itervalues()):
+        for subsystem in self.subsystems.itervalues():
             subsystem.update(**karg)
-            if i==0: self.status.update(alter=subsystem.generator.parameters['alter'])
+        self.status.update(karg)
+        karg=self.status.parameters(karg)
         self.pthgenerator.update(**karg)
         self.ptwgenerator.update(**karg)
         self.pthoperators=self.pthgenerator.operators

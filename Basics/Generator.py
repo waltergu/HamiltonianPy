@@ -65,7 +65,8 @@ class Generator(object):
         self.table=table
         self.dtype=dtype
         self.options=options
-        self.set_terms_operators_(terms)
+        self.set_terms(terms)
+        self.set_operators()
 
     def reset(self,bonds=None,config=None,table=None,terms=None,dtype=None,**options):
         '''
@@ -91,26 +92,55 @@ class Generator(object):
         if table is not None: self.table=table
         if dtype is not None: self.dtype=dtype
         if len(options)>0: self.options=options
-        if terms is not None: self.set_terms_operators_(terms)
+        if terms is not None: self.set_terms(terms)
+        self.set_operators()
 
-    def set_terms_operators_(self,terms):
+    def set_terms(self,terms):
         '''
         Set the terms and _operators_ of the generator.
         '''
         self.terms={'const':[],'alter':[]}
-        self._operators_={'const':Operators(),'alter':[]}
         if terms is not None:
             for term in terms:
                 if term.modulate is None:
                     self.terms['const'].append(term)
-                    for bond in self.bonds:
-                        self._operators_['const']+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
                 else:
                     self.terms['alter'].append(term)
-                    operators=Operators()
-                    for bond in self.bonds:
-                        operators+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
-                    self._operators_['alter'].append(operators)
+
+    def set_operators(self):
+        '''
+        Set the cache of the operators.
+        '''
+        self._operators_={'const':Operators(),'alter':[]}
+        for term in self.terms['const']:
+            for bond in self.bonds:
+                self._operators_['const']+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+        for term in self.terms['alter']:
+            operators=Operators()
+            for bond in self.bonds:
+                operators+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+            self._operators_['alter'].append(operators)
+
+    def set_matrix(self,optrep,*args,**kargs):
+        '''
+        Set the cache of the matrix representation of the operators.
+
+        Parameters
+        ----------
+        optrep : callable
+            The function to generate the matrix representation of a single operator.
+        args,kargs : optional
+            The extra arguments of the function `optrep`.
+        '''
+        self._matrix_={'const':0,'alter':[]}
+        for operator in self._operators_['const'].itervalues():
+            self._matrix_['const']+=optrep(operator,*args,**kargs)
+        for term in self.terms['alter']:
+            term,matrix=term.unit,0
+            for bond in self.bonds:
+                for operator in term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options).itervalues():
+                    matrix+=optrep(operator,*args,**kargs)
+            self._matrix_['alter'].append(matrix)
 
     def __str__(self):
         '''
@@ -128,11 +158,31 @@ class Generator(object):
         '''
         The parameters of the generator.
         '''
-        result={'const':OrderedDict(),'alter':OrderedDict()}
+        result=OrderedDict()
         for term in self.terms['const']:
-            result['const'][term.id]=term.value
+            result[term.id]=term.value
         for term in self.terms['alter']:
-            result['alter'][term.id]=term.value
+            result[term.id]=term.value
+        return result
+
+    @property
+    def const(self):
+        '''
+        The constant parameters of the generator.
+        '''
+        result=OrderedDict()
+        for term in self.terms['const']:
+            result[term.id]=term.value
+        return result
+
+    @property
+    def alter(self):
+        '''
+        The alterable parameters of the generator.
+        '''
+        result=OrderedDict()
+        for term in self.terms['alter']:
+            result[term.id]=term.value
         return result
 
     @property
@@ -168,27 +218,6 @@ class Generator(object):
                 self._operators_['alter'][pos]=Operators()
                 for bond in self.bonds:
                     self._operators_['alter'][pos]+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
-
-    def refresh(self,optrep,*args,**kargs):
-        '''
-        Refresh the cache of the matrix representation of the operators.
-
-        Parameters
-        ----------
-        optrep : callable
-            The function to generate the matrix representation of a single operator.
-        args,kargs : optional
-            The extra arguments of the function `optrep`.
-        '''
-        self._matrix_={'const':0,'alter':[]}
-        for operator in self._operators_['const'].itervalues():
-            self._matrix_['const']+=optrep(operator,*args,**kargs)
-        for term in self.terms['alter']:
-            term,matrix=term.unit,0
-            for bond in self.bonds:
-                for operator in term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options).itervalues():
-                    matrix+=optrep(operator,*args,**kargs)
-            self._matrix_['alter'].append(matrix)
 
     def view(self,bondmask=None,termmask=None,pidon=True,bonddr='+',show=True,suspend=False,close=True):
         '''

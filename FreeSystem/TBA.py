@@ -13,6 +13,7 @@ __all__=['TBA','GSE','TBAGSE','TBAEB','TBADOS','TBABC']
 from ..Basics import *
 from numpy import *
 from scipy.linalg import eigh
+from collections import OrderedDict
 import HamiltonianPy as HP
 import matplotlib.pyplot as plt
 
@@ -64,15 +65,15 @@ class TBA(Engine):
         self.config=config
         self.terms=terms
         self.mask=mask
+        if self.status.map is None: self.status.update(OrderedDict((term.id,term.value) for term in terms))
         self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms,half=True)
-        self.status.update(**self.generator.parameters)
 
     def update(self,**karg):
         '''
         This method update the engine.
         '''
-        self.generator.update(**karg)
-        self.status.update(alter=karg)
+        self.status.update(karg)
+        self.generator.update(**self.status.parameters(karg))
 
     @property
     def nmatrix(self):
@@ -243,13 +244,13 @@ def TBAEB(engine,app):
         result[0,1:]=eigh(engine.matrix(),eigvals_only=True)
         result[1,1:]=result[0,1:]
     if app.save_data:
-        savetxt('%s/%s_EB.dat'%(engine.dout,engine.status),result)
+        savetxt('%s/%s_EB.dat'%(engine.dout,engine.status.tostr(mask=() if app.path is None else app.path.tags)),result)
     if app.plot:
-        plt.title('%s_EB'%engine.status)
+        plt.title('%s_EB'%engine.status.tostr(mask=() if app.path is None else app.path.tags))
         plt.plot(result[:,0],result[:,1:])
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_EB.png'%(engine.dout,engine.status))
+        if app.save_fig: plt.savefig('%s/%s_EB.png'%(engine.dout,engine.status.tostr(mask=() if app.path is None else app.path.tags)))
         plt.close()
 
 def TBADOS(engine,app):

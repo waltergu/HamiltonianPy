@@ -95,20 +95,18 @@ class SCMF(TBA):
         self.filling=filling
         self.temperature=temperature
         self.mu=None
-        self.status.update(const={'filling':filling,'temperature':temperature})
         self.lattice=lattice
         self.config=config
         self.terms=terms
         self.orders=orders
         self.mask=mask
+        self.status.update({'filling':filling,'temperature':temperature})
+        self.status.update(OrderedDict((term.id,term.value) for term in (terms if self.status.map is None else [])+orders))
         self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms+orders,half=True)
-        self.status.update(**self.generator.parameters)
         self.ops=OrderedDict()
         for order in self.orders:
             m=zeros((self.nmatrix,self.nmatrix),dtype=complex128)
-            term=deepcopy(order)
-            term.value=1
-            for opt in Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=[term],half=True).operators.values():
+            for opt in Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=[order.unit],half=True).operators.values():
                 m[opt.seqs]+=opt.value
             m+=conjugate(m.T)
             self.ops[order.id]=OP(order.value,m)
@@ -123,8 +121,7 @@ class SCMF(TBA):
         kspace : BaseSpace, optional
             The Brillouin zone of the system.
         '''
-        self.generator.update(**{name:order.value for name,order in self.ops.iteritems()})
-        self.status.update(alter=self.generator.parameters['alter'])
+        self.update(**{name:order.value for name,order in self.ops.iteritems()})
         self.mu=super(SCMF,self).mu(self.filling,kspace)
         nmatrix=self.nmatrix
         f=(lambda e,mu: 1 if e<=mu else 0) if abs(self.temperature)<RZERO else (lambda e,mu: 1/(exp((e-mu)/self.temperature)+1))

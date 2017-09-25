@@ -10,6 +10,7 @@ Exact diagonalization for spin systems, including:
 __all__=['SED']
 
 from ED import *
+from collections import OrderedDict
 import numpy as np
 import HamiltonianPy as HP
 
@@ -52,7 +53,7 @@ class SED(ED):
         self.target=target
         self.dtype=dtype
         self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(),terms=terms,dtype=dtype)
-        self.status.update(**self.generator.parameters)
+        if self.status.map is None: self.status.update(OrderedDict((term.id,term.value) for term in terms))
         self.operators=self.generator.operators
 
     def set_matrix(self,refresh=True):
@@ -62,7 +63,7 @@ class SED(ED):
         if refresh:
             table=self.generator.table
             if self.target is None or len(table)<=1:
-                self.generator.refresh(HP.soptrep,table)
+                self.generator.set_matrix(HP.soptrep,table)
             else:
                 cut,qnses=len(table)/2,[self.qnses[index] for index in sorted(table,key=table.get)]
                 lqns,lpermutation=HP.QuantumNumbers.kron(qnses[:cut]).sort(history=True)
@@ -70,5 +71,5 @@ class SED(ED):
                 subslice=HP.QuantumNumbers.kron([lqns,rqns]).subslice(targets=(self.target,))
                 rcs=(np.divide(subslice,len(rqns)),np.mod(subslice,len(rqns)),np.zeros(len(lqns)*len(rqns),dtype=np.int64))
                 rcs[2][subslice]=xrange(len(subslice))
-                self.generator.refresh(HP.soptrep,table,cut=cut,permutations=(lpermutation,rpermutation),rcs=rcs)
+                self.generator.set_matrix(HP.soptrep,table,cut=cut,permutations=(lpermutation,rpermutation),rcs=rcs)
         self.matrix=self.generator.matrix

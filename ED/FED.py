@@ -13,6 +13,7 @@ __all__=['FED','FGF']
 from ED import *
 from scipy.sparse import csr_matrix
 from copy import deepcopy
+from collections import OrderedDict
 import HamiltonianPy as HP
 import numpy as np
 
@@ -49,14 +50,14 @@ class FED(ED):
         self.terms=terms
         self.dtype=dtype
         self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,dtype=dtype,half=True)
-        self.status.update(**self.generator.parameters)
+        if self.status.map is None: self.status.update(OrderedDict((term.id,term.value) for term in terms))
         self.operators=self.generator.operators
 
     def set_matrix(self,refresh=True):
         '''
         Set the csr_matrix representation of the Hamiltonian.
         '''
-        if refresh: self.generator.refresh(HP.foptrep,self.basis,transpose=False,dtype=self.dtype)
+        if refresh: self.generator.set_matrix(HP.foptrep,self.basis,transpose=False,dtype=self.dtype)
         matrix=self.generator.matrix
         self.matrix=matrix.T+matrix.conjugate()
 

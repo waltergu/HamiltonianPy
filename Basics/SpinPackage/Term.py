@@ -156,5 +156,5 @@ class SpinTerm(Term):
             value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
             if np.abs(value)>RZERO:
                 for spack in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
-                    result.append('sp:%s*%s'%(decimaltostr(value),repr(spack)))
+                    result.append('sp:%s*%s'%(decimaltostr(value,Term.NDECIMAL),repr(spack)))
         return '\n'.join(result)

@@ -12,7 +12,7 @@ __all__=['Status','Table','Index','Internal','IDFConfig','QNSConfig','IndexPack'
 import numpy as np
 import itertools as it
 from numpy.linalg import norm
-from Utilities import RZERO,Arithmetic
+from Utilities import RZERO,Arithmetic,decimaltostr
 from Geometry import PID
 from QuantumNumber import QuantumNumbers
 from collections import OrderedDict
@@ -29,16 +29,12 @@ class Status(object):
         Additional information of the object.
     data : OrderedDict
         The data of the object.
-        In current version, these are the parameters of the object.
-    _const_ : OrderedDict
-        The constant parameters of the object.
-    _alter_ : OrderedDict
-        The alterable parameters of the object.
-    _view_ : callable
-        The view of the data of the object.
+    map : callable
+        The function to map the data of the object to the parameters of the object.
     '''
+    NDECIMAL=5
 
-    def __init__(self,name='',info='',const=None,alter=None,view=None):
+    def __init__(self,name=None,info=None,data=(),map=None):
         '''
         Constructor.
 
@@ -48,60 +44,53 @@ class Status(object):
             The name of the object.
         info : any object
             Additional information of the object.
-        const,alter : OrderedDict, optional
-            The constant/alterable parameters of the object.
-        view : callable, optional
-            The view of the data of the object.
+        data : tuple of 2-tuples
+            The data of the object.
+        map : callable
+            The function to map the data of the object to the parameters of the object.
         '''
         self.name=name
         self.info=info
-        self._const_=OrderedDict() if const is None else const
-        self._alter_=OrderedDict() if alter is None else alter
-        self._view_=view
-        self.data=OrderedDict()
-        self.data.update(self._const_)
-        self.data.update(self._alter_)
-
-    @property
-    def view(self):
-        '''
-        The view of the data of the object.
-        '''
-        if self._view_ is None:
-            return self.data
-        else:
-            return self._view_(self.data)
+        self.data=OrderedDict(data)
+        self.map=map
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
-        result=[]
-        if len(str(self.name))>0:result.append(str(self.name))
-        if self._view_ is None:
-            if len(self._const_)>0:result.append('_'.join(str(v) for v in self._const_.itervalues()))
-            if len(self._alter_)>0:result.append('_'.join(str(v) for v in self._alter_.itervalues()))
-        else:
-            data=self._view_(self.data)
-            if len(self.data)>0:result.append('_'.join(str(v) for v in data.itervalues()))
-        if len(str(self.info))>0:result.append(str(self.info))
-        return '_'.join(result)
+        return self.tostr()
 
-    def update(self,const=None,alter=None):
+    def tostr(self,mask=()):
         '''
-        Update the parameters of the object.
+        Convert an instance to string.
 
         Parameters
         ----------
-        const,alter : dict, optional
-            The new parameters.
+        mask : tuple of str
+            The mask of the object's data.
+
+        Returns
+        -------
+        str
+            The converted string.
         '''
-        if const is not None:
-            self._const_.update(const)
-            self.data.update(const)
-        if alter is not None:
-            self._alter_.update(alter)
-            self.data.update(alter)
+        result=[]
+        if self.name is not None: result.append(str(self.name))
+        data='_'.join(decimaltostr(value,Status.NDECIMAL) for key,value in self.data.iteritems() if key not in mask)
+        if len(data)>0: result.append(data)
+        if self.info is not None: result.append(str(self.info))
+        return '_'.join(result)
+
+    def update(self,data):
+        '''
+        Update the data of the object.
+
+        Parameters
+        ----------
+        data : dict, optional
+            The new data.
+        '''
+        self.data.update(data)
 
     def __getitem__(self,key):
         '''
@@ -109,32 +98,19 @@ class Status(object):
         '''
         return self.data[key]
 
-    @property
-    def const(self):
+    def parameters(self,data):
         '''
-        This method returns a string representation of the status containing only the constant parameters.
+        Return the parameters of the object.
         '''
-        result=[]
-        if len(str(self.name))>0:result.append(str(self.name))
-        if len(self._const_)>0:result.append('_'.join([str(v) for v in self._const_.values()]))
-        if len(str(self.info))>0:result.append(str(self.info))
-        return '_'.join(result)
-
-    @property
-    def alter(self):
-        '''
-        This method returns a string representation of the status containing only the alterable parameters.
-        '''
-        result=[]
-        if len(str(self.name))>0:result.append(str(self.name))
-        if len(self._alter_)>0:result.append('_'.join([str(v) for v in self._alter_.values()]))
-        if len(str(self.info))>0:result.append(str(self.info))
-        return '_'.join(result)
+        return data if self.map is None else self.map(data)
 
     def __le__(self,other):
         '''
         Overloaded operator(<=).
-        If ``self.data`` is a subset of ``other.data``, return True. Otherwise False.
+
+        Notes
+        -----
+        When ``self.data`` is a subset of ``other.data``, return True. Otherwise False.
         '''
         try:
             for key,value in self.data.iteritems():
@@ -148,7 +124,10 @@ class Status(object):
     def __ge__(self,other):
         '''
         Overloaded operator(>=).
-        If ``other.data`` is a subset of ``self.data``, return True. Otherwise False.
+
+        Notes
+        -----
+        When ``other.data`` is a subset of ``self.data``, return True. Otherwise False.
         '''
         return other.__le__(self)
 
