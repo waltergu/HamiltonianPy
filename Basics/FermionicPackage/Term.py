@@ -165,6 +165,13 @@ class Quadratic(Term):
             result+=operators(expansion(bond.reversed,config,half),bond.reversed,table)
         return result
 
+    @property
+    def unit(self):
+        '''
+        The unit term.
+        '''
+        return self.replace(value=1.0)
+
     def strrep(self,bond,config):
         '''
         The string representation of the term on a bond.
@@ -347,6 +354,16 @@ class Hubbard(Term):
             if not half: result+=result.dagger
         return result
 
+    @property
+    def unit(self):
+        '''
+        The unit term.
+        '''
+        if len(self)==1:
+            return self.replace(value=1.0)
+        else:
+            raise TypeError('Hubbard unit error: not supported.')
+
     def strrep(self,bond,config):
         '''
         The string representation of the term on a bond.
@@ -495,6 +512,13 @@ class Coulomb(Term):
                                 icoord=     bond.icoord
                                 )
         return result
+
+    @property
+    def unit(self):
+        '''
+        The unit term.
+        '''
+        return self.replace(value=1.0)
 
     def strrep(self,bond,config):
         '''

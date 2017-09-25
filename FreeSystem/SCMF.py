@@ -102,8 +102,7 @@ class SCMF(TBA):
         self.orders=orders
         self.mask=mask
         self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms+orders,half=True)
-        self.status.update(const=self.generator.parameters['const'])
-        self.status.update(alter=self.generator.parameters['alter'])
+        self.status.update(**self.generator.parameters)
         self.ops=OrderedDict()
         for order in self.orders:
             m=zeros((self.nmatrix,self.nmatrix),dtype=complex128)

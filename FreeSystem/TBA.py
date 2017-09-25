@@ -65,7 +65,7 @@ class TBA(Engine):
         self.terms=terms
         self.mask=mask
         self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms,half=True)
-        self.status.update(const=self.generator.parameters['const'],alter=self.generator.parameters['alter'])
+        self.status.update(**self.generator.parameters)
 
     def update(self,**karg):
         '''

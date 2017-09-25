@@ -93,6 +93,13 @@ class Term(Arithmetic):
         '''
         raise ValueError('%s operators error: it is not implemented.'%self.__class__.__name__)
 
+    @property
+    def unit(self):
+        '''
+        The unit term.
+        '''
+        raise NotImplementedError('%s unit error: it is not implemented.'%self.__class__.__name__)
+
     def strrep(self,bond,config):
         '''
         The string representation of the term on a bond.

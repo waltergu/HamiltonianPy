@@ -49,19 +49,16 @@ class FED(ED):
         self.terms=terms
         self.dtype=dtype
         self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,dtype=dtype,half=True)
-        self.status.update(const=self.generator.parameters['const'])
-        self.status.update(alter=self.generator.parameters['alter'])
+        self.status.update(**self.generator.parameters)
         self.operators=self.generator.operators
 
-    def set_matrix(self):
+    def set_matrix(self,refresh=True):
         '''
         Set the csr_matrix representation of the Hamiltonian.
         '''
-        self.matrix=0
-        for operator in self.operators.itervalues():
-            self.matrix+=HP.foptrep(operator,self.basis,transpose=False,dtype=self.dtype)
-        self.matrix+=self.matrix.T.conjugate()
-        self.matrix=self.matrix.T
+        if refresh: self.generator.refresh(HP.foptrep,self.basis,transpose=False,dtype=self.dtype)
+        matrix=self.generator.matrix
+        self.matrix=matrix.T+matrix.conjugate()
 
     def __replace_basis__(self,nambu,spin):
         '''

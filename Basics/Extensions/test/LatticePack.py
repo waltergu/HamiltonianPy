@@ -22,7 +22,7 @@ def test_extensions_square():
 
 def test_extensions_hexagon():
     print 'test_extensions_hexagon'
-    for name in ['H2','H4','H6','H8O','H8P','H10']:
+    for name in ['H2','H4','H6','H8O','H8P','H10','H24']:
         lattice=Hexagon(name)('1P-1P')
         lattice.plot(pidon=True)
     for name in ['H4A','H4B']:

@@ -58,7 +58,7 @@ class ED(HP.Engine):
         self.operators=self.generator.operators
         self.status.update(alter=self.generator.parameters['alter'])
 
-    def set_matrix(self):
+    def set_matrix(self,refresh=True):
         '''
         Set the csr_matrix representation of the Hamiltonian.
         '''
@@ -156,7 +156,7 @@ def EDEL(engine,app):
         engine.update(**paras)
         engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.view.iteritems()))
         with timers.get('Matrix'):
-            engine.set_matrix()
+            engine.set_matrix(refresh=True if i==0 else False)
         with timers.get('GSE'):
             result[i,1:app.ns+1]=eigsh(engine.matrix,k=app.ns,which='SA',return_eigenvectors=False)
         timers.record()

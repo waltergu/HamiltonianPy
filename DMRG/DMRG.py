@@ -132,8 +132,7 @@ class DMRG(Engine):
         self.target=target
         self.dtype=dtype
         self.generator=Generator(bonds=lattice.bonds,config=config,terms=terms,dtype=dtype,half=False)
-        self.status.update(const=self.generator.parameters['const'])
-        self.status.update(alter=self.generator.parameters['alter'])
+        self.status.update(**self.generator.parameters)
         self.set_operators()
         self.set_mpo()
         self.set_Hs_()

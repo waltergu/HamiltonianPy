@@ -85,8 +85,7 @@ class VCACCT(VCA):
                     )
             self.subsystems[group].register(gf,run=False)
             if i==0:
-                self.status.update(const=self.subsystems[group].generator.parameters['const'])
-                self.status.update(alter=self.subsystems[group].generator.parameters['alter'])
+                self.status.update(**self.subsystems[group].generator.parameters)
         self.pthgenerator=HP.Generator(
                     bonds=          [bond for bond in lattice.bonds if not bond.isintracell() or bond.spoint.pid.scope!=bond.epoint.pid.scope],
                     config=         config,

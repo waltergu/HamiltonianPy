@@ -52,24 +52,23 @@ class SED(ED):
         self.target=target
         self.dtype=dtype
         self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(),terms=terms,dtype=dtype)
-        self.status.update(const=self.generator.parameters['const'])
-        self.status.update(alter=self.generator.parameters['alter'])
+        self.status.update(**self.generator.parameters)
         self.operators=self.generator.operators
 
-    def set_matrix(self):
+    def set_matrix(self,refresh=True):
         '''
         Set the csr_matrix representation of the Hamiltonian.
         '''
-        self.matrix,table=0,self.generator.table
-        if self.target is None or len(table)<=1:
-            for operator in self.operators.itervalues():
-                self.matrix+=HP.soptrep(operator,table)
-        else:
-            cut,qnses=len(table)/2,[self.qnses[index] for index in sorted(table,key=table.get)]
-            lqns,lpermutation=HP.QuantumNumbers.kron(qnses[:cut]).sort(history=True)
-            rqns,rpermutation=HP.QuantumNumbers.kron(qnses[cut:]).sort(history=True)
-            subslice=HP.QuantumNumbers.kron([lqns,rqns]).subslice(targets=(self.target,))
-            rcs=(np.divide(subslice,len(rqns)),np.mod(subslice,len(rqns)),np.zeros(len(lqns)*len(rqns),dtype=np.int64))
-            rcs[2][subslice]=xrange(len(subslice))
-            for operator in self.operators.itervalues():
-                self.matrix+=HP.soptrep(operator,table,cut=cut,permutations=(lpermutation,rpermutation),rcs=rcs)
+        if refresh:
+            table=self.generator.table
+            if self.target is None or len(table)<=1:
+                self.generator.refresh(HP.soptrep,table)
+            else:
+                cut,qnses=len(table)/2,[self.qnses[index] for index in sorted(table,key=table.get)]
+                lqns,lpermutation=HP.QuantumNumbers.kron(qnses[:cut]).sort(history=True)
+                rqns,rpermutation=HP.QuantumNumbers.kron(qnses[cut:]).sort(history=True)
+                subslice=HP.QuantumNumbers.kron([lqns,rqns]).subslice(targets=(self.target,))
+                rcs=(np.divide(subslice,len(rqns)),np.mod(subslice,len(rqns)),np.zeros(len(lqns)*len(rqns),dtype=np.int64))
+                rcs[2][subslice]=xrange(len(subslice))
+                self.generator.refresh(HP.soptrep,table,cut=cut,permutations=(lpermutation,rpermutation),rcs=rcs)
+        self.matrix=self.generator.matrix

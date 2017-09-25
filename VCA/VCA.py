@@ -178,8 +178,7 @@ class VCA(ED.FED):
             dtype=      dtype,
             half=       True
             )
-        self.status.update(const=self.generator.parameters['const'])
-        self.status.update(alter=self.generator.parameters['alter'])
+        self.status.update(**self.generator.parameters)
         self.operators=self.generator.operators
         self.pthoperators=self.pthgenerator.operators
         self.ptwoperators=self.ptwgenerator.operators

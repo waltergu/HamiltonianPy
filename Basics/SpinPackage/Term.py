@@ -128,6 +128,13 @@ class SpinTerm(Term):
                         raise ValueError('SpinTerm operators error: not supported yet.')
         return result
 
+    @property
+    def unit(self):
+        '''
+        The unit term.
+        '''
+        return self.replace(value=1.0)
+
     def strrep(self,bond,config):
         '''
         The string representation of the term on a bond.
