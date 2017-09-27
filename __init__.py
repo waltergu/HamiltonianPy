@@ -29,6 +29,7 @@ SUBPACKAGE        DESCRIPTION
 `Basics`          The general framework of the Hamiltonian-based algorithms
 `Misc`            Miscellaneous functions and classes as supports to the algorithms
 `FreeSystem`      Free fermionic system algorithm, including TBA, BdG, Floquet and SCMF
+`FBFM`            Spin excitations for flat band ferromagnets
 `ED`              Exact diagonalization for fermionic systems and spin systems
 `VCA`             CPT and VCA for fermionic systems
 `TensorNetwork`   Tensor, MPS and MPO
@@ -47,6 +48,7 @@ Contents
    Basics/index
    Misc/index
    FreeSystem/index
+   FBFM/index
    ED/index
    VCA/index
    TensorNetwork/index

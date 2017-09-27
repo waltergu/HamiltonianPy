@@ -5,10 +5,10 @@ Parameter spaces and K-spaces
 
 BaseSpace, including
     * classes: BaseSpace, FBZ
-    * functions: KSpace, TSpace.
+    * functions: KSpace, KPath, TSpace.
 '''
 
-__all__=['BaseSpace', 'KSpace', 'TSpace', 'FBZ']
+__all__=['BaseSpace', 'KSpace', 'KPath', 'TSpace', 'FBZ']
 
 from Geometry import volume,isonline
 from QuantumNumber import QuantumNumbers,NewQuantumNumber
@@ -141,6 +141,37 @@ def KSpace(reciprocals,nk=100,segments=None,end=False):
     mesh=[np.dot([a+(b-a)*i/(nk-1 if end else nk) for (a,b),i in zip(segments,pos)],reciprocals) for pos in it.product(*([xrange(nk)]*nvectors))]
     return BaseSpace(('k',np.asarray(mesh),np.abs(vol)))
 
+def KPath(path,nk=100,ends=None,mode='R'):
+    '''
+    This functions constructs a path in the K space.
+
+    Parameters
+    ----------
+    path : iterable with the elements in the form (start,stop)
+        * start : 1d ndarray
+            The start point in the k space.
+        * stop : 1d ndarray
+            The stop point in the k space.
+    nk : int, optional
+        The number of k points for every or the shortest segment.
+    ends : iterable of logical, optional
+        True for including the stop point of the corresponding segment in the path and False for not.
+    mode : 'R', 'E', optional
+        * When 'R', the number of k points for the shortest segment is `nk` and the numbers of others are determined by their length relative to the shortest one.
+        * When 'E', the number of k points for every segment is 'nk'.
+
+    Returns
+    -------
+    BaseSpace
+        The wanted path.
+    '''
+    assert mode.upper() in ('R','E')
+    lengths=[nl.norm(stop-start) for start,stop in path]
+    nks=[nk]*len(path) if mode.upper()=='R' else [int(length/min(lengths)*nk) for length in lengths]
+    ends=[False]*len(path) if ends is None else ends
+    assert len(ends)==len(path)
+    return BaseSpace(('k',np.array([start+(stop-start)/(nk-1 if end else nk)*i for (start,stop),nk,end in zip(path,nks,ends) for i in xrange(nk)])))
+
 def TSpace(mesh):
     '''
     The time space.
@@ -160,6 +191,13 @@ class FBZ(QuantumNumbers,BaseSpace):
     def __init__(self,reciprocals,nks=None):
         '''
         Constructor.
+
+        Parameters
+        ----------
+        reciprocals : iterable of 1d ndarray
+            The translation vectors of the reciprocal lattice.
+        nks : iterable of int, optional
+            The number of points along each translation vector i.e. the periods along each direction.
         '''
         nks=(nks or 100,)*len(reciprocals) if type(nks) in (int,long,type(None)) else nks
         assert len(nks)==len(reciprocals)
@@ -177,7 +215,7 @@ class FBZ(QuantumNumbers,BaseSpace):
         The mesh of the FBZ.
         '''
         nks=np.array(self.type.periods,dtype=np.float64)
-        mesh=np.zeros(self.contents.shape,dtype=self.reciprocals.dtype)
+        mesh=np.zeros((self.contents.shape[0],self.reciprocals.shape[1]),dtype=self.reciprocals.dtype)
         for i,icoord in enumerate(self.contents):
             mesh[i,:]=np.dot(self.reciprocals.T,icoord/nks)
         return [mesh]
@@ -198,27 +236,52 @@ class FBZ(QuantumNumbers,BaseSpace):
         '''
         return np.dot(self.reciprocals.T,np.asarray(k)/np.array(self.type.periods,dtype=np.float64))
 
-    def path(self,*paths):
+    def path(self,path,ends=None,mode='P'):
         '''
         Select a path from the FBZ.
 
         Parameters
         ----------
-        paths : 
+        path : iterable with the elements in the form (start,stop)
+            * start : 1d ndarray
+                The start point in the k space.
+            * stop : 1d ndarray
+                The stop point in the k space.
+        ends : iterable of logical, optional
+            True for including the stop point of the corresponding segment in the path and False for not.
+        mode : 'P','I','B', optional
+            'P' for 'point', 'I' for 'index' and 'B' for both.
 
         Returns
         -------
-        BaseSpace
+        * When ``mode=='P'`` : BaseSpace
             The selected path.
+        * When ``mode=='I'`` : 1d ndarray
+            The indices of the selected path.
+        * When ``mode=='B'`` : 2-tuple
+            The selected path and its indices.
         '''
-        disps=[np.dot(self.reciprocals.T,disp) for disp in list(it.product(*([[0,-1]]*len(self.reciprocals))))]
+        mode,ends=mode.upper(),[False]*len(path) if ends is None else ends
+        assert mode in ('P','I','B') and len(ends)==len(path)
         maxp=max(self.type.periods)
-        segments=[[] for i in xrange(len(paths))]
-        for rcoord0 in self.mesh('k'):
+        disps=[np.dot(self.reciprocals.T,disp) for disp in list(it.product(*([[0,-1]]*len(self.reciprocals))))]
+        psegments,isegments,dsegments=[[] for i in xrange(len(path))],[[] for i in xrange(len(path))],[[] for i in xrange(len(path))]
+        for pos,rcoord0 in enumerate(self.mesh('k')):
             for disp in disps:
                 rcoord=rcoord0+disp
-                for i,(start,end) in enumerate(paths):
-                    if isonline(rcoord,start,end,ends=(True,False),rtol=10**-3/maxp):segments[i].append(rcoord)
-        for i,segment in enumerate(segments):
-            segment.sort(key=lambda k: nl.norm(k-paths[i][0]))
-        return BaseSpace(('k',np.concatenate(segments)))
+                for i,((start,stop),end) in enumerate(zip(path,ends)):
+                    if isonline(rcoord,start,stop,ends=(True,end),rtol=10**-3/maxp):
+                        psegments[i].append(rcoord)
+                        isegments[i].append(pos)
+                        dsegments[i].append(nl.norm(rcoord-start))
+        points,indices=[],[]
+        for psegment,isegment,dsegment in zip(psegments,isegments,dsegments):
+            permutation=np.argsort(np.array(dsegment))
+            points.append(np.array(psegment)[permutation,:])
+            indices.append(np.array(isegment)[permutation])
+        if mode=='P':
+            return BaseSpace(('k',np.concatenate(points)))
+        if mode=='I':
+            return np.concatenate(indices)
+        if mode=='B':
+            return BaseSpace(('k',np.concatenate(points))),np.concatenate(indices)

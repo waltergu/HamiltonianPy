@@ -6,6 +6,7 @@ __all__=['test_basespace']
 
 from numpy import *
 from HamiltonianPy.Basics.BaseSpace import *
+import numpy.linalg as nl
 import time
 
 def test_basespace():
@@ -22,10 +23,12 @@ def test_basespace():
     square.plot(name='square(fbz)')
 
     t1=time.time()
-    path=square.path((0,a1/2),(a1/2,(a1+a2)/2),((a1+a2)/2,-(a1+a2)/2),(-(a1+a2)/2,-a2/2),(-a2/2,0))
+    path=square.path([(0,a1/2),(a1/2,(a1+a2)/2),((a1+a2)/2,-(a1+a2)/2),(-(a1+a2)/2,-a2/2),(-a2/2,0)])
     t2=time.time()
     print 'time,rank: %1.2fs,%s'%(t2-t1,path.rank('k'))
     path.plot(name='square(path)')
+    path,indices=square.path([(0,a1/2),(a1/2,(a1+a2)/2),((a1+a2)/2,0)],mode='B')
+    print 'diff: %s'%nl.norm(square.mesh('k')[indices,:]-path.mesh('k'))
 
     b1,b2=array([1.0,0.0]),array([0.5,sqrt(3.0)/2])
     hexagon=KSpace(reciprocals=[b1,b2],nk=nk)
@@ -37,7 +40,7 @@ def test_basespace():
     hexagon.plot(name='hexagon(fbz)')
 
     t1=time.time()
-    path=hexagon.path((0,b1/2),(b1/2,(b1+b2)/3),((b1+b2)/3,-(b1+b2)/3),(-(b1+b2)/3,-b2/2),(-b2/2,0))
+    path=hexagon.path([(0,b1/2),(b1/2,(b1+b2)/3),((b1+b2)/3,-(b1+b2)/3),(-(b1+b2)/3,-b2/2),(-b2/2,0)])
     t2=time.time()
     print 'time,rank: %1.2fs,%s'%(t2-t1,path.rank('k'))
     path.plot(name='hexagon(path)')

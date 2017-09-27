@@ -75,7 +75,7 @@ class Manager(object):
         Subcommand add, which adds an engine to this project.
         '''
         subcommand=self.add_subcommand('add',add)
-        subcommand.add_argument('engine',help='The engine to be added to the project.',choices=['tba','ed','vca','dmrg'])
+        subcommand.add_argument('engine',help='The engine to be added to the project.',choices=['tba','ed','vca','dmrg','fbfm'])
         subcommand.add_argument('-s','--system',help="'spin' for spin systems and 'fermi' for fermionic systems.",default='fermi',choices=['spin','fermi'])
 
     def execute(self):
@@ -159,7 +159,7 @@ def add(engine,system):
 
     Parameters
     ----------
-    engine : 'tba','ed','vca','dmrg'
+    engine : 'tba','ed','vca','dmrg','fbfm'
         The engine ot be added.
     system : 'spin' or 'fermi'
         'spin' for spin systems and 'fermi' for fermionic systems.

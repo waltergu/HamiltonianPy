@@ -1,9 +1,9 @@
 '''
 Project templates, including:
-    * functions: manager, config, gitignore, license, tba, ed, vca, dmrg
+    * functions: manager, config, gitignore, license, tba, ed, vca, dmrg, fbfm
 '''
 
-__all__=['license','gitignore','manager','config','tba','ed','vca','dmrg']
+__all__=['license','gitignore','manager','config','tba','ed','vca','dmrg','fbfm']
 
 import datetime
 
@@ -60,14 +60,14 @@ if __name__=='__main__':
 config_template="""\
 from HamiltonianPy import *
 
-__all__=['name','nneighbour','map','idfmap','qnsmap']
+__all__=['name','nneighbour','parametermap','idfmap','qnsmap']
 
 # The configs of the model
 name=None
 nneighbour=None
 
-# parameter map
-map=None
+# parametermap
+parametermap=None
 
 # idfmap
 idfmap=lambda pid: None
@@ -97,7 +97,7 @@ def tbaconstruct(parameters,lattice,terms,**karg):
         log=        '%s_%s_[%s]_TBA.log'%(name,lattice.name,','.join(decimaltostr(v) for v in parameters.itervalues())),
         name=       '%s_%s'%(name,lattice.name),
         parameters= parameters,
-        map=        map,
+        map=        parametermap,
         lattice=    lattice,
         config=     config,
         terms=      [term(**parameters) for term in terms],
@@ -124,7 +124,7 @@ def edconstruct(parameters,lattice,target,terms,**karg):
         log=        '%s_%s_%s_[%s]_ED.log'%(name,lattice.name,repr(target),','.join(decimaltostr(v) for v in parameters.itervalues())),
         name=       '%s_%s_%s'%(name,lattice.name,repr(target)),
         parameters= parameters,
-        map=        map,
+        map=        parametermap,
         qnses=      qnses,
         lattice=    lattice,
         config=     config,
@@ -152,7 +152,7 @@ def edconstruct(parameters,basis,lattice,terms,**karg):
         log=        '%s_%s_%s_[%s]_ED.log'%(name,lattice.name,basis.rep,','.join(decimaltostr(v) for v in parameters.itervalues())),
         name=       '%s_%s_%s'%(name,lattice.name,basis.rep),
         parameters= parameters,
-        map=        map,
+        map=        parametermap,
         basis=      basis,
         lattice=    lattice,
         config=     config,
@@ -183,7 +183,7 @@ def vcaconstruct(parameters,basis,cell,lattice,terms,weiss,mask=['nambu'],**karg
         cgf=        cgf,
         name=       '%s_%s_%s'%(name,lattice.name,basis.rep),
         parameters= parameters,
-        map=        map,
+        map=        parametermap,
         basis=      basis,
         cell=       cell,
         lattice=    lattice,
@@ -214,7 +214,7 @@ def dmrgconstruct(parameters,lattice,terms,targets,core='idmrg',**karg):
         log=        '%s_%s_[%s]_%s_DMRG.log'%(name,lattice.name.replace('+',str(2*len(targets))),','.join(decimaltostr(v) for v in parameters.itervalues()),repr(targets[-1])),
         name=       '%s_%s'%(name,lattice.name),
         parameters= parameters,
-        map=        map,
+        map=        parametermap,
         mps=        MPS(mode='NB' if targets[-1] is None else 'QN'),
         lattice=    lattice,
         config=     IDFConfig(priority=priority,map=idfmap),
@@ -237,6 +237,35 @@ def dmrgconstruct(parameters,lattice,terms,targets,core='idmrg',**karg):
     return dmrg
 """
 
+fbfm_template="""\
+import numpy as np
+import HamiltonianPy.FBFM as FB
+from HamiltonianPy import *
+from config import *
+
+__all__=['fbfmconstruct']
+
+def fbfmconstruct(parameters,lattice,terms,interactions,**karg):
+    # edit the value of nks if needed
+    basis=FB.FBFMBasis(BZ=FBZ(lattice.reciprocals,nks=(50,)*len(lattice.reciprocals) if len(lattice.reciprocals)>0 else None),polarization='up')
+    fbfm=FB.FBFM(
+        dlog=           'log',
+        din=            'data',
+        dout=           'result/fbfm',
+        log=            '%s_%s_%s_[%s]_FBFM.log'%(name,lattice.name,basis.polarization,','.join(decimaltostr(v) for v in parameters.itervalues())),
+        name=           '%s_%s_%s'%(name,lattice.name,basis.polarization),
+        parameters=     parameters,
+        map=            parametermap,
+        basis=          basis,
+        lattice=        lattice,
+        config=         IDFConfig(priority=FB.FBFM_PRIORITY,pids=lattice.pids,map=idfmap),
+        terms=          [term(**parameters) for term in terms],
+        interactions=   [term(**parameters) for term in interactions],
+        dtype=          np.complex128
+    )
+    return fbfm
+"""
+
 def license(authors): return license_template.format(year=datetime.datetime.now().year,authors=authors)
 def gitignore(): return gitignore_template
 def manager(): return manager_template
@@ -245,3 +274,4 @@ def tba(*arg): return tba_template
 def ed(system): return sed_template if system=='spin' else fed_template
 def vca(*arg): return vca_template
 def dmrg(system): return dmrg_template.format(system='SPIN' if system=='spin' else 'FERMIONIC',mask='' if system=='spin' else 'nambu')
+def fbfm(*arg): return fbfm_template

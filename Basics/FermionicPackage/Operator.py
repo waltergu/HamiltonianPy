@@ -129,13 +129,13 @@ class FOperator(Operator):
             The reordered operator.
         '''
         assert len(permutation)==self.rank
-        return FOperator(
-            value=      self.value*parity(permutation),
-            indices=    tuple(self.indices[i] for i in permutation),
-            seqs=       None if self.seqs is None else tuple(self.seqs[i] for i in permutation),
-            rcoord=     None if self.rcoord is None else (-1)**reverse_coord*self.rcoord,
-            icoord=     None if self.icoord is None else (-1)**reverse_coord*self.icoord
-        )
+        result=FOperator.__new__(self.__class__)
+        super(FOperator,result).__init__(self.value)
+        result.indices=tuple(self.indices[i] for i in permutation)
+        result.seqs=None if self.seqs is None else tuple(self.seqs[i] for i in permutation)
+        result.rcoord=None if self.rcoord is None else (-1)**reverse_coord*self.rcoord
+        result.icoord=None if self.icoord is None else (-1)**reverse_coord*self.icoord
+        return result
 
 class FLinear(FOperator):
     '''

@@ -21,7 +21,7 @@ def foptrep(operator,basis,transpose=False,dtype=np.complex128):
     Parameters
     ----------
     operator : FOperator
-        Three kinds of operators are supported, flinear, fquadratic and fhubbard.
+        Four kinds of operators are supported, FLinear, FQuadratic, FHubbard and FCoulomb.
     basis : FBasis or 2-list of FBasis
         * When operator.rank is odd it should be a 2-list of FBasis. Otherwise it is an instance of FBasis.
         * When the input operator represents a pairing term, basis.mode must be "FG" because of the non-conservation of particle numbers.

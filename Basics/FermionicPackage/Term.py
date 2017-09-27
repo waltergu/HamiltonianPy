@@ -335,7 +335,7 @@ class Hubbard(Term):
             for value,index1,index2,index3,index4 in expansion:
                 if np.abs(value)>RZERO:
                     if table is None:
-                        opt=FHubbard(value=dtype(value),indices=(index1,index2,index3,index4),seqs=None,rcoord=bond.epoint.rcoord,icoord=bond.epoint.icoord)
+                        result+=FHubbard(value=dtype(value),indices=(index1,index2,index3,index4),seqs=None,rcoord=bond.epoint.rcoord,icoord=bond.epoint.icoord)
                     else:
                         masks=next(iter(table)).masks
                         temp1=index1.replace(nambu=1-index1.nambu).mask(*masks)
@@ -343,15 +343,15 @@ class Hubbard(Term):
                         temp3=index3.mask(*masks)
                         temp4=index4.mask(*masks)
                         if temp1 in table and temp2 in table and temp3 in table and temp4 in table:
-                            opt=FHubbard(
+                            result+=FHubbard(
                                 value=      dtype(value),
                                 indices=    (index1,index2,index3,index4),
                                 seqs=       (table[temp1],table[temp2],table[temp3],table[temp4]),
                                 rcoord=     bond.epoint.rcoord,
                                 icoord=     bond.epoint.icoord
                                 )
-                    result+=opt.reorder([0,3,1,2],reverse_coord=False) if order=='density' else opt
             if not half: result+=result.dagger
+            if order=='density': result=Operators((opt.id,opt) for opt in [opt.reorder([0,3,1,2],reverse_coord=False) for opt in result.itervalues()])
         return result
 
     @property

@@ -10,7 +10,7 @@ from HamiltonianPy.QMC import *
 
 def test_dqmc():
     print 'test_dqmc'
-    #test_B()
+    test_B()
     test_Bs()
     print
 
