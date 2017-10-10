@@ -12,20 +12,20 @@ def test_tba():
     print 'test_tba'
     print 'open boundary conditions'
     print '------------------------'
-    op=tba_construct(bc='op')
+    op=tbaconstruct(bc='op')
     op.register(EB(name='EB-1',path=BaseSpace(('mu',linspace(-3,3,num=201))),save_data=False,run=TBAEB))
     op.register(EB(name='EB-2',parameters={'mu':0.0},save_data=False,run=TBAEB))
     op.register(DOS(name='DOS',parameters={'mu':0.0},ne=400,eta=0.01,save_data=False,run=TBADOS))
     op.summary()
     print 'periodic boundary conditions'
     print '------------------------'
-    pd=tba_construct(bc='pd')
+    pd=tbaconstruct(bc='pd')
     pd.register(EB(name='EB',parameters={'mu':0.2},path=KSpace(reciprocals=pd.lattice.reciprocals,nk=200),save_data=False,run=TBAEB))
     pd.register(DOS(name='DOS',parameters={'mu':0.0},BZ=KSpace(reciprocals=pd.lattice.reciprocals,nk=10000),eta=0.01,ne=400,save_data=False,run=TBADOS))
     pd.summary()
     print
 
-def tba_construct(bc='op'):
+def tbaconstruct(bc='op'):
     p1,p2=array([0.0,0.0]),array([0.5,0.0])
     a1=array([1.0,0.0])
     if bc in ('op',):

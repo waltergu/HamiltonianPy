@@ -244,13 +244,13 @@ def TBAEB(engine,app):
         result[0,1:]=eigh(engine.matrix(),eigvals_only=True)
         result[1,1:]=result[0,1:]
     if app.save_data:
-        savetxt('%s/%s_EB.dat'%(engine.dout,engine.status.tostr(mask=() if app.path is None else app.path.tags)),result)
+        savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=() if app.path is None else app.path.tags),app.status.name),result)
     if app.plot:
-        plt.title('%s_EB'%engine.status.tostr(mask=() if app.path is None else app.path.tags))
+        plt.title('%s_%s'%(engine.status.tostr(mask=() if app.path is None else app.path.tags),app.status.name))
         plt.plot(result[:,0],result[:,1:])
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_EB.png'%(engine.dout,engine.status.tostr(mask=() if app.path is None else app.path.tags)))
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.tostr(mask=() if app.path is None else app.path.tags),app.status.name))
         plt.close()
 
 def TBADOS(engine,app):
@@ -265,13 +265,13 @@ def TBADOS(engine,app):
        result[i,0]=v
        result[i,1]=sum(app.eta/((v-eigvals)**2+app.eta**2))
     if app.save_data:
-        savetxt('%s/%s_DOS.dat'%(engine.dout,engine.status),result)
+        savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
     if app.plot:
-        plt.title('%s_DOS'%engine.status)
+        plt.title('%s_%s'%(engine.status,app.status.name))
         plt.plot(result[:,0],result[:,1])
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_DOS.png'%(engine.dout,engine.status))
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
         plt.close()
 
 def TBABC(engine,app):
@@ -284,15 +284,15 @@ def TBABC(engine,app):
         result=zeros((app.BZ.rank('k'),3))
         result[:,0:2]=app.BZ.mesh('k')
         result[:,2]=app.bc
-        if app.save_data: savetxt('%s/%s_BC.dat'%(engine.dout,engine.status),result)
+        if app.save_data: savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
         if app.plot:
             nk=int(round(sqrt(app.BZ.rank('k'))))
-            plt.title('%s_BC'%engine.status)
+            plt.title('%s_%s'%(engine.status,app.status.name))
             plt.axis('equal')
             plt.colorbar(plt.pcolormesh(result[:,0].reshape((nk,nk)),result[:,1].reshape((nk,nk)),result[:,2].reshape((nk,nk))))
             if app.show and app.suspend: plt.show()
             if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-            if app.save_fig: plt.savefig('%s/%s_BC.png'%(engine.dout,engine.status))
+            if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
             plt.close()
 
 def TBAGF(engine,app):

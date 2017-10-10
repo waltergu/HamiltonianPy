@@ -22,7 +22,7 @@ def SSF(mps1,mps2,sys):
 
     References
     ----------
-    See J. -G. Liu, Z. -L. Gu, J. -X. Li and Q.-H. Wang, arXiv:1609.09309.
+    See http://iopscience.iop.org/article/10.1088/1367-2630/aa6a4b/meta;jsessionid=0CED3A73D4B3970070E6216EC3AA6BF1.c1.iopscience.cld.iop.org
     '''
     assert mps1.nsite==mps2.nsite
     if sys.start in (None,0):

@@ -549,21 +549,20 @@ class GPM(HP.App):
     BS : BaseSpace or dict
         * When BaseSpace, it is the basespace on which the grand potential is to be computed;
         * When dict, it is the initial guess of the minimum point in the basespace.
-    extras : dict, optional
-        It exists only when BS is a dict.
-
-        * entry 'fout': string
-            The output file that contains the results.
-        * entry 'method', entry 'options':
-            Please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
-
+    extras : dict
+        The extra parameters passed to scipy.optimize.minimize.
+        Please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
     bsm : dict
         The minimum point in the base space.
     gpm : np.float64
         The minimum value of the grand potential.
+
+    Notes
+    -----
+    `extras` will be omitted if `BS` is an instance of `BaseSpace`.
     '''
 
-    def __init__(self,BS,fout=None,method=None,options=None,**karg):
+    def __init__(self,BS,method=None,options=None,**karg):
         '''
         Constructor.
 
@@ -572,17 +571,11 @@ class GPM(HP.App):
         BS : BaseSpace or dict
             * When BaseSpace, it is the basespace on which the grand potential is to be computed;
             * When dict, it is the initial guess of the minimum point in the basespace.
-        fout : string, optional
-            The output file that contains the results.
         method, options:
             Please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
-
-        Notes
-        -----
-        `fout`, `method` and `options` will be omitted if `BS` is an instance of `BaseSpace`.
         '''
         self.BS=BS
-        if isinstance(BS,dict): self.extras={'fout':fout,'method':method,'options':options}
+        self.extras={'method':method,'options':options}
         self.bsm={}
         self.gpm=0.0
 
@@ -605,36 +598,24 @@ def VCAGPM(engine,app):
         index=np.argmin(result[:,nbs])
         app.bsm={key:value for key,value in zip(paras.keys(),result[index,0:nbs])}
         engine.log<<'Summary of Minimization:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bsm.items()+[('value',app.gpm)]))
-        if app.save_data:
-            np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=app.BS.tags),app.status.name),result)
+        if app.save_data: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=app.BS.tags),app.status.name),result)
         if app.plot:
-            if len(app.BS.tags)==1:
-                plt.title('%s_%s'%(engine.status.tostr(mask=app.BS.tags),app.status.name))
-                X=np.linspace(result[:,0].min(),result[:,0].max(),300)
-                for i in xrange(1,result.shape[1]):
-                    tck=interpolate.splrep(result[:,0],result[:,i],k=3)
-                    Y=interpolate.splev(X,tck,der=0)
-                    plt.plot(X,Y)
-                plt.plot(result[:,0],result[:,1],'r.')
-                if app.show and app.suspend: plt.show()
-                if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-                if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.tostr(mask=app.BS.tags),app.status.name))
-                plt.close()
+            plt.title('%s_%s'%(engine.status.tostr(mask=app.BS.tags),app.status.name))
+            X=np.linspace(result[:,0].min(),result[:,0].max(),300)
+            for i in xrange(1,result.shape[1]):
+                tck=interpolate.splrep(result[:,0],result[:,i],k=3)
+                Y=interpolate.splev(X,tck,der=0)
+                plt.plot(X,Y)
+            plt.plot(result[:,0],result[:,1],'r.')
+            if app.show and app.suspend: plt.show()
+            if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
+            if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.tostr(mask=app.BS.tags),app.status.name))
+            plt.close()
     elif isinstance(app.BS,dict):
-        temp=minimize(gp,app.BS.values(),args=(app.BS.keys()),method=app.extras['method'],options=app.extras['options'])
-        app.bsm,app.gpm={key:value for key,value in zip(app.BS.keys(),temp.x)},temp.fun
+        result=minimize(gp,app.BS.values(),args=(app.BS.keys()),method=app.extras['method'],options=app.extras['options'])
+        app.bsm,app.gpm={key:value for key,value in zip(app.BS.keys(),result.x)},result.fun
         engine.log<<'Summary of Minimization:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bsm.items()+[('gp',app.gpm)]))
-        if app.save_data:
-            result=np.array([app.bsm.values()+[app.gpm]])
-            if app.fout is None:
-                np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=app.BS.keys()),app.status.name),result)
-            else:
-                if os.path.isfile(app.fout):
-                    with open(app.fout,'a') as fout:
-                        fout.write(' '.join(['%.18e'%data for data in result[0,:]]))
-                        fout.write('\n')
-                else:
-                    np.savetxt(app.fout,result)
+        if app.save_data: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=app.BS.keys()),app.status.name),np.array([app.bsm.values()+[app.gpm]]))
     else:
         raise TypeError('VCAGPM error: app.BS must be an instance of BaseSpace or dict.')
 

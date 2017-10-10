@@ -1,6 +1,7 @@
 def configuration(parent_package='',top_path=None):
     from numpy.distutils.misc_util import Configuration
     config=Configuration('FBFM',parent_package,top_path)
+    config.add_extension('fmatrix',['fmatrix.f90'])
     config.add_subpackage('test')
     return config
 

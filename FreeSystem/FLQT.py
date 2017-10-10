@@ -93,11 +93,11 @@ def FLQTQEB(engine,app):
         result[0,1:]=angle(eig(engine.evolution(t=app.ts.mesh('t')))[0])/app.ts.volume('t')
         result[1,1:]=result[0,1:]
     if app.save_data:
-        savetxt('%s/%s_QEB.dat'%(engine.dout,engine.status),result)
+        savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
     if app.plot:
-        plt.title('%s_QEB'%engine.status)
+        plt.title('%s_%s'%(engine.status,app.status.name))
         plt.plot(result[:,0],result[:,1:])
         if app.show and app.suspend: plt.show()
         if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_QEB.png'%(engine.dout,engine.status))
+        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
         plt.close()

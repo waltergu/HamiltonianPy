@@ -4,10 +4,10 @@ App pack
 --------
 
 App pack, including:
-    * classes: GSE, EB, DOS, GF, FS, BC, GP, CPFF
+    * classes: GSE, EB, POS, DOS, GF, FS, BC, GP, CPFF
 '''
 
-__all__=['GSE','EB','DOS','GF','FS','BC','GP','CPFF']
+__all__=['GSE','EB','POS','DOS','GF','FS','BC','GP','CPFF']
 
 import numpy as np
 from ..EngineApp import App
@@ -61,6 +61,32 @@ class EB(App):
         '''
         self.path=path
         self.mu=mu
+
+class POS(App):
+    '''
+    Profiles of states.
+
+    Attributes
+    ----------
+    k : 1d ndarray of int
+        The k point at which the profiles of states are wanted.
+    ns : iterable of int
+        The sequences of the states whose profiles are wanted.
+    '''
+
+    def __init__(self,k=(),ns=None,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        k : 1d ndarray of int, optional
+            The k point at which the profiles of states are wanted.
+        ns : iterable of int, optional
+            The sequences of the states whose profiles are wanted.
+        '''
+        self.k=k
+        self.ns=ns
 
 class DOS(App):
     '''
