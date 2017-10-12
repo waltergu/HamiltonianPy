@@ -20,11 +20,11 @@ def test_fbfm():
     fbfm.summary()
     print 'open boundary conditions'
     print '------------------------'
-    m=61
-    SOP=Square('S1')('%sO-1O'%m,nneighbour=2)
-    fbfm=fbfmconstruct(factor,FB.FBFMBasis(BZ=None,polarization='up',filling=Fraction(m-1,m*4)),SOP)
-    fbfm.register(FB.EB(name='EB2',path=BaseSpace(('sd',np.linspace(1.00,1.32,33)),('dt',(np.linspace(1.00,1.32,33))**2-2)),ne=m/2*4,save_data=False,run=FB.FBFMEB))
-    fbfm.register(POS(name='POS',parameters={'sd':factor,'dt':factor**2-2},ns=[0]+[m/2+n for n in xrange(-2,3)],save_data=False,run=FB.FBFMPOS))
+    m=30
+    S2x=Square('S2x')('%sO-1O'%m,nneighbour=2)
+    fbfm=fbfmconstruct(factor,FB.FBFMBasis(BZ=None,polarization='up',filling=Fraction(m-1,m*4)),S2x)
+    fbfm.register(POS(name='POS',ns=[0]+[m+n for n in xrange(-2,5)],save_data=False,run=FB.FBFMPOS))
+    fbfm.register(FB.EB(name='EB2',path=BaseSpace(('sd',np.linspace(0.1,1.2,24)),('dt',(np.linspace(0.1,1.2,24))**2-2)),ne=m/2*4,save_data=False,run=FB.FBFMEB))
     fbfm.summary()
     print
 
@@ -39,8 +39,8 @@ def fbfmconstruct(factor,basis,lattice):
                         Hopping('sd',sd,neighbour=1,modulate=True),
                         Onsite('dt',dt,atoms=[1,1],modulate=True)
                         ],
-        interactions=[  Hubbard('Us',Us,atom=0),
-                        Hubbard('Ud',Ud,atom=1)
+        interactions=[  Hubbard('Us',Us,atom=0,modulate=True),
+                        Hubbard('Ud',Ud,atom=1,modulate=True)
                         ],
         dtype=          np.complex128
     )
