@@ -13,15 +13,15 @@ def test_tba():
     print 'open boundary conditions'
     print '------------------------'
     op=tbaconstruct(bc='op')
-    op.register(EB(name='EB-1',path=BaseSpace(('mu',linspace(-3,3,num=201))),save_data=False,run=TBAEB))
-    op.register(EB(name='EB-2',parameters={'mu':0.0},save_data=False,run=TBAEB))
-    op.register(DOS(name='DOS',parameters={'mu':0.0},ne=400,eta=0.01,save_data=False,run=TBADOS))
+    op.register(EB(name='EB-1',path=BaseSpace(('mu',linspace(-3,3,num=201))),savedata=False,run=TBAEB))
+    op.register(EB(name='EB-2',parameters={'mu':0.0},savedata=False,run=TBAEB))
+    op.register(DOS(name='DOS',parameters={'mu':0.0},ne=400,eta=0.01,savedata=False,run=TBADOS))
     op.summary()
     print 'periodic boundary conditions'
     print '------------------------'
     pd=tbaconstruct(bc='pd')
-    pd.register(EB(name='EB',parameters={'mu':0.2},path=KSpace(reciprocals=pd.lattice.reciprocals,nk=200),save_data=False,run=TBAEB))
-    pd.register(DOS(name='DOS',parameters={'mu':0.0},BZ=KSpace(reciprocals=pd.lattice.reciprocals,nk=10000),eta=0.01,ne=400,save_data=False,run=TBADOS))
+    pd.register(EB(name='EB',parameters={'mu':0.2},path=KSpace(reciprocals=pd.lattice.reciprocals,nk=200),savedata=False,run=TBAEB))
+    pd.register(DOS(name='DOS',parameters={'mu':0.0},BZ=KSpace(reciprocals=pd.lattice.reciprocals,nk=10000),eta=0.01,ne=400,savedata=False,run=TBADOS))
     pd.summary()
     print
 

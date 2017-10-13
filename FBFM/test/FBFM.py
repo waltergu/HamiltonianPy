@@ -16,15 +16,15 @@ def test_fbfm():
     print '------------------------'
     S2x=Square('S2x')('1P-1O',nneighbour=2)
     fbfm=fbfmconstruct(factor,FB.FBFMBasis(BZ=FBZ(S2x.reciprocals,nks=(60,)),polarization='up'),S2x)
-    fbfm.register(FB.EB(name='EB1',path='L:G1-G2',ne=4,save_data=False,run=FB.FBFMEB))
+    fbfm.register(FB.EB(name='EB1',path='L:G1-G2',ne=4,savedata=False,run=FB.FBFMEB))
     fbfm.summary()
     print 'open boundary conditions'
     print '------------------------'
     m=30
     S2x=Square('S2x')('%sO-1O'%m,nneighbour=2)
     fbfm=fbfmconstruct(factor,FB.FBFMBasis(BZ=None,polarization='up',filling=Fraction(m-1,m*4)),S2x)
-    fbfm.register(POS(name='POS',ns=[0]+[m+n for n in xrange(-2,5)],save_data=False,run=FB.FBFMPOS))
-    fbfm.register(FB.EB(name='EB2',path=BaseSpace(('sd',np.linspace(0.1,1.2,24)),('dt',(np.linspace(0.1,1.2,24))**2-2)),ne=m/2*4,save_data=False,run=FB.FBFMEB))
+    fbfm.register(POS(name='POS',ns=[0]+[m+n for n in xrange(-2,5)],savedata=False,run=FB.FBFMPOS))
+    fbfm.register(FB.EB(name='EB2',path=BaseSpace(('sd',np.linspace(1.0,1.32,33)),('dt',(np.linspace(1.0,1.32,33))**2-2)),ne=m/2*4,savedata=False,run=FB.FBFMEB))
     fbfm.summary()
     print
 

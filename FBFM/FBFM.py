@@ -246,7 +246,7 @@ class FBFM(HP.Engine):
         self.terms=terms
         self.interactions=interactions
         self.dtype=dtype
-        if self.status.map is None: self.status.update(OrderedDict((term.id,term.value) for term in it.chain(terms,interactions)))
+        if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in it.chain(terms,interactions)))
         self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,dtype=dtype,half=True)
         self.igenerator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['spin','nambu']),terms=interactions,dtype=dtype,half=False,order='density')
         self.basis.set(self.spmatrix)
@@ -275,11 +275,12 @@ class FBFM(HP.Engine):
         '''
         Update the engine.
         '''
-        self.status.update(karg)
-        karg=self.status.parameters(karg)
-        self.generator.update(**karg)
-        self.igenerator.update(**karg)
-        self.basis.set(self.spmatrix)
+        if len(karg)>0:
+            super(FBFM,self).update(**karg)
+            karg=self.data(karg)
+            self.generator.update(**karg)
+            self.igenerator.update(**karg)
+            self.basis.set(self.spmatrix)
 
     @property
     def nmatrix(self):
@@ -339,7 +340,7 @@ class FBFM(HP.Engine):
             e1=E1[ks,:]
             e2=E2[ks,:]
         fig,ax=plt.subplots(nrows=1,ncols=2)
-        plt.suptitle('%s'%self.status.tostr(mask=[term.id for term in self.interactions]))
+        plt.suptitle('%s'%self.tostr(mask=[term.id for term in self.interactions]))
         ax[0].plot(ks,e1)
         ax[1].plot(ks,e2)
         ax[0].set_title('Spin down' if self.basis.polarization=='up' else 'Spin up')
@@ -396,15 +397,9 @@ def FBFMEB(engine,app):
         result[:,0]=np.array(xrange(2))
         result[0,1:]=sl.eigh(engine.matrix(),eigvals_only=True)[:ne] if app.method=='eigh' else HM.eigsh(engine.matrix(),k=ne,return_eigenvectors=False)
         result[1,1:]=result[0,1:]
-    if app.save_data:
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.status.name),result)
-    if app.plot:
-        plt.title('%s_%s'%(engine.status.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.status.name))
-        plt.plot(result[:,0],result[:,1:])
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.status.name))
-        plt.close()
+    name='%s_%s'%(engine.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.name)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
 
 def FBFMPOS(engine,app):
     '''
@@ -419,15 +414,8 @@ def FBFMPOS(engine,app):
         dw=optrep(HP.FQuadratic(1.0,(index.replace(spin=0,nambu=HP.CREATION),index.replace(spin=0,nambu=HP.ANNIHILATION)),seqs=(table[index],table[index])),app.k,engine.basis)
         up=optrep(HP.FQuadratic(1.0,(index.replace(spin=1,nambu=HP.CREATION),index.replace(spin=1,nambu=HP.ANNIHILATION)),seqs=(table[index],table[index])),app.k,engine.basis)
         for pos in app.ns or (0,):
-            result[-1].append(np.vdot(vs[:,pos],up.dot(vs[:,pos]))-np.vdot(vs[:,pos],dw.dot(vs[:,pos]))-gs)
+            result[-1].append((np.vdot(vs[:,pos],up.dot(vs[:,pos]))-np.vdot(vs[:,pos],dw.dot(vs[:,pos]))-gs)*(-1 if engine.basis.polarization=='up' else 1))
     result=np.asarray(result)
-    if app.save_data:
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
-    if app.plot:
-        plt.title('%s_%s'%(engine.status,app.status.name))
-        plt.plot(result[:,0],result[:,1:]*(-1 if engine.basis.polarization=='up' else 1))
-        plt.legend(['Level %s'%n for n in app.ns or (0,)])
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
-        plt.close()
+    name='%s_%s'%(engine,app.name)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name),legend=['Level %s'%n for n in app.ns or (0,)])

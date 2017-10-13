@@ -54,9 +54,10 @@ class ED(HP.Engine):
         '''
         Update the engine.
         '''
-        self.status.update(karg)
-        self.generator.update(**self.status.parameters(karg))
-        self.operators=self.generator.operators
+        if len(karg)>0:
+            super(ED,self).update(**karg)
+            self.generator.update(**self.data(karg))
+            self.operators=self.generator.operators
 
     def set_matrix(self,refresh=True):
         '''
@@ -100,7 +101,7 @@ def EDGSE(engine,app):
     '''
     This method calculates the ground state energy.
     '''
-    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.data.iteritems()))
+    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value)) for key,value in engine.parameters.iteritems()))
     timers=HP.Timers('Matrix','GSE')
     with timers.get('Matrix'):
         engine.set_matrix()
@@ -120,11 +121,9 @@ class EL(HP.EB):
         The order of derivatives to be computed.
     ns : integer
         The number of energy levels.
-    legend : logical
-        True for showing the legend and False for not.
     '''
     
-    def __init__(self,nder=0,ns=6,legend=True,**karg):
+    def __init__(self,nder=0,ns=6,**karg):
         '''
         Constructor.
 
@@ -134,27 +133,22 @@ class EL(HP.EB):
             The order of derivatives to be computed.
         ns : integer, optional
             The number of energy levels.
-        legend : logical, optional
-            True for showing the legend and False for not.
         '''
         super(EL,self).__init__(**karg)
         self.nder=nder
         self.ns=ns
-        self.legend=legend
 
 def EDEL(engine,app):
     '''
     This method calculates the energy levels of the Hamiltonian.
     '''
     timers=HP.Timers('Matrix','GSE')
+    name='%s_%s'%(engine.tostr(mask=app.path.tags),app.name)
     result=np.zeros((app.path.rank(0),app.ns*(app.nder+1)+1))
-    if len(app.path.tags)==1 and app.path.mesh(0).ndim==1:
-        result[:,0]=app.path.mesh(0)
-    else:
-        result[:,0]=np.array(xrange(app.path.rank(0)))
+    result[:,0]=app.path.mesh(0) if len(app.path.tags)==1 and app.path.mesh(0).ndim==1 else np.array(xrange(app.path.rank(0)))
     for i,paras in enumerate(app.path('+')):
         engine.update(**paras)
-        engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.data.iteritems()))
+        engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value)) for key,value in engine.parameters.iteritems()))
         with timers.get('Matrix'):
             engine.set_matrix(refresh=True if i==0 else False)
         with timers.get('GSE'):
@@ -163,25 +157,16 @@ def EDEL(engine,app):
         engine.log<<'%s\n'%timers.tostr(HP.Timers.ALL)
         if app.plot: timers.graph(parents=HP.Timers.ALL)
     else:
-        if app.plot and i>0:
-            if app.save_fig: plt.savefig('%s/%s_%s(TIMERS).png'%(engine.dlog,engine.status.tostr(mask=app.path.tags),app.status.name))
-            plt.close()
+        if app.plot and app.savefig: plt.savefig('%s/%s_TIMERS.png'%(engine.dout,name))
+        if app.plot: plt.close()
     if app.nder>0:
         for i in xrange(app.ns):
             result.T[[j*app.ns+i+1 for j in xrange(1,app.nder+1)]]=derivatives(result[:,0],result[:,i+1],ders=range(1,app.nder+1))
-    if app.save_data:
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=app.path.tags),app.status.name),result)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot:
-        plt.title('%s_%s'%(engine.status.tostr(mask=app.path.tags),app.status.name))
-        prefixs={i:'1st' if i==1 else ('2nd' if i==2 else ('3rd' if i==3 else '%sth'%i)) for i in xrange(app.nder+1)}
-        for k in xrange(1,result.shape[1]):
-            i,j=divmod(k-1,app.ns)
-            plt.plot(result[:,0],result[:,k],label=('%s der of '%prefixs[i] if i>0 else '')+'$E_{%s}$'%j)
-        if app.legend: plt.legend(shadow=True,fancybox=True,loc='lower right')
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.tostr(mask=app.path.tags),app.status.name))
-        plt.close()
+        prefixs={i:'1st' if i==0 else ('2nd' if i==1 else ('3rd' if i==2 else '%sth'%(i+1))) for i in xrange(app.nder)}
+        legend=[('%s der of '%prefixs[k/app.ns] if k/app.ns>0 else '')+'$E_{%s}$'%(k%app.ns) for k in xrange(result.shape[1]-1)]
+        app.figure('L',result,'%s/%s'%(engine.dout,name),legend=legend,legendloc='lower right')
 
 class GF(HP.GF):
     '''
@@ -228,9 +213,9 @@ def EDGFP(engine,app):
     '''
     This method prepares the GF.
     '''
-    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(name,value) for name,value in engine.status.data.iteritems()))
-    if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine.status)):
-        with open('%s/%s_coeff.dat'%(engine.din,engine.status),'rb') as fin:
+    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value)) for key,value in engine.parameters.iteritems()))
+    if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine)):
+        with open('%s/%s_coeff.dat'%(engine.din,engine),'rb') as fin:
             app.gse=pk.load(fin)
             app.coeff=pk.load(fin)
             app.hs=pk.load(fin)
@@ -280,8 +265,8 @@ def EDGFP(engine,app):
         engine.log<<'%s|%s|%s|%s\n%s\n'%('Summary'.center(13),tp,ti,tg,'~'*56)
     timers.record()
     engine.log<<'Summary of the gf preparation:\n%s\n'%timers.tostr(None,form='s')
-    if app.save_data:
-        with open('%s/%s_coeff.dat'%(engine.din,engine.status),'wb') as fout:
+    if app.savedata:
+        with open('%s/%s_coeff.dat'%(engine.din,engine),'wb') as fout:
             pk.dump(app.gse,fout,2)
             pk.dump(app.coeff,fout,2)
             pk.dump(app.hs,fout,2)
@@ -311,7 +296,7 @@ def EDDOS(engine,app):
     '''
     This method calculates the DOS.
     '''
-    engine.rundependences(app.status.name)
+    engine.rundependences(app.name)
     erange=np.linspace(app.emin,app.emax,num=app.ne)
     gf=app.dependences[0]
     gf_mesh=np.zeros((app.ne,)+gf.gf.shape,dtype=gf.dtype)
@@ -321,12 +306,6 @@ def EDDOS(engine,app):
     result=np.zeros((app.ne,2))
     result[:,0]=erange
     result[:,1]=-2*np.trace(gf_mesh,axis1=1,axis2=2).imag
-    if app.save_data:
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
-    if app.plot:
-        plt.title('%s_%s'%(engine.status,app.status.name))
-        plt.plot(result[:,0],result[:,1])
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
-        plt.close()
+    name='%s_%s'%(engine,app.name)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))

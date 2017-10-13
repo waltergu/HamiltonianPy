@@ -53,7 +53,7 @@ class SED(ED):
         self.target=target
         self.dtype=dtype
         self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(),terms=terms,dtype=dtype)
-        if self.status.map is None: self.status.update(OrderedDict((term.id,term.value) for term in terms))
+        if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
         self.operators=self.generator.operators
 
     def set_matrix(self,refresh=True):

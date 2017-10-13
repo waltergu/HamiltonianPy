@@ -75,7 +75,7 @@ class VCACCT(VCA):
                     dtype=          dtype,
                     **extras
                     )
-            attributes={attr:vars(cgf)[attr] for attr in set(vars(cgf))-{'status','operators','gf','k','omega','prepare','run'}}
+            attributes={attr:vars(cgf)[attr] for attr in set(vars(cgf))-{'name','parameters','virgin','operators','gf','k','omega','prepare','run'}}
             gf=ED.GF(
                     name=           'gf',
                     operators=      HP.fspoperators(subconfig.table(),lattice),
@@ -84,7 +84,7 @@ class VCACCT(VCA):
                     **attributes
                     )
             self.subsystems[group].register(gf,run=False)
-        if self.status.map is None: self.status.update(OrderedDict((term.id,term.value) for term in terms+weiss))
+        if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms+weiss))
         self.pthgenerator=HP.Generator(
                     bonds=          [bond for bond in lattice.bonds if not bond.isintracell() or bond.spoint.pid.scope!=bond.epoint.pid.scope],
                     config=         config,
@@ -110,14 +110,15 @@ class VCACCT(VCA):
         '''
         Update the engine.
         '''
-        for subsystem in self.subsystems.itervalues():
-            subsystem.update(**karg)
-        self.status.update(karg)
-        karg=self.status.parameters(karg)
-        self.pthgenerator.update(**karg)
-        self.ptwgenerator.update(**karg)
-        self.pthoperators=self.pthgenerator.operators
-        self.ptwoperators=self.ptwgenerator.operators
+        if len(karg)>0:
+            for subsystem in self.subsystems.itervalues():
+                subsystem.update(**karg)
+            super(ED.ED,self).update(**karg)
+            karg=self.data(karg)
+            self.pthgenerator.update(**karg)
+            self.ptwgenerator.update(**karg)
+            self.pthoperators=self.pthgenerator.operators
+            self.ptwoperators=self.ptwgenerator.operators
 
 def VCACCTGFP(engine,app):
     '''

@@ -13,7 +13,6 @@ __all__=['VCA','EB','VCAEB','VCADOS','VCAFS','VCABC','VCATEB','VCAGP','GPM','VCA
 from gf_contract import *
 from numpy.linalg import det,inv
 from scipy.linalg import eigh
-from scipy import interpolate
 from scipy.sparse import csr_matrix
 from scipy.integrate import quad
 from scipy.optimize import minimize,broyden2
@@ -178,7 +177,7 @@ class VCA(ED.FED):
             dtype=      dtype,
             half=       True
             )
-        if self.status.map is None: self.status.update(OrderedDict((term.id,term.value) for term in terms+weiss))
+        if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms+weiss))
         self.operators=self.generator.operators
         self.pthoperators=self.pthgenerator.operators
         self.ptwoperators=self.ptwgenerator.operators
@@ -208,14 +207,15 @@ class VCA(ED.FED):
         '''
         Update the engine.
         '''
-        self.status.update(karg)
-        karg=self.status.parameters(karg)
-        self.generator.update(**karg)
-        self.pthgenerator.update(**karg)
-        self.ptwgenerator.update(**karg)
-        self.operators=self.generator.operators
-        self.pthoperators=self.pthgenerator.operators
-        self.ptwoperators=self.ptwgenerator.operators
+        if len(karg)>0:
+            super(ED.ED,self).update(**karg)
+            karg=self.data(karg)
+            self.generator.update(**karg)
+            self.pthgenerator.update(**karg)
+            self.ptwgenerator.update(**karg)
+            self.operators=self.generator.operators
+            self.pthoperators=self.pthgenerator.operators
+            self.ptwoperators=self.ptwgenerator.operators
 
     @property
     def ncopt(self):
@@ -415,34 +415,23 @@ def VCAEB(engine,app):
     '''
     This method calculates the single particle spectrum along a path in the Brillouin zone.
     '''
-    engine.rundependences(app.status.name)
+    engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
     erange,kmesh,nk=np.linspace(app.emin,app.emax,app.ne),app.path.mesh('k'),app.path.rank('k')
-    result=np.zeros((nk,app.ne))
+    result=np.zeros((nk,app.ne,3))
+    result[:,:,0]=np.tensordot(np.array(xrange(nk)),np.ones(app.ne),axes=0)
+    result[:,:,1]=np.tensordot(np.ones(nk),erange,axes=0)
     for i,omega in enumerate(erange):
-        result[:,i]=-(np.trace(engine.gf_kmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2)).imag/engine.nopt/np.pi
-    if app.save_data:
-        data=np.zeros((nk*app.ne,3))
-        for k in xrange(data.shape[0]):
-            i,j=divmod(k,nk)
-            data[k,0]=j
-            data[k,1]=erange[i]
-            data[k,2]=result[j,i]
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),data)
-    if app.plot:
-        krange=np.array(xrange(nk))
-        plt.title('%s_%s'%(engine.status,app.status.name))
-        plt.colorbar(plt.pcolormesh(np.tensordot(krange,np.ones(app.ne),axes=0),np.tensordot(np.ones(nk),erange,axes=0),result))
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
-        plt.close()
+        result[:,i,2]=-(np.trace(engine.gf_kmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2)).imag/engine.nopt/np.pi
+    name='%s_%s'%(engine,app.name)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result.reshape((nk*app.ne,3)))
+    if app.plot: app.figure('P',result,'%s/%s'%(engine.dout,name))
 
 def VCADOS(engine,app):
     '''
     This method calculates the density of the single particle states.
     '''
-    engine.rundependences(app.status.name)
+    engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
     erange,kmesh,nk=np.linspace(app.emin,app.emax,app.ne),app.BZ.mesh('k'),app.BZ.rank('k')
     result=np.zeros((app.ne,2))
@@ -450,88 +439,63 @@ def VCADOS(engine,app):
         result[i,0]=omega
         result[i,1]=-np.trace(engine.mgf_kmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).sum().imag/engine.ncopt/nk/np.pi
     engine.log<<'Sum of DOS: %s\n'%(sum(result[:,1])*(app.emax-app.emin)/app.ne)
-    if app.save_data:
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
-    if app.plot:
-        plt.title('%s_%s'%(engine.status,app.status.name))
-        plt.plot(result[:,0],result[:,1])
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
-        plt.close()
+    name='%s_%s'%(engine,app.name)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
 
 def VCAFS(engine,app):
     '''
     This method calculates the single particle spectrum at the Fermi surface.
     '''
-    engine.rundependences(app.status.name)
+    engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
     kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
-    result=-np.trace(engine.gf_kmesh(app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).imag/engine.ncopt/np.pi
-    if app.save_data:
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),np.append(kmesh,result.reshape((nk,1)),axis=1))
-    if app.plot:
-        plt.title('%s_%s'%(engine.status,app.status.name))
-        plt.axis('equal')
-        N=int(round(np.sqrt(nk)))
-        plt.colorbar(plt.pcolormesh(kmesh[:,0].reshape((N,N)),kmesh[:,1].reshape(N,N),result.reshape(N,N)))
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
-        plt.close()
+    result=np.zeros((nk,3))
+    result[:,0:2]=kmesh
+    result[:,2]=-np.trace(engine.gf_kmesh(app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).imag/engine.ncopt/np.pi
+    name='%s_%s'%(engine,app.name)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('P',result.reshape((int(np.sqrt(nk)),int(np.sqrt(nk)),3)),'%s/%s'%(engine.dout,name),axis='equal')
 
 def VCABC(engine,app):
     '''
     This method calculates the Berry curvature and Chern number based on the so-called topological Hamiltonian (PRX 2, 031008 (2012))
     '''
-    engine.rundependences(app.status.name)
+    engine.rundependences(app.name)
     mu,app.mu=app.mu,0.0
     engine.gf(omega=mu)
     app.set(H=lambda kx,ky: -inv(engine.gf(k=[kx,ky])))
     app.mu=mu
     engine.log<<'Chern number(mu): %s(%s)\n'%(app.cn,app.mu)
-    if app.save_data or app.plot:
-        data=np.zeros((app.BZ.rank('k'),3))
-        data[:,0:2]=app.BZ.mesh('k')
-        data[:,2]=app.bc
-    if app.save_data:
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),data)
-    if app.plot:
-        nk=int(round(np.sqrt(app.BZ.rank('k'))))
-        plt.title('%s_%s'%(engine.status,app.status.name))
-        plt.axis('equal')
-        plt.colorbar(plt.pcolormesh(data[:,0].reshape((nk,nk)),data[:,1].reshape((nk,nk)),data[:,2].reshape((nk,nk))))
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
-        plt.close()
+
+    kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
+    result=np.zeros((nk,3))
+    result[:,0:2]=kmesh
+    result[:,2]=app.bc
+    name='%s_%s'%(engine,app.name)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('P',result.reshape((int(np.sqrt(nk)),int(np.sqrt(nk)),3)),'%s/%s'%(engine.dout,name),axis='equal')
 
 def VCATEB(engine,app):
     '''
     This method calculates the topological Hamiltonian's spectrum.
     '''
-    engine.rundependences(app.status.name)
+    engine.rundependences(app.name)
     engine.gf(omega=app.mu)
     H=lambda kx,ky: -inv(engine.gf(k=[kx,ky]))
     result=np.zeros((app.path.rank('k'),engine.nopt+1))
-    for i,paras in enumerate(app.path()):
+    for i,paras in enumerate(app.path('+')):
         result[i,0]=i
         result[i,1:]=eigh(H(paras['k'][0],paras['k'][1]),eigvals_only=True)
-    if app.save_data:
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
-    if app.plot:
-        plt.title('%s_%s'%(engine.status,app.status.name))
-        plt.plot(result[:,0],result[:,1:])
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
-        plt.close()
+    name='%s_%s'%(engine,app.name)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
 
 def VCAGP(engine,app):
     '''
     This method calculates the grand potential.
     '''
-    if app.status.name in engine.apps: engine.rundependences(app.status.name)
+    if app.name in engine.apps: engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
     cgf,kmesh,nk=engine.preloads[0],app.BZ.mesh('k'),app.BZ.rank('k')
     fx=lambda omega: np.log(np.abs(det(np.eye(engine.ncopt)-engine.pt_kmesh(kmesh).dot(engine.cgf(omega=omega*1j+app.mu))))).sum()
@@ -586,7 +550,7 @@ def VCAGPM(engine,app):
     def gp(values,keys):
         engine.cache.pop('pt_kmesh',None)
         engine.update(**{key:value for key,value in zip(keys,values)})
-        engine.rundependences(app.status.name)
+        engine.rundependences(app.name)
         return app.dependences[2].gp
     if isinstance(app.BS,HP.BaseSpace):
         nbs=len(app.BS.tags)
@@ -598,24 +562,14 @@ def VCAGPM(engine,app):
         index=np.argmin(result[:,nbs])
         app.bsm={key:value for key,value in zip(paras.keys(),result[index,0:nbs])}
         engine.log<<'Summary of Minimization:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bsm.items()+[('value',app.gpm)]))
-        if app.save_data: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=app.BS.tags),app.status.name),result)
-        if app.plot:
-            plt.title('%s_%s'%(engine.status.tostr(mask=app.BS.tags),app.status.name))
-            X=np.linspace(result[:,0].min(),result[:,0].max(),300)
-            for i in xrange(1,result.shape[1]):
-                tck=interpolate.splrep(result[:,0],result[:,i],k=3)
-                Y=interpolate.splev(X,tck,der=0)
-                plt.plot(X,Y)
-            plt.plot(result[:,0],result[:,1],'r.')
-            if app.show and app.suspend: plt.show()
-            if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-            if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.tostr(mask=app.BS.tags),app.status.name))
-            plt.close()
+        name='%s_%s'%(engine.tostr(mask=app.BS.tags),app.name)
+        if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+        if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name),interpolate=True)
     elif isinstance(app.BS,dict):
         result=minimize(gp,app.BS.values(),args=(app.BS.keys()),method=app.extras['method'],options=app.extras['options'])
         app.bsm,app.gpm={key:value for key,value in zip(app.BS.keys(),result.x)},result.fun
         engine.log<<'Summary of Minimization:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bsm.items()+[('gp',app.gpm)]))
-        if app.save_data: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=app.BS.keys()),app.status.name),np.array([app.bsm.values()+[app.gpm]]))
+        if app.savedata: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.tostr(mask=app.BS.keys()),app.name),np.array([app.bsm.values()+[app.gpm]]))
     else:
         raise TypeError('VCAGPM error: app.BS must be an instance of BaseSpace or dict.')
 
@@ -651,7 +605,7 @@ def VCACPFF(engine,app):
     '''
     This method calculates the chemical potential or filling factor.
     '''
-    engine.rundependences(app.status.name)
+    engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
     kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
     fx=lambda omega,mu: (np.trace(engine.mgf_kmesh(omega=mu+1j*omega,kmesh=kmesh),axis1=1,axis2=2)-engine.ncopt/(1j*omega-mu-app.p)).sum().real
@@ -714,7 +668,7 @@ def VCAOP(engine,app):
     '''
     This method calculates the order parameters.
     '''
-    engine.rundependences(app.status.name)
+    engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
     cgf,kmesh,nk=engine.preloads[0],app.BZ.mesh('k'),app.BZ.rank('k')
     ms=np.zeros((len(app.terms),engine.ncopt,engine.ncopt),dtype=np.complex128)
@@ -768,20 +722,13 @@ def VCADTBT(engine,app):
     '''
     This method calculates the distribution of fermions along a path in the Brillouin zone.
     '''
-    engine.rundependences(app.status.name)
+    engine.rundependences(app.name)
     nk,kmesh=app.path.rank('k'),app.path.mesh('k')
     nwk=lambda omega,k: (np.trace(engine.gf(omega*1j+app.mu,k))-engine.nopt/(omega*1j-app.mu-app.p)).real
     result=np.zeros((nk,2))
+    result[:,0]=np.array(xrange(nk))
     for i,k in enumerate(kmesh):
-        result[i,0]=i
         result[i,1]=quad(nwk,0,np.float(np.inf),args=k)[0]/np.pi
-    if app.save_data:
-        np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
-    if app.plot:
-        plt.title('%s_%s'%(engine.status,app.status.name))
-        plt.plot(result[:,0],result[:,1])
-        plt.ylim([0.0,engine.nopt])
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
-        plt.close()
+    name='%s_%s'%(engine,app.name)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))

@@ -16,6 +16,7 @@ from copy import deepcopy
 from collections import OrderedDict
 from scipy.optimize import broyden2
 from scipy.linalg import eigh
+import itertools as it
 
 class OP(object):
     '''
@@ -71,7 +72,7 @@ class SCMF(TBA):
         The timer to record the consumed time of the iteration.
     '''
 
-    def __init__(self,filling=0.5,temperature=0,lattice=None,config=None,terms=None,orders=None,mask=('nambu',),**karg):
+    def __init__(self,filling=0.5,temperature=0,lattice=None,config=None,terms=(),orders=(),mask=('nambu',),**karg):
         '''
         Constructor.
 
@@ -100,8 +101,9 @@ class SCMF(TBA):
         self.terms=terms
         self.orders=orders
         self.mask=mask
-        self.status.update({'filling':filling,'temperature':temperature})
-        self.status.update(OrderedDict((term.id,term.value) for term in (terms if self.status.map is None else [])+orders))
+        self.parameters.update({'filling':filling,'temperature':temperature})
+        self.parameters.update(OrderedDict((term.id,term.value) for term in it.chain(terms if self.map is None else (),orders)))
+        self.logging()
         self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms+orders,half=True)
         self.ops=OrderedDict()
         for order in self.orders:
@@ -122,8 +124,7 @@ class SCMF(TBA):
             The Brillouin zone of the system.
         '''
         self.update(**{name:order.value for name,order in self.ops.iteritems()})
-        self.mu=super(SCMF,self).mu(self.filling,kspace)
-        nmatrix=self.nmatrix
+        self.mu,nmatrix=super(SCMF,self).mu(self.filling,kspace),self.nmatrix
         f=(lambda e,mu: 1 if e<=mu else 0) if abs(self.temperature)<RZERO else (lambda e,mu: 1/(exp((e-mu)/self.temperature)+1))
         m=zeros((nmatrix,nmatrix),dtype=complex128)
         for matrix in self.matrices(kspace):

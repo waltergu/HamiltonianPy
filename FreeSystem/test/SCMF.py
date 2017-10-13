@@ -30,18 +30,15 @@ def test_scmf():
         lattice=    lattice,
         config=     config,
         filling=    0.5,
-        terms=      [
-                    Hopping('t1',t1),
+        terms=[     Hopping('t1',t1),
                     Hopping('t2',t2*1j,indexpacks=sigmaz('sl'),amplitude=haldane_hopping,neighbour=2),
-                    #Onsite('stagger',0.2,indexpacks=sigmaz('sl'))
                     ],
-        orders=     [
-                    Onsite('afm',0.2,indexpacks=sigmaz('sp')*sigmaz('sl'),modulate=lambda **karg: -U*karg['afm']/2 if 'afm' in karg else None)
+        orders=[    Onsite('afm',0.2,indexpacks=sigmaz('sp')*sigmaz('sl'),modulate=lambda **karg: -U*karg['afm']/2 if 'afm' in karg else None)
                     ],
-        mask=      ['nambu']
+        mask=       ['nambu']
         )
     h2.iterate(KSpace(reciprocals=h2.lattice.reciprocals,nk=100),tol=10**-5,maxiter=400)
-    h2.register(EB(name='EB',path=hexagon_gkm(nk=100),save_data=False,plot=True,show=True,run=TBAEB))
-    h2.register(BC(name='BC',BZ=KSpace(reciprocals=h2.lattice.reciprocals,nk=200),mu=h2.mu,d=10**-6,save_data=False,run=TBABC))
+    h2.register(EB(name='EB',path=hexagon_gkm(nk=100),savedata=False,plot=True,show=True,run=TBAEB))
+    h2.register(BC(name='BC',BZ=KSpace(reciprocals=h2.lattice.reciprocals,nk=200),mu=h2.mu,d=10**-6,savedata=False,run=TBABC))
     h2.summary()
     print

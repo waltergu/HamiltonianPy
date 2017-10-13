@@ -62,10 +62,10 @@ def NewQuantumNumber(typename,names,periods,doc=None):
         raise SyntaxError(err.message+':\n'+definition)
     return namespace[str(typename)]
 
-SQN=NewQuantumNumber('SQN',('Sz',),(None,),doc='The quantum number for a spin state with the z component Sz.')
-PQN=NewQuantumNumber('PQN',('N',),(None,),doc='The quantum number for a single particle state with the particle number N.')
-SPQN=NewQuantumNumber('SPQN',('N','Sz'),(None,None),doc='The quantum number for a single particle state with particle number N and spin-z-component Sz.')
-Z2QN=NewQuantumNumber('Z2QN',('Z2',),(None,),doc='The Z2-typed quantum number.')
+class SQN(NewQuantumNumber('SQN',('Sz',),(None,),doc='The quantum number for a spin state with the z component Sz.')): pass
+class PQN(NewQuantumNumber('PQN',('N',),(None,),doc='The quantum number for a single particle state with the particle number N.')): pass
+class SPQN(NewQuantumNumber('SPQN',('N','Sz'),(None,None),doc='The quantum number for a single particle state with particle number N and spin-z-component Sz.')): pass
+class Z2QN(NewQuantumNumber('Z2QN',('Z2',),(None,),doc='The Z2-typed quantum number.')): pass
 
 def SQNS(S):
     '''

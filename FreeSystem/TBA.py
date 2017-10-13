@@ -65,15 +65,17 @@ class TBA(Engine):
         self.config=config
         self.terms=terms
         self.mask=mask
-        if self.status.map is None: self.status.update(OrderedDict((term.id,term.value) for term in terms))
+        if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
+        self.logging()
         self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms,half=True)
 
     def update(self,**karg):
         '''
         This method update the engine.
         '''
-        self.status.update(karg)
-        self.generator.update(**self.status.parameters(karg))
+        if len(karg)>0:
+            super(TBA,self).update(**karg)
+            self.generator.update(**self.data(karg))
 
     @property
     def nmatrix(self):
@@ -243,15 +245,9 @@ def TBAEB(engine,app):
         result[:,0]=array(xrange(2))
         result[0,1:]=eigh(engine.matrix(),eigvals_only=True)
         result[1,1:]=result[0,1:]
-    if app.save_data:
-        savetxt('%s/%s_%s.dat'%(engine.dout,engine.status.tostr(mask=() if app.path is None else app.path.tags),app.status.name),result)
-    if app.plot:
-        plt.title('%s_%s'%(engine.status.tostr(mask=() if app.path is None else app.path.tags),app.status.name))
-        plt.plot(result[:,0],result[:,1:])
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status.tostr(mask=() if app.path is None else app.path.tags),app.status.name))
-        plt.close()
+    name='%s_%s'%(engine.tostr(mask=() if app.path is None else app.path.tags),app.name)
+    if app.savedata: savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
 
 def TBADOS(engine,app):
     '''
@@ -264,15 +260,9 @@ def TBADOS(engine,app):
     for i,v in enumerate(linspace(emin,emax,num=app.ne)):
        result[i,0]=v
        result[i,1]=sum(app.eta/((v-eigvals)**2+app.eta**2))
-    if app.save_data:
-        savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
-    if app.plot:
-        plt.title('%s_%s'%(engine.status,app.status.name))
-        plt.plot(result[:,0],result[:,1])
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
-        plt.close()
+    name='%s_%s'%(engine,app.name)
+    if app.savedata: savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
 
 def TBABC(engine,app):
     '''
@@ -280,20 +270,13 @@ def TBABC(engine,app):
     '''
     app.set(lambda kx,ky: engine.matrix(k=[kx,ky]))
     engine.log<<'Chern number(mu): %s(%s)'%(app.cn,app.mu)<<'\n'
-    if app.save_data or app.plot:
+    if app.savedata or app.plot:
         result=zeros((app.BZ.rank('k'),3))
         result[:,0:2]=app.BZ.mesh('k')
         result[:,2]=app.bc
-        if app.save_data: savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
-        if app.plot:
-            nk=int(round(sqrt(app.BZ.rank('k'))))
-            plt.title('%s_%s'%(engine.status,app.status.name))
-            plt.axis('equal')
-            plt.colorbar(plt.pcolormesh(result[:,0].reshape((nk,nk)),result[:,1].reshape((nk,nk)),result[:,2].reshape((nk,nk))))
-            if app.show and app.suspend: plt.show()
-            if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-            if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
-            plt.close()
+        name='%s_%s'%(engine,app.name)
+        if app.savedata: savetxt('%s/%s.dat'%(engine.dout,name),result)
+        if app.plot: app.figure('P',result.reshape((int(sqrt(result.shape[0])),int(sqrt(result.shape[0])),3)),'%s/%s'%(engine.dout,name),axis='equal')
 
 def TBAGF(engine,app):
     pass

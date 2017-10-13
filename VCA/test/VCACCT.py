@@ -17,7 +17,7 @@ def test_vcacct():
     lattice=Lattice.compose(name='H4CCT',points=LA.points+LB.points,vectors=H8P.vectors,nneighbour=1)
     map=lambda ndx: Fermi(atom=0 if (ndx.scope in ('H4A','H2') and ndx.site==0) or (ndx.scope=='H4B' and ndx.site>0) else 1,norbital=1,nspin=2,nnambu=1)
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=map)
-    cgf=ED.FGF(operators=fspoperators(config.table(),lattice),nstep=200,save_data=False,prepare=VCACCTGFP,run=VCACCTGF)
+    cgf=ED.FGF(operators=fspoperators(config.table(),lattice),nstep=200,savedata=False,prepare=VCACCTGFP,run=VCACCTGF)
     vcacct=VCACCT(
         name=           'H4CCT',
         cgf=            cgf,
@@ -34,7 +34,7 @@ def test_vcacct():
                         ],
         )
     gp=GP(name='GP',mu=U/2,BZ=KSpace(reciprocals=lattice.reciprocals,nk=100),run=VCAGP)
-    vcacct.register(GPM(name='afm',BS=BaseSpace(('afm',np.linspace(0.0,0.1,11))),dependences=[gp],save_data=False,run=VCAGPM))
-    vcacct.register(EB(name='EB',parameters={'afm':0.0},path=hexagon_gkm(nk=100),mu=U/2,emax=6.0,emin=-6.0,eta=0.05,ne=400,save_data=False,run=VCAEB))
-    vcacct.register(DOS(name='DOS',parameters={'afm':0.0},BZ=hexagon_bz(nk=50),mu=U/2,emin=-5,emax=5,ne=400,eta=0.05,save_data=False,run=VCADOS))
+    vcacct.register(GPM(name='afm',BS=BaseSpace(('afm',np.linspace(0.0,0.1,11))),dependences=[gp],savedata=False,run=VCAGPM))
+    vcacct.register(EB(name='EB',parameters={'afm':0.0},path=hexagon_gkm(nk=100),mu=U/2,emax=6.0,emin=-6.0,eta=0.05,ne=400,savedata=False,run=VCAEB))
+    vcacct.register(DOS(name='DOS',parameters={'afm':0.0},BZ=hexagon_bz(nk=50),mu=U/2,emin=-5,emax=5,ne=400,eta=0.05,savedata=False,run=VCADOS))
     vcacct.summary()

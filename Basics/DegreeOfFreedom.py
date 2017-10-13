@@ -4,10 +4,10 @@ Descriptions of the internal degrees of freedom on a lattice
 ============================================================
 
 This modulate defines several classes to define the way to describe the internal degrees of freedom on a lattice, including
-    * classes: Status, Table, Index, Internal, IDFConfig, QNSConfig, IndexPack, IndexPacks
+    * classes: Table, Index, Internal, IDFConfig, QNSConfig, IndexPack, IndexPacks
 '''
 
-__all__=['Status','Table','Index','Internal','IDFConfig','QNSConfig','IndexPack','IndexPacks']
+__all__=['Table','Index','Internal','IDFConfig','QNSConfig','IndexPack','IndexPacks']
 
 import numpy as np
 import itertools as it
@@ -16,120 +16,6 @@ from Utilities import RZERO,Arithmetic,decimaltostr
 from Geometry import PID
 from QuantumNumber import QuantumNumbers
 from collections import OrderedDict
-
-class Status(object):
-    '''
-    This class provides an object with a status.
-
-    Attributes
-    ----------
-    name : any hashable object
-        The name of the object.
-    info : any object
-        Additional information of the object.
-    data : OrderedDict
-        The data of the object.
-    map : callable
-        The function to map the data of the object to the parameters of the object.
-    '''
-    NDECIMAL=5
-
-    def __init__(self,name=None,info=None,data=(),map=None):
-        '''
-        Constructor.
-
-        Parameters
-        ----------
-        name : any hashable object
-            The name of the object.
-        info : any object
-            Additional information of the object.
-        data : tuple of 2-tuples
-            The data of the object.
-        map : callable
-            The function to map the data of the object to the parameters of the object.
-        '''
-        self.name=name
-        self.info=info
-        self.data=OrderedDict(data)
-        self.map=map
-
-    def __str__(self):
-        '''
-        Convert an instance to string.
-        '''
-        return self.tostr()
-
-    def tostr(self,mask=()):
-        '''
-        Convert an instance to string.
-
-        Parameters
-        ----------
-        mask : tuple of str
-            The mask of the object's data.
-
-        Returns
-        -------
-        str
-            The converted string.
-        '''
-        result=[]
-        if self.name is not None: result.append(str(self.name))
-        data='_'.join(decimaltostr(value,Status.NDECIMAL) for key,value in self.data.iteritems() if key not in mask)
-        if len(data)>0: result.append(data)
-        if self.info is not None: result.append(str(self.info))
-        return '_'.join(result)
-
-    def update(self,data):
-        '''
-        Update the data of the object.
-
-        Parameters
-        ----------
-        data : dict, optional
-            The new data.
-        '''
-        self.data.update(data)
-
-    def __getitem__(self,key):
-        '''
-        Overloaded operator([]).
-        '''
-        return self.data[key]
-
-    def parameters(self,data):
-        '''
-        Return the parameters of the object.
-        '''
-        return data if self.map is None else self.map(data)
-
-    def __le__(self,other):
-        '''
-        Overloaded operator(<=).
-
-        Notes
-        -----
-        When ``self.data`` is a subset of ``other.data``, return True. Otherwise False.
-        '''
-        try:
-            for key,value in self.data.iteritems():
-                if norm(np.array(value)-np.array(other.data[key]))>RZERO:
-                    return False
-            else:
-                return True
-        except KeyError:
-            return False
-
-    def __ge__(self,other):
-        '''
-        Overloaded operator(>=).
-
-        Notes
-        -----
-        When ``other.data`` is a subset of ``self.data``, return True. Otherwise False.
-        '''
-        return other.__le__(self)
 
 class Table(dict):
     '''

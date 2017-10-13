@@ -23,14 +23,16 @@ from HamiltonianPy.TensorNetwork import *
 from copy import deepcopy
 from collections import OrderedDict
 
-def pattern(status,target,nsite,mode='re'):
+def pattern(name,parameters,target,nsite,mode='re'):
     '''
     Return the pattern of data files for match.
 
     Parameters
     ----------
-    status : Status
-        The status of the DMRG.
+    name : str
+        The name of the DMRG.
+    parameters : Parameters
+        The parameters of the DMRG.
     target : QuantumNumber
         The target of the DMRG.
     nsite : integer
@@ -44,7 +46,7 @@ def pattern(status,target,nsite,mode='re'):
         The pattern.
     '''
     assert mode in ('re','py')
-    result='%s_%s_%s'%(status,tuple(target) if isinstance(target,QuantumNumber) else None,nsite)
+    result='%s_%s_DMRG_%s_%s'%(name,parameters,tuple(target) if isinstance(target,QuantumNumber) else None,nsite)
     if mode=='re':
         ss=['(',')','[',']','^','+']
         rs=['\(','\)','\[','\]','\^','\+']
@@ -133,7 +135,7 @@ class DMRG(Engine):
         self.target=target
         self.dtype=dtype
         self.generator=Generator(bonds=lattice.bonds,config=config,terms=terms,dtype=dtype,half=False)
-        if self.status.map is None: self.status.update(OrderedDict((term.id,term.value) for term in terms))
+        if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
         self.set_operators()
         self.set_mpo()
         self.set_Hs_()
@@ -165,17 +167,18 @@ class DMRG(Engine):
         '''
         The current state of the dmrg.
         '''
-        return '%s(target=%s,nsite=%s,cut=%s)'%(self.status,self.target,self.mps.nsite,self.mps.cut)
+        return '%s(target=%s,nsite=%s,cut=%s)'%(self,self.target,self.mps.nsite,self.mps.cut)
 
     def update(self,**karg):
         '''
         Update the DMRG with new parameters.
         '''
-        self.status.update(karg)
-        self.generator.update(**self.status.parameters(karg))
-        self.set_operators()
-        self.set_mpo()
-        self.set_Hs_()
+        if len(karg)>0:
+            super(DMRG,self).update(**karg)
+            self.generator.update(**self.data(karg))
+            self.set_operators()
+            self.set_mpo()
+            self.set_Hs_()
 
     def set_operators(self):
         '''
@@ -595,7 +598,7 @@ class DMRG(Engine):
         '''
         Use pickle to dump the core of the dmrg.
         '''
-        with open('%s/%s_%s.dat'%(self.din,pattern(self.status,self.target,self.mps.nsite,mode='py'),self.mps.nmax),'wb') as fout:
+        with open('%s/%s_%s.dat'%(self.din,pattern(self.name,self.parameters,self.target,self.mps.nsite,mode='py'),self.mps.nmax),'wb') as fout:
             core=   {
                         'lattice':      self.lattice,
                         'target':       self.target,
@@ -696,7 +699,7 @@ class TSG(App):
             The recover code.
         '''
         for i,target in enumerate(reversed(self.targets)):
-            core=DMRG.coreload(din=engine.din,pattern=pattern(engine.status,target,(len(self.targets)-i)*engine.nspb*2,mode='re'),nmax=self.nmax)
+            core=DMRG.coreload(din=engine.din,pattern=pattern(engine.name,engine.parameters,target,(len(self.targets)-i)*engine.nspb*2,mode='re'),nmax=self.nmax)
             if core:
                 for key,value in core.iteritems():
                     setattr(engine,key,value)
@@ -730,12 +733,12 @@ def DMRGTSG(engine,app):
         engine.insert(scopes[pos],scopes[-pos-1],news=scopes[:pos]+scopes[-pos:] if pos>0 else None,target=target)
         engine.iterate(info='(++)',sp=True if pos>0 else False,nmax=app.nmax,piechart=app.plot)
         TSGSWEEP(app.npresweep if pos==0 else app.nsweep)
-        if nspb>1 and len(app.targets)>1 and pos==0 and app.save_data: engine.coredump()
+        if nspb>1 and len(app.targets)>1 and pos==0 and app.savedata: engine.coredump()
     if num==len(app.targets)-1 and app.nmax>engine.mps.nmax: TSGSWEEP(app.nsweep)
-    if app.plot and app.save_fig:
-        plt.savefig('%s/%s_%s.png'%(engine.dlog,engine.status,repr(engine.target)))
+    if app.plot and app.savefig:
+        plt.savefig('%s/%s_%s.png'%(engine.dout,engine,repr(engine.target)))
         plt.close()
-    if app.save_data: engine.coredump()
+    if app.savedata: engine.coredump()
     engine.log.close()
 
 class TSS(App):
@@ -801,14 +804,14 @@ class TSS(App):
         integer
             The recover code.
         '''
-        status=deepcopy(engine.status)
-        for i,(nmax,parameters) in enumerate(reversed(zip(self.nmaxs,self.BS))):
-            status.update(parameters)
-            core=DMRG.coreload(din=engine.din,pattern=pattern(status,self.target,self.nsite,mode='re'),nmax=nmax)
+        parameters=deepcopy(engine.parameters)
+        for i,(nmax,paras) in enumerate(reversed(zip(self.nmaxs,self.BS))):
+            parameters.update(paras)
+            core=DMRG.coreload(din=engine.din,pattern=pattern(self.name,parameters,self.target,self.nsite,mode='re'),nmax=nmax)
             if core:
                 for key,value in core.iteritems():
                     setattr(engine,key,value)
-                engine.status=status
+                engine.parameters=parameters
                 engine.config.reset(pids=engine.lattice.pids)
                 engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
                 engine.mps>>=1 if engine.mps.cut==0 else (-1 if engine.mps.cut==engine.mps.nsite else 0)
@@ -826,14 +829,14 @@ def DMRGTSS(engine,app):
     engine.log.open()
     num=app.recover(engine)
     if num is None:
-        if app.status.name in engine.apps: engine.rundependences(app.status.name)
+        if app.name in engine.apps: engine.rundependences(app.name)
         num=-1
     for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs[num+1:],app.BS[num+1:],app.paths[num+1:])):
-        app.status.update(parameters)
-        if not (app.status<=engine.status): engine.update(**parameters)
+        app.parameters.update(parameters)
+        if not (app.parameters.match(engine.parameters)): engine.update(**parameters)
         engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,piechart=app.plot)
-        if app.save_data: engine.coredump()
-    if app.plot and app.save_fig:
-        plt.savefig('%s/%s_%s.png'%(engine.dlog,engine.status,repr(engine.target)))
+        if app.savedata: engine.coredump()
+    if app.plot and app.savefig:
+        plt.savefig('%s/%s_%s.png'%(engine.dout,engine,repr(engine.target)))
         plt.close()
     engine.log.close()

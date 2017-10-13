@@ -10,6 +10,8 @@ from HamiltonianPy import *
 from HamiltonianPy.TensorNetwork import *
 from HamiltonianPy.DMRG import *
 
+savedata=False
+
 def test_dmrg():
     print 'test_dmrg'
     mkl.set_num_threads(1)
@@ -37,7 +39,6 @@ def dmrg_spin(mode,spin,N,J,qnon=True,matvec='lo'):
     print '%s_spin'%mode
     priority,layers=DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
     dmrg=DMRG(
-        log=        Log('spin-%s.log'%spin,mode='a+'),
         name=       '%s-spin-%s'%(mode,spin),
         mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
         lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0]),nneighbour=1),
@@ -51,11 +52,11 @@ def dmrg_spin(mode,spin,N,J,qnon=True,matvec='lo'):
         )
     targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GROWTH',targets=targets,nmax=200,save_data=False,run=DMRGTSG)
+        tsg=TSG(name='GROWTH',targets=targets,nmax=200,savedata=savedata,run=DMRGTSG)
         dmrg.register(tsg)
     else:
-        tsg=TSG(name='GROWTH',targets=targets,nmax=200,save_data=False,plot=False,run=DMRGTSG)
-        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*dmrg.nspb,nmaxs=[200,200],dependences=[tsg],save_data=False,run=DMRGTSS)
+        tsg=TSG(name='GROWTH',targets=targets,nmax=200,savedata=savedata,plot=False,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*dmrg.nspb,nmaxs=[200,200],dependences=[tsg],savedata=savedata,run=DMRGTSS)
         dmrg.register(tss)
     dmrg.summary()
     print
@@ -64,7 +65,6 @@ def dmrg_spinless_fermion(mode,N,t,qnon=True,matvec='lo'):
     print '%s_spinless_fermion'%mode
     priority,layers=DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS
     dmrg=DMRG(
-        log=        Log('fermion-spin-o.log',mode='a+'),
         name=       '%s-fermion-spin-0'%mode,
         mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
         lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
@@ -78,11 +78,11 @@ def dmrg_spinless_fermion(mode,N,t,qnon=True,matvec='lo'):
         )
     targets=[PQN(num) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GROWTH',targets=targets,nmax=200,save_data=False,run=DMRGTSG)
+        tsg=TSG(name='GROWTH',targets=targets,nmax=200,savedata=savedata,run=DMRGTSG)
         dmrg.register(tsg)
     else:
-        tsg=TSG(name='GROWTH',targets=targets,nmax=200,save_data=False,plot=False,run=DMRGTSG)
-        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*dmrg.nspb,nmaxs=[200,200],dependences=[tsg],save_data=False,run=DMRGTSS)
+        tsg=TSG(name='GROWTH',targets=targets,nmax=200,savedata=savedata,plot=False,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*dmrg.nspb,nmaxs=[200,200],dependences=[tsg],savedata=savedata,run=DMRGTSS)
         dmrg.register(tss)
     dmrg.summary()
     print
@@ -91,7 +91,6 @@ def dmrg_spinful_fermion(mode,N,t,U,qnon=True,matvec='lo'):
     print '%s_spinful_fermion'%mode
     priority,layers=DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS
     dmrg=DMRG(
-        log=        Log('fermion-spin-0.5.log',mode='a+'),
         name=       '%s-fermion-spin-0.5'%mode,
         mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
         lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
@@ -105,11 +104,11 @@ def dmrg_spinful_fermion(mode,N,t,U,qnon=True,matvec='lo'):
         )
     targets=[SPQN((num*2,0.0)) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GROWTH',targets=targets,nmax=200,save_data=False,run=DMRGTSG)
+        tsg=TSG(name='GROWTH',targets=targets,nmax=200,savedata=savedata,run=DMRGTSG)
         dmrg.register(tsg)
     else:
-        tsg=TSG(name='GROWTH',targets=targets,nmax=200,save_data=False,plot=False,run=DMRGTSG)
-        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*dmrg.nspb,nmaxs=[200,200],dependences=[tsg],save_data=False,run=DMRGTSS)
+        tsg=TSG(name='GROWTH',targets=targets,nmax=200,savedata=savedata,plot=False,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*dmrg.nspb,nmaxs=[200,200],dependences=[tsg],savedata=savedata,run=DMRGTSS)
         dmrg.register(tss)
     dmrg.summary()
     print
@@ -118,7 +117,6 @@ def dmrg_honeycomb_heisenberg(mode,N,J,qnon=True,matvec='lo'):
     print '%s_honeycomb_heisenberg'%mode
     h4,priority,layers=Hexagon(name='H4'),DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
     dmrg=DMRG(
-        log=        Log('honeycomb-heisenberg.log',mode='a+'),
         name=       '%s-honeycomb-heisenberg'%mode,
         mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
         lattice=    Cylinder(name='WG',block=h4.rcoords,translation=h4.vectors[0],vectors=[h4.vectors[1]],nneighbour=1),
@@ -132,11 +130,11 @@ def dmrg_honeycomb_heisenberg(mode,N,J,qnon=True,matvec='lo'):
         )
     targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
     if mode=='idmrg':
-        tsg=TSG(name='GROWTH',targets=targets,nmax=100,save_data=False,run=DMRGTSG)
+        tsg=TSG(name='GROWTH',targets=targets,nmax=100,savedata=savedata,run=DMRGTSG)
         dmrg.register(tsg)
     else:
-        tsg=TSG(name='GROWTH',targets=targets,nmax=100,save_data=False,plot=False,run=DMRGTSG)
-        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*dmrg.nspb,nmaxs=[100,100],dependences=[tsg],save_data=False,run=DMRGTSS)
+        tsg=TSG(name='GROWTH',targets=targets,nmax=100,savedata=savedata,plot=False,run=DMRGTSG)
+        tss=TSS(name='SWEEP',target=targets[-1],nsite=N*dmrg.nspb,nmaxs=[100,100],dependences=[tsg],savedata=savedata,run=DMRGTSS)
         dmrg.register(tss)
     dmrg.summary()
     print

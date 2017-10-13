@@ -28,13 +28,13 @@ class FLQT(TBA):
         =========     ================================
     '''
 
-    def evolution(self,t=(),**karg):
+    def evolution(self,ts=(),**karg):
         '''
         This method returns the matrix representation of the time evolution operator.
 
         Parameters
         ----------
-        t : 1d array-like
+        ts : 1d array-like
             The time mesh.
         karg : dict, optional
             Other parameters.
@@ -45,10 +45,8 @@ class FLQT(TBA):
             The matrix representation of the time evolution operator.
         '''
         result=eye(self.nmatrix,dtype=complex128)
-        nt=len(t)
-        for i,time in enumerate(t):
-            if i<nt-1:
-                result=dot(expm2(-1j*self.matrix(t=time,**karg)*(t[i+1]-time)),result)
+        for i in xrange(len(ts)-1):
+            result=dot(expm2(-1j*self.matrix(t=ts[i],**karg)*(ts[i+1]-ts[i])),result)
         return result
 
 class QEB(HP.EB):
@@ -77,27 +75,17 @@ def FLQTQEB(engine,app):
     '''
     This method calculates the Floquet quasi-energy bands.
     '''
-    if app.path is not None:
-        assert len(app.path.tags)==1
-        rank,mesh=app.path.rank(0),app.path.mesh(0)
-        result=zeros((rank,engine.nmatrix+1))
-        if mesh.ndim==1:
-            result[:,0]=mesh
-        else:
-            result[:,0]=array(xrange(rank))
-        for i,paras in app.path():
-            result[i,1:]=angle(eig(engine.evolution(t=app.ts.mesh('t'),**paras))[0])/app.ts.volume('t')
-    else:
+    if app.path is None:
         result=zeros((2,engine.nmatrix+1))
         result[:,0]=array(xrange(2))
-        result[0,1:]=angle(eig(engine.evolution(t=app.ts.mesh('t')))[0])/app.ts.volume('t')
+        result[0,1:]=angle(eig(engine.evolution(ts=app.ts.mesh('t')))[0])/app.ts.volume('t')
         result[1,1:]=result[0,1:]
-    if app.save_data:
-        savetxt('%s/%s_%s.dat'%(engine.dout,engine.status,app.status.name),result)
-    if app.plot:
-        plt.title('%s_%s'%(engine.status,app.status.name))
-        plt.plot(result[:,0],result[:,1:])
-        if app.show and app.suspend: plt.show()
-        if app.show and not app.suspend: plt.pause(app.SUSPEND_TIME)
-        if app.save_fig: plt.savefig('%s/%s_%s.png'%(engine.dout,engine.status,app.status.name))
-        plt.close()
+    else:
+        rank,mesh=app.path.rank(0),app.path.mesh(0)
+        result=zeros((rank,engine.nmatrix+1))
+        result[:,0]=mesh if mesh.ndim==1 else array(xrange(rank))
+        for i,paras in app.path('+'):
+            result[i,1:]=angle(eig(engine.evolution(ts=app.ts.mesh('t'),**paras))[0])/app.ts.volume('t')
+    name='%s_%s'%(engine,app.name)
+    if app.savedata: savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
