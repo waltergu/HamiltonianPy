@@ -164,8 +164,7 @@ def EDEL(engine,app):
             result.T[[j*app.ns+i+1 for j in xrange(1,app.nder+1)]]=derivatives(result[:,0],result[:,i+1],ders=range(1,app.nder+1))
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot:
-        prefixs={i:'1st' if i==0 else ('2nd' if i==1 else ('3rd' if i==2 else '%sth'%(i+1))) for i in xrange(app.nder)}
-        legend=[('%s der of '%prefixs[k/app.ns] if k/app.ns>0 else '')+'$E_{%s}$'%(k%app.ns) for k in xrange(result.shape[1]-1)]
+        legend=[('%s der of '%HP.ordinal(k/app.ns) if k/app.ns>0 else '')+'$E_{%s}$'%(k%app.ns) for k in xrange(result.shape[1]-1)]
         app.figure('L',result,'%s/%s'%(engine.dout,name),legend=legend,legendloc='lower right')
 
 class GF(HP.GF):

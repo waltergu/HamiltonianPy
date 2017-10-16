@@ -5,7 +5,8 @@ Based on this, it implements several algorithms, including:
 * tight binding approximation (TBA) and Bogoliubov de Gennes (BdG) equations for fermionic systems,
 * exact diagonalization (ED) for electron systems,
 * cluster pertubation theory (CPT) and variational cluster approach (VCA) for fermionic systems,
-* density matrix renormalization group (DMRG) for electron and spin systems.
+* density matrix renormalization group (DMRG) for electron and spin systems,
+* spin wave theory for flat band ferromagnets (FBFM).
 
 
 Dependency

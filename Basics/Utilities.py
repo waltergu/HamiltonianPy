@@ -6,10 +6,10 @@ Utilities
 The utilities of the subpackage, including:
     * constants: RZERO
     * classes: Arithmetic, Timer, Timers, Info, Log
-    * functions: parity, berry_curvature, decimaltostr, mpirun
+    * functions: parity, berry_curvature, decimaltostr, ordinal, mpirun
 '''
 
-__all__=['RZERO','Arithmetic','Timer','Timers','Info','Log','parity','berry_curvature','decimaltostr','mpirun']
+__all__=['RZERO','Arithmetic','Timer','Timers','Info','Log','parity','berry_curvature','decimaltostr','ordinal','mpirun']
 
 from copy import copy
 from mpi4py import MPI
@@ -617,6 +617,22 @@ def decimaltostr(number,n=5):
     else:
         raise TypeError('decimaltostr error: not supported class(%s).'%number.__class__.__name__)
     return result
+
+def ordinal(number):
+    '''
+    Convert a number to its corresponding ordinal.
+
+    Parameters
+    ----------
+    number : int
+        The number.
+
+    Returns
+    -------
+    str
+        The corresponding ordinal.
+    '''
+    return '1st' if number==0 else ('2nd' if number==1 else ('3rd' if number==2 else '%sth'%(number+1)))
 
 def mpirun(f,arguments,bcast=True):
     '''

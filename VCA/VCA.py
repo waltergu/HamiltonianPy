@@ -20,6 +20,7 @@ from collections import OrderedDict
 from copy import deepcopy
 import numpy as np
 import HamiltonianPy as HP
+import HamiltonianPy.Misc as HM
 import HamiltonianPy.ED as ED
 import matplotlib.pyplot as plt
 import os
@@ -110,7 +111,7 @@ class VCA(ED.FED):
         `VCABC`     calculates the Berry curvature and Chern number based on the so-called topological Hamiltonian (PRX 2, 031008 (2012))
         `VCATEB`    calculates the topological Hamiltonian's spectrum
         `VCAGP`     calculates the grand potential
-        `VCAGPM`    minimizes the grand potential
+        `VCAGPM`    implements the grand potential based methods
         `VCACPFF`   calculates the chemical potential or filling factor
         `VCAOP`     calculates the order parameter
         `VCADTBT`   calculates the distribution of fermions along a path in the Brillouin zone
@@ -467,7 +468,6 @@ def VCABC(engine,app):
     app.set(H=lambda kx,ky: -inv(engine.gf(k=[kx,ky])))
     app.mu=mu
     engine.log<<'Chern number(mu): %s(%s)\n'%(app.cn,app.mu)
-
     kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
     result=np.zeros((nk,3))
     result[:,0:2]=kmesh
@@ -502,50 +502,58 @@ def VCAGP(engine,app):
     part1=-quad(fx,0,np.float(np.inf))[0]/np.pi
     part2=np.trace(engine.pt_kmesh(kmesh),axis1=1,axis2=2).sum().real
     app.gp=(cgf.gse+(part1+part2)/nk)/(engine.ncopt/engine.nopt)/len(engine.cell)
-    engine.log<<'gp: %s\n\n'%app.gp
+    engine.log<<'gp(mu): %s(%s)\n\n'%(app.gp,app.mu)
 
 class GPM(HP.App):
     '''
-    Grand potential minimization.
+    Grand potential based methods.
 
     Attributes
     ----------
     BS : BaseSpace or dict
-        * When BaseSpace, it is the basespace on which the grand potential is to be computed;
-        * When dict, it is the initial guess of the minimum point in the basespace.
-    extras : dict
-        The extra parameters passed to scipy.optimize.minimize.
-        Please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
-    bsm : dict
-        The minimum point in the base space.
-    gpm : np.float64
-        The minimum value of the grand potential.
-
-    Notes
-    -----
-    `extras` will be omitted if `BS` is an instance of `BaseSpace`.
+        * BaseSpace: the basespace where to compute the grand potential;
+        * dict: the initial guess in the basespace.
+    job : 'min','der'
+        * 'min': minimize the grand potential
+        * 'der': derivate the grand potential
+    options : dict
+        The extra parameters to help handle the job.
+            * job=='min': passed to scipy.optimize.minimize, please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
+            * job=='der': entry 'nder', the number of derivates to calculates.
+    bs : dict
+        The wanted point in the base space.
+    gp : np.float64
+        The corresponding value of the grand potential at the wanted point.
     '''
 
-    def __init__(self,BS,method=None,options=None,**karg):
+    def __init__(self,BS,job='min',options=None,**karg):
         '''
         Constructor.
 
         Parameters
         ----------
         BS : BaseSpace or dict
-            * When BaseSpace, it is the basespace on which the grand potential is to be computed;
-            * When dict, it is the initial guess of the minimum point in the basespace.
-        method, options:
-            Please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
+            * BaseSpace: the basespace where to compute the grand potential;
+            * dict: the initial guess in the basespace.
+        job : 'min','der', optional
+            * 'min': minimize the grand potential
+            * 'der': derivate the grand potential
+        options : dict, optional
+            The extra parameters to help handle the job.
+                * job=='min': the optional parameters passed to scipy.optimize.minimize.
+                * job=='der': entry 'nder', the number of derivates to calculates.
         '''
         self.BS=BS
-        self.extras={'method':method,'options':options}
-        self.bsm={}
-        self.gpm=0.0
+        assert job in ('min','der')
+        self.job=job
+        if job=='min': self.options={'method':(options or {}).get('method',None),'options':(options or {}).get('options',None)} if isinstance(BS,dict) else {'mode':'+'}
+        if job=='der': self.options={'mode':'+','nder':(options or {}).get('nder',2)}
+        self.bs={}
+        self.gp=None
 
 def VCAGPM(engine,app):
     '''
-    This method minimizes the grand potential.
+    This method implements the grand potential based methods.
     '''
     def gp(values,keys):
         engine.cache.pop('pt_kmesh',None)
@@ -553,23 +561,26 @@ def VCAGPM(engine,app):
         engine.rundependences(app.name)
         return app.dependences[2].gp
     if isinstance(app.BS,HP.BaseSpace):
-        nbs=len(app.BS.tags)
-        result=np.zeros((np.product([app.BS.rank(tag) for tag in app.BS.tags]),nbs+1),dtype=np.float64)
-        for i,paras in enumerate(app.BS('*')):
-            result[i,0:nbs]=np.array(paras.values())
-            result[i,nbs]=gp(paras.values(),paras.keys())
-        app.gpm=np.amin(result[:,nbs])
-        index=np.argmin(result[:,nbs])
-        app.bsm={key:value for key,value in zip(paras.keys(),result[index,0:nbs])}
-        engine.log<<'Summary of Minimization:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bsm.items()+[('value',app.gpm)]))
+        mode,nbs,nder=app.options.get('mode','+'),len(app.BS.tags),app.options.get('nder',0)
+        if app.job=='der' or app.plot: assert mode=='+' or nbs==1
+        result=np.zeros((app.BS.rank(0),nder+2)) if mode=='+' else np.zeros((np.product([app.BS.rank(i) for i in xrange(nbs)]),nbs+nder+1))
+        for i,paras in enumerate(app.BS(mode)):
+            result[i,0:(1 if mode=='+' else nbs)]=paras.values()[0] if mode=='+' else np.array(paras.values())
+            result[i,1 if mode=='+' else nbs]=gp(paras.values(),paras.keys())
+        if app.job=='der': result[:,2:]=HM.derivatives(result[:,0],result[:,1],ders=range(1,nder+1)).T
+        index=np.argmin(result[:,-1]) if app.job=='min' else np.argmax(np.abs(result[:,-1]))
+        app.bs={key:value for key,value in zip(app.BS.tags,result[index,0:nbs])}
+        app.gp=result[index,-1]
+        engine.log<<'Summary:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bs.items()+[('value',app.gp)]))
         name='%s_%s'%(engine.tostr(mask=app.BS.tags),app.name)
         if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
-        if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name),interpolate=True)
+        if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name),interpolate=True,legend=['%sgp'%('%s der of '%HP.ordinal(k-1) if k>0 else '') for k in xrange(nder+1)])
     elif isinstance(app.BS,dict):
-        result=minimize(gp,app.BS.values(),args=(app.BS.keys()),method=app.extras['method'],options=app.extras['options'])
-        app.bsm,app.gpm={key:value for key,value in zip(app.BS.keys(),result.x)},result.fun
-        engine.log<<'Summary of Minimization:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bsm.items()+[('gp',app.gpm)]))
-        if app.savedata: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.tostr(mask=app.BS.keys()),app.name),np.array([app.bsm.values()+[app.gpm]]))
+        assert app.job=='min'
+        result=minimize(gp,app.BS.values(),args=(app.BS.keys()),**app.options)
+        app.bs,app.gp={key:value for key,value in zip(app.BS.keys(),result.x)},result.fun
+        engine.log<<'Summary:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bs.items()+[('gp',app.gp)]))
+        if app.savedata: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.tostr(mask=app.BS.keys()),app.name),np.array([app.bs.values()+[app.gp]]))
     else:
         raise TypeError('VCAGPM error: app.BS must be an instance of BaseSpace or dict.')
 

@@ -155,6 +155,7 @@ class Engine(object):
                     if app.prepare is not None: app.prepare(self,app)
                     if app.run is not None: app.run(self,app)
                     app.virgin=False
+                    app.update(**self.parameters)
                     app.parameters.update(self.parameters)
             self.log<<'App %s(%s): time consumed %ss.\n\n'%(app.name,app.__class__.__name__,self.clock.time(app.name))
             self.log.close()
@@ -172,6 +173,7 @@ class Engine(object):
             for app in self.apps[name].dependences:
                 match=self.parameters.match(app.parameters)
                 if app.virgin or not match:
+                    app.update(**self.parameters)
                     app.parameters.update(self.parameters)
                     if app.prepare is not None: app.prepare(self,app)
                     if app.run is not None: app.run(self,app)
@@ -216,8 +218,8 @@ class App(object):
         A flag to tag whether the generated data of the result is to be saved on the hard drive.
     dependences : list of App
         The apps on which this app depends.
-    update : callable
-        The function called by the engine to update the app's attributes before it prepares the tasks.
+    map : callable
+        The function that maps the a set of parameters to the app's attributes.
     prepare : callable
         The function called by the engine before it carries out the tasks.
     run : callable
@@ -240,10 +242,19 @@ class App(object):
         result.savefig=karg.get('savefig',True)
         result.savedata=karg.get('savedata',True)
         result.dependences=karg.get('dependences',[])
-        result.update=karg.get('update',None)
+        result.map=karg.get('map',None)
         result.prepare=karg.get('prepare',None)
         result.run=karg.get('run',None)
         return result
+
+    def update(self,**karg):
+        '''
+        Update the attributes of the app.
+        '''
+        if callable(self.map) and len(karg)>0:
+            for key,value in self.map(karg).iteritems():
+                assert hasattr(self,key)
+                setattr(self,key,value)
 
     def figure(self,mode,data,name,**options):
         '''
@@ -270,10 +281,14 @@ class App(object):
                     tck=interpolate.splrep(data[:,0],data[:,i],k=3)
                     Y=interpolate.splev(X,tck,der=0)
                     plt.plot(X,Y,label=options['legend'][i-1] if 'legend' in options else None)
-                if 'legend' in options: plt.legend(shadow=True,fancybox=True,loc=options.get('legendloc',None))
+                if 'legend' in options:
+                    leg=plt.legend(fancybox=True,loc=options.get('legendloc',None))
+                    leg.get_frame().set_alpha(0.5)
             else:
                 plt.plot(data[:,0],data[:,1:])
-                if 'legend' in options: plt.legend(options['legend'],shadow=True,fancybox=True,loc=options.get('legendloc',None))
+                if 'legend' in options:
+                    leg=plt.legend(options['legend'],fancybox=True,loc=options.get('legendloc',None))
+                    leg.get_frame().set_alpha(0.5)
         elif mode=='P':
             plt.colorbar(plt.pcolormesh(data[:,:,0],data[:,:,1],data[:,:,2]))
             if 'axis' in options: plt.axis(options.get('axis','equal'))

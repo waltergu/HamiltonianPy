@@ -10,6 +10,7 @@ BaseSpace, including
 
 __all__=['BaseSpace', 'KSpace', 'KPath', 'TSpace', 'FBZ']
 
+from collections import OrderedDict
 from Geometry import volume,isonline
 from QuantumNumber import QuantumNumbers,NewQuantumNumber
 import numpy as np
@@ -77,10 +78,10 @@ class BaseSpace(object):
         '''
         if mode=="*":
             for values in it.product(*self.meshes):
-                yield {tag:value for tag,value in zip(self.tags,values)}
+                yield OrderedDict((tag,value) for tag,value in zip(self.tags,values))
         elif mode=="+":
             for values in zip(*self.meshes):
-                yield {tag:value for tag,value in zip(self.tags,values)}
+                yield OrderedDict((tag,value) for tag,value in zip(self.tags,values))
 
     def rank(self,tag):
         '''
