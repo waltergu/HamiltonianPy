@@ -736,7 +736,7 @@ def DMRGTSG(engine,app):
         if nspb>1 and len(app.targets)>1 and pos==0 and app.savedata: engine.coredump()
     if num==len(app.targets)-1 and app.nmax>engine.mps.nmax: TSGSWEEP(app.nsweep)
     if app.plot and app.savefig:
-        plt.savefig('%s/%s_%s.png'%(engine.dout,engine,repr(engine.target)))
+        plt.savefig('%s/%s_%s.png'%(engine.log.dir,engine,repr(engine.target)))
         plt.close()
     if app.savedata: engine.coredump()
     engine.log.close()
@@ -837,6 +837,6 @@ def DMRGTSS(engine,app):
         engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,piechart=app.plot)
         if app.savedata: engine.coredump()
     if app.plot and app.savefig:
-        plt.savefig('%s/%s_%s.png'%(engine.dout,engine,repr(engine.target)))
+        plt.savefig('%s/%s_%s.png'%(engine.log.dir,engine,repr(engine.target)))
         plt.close()
     engine.log.close()

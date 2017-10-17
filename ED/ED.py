@@ -157,15 +157,16 @@ def EDEL(engine,app):
         engine.log<<'%s\n'%timers.tostr(HP.Timers.ALL)
         if app.plot: timers.graph(parents=HP.Timers.ALL)
     else:
-        if app.plot and app.savefig: plt.savefig('%s/%s_TIMERS.png'%(engine.dout,name))
+        if app.plot and app.savefig: plt.savefig('%s/%s_TIMERS.png'%(engine.log.dir,name))
         if app.plot: plt.close()
     if app.nder>0:
         for i in xrange(app.ns):
             result.T[[j*app.ns+i+1 for j in xrange(1,app.nder+1)]]=derivatives(result[:,0],result[:,i+1],ders=range(1,app.nder+1))
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot:
-        legend=[('%s der of '%HP.ordinal(k/app.ns) if k/app.ns>0 else '')+'$E_{%s}$'%(k%app.ns) for k in xrange(result.shape[1]-1)]
-        app.figure('L',result,'%s/%s'%(engine.dout,name),legend=legend,legendloc='lower right')
+        ns=app.ns
+        options={'legend':[('%s der of '%HP.ordinal(k/ns) if k/ns>0 else '')+'$E_{%s}$'%(k%ns) for k in xrange(result.shape[1]-1)],'legendloc':'lower right'} if ns<=10 else {}
+        app.figure('L',result,'%s/%s'%(engine.dout,name),**options)
 
 class GF(HP.GF):
     '''
