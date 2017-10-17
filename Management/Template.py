@@ -240,9 +240,7 @@ from config import *
 
 __all__=['fbfmconstruct']
 
-def fbfmconstruct(parameters,lattice,terms,interactions,**karg):
-    # edit the value of nks if needed
-    basis=FB.FBFMBasis(BZ=FBZ(lattice.reciprocals,nks=(50,)*len(lattice.reciprocals) if len(lattice.reciprocals)>0 else None),polarization='up')
+def fbfmconstruct(parameters,basis,lattice,terms,interactions,**karg):
     fbfm=FB.FBFM(
         dlog=           'log',
         din=            'data',
