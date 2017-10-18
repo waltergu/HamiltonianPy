@@ -20,6 +20,7 @@ from collections import OrderedDict
 from copy import deepcopy
 import numpy as np
 import HamiltonianPy as HP
+import HamiltonianPy.FreeSystem as TBA
 import HamiltonianPy.Misc as HM
 import HamiltonianPy.ED as ED
 import matplotlib.pyplot as plt
@@ -209,6 +210,7 @@ class VCA(ED.FED):
         Update the engine.
         '''
         if len(karg)>0:
+            self.preloads[0].virgin=True
             super(ED.ED,self).update(**karg)
             karg=self.data(karg)
             self.generator.update(**karg)
@@ -249,6 +251,9 @@ class VCA(ED.FED):
         app=self.preloads[0]
         if omega is not None:
             app.omega=omega
+            if app.virgin:
+                app.virgin=False
+                if app.prepare is not None: app.prepare(self,app)
             app.run(self,app)
         return app.gf
 
@@ -378,6 +383,24 @@ class VCA(ED.FED):
         for n,k in enumerate(kmesh):
             result[n,:,:]=_gf_contract_(k,mgf_kmesh[n,:,:],self.periodization['seqs'],self.periodization['coords'])
         return result/(self.ncopt/self.nopt)
+
+    def totba(self):
+        '''
+        Convert the free part of the system to tba.
+        '''
+        return TBA.TBA(
+            dlog=       self.log.dir,
+            din=        self.din,
+            dout=       self.dout,
+            name=       self.name,
+            parameters= self.parameters,
+            map=        self.map,
+            lattice=    self.lattice,
+            config=     self.config,
+            terms=      [term for term in self.terms+self.weiss if isinstance(term,HP.Quadratic)],
+            mask=       self.mask,
+            dtype=      self.dtype
+            )
 
 class EB(HP.EB):
     '''
@@ -619,7 +642,7 @@ def VCACPFF(engine,app):
     engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
     kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
-    fx=lambda omega,mu: (np.trace(engine.mgf_kmesh(omega=mu+1j*omega,kmesh=kmesh),axis1=1,axis2=2)-engine.ncopt/(1j*omega-mu-app.p)).sum().real
+    fx=lambda omega,mu: (np.trace(engine.mgf_kmesh(omega=mu+1j*omega,kmesh=kmesh),axis1=1,axis2=2)-engine.ncopt/(1j*omega-app.p)).sum().real
     if app.task=='CP':
         gx=lambda mu: quad(fx,0,np.float(np.inf),args=mu)[0]/nk/engine.ncopt/np.pi-app.filling
         app.mu=broyden2(gx,app.mu,verbose=True,reduction_method='svd',maxiter=20,x_tol=app.tol)
@@ -691,7 +714,7 @@ def VCAOP(engine,app):
             m[opt.seqs]+=opt.value
         m+=m.T.conjugate()
         ms[i,:,:]=m
-    fx=lambda omega,m: (np.trace(engine.mgf_kmesh(omega=app.mu+1j*omega,kmesh=kmesh).dot(m),axis1=1,axis2=2)-np.trace(m)/(1j*omega-app.mu-app.p)).sum().real
+    fx=lambda omega,m: (np.trace(engine.mgf_kmesh(omega=app.mu+1j*omega,kmesh=kmesh).dot(m),axis1=1,axis2=2)-np.trace(m)/(1j*omega-app.p)).sum().real
     for i,(m,dtype) in enumerate(zip(ms,app.dtypes)):
         app.ops[i]=quad(fx,0,np.float(np.inf),args=m)[0]/nk/engine.ncopt*2/np.pi
         if dtype in (np.float32,np.float64): app.ops[i]=app.ops[i].real
@@ -735,7 +758,7 @@ def VCADTBT(engine,app):
     '''
     engine.rundependences(app.name)
     nk,kmesh=app.path.rank('k'),app.path.mesh('k')
-    nwk=lambda omega,k: (np.trace(engine.gf(omega*1j+app.mu,k))-engine.nopt/(omega*1j-app.mu-app.p)).real
+    nwk=lambda omega,k: (np.trace(engine.gf(omega*1j+app.mu,k))-engine.nopt/(omega*1j-app.p)).real
     result=np.zeros((nk,2))
     result[:,0]=np.array(xrange(nk))
     for i,k in enumerate(kmesh):

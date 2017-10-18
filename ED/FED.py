@@ -15,6 +15,7 @@ from scipy.sparse import csr_matrix
 from copy import deepcopy
 from collections import OrderedDict
 import HamiltonianPy as HP
+import HamiltonianPy.FreeSystem as TBA
 import numpy as np
 
 class FED(ED):
@@ -130,6 +131,23 @@ class FED(ED):
             Hmats.append(fed.matrix)
             Omats.append(HP.foptrep(operator,basis=[self.basis,fed.basis],transpose=True))
         return Hmats,Omats
+
+    def totba(self):
+        '''
+        Convert the free part of the system to tba.
+        '''
+        return TBA.TBA(
+            dlog=       self.log.dir,
+            din=        self.din,
+            dout=       self.dout,
+            name=       self.name,
+            parameters= self.parameters,
+            map=        self.map,
+            lattice=    self.lattice,
+            config=     self.config,
+            terms=      [term for term in self.terms if isinstance(term,HP.Quadratic)],
+            dtype=      self.dtype
+            )
 
 def FGF(**karg):
     '''

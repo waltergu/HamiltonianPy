@@ -111,6 +111,7 @@ class VCACCT(VCA):
         Update the engine.
         '''
         if len(karg)>0:
+            self.preloads[0].virgin=True
             for subsystem in self.subsystems.itervalues():
                 subsystem.update(**karg)
             super(ED.ED,self).update(**karg)
