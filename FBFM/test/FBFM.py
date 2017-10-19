@@ -17,6 +17,7 @@ def test_fbfm():
     S2x=Square('S2x')('1P-1O',nneighbour=2)
     fbfm=fbfmconstruct(factor,FB.FBFMBasis(BZ=FBZ(S2x.reciprocals,nks=(60,)),polarization='up'),S2x)
     fbfm.register(FB.EB(name='EB1',path='L:G1-G2',ne=4,savedata=False,run=FB.FBFMEB))
+    fbfm.register(BP(name='BP',path='L:G1-G2',ns=(0,1),savedata=False,run=FB.FBFMBP))
     fbfm.summary()
     print 'open boundary conditions'
     print '------------------------'

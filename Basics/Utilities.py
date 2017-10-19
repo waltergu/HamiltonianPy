@@ -6,10 +6,10 @@ Utilities
 The utilities of the subpackage, including:
     * constants: RZERO
     * classes: Arithmetic, Timer, Timers, Info, Log
-    * functions: parity, berry_curvature, decimaltostr, ordinal, mpirun
+    * functions: parity, berry_curvature, berry_phase, decimaltostr, ordinal, mpirun
 '''
 
-__all__=['RZERO','Arithmetic','Timer','Timers','Info','Log','parity','berry_curvature','decimaltostr','ordinal','mpirun']
+__all__=['RZERO','Arithmetic','Timer','Timers','Info','Log','parity','berry_curvature','berry_phase','decimaltostr','ordinal','mpirun']
 
 from copy import copy
 from mpi4py import MPI
@@ -585,6 +585,39 @@ def berry_curvature(H,kx,ky,mu,d=10**-6):
             if Es[n]<=mu and Es[m]>mu:
                 result-=2*(np.vdot(np.dot(Vx,Evs[:,n]),Evs[:,m])*np.vdot(Evs[:,m],np.dot(Vy,Evs[:,n]))/(Es[n]-Es[m])**2).imag
     return result
+
+def berry_phase(H,path,ns):
+    '''
+    Calculate the Berry phase of some bands of a Hamiltonian along a certain path.
+
+    Parameters
+    ----------
+    H : callable
+        Input function which returns the Hamiltonian as a 2D array.
+    path : iterable
+        The path along which to calculate the Berry phase.
+    ns : iterable of int
+        The sequences of bands whose Berry phases are wanted.
+
+    Returns
+    -------
+    1d ndarray
+        The wanted Berry phase of the selected bands.
+    '''
+    ns=np.array(ns)
+    for i,parameters in enumerate(path):
+        new=eigh(H(**parameters))[1][:,ns]
+        if i==0:
+            result=np.ones(len(ns),new.dtype)
+            evs=new
+        else:
+            for j in xrange(len(ns)):
+                result[j]*=np.vdot(old[:,j],new[:,j])
+        old=new
+    else:
+        for j in xrange(len(ns)):
+            result[j]*=np.vdot(old[:,j],evs[:,j])
+    return np.angle(result)/np.pi
 
 def decimaltostr(number,n=5):
     '''

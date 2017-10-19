@@ -6,10 +6,10 @@ Flat band ferromagnets
 Spin excitations for flat band ferromagnets, including:
     * constants: FBFM_PRIORITY
     * classes: FBFMBasis, FBFM, EB
-    * functions: optrep, FBFMEB, FBFMPOS
+    * functions: optrep, FBFMEB, FBFMPOS, FBFMBP
 '''
 
-__all__=['FBFM_PRIORITY','FBFMBasis','optrep','FBFM','EB','FBFMEB','FBFMPOS']
+__all__=['FBFM_PRIORITY','FBFMBasis','optrep','FBFM','EB','FBFMEB','FBFMPOS','FBFMBP']
 
 import numpy as np
 import HamiltonianPy as HP
@@ -212,12 +212,13 @@ class FBFM(HP.Engine):
         The generator of the interaction part of the system.
 
     Supported methods:
-        =========     ==================================================
+        =========     =====================================================
         METHODS       DESCRIPTION
-        =========     ==================================================
+        =========     =====================================================
         `FBFMEB`      calculate the energy spectrums of spin excitations
         `FBFMPOS`     calculate the profiles of spin-1-excitation states
-        =========     ==================================================
+        `FBFMBP`      calculate the Berry phases of spin-1-excitation bands
+        =========     =====================================================
     '''
 
     def __init__(self,basis=None,lattice=None,config=None,terms=None,interactions=None,dtype=np.complex128,**karg):
@@ -419,3 +420,12 @@ def FBFMPOS(engine,app):
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name),legend=['Level %s'%n for n in app.ns or (0,)])
+
+def FBFMBP(engine,app):
+    '''
+    This method calculates the Berry phases of spin-1-excitation bands along a certain path.
+    '''
+    path,bz,reciprocals=app.path,engine.basis.BZ,engine.lattice.reciprocals
+    parameters=list(path('+')) if isinstance(path,HP.BaseSpace) else [{'k':bz[pos]} for pos in bz.path(HP.KMap(reciprocals,path) if isinstance(path,str) else path,mode='I')]
+    app.set(engine.matrix,parameters)
+    engine.log<<'Berry phases: %s\n'%(', '.join('%s(%s)'%(HP.decimaltostr(bp),n) for bp,n in zip(app.bps,app.ns)))

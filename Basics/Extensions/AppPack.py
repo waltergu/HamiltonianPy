@@ -4,14 +4,14 @@ App pack
 --------
 
 App pack, including:
-    * classes: GSE, EB, POS, DOS, GF, FS, BC, GP, CPFF
+    * classes: GSE, EB, POS, DOS, GF, FS, BC, BP, GP, CPFF
 '''
 
-__all__=['GSE','EB','POS','DOS','GF','FS','BC','GP','CPFF']
+__all__=['GSE','EB','POS','DOS','GF','FS','BC','BP','GP','CPFF']
 
 import numpy as np
 from ..EngineApp import App
-from ..Utilities import berry_curvature
+from ..Utilities import berry_curvature,berry_phase
 
 class GSE(App):
     '''
@@ -251,12 +251,54 @@ class BC(App):
 
         Parameters
         ----------
-        H: function
+        H : callable
             Input function which returns the Hamiltonian as a 2D ndarray.
         '''
         for i,ks in enumerate(self.BZ()):
             self.bc[i]=berry_curvature(H,ks['k'][0],ks['k'][1],self.mu,d=self.d)
         self.cn=sum(self.bc)*self.BZ.volume('k')/len(self.bc)/2/np.pi
+
+class BP(App):
+    '''
+    Berry phase.
+
+    Attributes
+    ----------
+    path : BaseSpace
+        The path in the base space along which to calculate the Berry phase.
+    ns : iterable of int
+        The sequences of bands whose Berry phases are wanted.
+    bps : 1d ndarray of np.float64
+        The Berry phases of the bands.
+    '''
+
+    def __init__(self,path,ns=(0,),**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        path : BaseSpace
+            The path in the base space along which to calculate the Berry phase.
+        ns : iterable of int, optional
+            The sequences of bands whose Berry phases are wanted.
+        '''
+        self.path=path
+        self.ns=ns
+        self.bps=None
+
+    def set(self,H,path):
+        '''
+        Set the Berry phases of the wanted bands for the input Hamiltonian.
+
+        Parameters
+        ----------
+        H : callable
+            Input function which returns the Hamiltonian as a 2D ndarray.
+        path : list of dict
+            The path of parameters passed to `H`.
+        '''
+        self.bps=berry_phase(H,path,self.ns)
 
 class GP(App):
     '''
