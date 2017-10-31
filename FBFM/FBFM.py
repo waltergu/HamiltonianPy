@@ -15,6 +15,7 @@ import numpy as np
 import HamiltonianPy as HP
 import HamiltonianPy.Misc as HM
 import scipy.linalg as sl
+import numpy.linalg as nl
 import itertools as it
 import matplotlib.pyplot as plt
 from fmatrix import *
@@ -391,13 +392,14 @@ def FBFMEB(engine,app):
         for i,paras in enumerate(parameters):
             engine.log<<'%s%s'%(i,'..' if i<len(parameters)-1 else '')
             m=engine.matrix(**paras)
-            result[i,1:]=sl.eigh(m,eigvals_only=True)[:ne] if app.method=='eigh' else HM.eigsh(m,k=ne,return_eigenvectors=False)
+            result[i,1:]=sl.eigh(m,eigvals_only=False)[0][:ne] if app.method=='eigh' else HM.eigsh(m,k=ne,return_eigenvectors=False)
         engine.log<<'\n'
     else:
         result=np.zeros((2,ne+1))
         result[:,0]=np.array(xrange(2))
         result[0,1:]=sl.eigh(engine.matrix(),eigvals_only=True)[:ne] if app.method=='eigh' else HM.eigsh(engine.matrix(),k=ne,return_eigenvectors=False)
         result[1,1:]=result[0,1:]
+    app.result=result
     name='%s_%s'%(engine.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
@@ -417,6 +419,9 @@ def FBFMPOS(engine,app):
         for pos in app.ns or (0,):
             result[-1].append((np.vdot(vs[:,pos],up.dot(vs[:,pos]))-np.vdot(vs[:,pos],dw.dot(vs[:,pos]))-gs)*(-1 if engine.basis.polarization=='up' else 1))
     result=np.asarray(result)
+    assert nl.norm(np.asarray(result).imag)<HP.RZERO
+    result=result.real
+    app.result=result
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name),legend=['Level %s'%n for n in app.ns or (0,)])

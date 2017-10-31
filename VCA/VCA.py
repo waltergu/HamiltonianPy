@@ -159,7 +159,15 @@ class VCA(ED.FED):
             bonds=      [bond for bond in lattice.bonds if bond.isintracell()],
             config=     config,
             table=      config.table(mask=['nambu']),
-            terms=      terms+weiss,
+            terms=      deepcopy(terms+weiss),
+            dtype=      dtype,
+            half=       True
+            )
+        self.bcgenerator=HP.Generator(
+            bonds=      [bond for bond in lattice.bonds if not bond.isintracell()],
+            config=     config,
+            table=      config.table(mask=['nambu']),
+            terms=      deepcopy(weiss),
             dtype=      dtype,
             half=       True
             )
@@ -167,20 +175,20 @@ class VCA(ED.FED):
             bonds=      [bond for bond in lattice.bonds if not bond.isintracell()],
             config=     config,
             table=      config.table(mask=mask),
-            terms=      [term for term in terms if isinstance(term,HP.Quadratic)],
+            terms=      [deepcopy(term) for term in terms if isinstance(term,HP.Quadratic)],
             dtype=      dtype,
             half=       True
             )
         self.ptwgenerator=HP.Generator(
-            bonds=      [bond for bond in lattice.bonds if bond.isintracell()],
+            bonds=      lattice.bonds,
             config=     config,
             table=      config.table(mask=mask),
-            terms=      None if weiss is None else [term*(-1) for term in weiss],
+            terms=      None if weiss is None else [deepcopy(term)*(-1) for term in weiss],
             dtype=      dtype,
             half=       True
             )
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms+weiss))
-        self.operators=self.generator.operators
+        self.operators=self.generator.operators+self.bcgenerator.operators
         self.pthoperators=self.pthgenerator.operators
         self.ptwoperators=self.ptwgenerator.operators
         self.periodize()
@@ -205,6 +213,16 @@ class VCA(ED.FED):
                 self.periodization['seqs'][i,j]=opt.seqs[0]+1
                 self.periodization['coords'][i,j,:]=opt.rcoord
 
+    def set_matrix(self,refresh=True):
+        '''
+        Set the csr_matrix representation of the Hamiltonian.
+        '''
+        if refresh:
+            self.generator.set_matrix(HP.foptrep,self.basis,transpose=False,dtype=self.dtype)
+            self.bcgenerator.set_matrix(HP.foptrep,self.basis,transpose=False,dtype=self.dtype)
+        matrix=self.generator.matrix+self.bcgenerator.matrix
+        self.matrix=matrix.T+matrix.conjugate()
+
     def update(self,**karg):
         '''
         Update the engine.
@@ -214,9 +232,10 @@ class VCA(ED.FED):
             super(ED.ED,self).update(**karg)
             karg=self.data(karg)
             self.generator.update(**karg)
+            self.bcgenerator.update(**karg)
             self.pthgenerator.update(**karg)
             self.ptwgenerator.update(**karg)
-            self.operators=self.generator.operators
+            self.operators=self.generator.operators+self.bcgenerator.operators
             self.pthoperators=self.pthgenerator.operators
             self.ptwoperators=self.ptwgenerator.operators
 
