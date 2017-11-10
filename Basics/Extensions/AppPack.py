@@ -310,11 +310,13 @@ class GP(App):
         The Brillouin zone.
     mu : np.float64
         The Fermi level.
+    filling : np.float64
+        The filling factor.
     gp : float64
         The value of the grand potential.
     '''
 
-    def __init__(self,BZ=None,mu=0.0,**karg):
+    def __init__(self,BZ=None,mu=0.0,filling=None,**karg):
         '''
         Constructor.
 
@@ -324,9 +326,12 @@ class GP(App):
             The Brillouin zone.
         mu : np.float64, optional
             The Fermi level.
+        filling : np.float64, optional
+            The filling factor.
         '''
         self.BZ=BZ
         self.mu=mu
+        self.filling=filling
         self.gp=0
 
 class CPFF(App):

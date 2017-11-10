@@ -109,7 +109,7 @@ class SpinTerm(Term):
                                     value=      pv,
                                     indices=    [eindex],
                                     spins=      [SpinMatrix(espin.S,tags[0],matrix=ms[0],dtype=dtype)],
-                                    seqs=       None if table is None else (table[eindex])
+                                    seqs=       None if table is None else (table[eindex],)
                                     )
                     elif len(tags)==2:
                         for eorbital in xrange(espin.norbital):

@@ -543,6 +543,7 @@ def VCAGP(engine,app):
     fx=lambda omega: np.log(np.abs(det(np.eye(engine.ncopt)-engine.pt_kmesh(kmesh).dot(engine.cgf(omega=omega*1j+app.mu))))).sum()
     part1=-quad(fx,0,np.float(np.inf))[0]/np.pi
     part2=np.trace(engine.pt_kmesh(kmesh),axis1=1,axis2=2).sum().real
+    if np.abs(part2)>HP.RZERO: part2=part2*app.filling
     app.gp=(cgf.gse+(part1+part2)/nk)/(engine.ncopt/engine.nopt)/len(engine.cell)
     engine.log<<'gp(mu): %s(%s)\n\n'%(app.gp,app.mu)
 
