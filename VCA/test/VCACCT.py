@@ -33,8 +33,8 @@ def test_vcacct():
                         {'basis':FBasis(up=(4,2),down=(4,2)),'lattice':LB}
                         ],
         )
-    gp=GP(name='GP',mu=U/2,BZ=KSpace(reciprocals=lattice.reciprocals,nk=100),run=VCAGP)
-    vcacct.register(GPM(name='afm',BS=BaseSpace(('afm',np.linspace(0.0,0.1,11))),dependences=[gp],savedata=False,run=VCAGPM))
+    vcacct.add(GP(name='GP',mu=U/2,BZ=KSpace(reciprocals=lattice.reciprocals,nk=100),run=VCAGP))
+    vcacct.register(GPM(name='afm',BS=BaseSpace(('afm',np.linspace(0.0,0.1,11))),dependences=['GP'],savedata=False,run=VCAGPM))
     vcacct.register(EB(name='EB',parameters={'afm':0.0},path=hexagon_gkm(nk=100),mu=U/2,emax=6.0,emin=-6.0,eta=0.05,ne=400,savedata=False,run=VCAEB))
     vcacct.register(DOS(name='DOS',parameters={'afm':0.0},BZ=hexagon_bz(nk=50),mu=U/2,emin=-5,emax=5,ne=400,eta=0.05,savedata=False,run=VCADOS))
     vcacct.summary()

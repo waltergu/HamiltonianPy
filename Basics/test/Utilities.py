@@ -12,7 +12,7 @@ from time import sleep
 def test_utilities():
     print 'test_utilities'
     test_timers()
-    test_info()
+    test_sheet()
     test_mpi()
     print
 
@@ -31,9 +31,9 @@ def test_timers():
     timers.close()
     print
 
-def test_info():
+def test_sheet():
     print 'test_info'
-    info=Info('nnz','gse','overlap','nbasis')
+    info=Sheet(rows=('nnz','gse','overlap','nbasis'),cols=('value',))
     info['nnz']=10
     info['gse']=-0.12345667
     info['overlap']=0.99999899

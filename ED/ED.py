@@ -4,11 +4,11 @@ Exact diagonalization
 =====================
 
 Base class for exact diagonalization, including:
-    * classes: ED, EL, GF
-    * functions: EDGSE, EDEL, EDGFP, EDGF, EDDOS
+    * classes: ED, EL, GF, EIGS
+    * functions: EDEIGS, EDEL, EDGFP, EDGF, EDDOS
 '''
 
-__all__=['ED','EDGSE','EL','EDEL','GF','EDGFP','EDGF','EDDOS']
+__all__=['ED','EIGS','EDEIGS','EL','EDEL','GF','EDGFP','EDGF','EDDOS']
 
 from ..Misc import Lanczos,derivatives,eigsh
 from scipy.linalg import norm,solve_banded
@@ -40,14 +40,14 @@ class ED(HP.Engine):
         The sparse matrix representation of the Hamiltonian.
 
     Supported methods:
-        =======     =================================
-        METHODS     DESCRIPTION
-        =======     =================================
-        `EDGSE`     calculate the ground state energy
-        `EDEL`      calculates the energy spectrum
-        `EDGF`      calculates the Green's function
-        `EDDOS`     calculates the density of states
-        =======     =================================
+        ========     ================================
+        METHODS      DESCRIPTION
+        ========     ================================
+        `EDEIGS`     calculate the eigen systems
+        `EDEL`       calculates the energy spectrum
+        `EDGF`       calculates the Green's function
+        `EDDOS`      calculates the density of states
+        ========     ================================
     '''
 
     def update(self,**karg):
@@ -97,19 +97,48 @@ class ED(HP.Engine):
         '''
         raise NotImplementedError("%s Hmat_Omat err: not implemented."%self.__class__.__name__)
 
-def EDGSE(engine,app):
+class EIGS(HP.App):
     '''
-    This method calculates the ground state energy.
+    The eigen system.
+
+    Attributes
+    ----------
+    ne : integer
+        The number of lowest eigen values to compute.
+    evoff : logical
+        True for not calculating the eigenvectors. Otherwise yes.
+    '''
+
+    def __init__(self,ne=1,evoff=True,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        ne : integer, optional
+            The number of lowest eigen values to compute.
+        evoff : logical, optional
+            True for not calculating the eigenvectors. Otherwise yes.
+        '''
+        super(EIGS,self).__init__(**karg)
+        self.ne=ne
+        self.evoff=evoff
+
+def EDEIGS(engine,app):
+    '''
+    This method calculates the lowest eigenvalues and optionally the corresponding eigenvectors of the engine.
     '''
     engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value)) for key,value in engine.parameters.iteritems()))
     timers=HP.Timers('Matrix','GSE')
     with timers.get('Matrix'):
         engine.set_matrix()
     with timers.get('GSE'):
-        app.gse=eigsh(engine.matrix,k=1,which='SA',return_eigenvectors=False)[0]
+        eigs=eigsh(engine.matrix,k=app.ne,which='SA',return_eigenvectors=not app.evoff)
+        evs=eigs if app.evoff else eigs[0]
     timers.record()
     engine.log<<'::<Time>:: matrix(shape=%s,nnz=%s)=%.4es, gse=%.4es\n'%(engine.matrix.shape,engine.matrix.nnz,timers.time('Matrix'),timers.time('GSE'))
-    engine.log<<HP.Info.from_ordereddict({'Total':app.gse,'Site':app.gse/len(engine.lattice)/app.factor})<<'\n'
+    engine.log<<HP.Sheet(corner='Energy',rows=['Es','Et'],cols=['Level %s'%(app.ne-i-1) for i in xrange(app.ne)],contents=np.array([evs,evs/len(engine.lattice)]))<<'\n'
+    if app.returndata: return eigs
 
 class EL(HP.EB):
     '''
@@ -167,6 +196,7 @@ def EDEL(engine,app):
         ns=app.ns
         options={'legend':[('%s der of '%HP.ordinal(k/ns) if k/ns>0 else '')+'$E_{%s}$'%(k%ns) for k in xrange(result.shape[1]-1)],'legendloc':'lower right'} if ns<=10 else {}
         app.figure('L',result,'%s/%s'%(engine.dout,name),**options)
+    if app.returndata: return result
 
 class GF(HP.GF):
     '''
@@ -275,8 +305,12 @@ def EDGF(engine,app):
     '''
     This method calculate the GF.
     '''
+    gf=engine.records[app.name]
     if app.omega is not None:
-        app.gf[...]=0.0
+        if gf is None:
+            gf=np.zeros((app.nopt,app.nopt),dtype=app.dtype)
+        else:
+            gf[...]=0.0
         buff=np.zeros((3,app.nstep),dtype=app.dtype)
         b=np.zeros(app.nstep,dtype=app.dtype)
         for h in xrange(2):
@@ -287,10 +321,11 @@ def EDGF(engine,app):
                 buff[1,:]=app.omega-(app.hs[h,i,0,:]-app.gse)*(-1)**h
                 buff[2,:]=app.hs[h,i,1,:]*(-1)**(h+1)
                 if h==0:
-                    app.gf[:,i]+=np.dot(app.coeff[h,i,:,:],solve_banded((1,1),buff,b,overwrite_ab=True,overwrite_b=True,check_finite=False))
+                    gf[:,i]+=np.dot(app.coeff[h,i,:,:],solve_banded((1,1),buff,b,overwrite_ab=True,overwrite_b=True,check_finite=False))
                 else:
-                    app.gf[i,:]+=np.dot(app.coeff[h,i,:,:],solve_banded((1,1),buff,b,overwrite_ab=True,overwrite_b=True,check_finite=False))
-    return app.gf
+                    gf[i,:]+=np.dot(app.coeff[h,i,:,:],solve_banded((1,1),buff,b,overwrite_ab=True,overwrite_b=True,check_finite=False))
+        engine.records[app.name]=gf
+    return gf
 
 def EDDOS(engine,app):
     '''
@@ -298,8 +333,8 @@ def EDDOS(engine,app):
     '''
     engine.rundependences(app.name)
     erange=np.linspace(app.emin,app.emax,num=app.ne)
-    gf=app.dependences[0]
-    gf_mesh=np.zeros((app.ne,)+gf.gf.shape,dtype=gf.dtype)
+    gf=engine.apps[app.dependences[0]]
+    gf_mesh=np.zeros((app.ne,gf.nopt,gf.nopt),dtype=gf.dtype)
     for i,omega in enumerate(erange+app.mu+1j*app.eta):
         gf.omega=omega
         gf_mesh[i,:,:]=gf.run(engine,gf)
@@ -309,3 +344,4 @@ def EDDOS(engine,app):
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result

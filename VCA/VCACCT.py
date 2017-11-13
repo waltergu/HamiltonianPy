@@ -23,7 +23,7 @@ class VCACCT(VCA):
 
     Attributes
     ----------
-    preloads,cell,lattice,config,terms,weiss,mask,dtype,pthgenerator,ptwgenerator,pthoperators,ptwoperators,periodization,matrix,cache :
+    cell,lattice,config,terms,weiss,mask,dtype,pthgenerator,ptwgenerator,pthoperators,ptwoperators,periodization,matrix,cache :
         Inherited from VCA. See VCA for details.
     groups : list of hashable object
         The groups of the components of the system.
@@ -50,8 +50,8 @@ class VCACCT(VCA):
             * entry 'group': any hashable object, optional
                 The group of the subsystem.
         '''
-        cellconfig=HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map)
-        self.preloads.extend([cgf,HP.GF(operators=HP.fspoperators(cellconfig.table(),cell),dtype=cgf.dtype)])
+        self.preload(cgf)
+        self.preload(HP.GF(operators=HP.fspoperators(HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map).table(),cell),dtype=cgf.dtype))
         self.cell=cell
         self.lattice=lattice
         self.config=config
@@ -83,7 +83,7 @@ class VCACCT(VCA):
                     run=            ED.EDGF,
                     **attributes
                     )
-            self.subsystems[group].register(gf,run=False)
+            self.subsystems[group].add(gf)
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms+weiss))
         self.pthgenerator=HP.Generator(
                     bonds=          [bond for bond in lattice.bonds if not bond.isintracell() or bond.spoint.pid.scope!=bond.epoint.pid.scope],
@@ -111,7 +111,7 @@ class VCACCT(VCA):
         Update the engine.
         '''
         if len(karg)>0:
-            self.preloads[0].virgin=True
+            self.apps[self.preloads[0]].virgin=True
             for subsystem in self.subsystems.itervalues():
                 subsystem.update(**karg)
             super(ED.ED,self).update(**karg)
@@ -135,15 +135,21 @@ def VCACCTGF(engine,app):
     '''
     This method calculate the cluster Green's function.
     '''
+    cgf=engine.records[app.name]
     if app.omega is not None:
         gfs={}
         for group,subsystem in engine.subsystems.iteritems():
             gf=subsystem.apps['gf']
             gf.omega=app.omega
             gfs[group]=gf.run(subsystem,gf)
-        app.gf[...],row,col=0,0,0
-        for group in engine.groups:
-            app.gf[row:row+gfs[group].shape[0],col:col+gfs[group].shape[1]]=gfs[group]
-            row+=gfs[group].shape[0]
-            col+=gfs[group].shape[1]
-    return app.gf
+        if cgf is None:
+            cgf=np.zeros((app.nopt,app.nopt),dtype=app.dtype)
+        else:
+            cgf[...]=0
+        row,col=0,0
+        for gf in (gfs[group] for group in engine.groups):
+            cgf[row:row+gf.shape[0],col:col+gf.shape[1]]=gf
+            row+=gf.shape[0]
+            col+=gf.shape[1]
+        engine.records[app.name]=cgf
+    return cgf

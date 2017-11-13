@@ -104,7 +104,7 @@ def TrFEDEB(engine,app):
     if app.kend:
         result[-1,0]=engine.basis.nk
         result[-1,1:]=result[0,1:]
-    app.result=result
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result

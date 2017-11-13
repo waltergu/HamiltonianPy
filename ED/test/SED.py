@@ -24,6 +24,6 @@ def test_sed():
         target=     target,
         dtype=      np.float64
     )
-    sed.register(GSE(name='GSE',run=EDGSE))
+    sed.register(EIGS(name='GSE',ne=4,run=EDEIGS))
     sed.summary()
     print

@@ -91,7 +91,7 @@ class DMRG(Engine):
             The contraction of mpo and mps from the right.
     timers : Timers
         The timers of the dmrg processes.
-    info : Info
+    info : Sheet
         The info of the dmrg processes.
     cache : dict
         * entry 'osvs': 1d ndarray
@@ -146,11 +146,11 @@ class DMRG(Engine):
             if self.mps.mode=='QN':
                 self.timers.add(parent='kron',name='csr')
                 self.timers.add(parent='kron',name='fkron')
-            self.info=Info('Etotal','Esite','dE/E','nmatvec','nbasis','nslice','nnz','nz','density','overlap','err')
+            self.info=Sheet(('Etotal','Esite','dE/E','nmatvec','nbasis','nslice','nnz','nz','density','overlap','err'))
         else:
             self.timers=Timers('Preparation','Diagonalization','Truncation')
             self.timers.add('Diagonalization','matvec')
-            self.info=Info('Etotal','Esite','dE/E','nmatvec','nbasis','nslice','overlap','err')
+            self.info=Sheet(('Etotal','Esite','dE/E','nmatvec','nbasis','nslice','overlap','err'))
         self.cache={}
 
     @property

@@ -11,6 +11,7 @@ __all__=['Parameters','Engine','App']
 
 import os
 import numpy as np
+import itertools as it
 import matplotlib.pyplot as plt
 from numpy.linalg import norm
 from scipy import interpolate
@@ -58,10 +59,12 @@ class Engine(object):
         The parameters of the engine.
     map : callable
         This function maps a set of parameters to another.
-    preloads : list of App
-        The preloaded apps of the engine, which are the common dependences of all the other apps registered on it.
+    preloads : list of str
+        The names of the preloaded apps of the engine.
     apps : dict of App
-        The apps registered on this engine (the dependences of the apps not included).
+        The apps of this engine.
+    records : dict
+        The records of the returned data of the apps of this engine.
     clock : Timers
         The clock of the engine.
     '''
@@ -83,8 +86,9 @@ class Engine(object):
         result.parameters=Parameters(karg.get('parameters',()))
         result.map=karg.get('map',None)
         result.clock=Timers()
-        result.preloads=karg.get('preloads',[])
+        result.preloads=[]
         result.apps={}
+        result.records={}
         return result
 
     def data(self,parameters):
@@ -132,7 +136,31 @@ class Engine(object):
         for key,value in paras.iteritems():
             if key in self.parameters: self.parameters[key]=value
 
-    def register(self,app,run=True):
+    def add(self,app):
+        '''
+        This method add a new app to the engine.
+
+        Parameters
+        ----------
+        app : App
+            The app to be added to the engine.
+        '''
+        self.apps[app.name]=app
+        self.records[app.name]=None
+
+    def preload(self,app):
+        '''
+        This method preload an app onto the engine.
+
+        Parameters
+        ----------
+        app : App
+            The app to be preloaded.
+        '''
+        self.add(app)
+        self.preloads.append(app.name)
+
+    def register(self,app):
         '''
         This method register a new app on the engine.
 
@@ -140,25 +168,21 @@ class Engine(object):
         ----------
         app : App
             The app to be registered on this engine.
-        run : logical, optional
-            When it is True, the app will be run immediately after the registration. Otherwise not.
         '''
-        self.apps[app.name]=app
-        app.dependences=self.preloads+app.dependences
-        if run:
-            self.log.open()
-            self.clock.add(name=app.name)
-            with self.clock.get(app.name):
-                match=app.parameters.match(self.parameters)
-                if app.virgin or not match:
-                    if not match: self.update(**app.parameters)
-                    if app.prepare is not None: app.prepare(self,app)
-                    if app.run is not None: app.run(self,app)
-                    app.virgin=False
-                    app.update(**self.parameters)
-                    app.parameters.update(self.parameters)
-            self.log<<'App %s(%s): time consumed %ss.\n\n'%(app.name,app.__class__.__name__,self.clock.time(app.name))
-            self.log.close()
+        self.add(app)
+        self.log.open()
+        self.clock.add(name=app.name)
+        with self.clock.get(app.name):
+            match=app.parameters.match(self.parameters)
+            if app.virgin or not match:
+                if not match: self.update(**app.parameters)
+                if app.prepare is not None: app.prepare(self,app)
+                if app.run is not None: self.records[app.name]=app.run(self,app)
+                app.virgin=False
+                app.update(**self.parameters)
+                app.parameters.update(self.parameters)
+        self.log<<'App %s(%s): time consumed %ss.\n\n'%(app.name,app.__class__.__name__,self.clock.time(app.name))
+        self.log.close()
 
     def rundependences(self,name):
         '''
@@ -169,17 +193,15 @@ class Engine(object):
         name : any hashable object
             The name to specify whose dependences to be run.
         '''
-        if name in self.apps:
-            for app in self.apps[name].dependences:
-                match=self.parameters.match(app.parameters)
-                if app.virgin or not match:
-                    app.update(**self.parameters)
-                    app.parameters.update(self.parameters)
-                    if app.prepare is not None: app.prepare(self,app)
-                    if app.run is not None: app.run(self,app)
-                    app.virgin=False
-        else:
-            warn('%s rundependences warning: app(%s) not registered.'%(self.__class__.__name__,name))
+        for app in it.chain(self.preloads,self.apps[name].dependences):
+            app=self.apps[app]
+            match=self.parameters.match(app.parameters)
+            if app.virgin or not match:
+                app.update(**self.parameters)
+                app.parameters.update(self.parameters)
+                if app.prepare is not None: app.prepare(self,app)
+                if app.run is not None: self.records[app.name]=app.run(self,app)
+                app.virgin=False
 
     def summary(self):
         '''
@@ -203,21 +225,23 @@ class App(object):
     parameters : Parameters
         The parameters of the app.
     virgin : logical
-        True when the app has not been run, otherwise False.
+        True when the app has not been run. Otherwise False.
     np : integer
-        The number of processes used in parallel computing and 0 means the available maximum.
+        The number of processes will be used in parallel computing. 0 means the available maximum.
     plot : logical
-        A flag to tag whether the results are to be plotted.
+        When True, the results will be be plotted. Otherwise not.
     show : logical
-        A flag to tag whether the plotted graph is to be shown.
+        When True, the plotted graph will be shown. Otherwise not.
     suspend : logical
-        A flag to tag whether the program is suspended when the graph is plotted.
+        When True, the program is suspended when the graph is plotted. Otherwise not.
     savefig : logical
-        A flag to tag whether the plotted graph to be saved.
+        When True, the plotted graph will be saved. Otherwise not.
     savedata : logical
-        A flag to tag whether the generated data of the result is to be saved on the hard drive.
-    dependences : list of App
-        The apps on which this app depends.
+        When True, the results will be saved on the hard drive. Otherwise not.
+    returndata: logical
+        When True, the results will be returned. Otherwise not.
+    dependences : list of str
+        The names of the apps that this app depends on.
     map : callable
         The function that maps the a set of parameters to the app's attributes.
     prepare : callable
@@ -241,6 +265,7 @@ class App(object):
         result.suspend=karg.get('suspend',False)
         result.savefig=karg.get('savefig',True)
         result.savedata=karg.get('savedata',True)
+        result.returndata=karg.get('returndata',True)
         result.dependences=karg.get('dependences',[])
         result.map=karg.get('map',None)
         result.prepare=karg.get('prepare',None)

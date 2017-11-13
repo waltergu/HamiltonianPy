@@ -399,10 +399,10 @@ def FBFMEB(engine,app):
         result[:,0]=np.array(xrange(2))
         result[0,1:]=sl.eigh(engine.matrix(),eigvals_only=True)[:ne] if app.method=='eigh' else HM.eigsh(engine.matrix(),k=ne,return_eigenvectors=False)
         result[1,1:]=result[0,1:]
-    app.result=result
     name='%s_%s'%(engine.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result
 
 def FBFMPOS(engine,app):
     '''
@@ -421,10 +421,10 @@ def FBFMPOS(engine,app):
     result=np.asarray(result)
     assert nl.norm(np.asarray(result).imag)<HP.RZERO
     result=result.real
-    app.result=result
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name),legend=['Level %s'%n for n in app.ns or (0,)])
+    if app.returndata: return result
 
 def FBFMBP(engine,app):
     '''
@@ -432,5 +432,6 @@ def FBFMBP(engine,app):
     '''
     path,bz,reciprocals=app.path,engine.basis.BZ,engine.lattice.reciprocals
     parameters=list(path('+')) if isinstance(path,HP.BaseSpace) else [{'k':bz[pos]} for pos in bz.path(HP.KMap(reciprocals,path) if isinstance(path,str) else path,mode='I')]
-    app.set(engine.matrix,parameters)
-    engine.log<<'Berry phases: %s\n'%(', '.join('%s(%s)'%(HP.decimaltostr(bp),n) for bp,n in zip(app.bps,app.ns)))
+    bps=app.set(engine.matrix,parameters)
+    engine.log<<'Berry phases: %s\n'%(', '.join('%s(%s)'%(HP.decimaltostr(bp),n) for bp,n in zip(bps,app.ns)))
+    if app.returndata: return bps

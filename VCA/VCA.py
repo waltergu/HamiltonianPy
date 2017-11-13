@@ -57,11 +57,6 @@ class VCA(ED.FED):
 
     Attributes
     ----------
-    preloads : 2 list
-        * preloads[0]: HP.ED.GF
-            The cluster Green's function.
-        * preloads[1]: HP.GF
-            The VCA Green's function.
     basis : FBasis
         The occupation number basis of the system.
     cell : Lattice
@@ -145,8 +140,8 @@ class VCA(ED.FED):
         dtype : np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
         '''
-        cellconfig=HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map)
-        self.preloads.extend([cgf,HP.GF(operators=HP.fspoperators(cellconfig.table(),cell),dtype=cgf.dtype)])
+        self.preload(cgf)
+        self.preload(HP.GF(operators=HP.fspoperators(HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map).table(),cell),dtype=cgf.dtype))
         self.basis=basis
         self.cell=cell
         self.lattice=lattice
@@ -199,7 +194,7 @@ class VCA(ED.FED):
         Set self.periodization.
         '''
         self.periodization={}
-        cgf,gf=self.preloads
+        cgf,gf=self.apps[self.preloads[0]],self.apps[self.preloads[1]]
         groups=[[] for i in xrange(gf.nopt)]
         for copt in cgf.operators:
             for i,opt in enumerate(gf.operators):
@@ -228,7 +223,7 @@ class VCA(ED.FED):
         Update the engine.
         '''
         if len(karg)>0:
-            self.preloads[0].virgin=True
+            self.apps[self.preloads[0]].virgin=True
             super(ED.ED,self).update(**karg)
             karg=self.data(karg)
             self.generator.update(**karg)
@@ -244,14 +239,14 @@ class VCA(ED.FED):
         '''
         The number of the cluster single particle operators.
         '''
-        return self.preloads[0].nopt
+        return self.apps[self.preloads[0]].nopt
 
     @property
     def nopt(self):
         '''
         The number of the unit cell single particle operators.
         '''
-        return self.preloads[1].nopt
+        return self.apps[self.preloads[1]].nopt
 
     def cgf(self,omega=None):
         '''
@@ -267,14 +262,14 @@ class VCA(ED.FED):
         2d ndarray
             The cluster Green's function.
         '''
-        app=self.preloads[0]
+        app=self.apps[self.preloads[0]]
         if omega is not None:
             app.omega=omega
             if app.virgin:
                 app.virgin=False
                 if app.prepare is not None: app.prepare(self,app)
-            app.run(self,app)
-        return app.gf
+            self.records[app.name]=app.run(self,app)
+        return self.records[app.name]
 
     def pt(self,k=()):
         '''
@@ -376,9 +371,7 @@ class VCA(ED.FED):
         2d ndarray
             The VCA Green's function.
         '''
-        app=self.preloads[1]
-        app.gf[...]= _gf_contract_(k,self.mgf(omega,k),self.periodization['seqs'],self.periodization['coords'])/(self.ncopt/self.nopt)
-        return app.gf
+        return _gf_contract_(k,self.mgf(omega,k),self.periodization['seqs'],self.periodization['coords'])/(self.ncopt/self.nopt)
 
     def gf_kmesh(self,omega,kmesh):
         '''
@@ -469,6 +462,7 @@ def VCAEB(engine,app):
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result.reshape((nk*app.ne,3)))
     if app.plot: app.figure('P',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result
 
 def VCADOS(engine,app):
     '''
@@ -485,6 +479,7 @@ def VCADOS(engine,app):
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result
 
 def VCAFS(engine,app):
     '''
@@ -499,6 +494,7 @@ def VCAFS(engine,app):
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('P',result.reshape((int(np.sqrt(nk)),int(np.sqrt(nk)),3)),'%s/%s'%(engine.dout,name),axis='equal')
+    if app.returndata: return result
 
 def VCABC(engine,app):
     '''
@@ -507,16 +503,17 @@ def VCABC(engine,app):
     engine.rundependences(app.name)
     mu,app.mu=app.mu,0.0
     engine.gf(omega=mu)
-    app.set(H=lambda kx,ky: -inv(engine.gf(k=[kx,ky])))
+    bc,cn=app.set(H=lambda kx,ky: -inv(engine.gf(k=[kx,ky])))
     app.mu=mu
-    engine.log<<'Chern number(mu): %s(%s)\n'%(app.cn,app.mu)
+    engine.log<<'Chern number(mu): %s(%s)\n'%(cn,app.mu)
     kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
     result=np.zeros((nk,3))
     result[:,0:2]=kmesh
-    result[:,2]=app.bc
+    result[:,2]=bc
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('P',result.reshape((int(np.sqrt(nk)),int(np.sqrt(nk)),3)),'%s/%s'%(engine.dout,name),axis='equal')
+    if app.returndata: return cn if app.bcoff else cn,result
 
 def VCATEB(engine,app):
     '''
@@ -532,6 +529,7 @@ def VCATEB(engine,app):
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result
 
 def VCAGP(engine,app):
     '''
@@ -539,13 +537,14 @@ def VCAGP(engine,app):
     '''
     if app.name in engine.apps: engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
-    cgf,kmesh,nk=engine.preloads[0],app.BZ.mesh('k'),app.BZ.rank('k')
+    cgf,kmesh,nk=engine.apps[engine.preloads[0]],app.BZ.mesh('k'),app.BZ.rank('k')
     fx=lambda omega: np.log(np.abs(det(np.eye(engine.ncopt)-engine.pt_kmesh(kmesh).dot(engine.cgf(omega=omega*1j+app.mu))))).sum()
     part1=-quad(fx,0,np.float(np.inf))[0]/np.pi
     part2=np.trace(engine.pt_kmesh(kmesh),axis1=1,axis2=2).sum().real
     if np.abs(part2)>HP.RZERO: part2=part2*app.filling
-    app.gp=(cgf.gse+(part1+part2)/nk)/(engine.ncopt/engine.nopt)/len(engine.cell)
-    engine.log<<'gp(mu): %s(%s)\n\n'%(app.gp,app.mu)
+    gp=(cgf.gse+(part1+part2)/nk)/(engine.ncopt/engine.nopt)/len(engine.cell)
+    engine.log<<'gp(mu): %s(%s)\n\n'%(gp,app.mu)
+    if app.returndata: return gp
 
 class GPM(HP.App):
     '''
@@ -554,7 +553,7 @@ class GPM(HP.App):
     Attributes
     ----------
     BS : BaseSpace or dict
-        * BaseSpace: the basespace where to compute the grand potential;
+        * BaseSpace: the basespace on which to compute the grand potential;
         * dict: the initial guess in the basespace.
     job : 'min','der'
         * 'min': minimize the grand potential
@@ -563,20 +562,16 @@ class GPM(HP.App):
         The extra parameters to help handle the job.
             * job=='min': passed to scipy.optimize.minimize, please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
             * job=='der': entry 'nder', the number of derivates to calculates.
-    bs : dict
-        The wanted point in the base space.
-    gp : np.float64
-        The corresponding value of the grand potential at the wanted point.
     '''
 
-    def __init__(self,BS,job='min',options=None,**karg):
+    def __init__(self,BS,job='min',options={},**karg):
         '''
         Constructor.
 
         Parameters
         ----------
         BS : BaseSpace or dict
-            * BaseSpace: the basespace where to compute the grand potential;
+            * BaseSpace: the basespace on which to compute the grand potential;
             * dict: the initial guess in the basespace.
         job : 'min','der', optional
             * 'min': minimize the grand potential
@@ -587,12 +582,11 @@ class GPM(HP.App):
                 * job=='der': entry 'nder', the number of derivates to calculates.
         '''
         self.BS=BS
-        assert job in ('min','der')
         self.job=job
-        if job=='min': self.options={'method':(options or {}).get('method',None),'options':(options or {}).get('options',None)} if isinstance(BS,dict) else {'mode':'+'}
-        if job=='der': self.options={'mode':'+','nder':(options or {}).get('nder',2)}
-        self.bs={}
-        self.gp=None
+        assert job in ('min','der')
+        assert isinstance(BS,HP.BaseSpace) or isinstance(BS,dict)
+        if job=='min': self.options={'method':options.get('method',None),'options':options.get('options',None)} if isinstance(BS,dict) else {'mode':'+'}
+        if job=='der': self.options={'mode':'+','nder':options.get('nder',2)}
 
 def VCAGPM(engine,app):
     '''
@@ -602,7 +596,7 @@ def VCAGPM(engine,app):
         engine.cache.pop('pt_kmesh',None)
         engine.update(**{key:value for key,value in zip(keys,values)})
         engine.rundependences(app.name)
-        return app.dependences[2].gp
+        return engine.records[app.dependences[0]]
     if isinstance(app.BS,HP.BaseSpace):
         mode,nbs,nder=app.options.get('mode','+'),len(app.BS.tags),app.options.get('nder',0)
         if app.job=='der' or app.plot: assert mode=='+' or nbs==1
@@ -612,20 +606,17 @@ def VCAGPM(engine,app):
             result[i,1 if mode=='+' else nbs]=gp(paras.values(),paras.keys())
         if app.job=='der': result[:,2:]=HM.derivatives(result[:,0],result[:,1],ders=range(1,nder+1)).T
         index=np.argmin(result[:,-1]) if app.job=='min' else np.argmax(np.abs(result[:,-1]))
-        app.bs={key:value for key,value in zip(app.BS.tags,result[index,0:nbs])}
-        app.gp=result[index,-1]
-        engine.log<<'Summary:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bs.items()+[('value',app.gp)]))
+        engine.log<<'Summary:\n%s\n'%HP.Sheet(cols=app.BS.tags+['value'],contents=np.append(result[index,0:nbs],result[index,-1]).reshape((1,-1)))
         name='%s_%s'%(engine.tostr(mask=app.BS.tags),app.name)
         if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
         if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name),interpolate=True,legend=['%sgp'%('%s der of '%HP.ordinal(k-1) if k>0 else '') for k in xrange(nder+1)])
-    elif isinstance(app.BS,dict):
+        if app.returndata: return result
+    else:
         assert app.job=='min'
         result=minimize(gp,app.BS.values(),args=(app.BS.keys()),**app.options)
-        app.bs,app.gp={key:value for key,value in zip(app.BS.keys(),result.x)},result.fun
-        engine.log<<'Summary:\n%s\n'%HP.Info.from_ordereddict(OrderedDict(app.bs.items()+[('gp',app.gp)]))
-        if app.savedata: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.tostr(mask=app.BS.keys()),app.name),np.array([app.bs.values()+[app.gp]]))
-    else:
-        raise TypeError('VCAGPM error: app.BS must be an instance of BaseSpace or dict.')
+        engine.log<<'Summary:\n%s\n'%HP.Sheet(cols=app.BS.keys()+['value'],contents=np.append(result.x,result.fun).reshape((1,-1)))
+        if app.savedata: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.tostr(mask=app.BS.keys()),app.name),np.append(result.x,result.fun))
+        if app.returndata: return {key:value for key,value in zip(app.BS.keys(),result.x)},result.fun
 
 class CPFF(HP.CPFF):
     '''
@@ -634,26 +625,25 @@ class CPFF(HP.CPFF):
     Attributes
     ----------
     p : np.float64
-        A tunable parameter used in the calculation.
-        For details, please refer arXiv:0806.2690.
-    tol : np.float64
-        The tolerance of the result.
+        A tunable parameter used in the calculation. Refer arXiv:0806.2690 for details.
+    options : dict
+        Extra options.
     '''
 
-    def __init__(self,p=1.0,tol=10**-6,**karg):
+    def __init__(self,p=1.0,options={},**karg):
         '''
         Constructor.
 
         Parameters
         -----------
-        p : np.float64
+        p : np.float64, optional
             A tunable parameter used in the calculation.
-        tol : np.float64
-            The tolerance of the result.
+        options : dict, optional
+            Extra options.
         '''
         super(CPFF,self).__init__(**karg)
         self.p=p
-        self.tol=10**-6
+        self.options=options
 
 def VCACPFF(engine,app):
     '''
@@ -664,13 +654,14 @@ def VCACPFF(engine,app):
     kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
     fx=lambda omega,mu: (np.trace(engine.mgf_kmesh(omega=mu+1j*omega,kmesh=kmesh),axis1=1,axis2=2)-engine.ncopt/(1j*omega-app.p)).sum().real
     if app.task=='CP':
-        gx=lambda mu: quad(fx,0,np.float(np.inf),args=mu)[0]/nk/engine.ncopt/np.pi-app.filling
-        app.mu=broyden2(gx,app.mu,verbose=True,reduction_method='svd',maxiter=20,x_tol=app.tol)
-        engine.log<<'mu,error: %s, %s\n'%(app.mu,gx(engine.mu))
+        gx=lambda mu: quad(fx,0,np.float(np.inf),args=mu)[0]/nk/engine.ncopt/np.pi-app.cf
+        mu=broyden2(gx,app.options.pop('x0',0.0),**app.options)
+        engine.log<<'mu(error): %s(%s)\n'%(mu,gx(mu))
+        if app.returndata: return mu
     else:
-        app.filling=quad(fx,0,np.float(np.inf),args=app.mu)[0]/nk/engine.ncopt/np.pi
-        engine.filling=app.filling
-        engine.log<<'Filling factor: %s\n'%app.filling
+        filling=quad(fx,0,np.float(np.inf),args=app.cf)[0]/nk/engine.ncopt/np.pi
+        engine.log<<'Filling factor: %s\n'%filling
+        if app.returndata: return filling
 
 class OP(HP.App):
     '''
@@ -685,12 +676,9 @@ class OP(HP.App):
     mu : np.float64
         The Fermi level.
     p : np.float64
-        A tunable parameter used in the calculation.
-        For details, please refer arXiv:0806.2690.
-    dtypes : list of np.float32/np.float64/np.complex64,np.complex128, optional
+        A tunable parameter used in the calculation. Refer arXiv:0806.2690 for details.
+    dtypes : list of np.float32/np.float64/np.complex64/np.complex128
         The data types of the order parameters.
-    ops : list of number
-        The values of the order parameters.
     '''
 
     def __init__(self,terms,BZ=None,mu=0.0,p=1.0,dtypes=None,**karg):
@@ -707,7 +695,7 @@ class OP(HP.App):
             The Fermi level.
         p : float, optional
             A tunable parameter used in the calculation.
-        dtypes : list of np.float32/np.float64/np.complex64,np.complex128, optional
+        dtypes : list of np.float32/np.float64/np.complex64/np.complex128, optional
             The data types of the order parameters.
         '''
         self.terms=terms
@@ -716,7 +704,6 @@ class OP(HP.App):
         self.p=p
         self.dtypes=[np.float64]*len(terms) if dtypes is None else dtypes
         assert len(self.dtypes)==len(self.terms)
-        self.ops=[None]*len(terms)
 
 def VCAOP(engine,app):
     '''
@@ -724,22 +711,20 @@ def VCAOP(engine,app):
     '''
     engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
-    cgf,kmesh,nk=engine.preloads[0],app.BZ.mesh('k'),app.BZ.rank('k')
-    ms=np.zeros((len(app.terms),engine.ncopt,engine.ncopt),dtype=np.complex128)
+    cgf,kmesh,nk=engine.apps[engine.preloads[0]],app.BZ.mesh('k'),app.BZ.rank('k')
+    ops,ms={},np.zeros((len(app.terms),engine.ncopt,engine.ncopt),dtype=np.complex128)
     for i,term in enumerate(app.terms):
         order=deepcopy(term)
-        order.value=1
-        m=np.zeros((engine.ncopt,engine.ncopt),dtype=np.complex128)
-        for opt in HP.Generator(engine.lattice.bonds,engine.config,table=engine.config.table(mask=engine.mask),terms=[order],half=True).operators.values():
-            m[opt.seqs]+=opt.value
-        m+=m.T.conjugate()
-        ms[i,:,:]=m
+        order.value=1.0
+        for opt in HP.Generator(engine.lattice.bonds,engine.config,table=engine.config.table(mask=engine.mask),terms=[order],half=True).operators.itervalues():
+            ms[i,opt.seqs[0],opt.seqs[1]]+=opt.value
+        ms[i,:,:]+=ms[i,:,:].T.conjugate()
     fx=lambda omega,m: (np.trace(engine.mgf_kmesh(omega=app.mu+1j*omega,kmesh=kmesh).dot(m),axis1=1,axis2=2)-np.trace(m)/(1j*omega-app.p)).sum().real
-    for i,(m,dtype) in enumerate(zip(ms,app.dtypes)):
-        app.ops[i]=quad(fx,0,np.float(np.inf),args=m)[0]/nk/engine.ncopt*2/np.pi
-        if dtype in (np.float32,np.float64): app.ops[i]=app.ops[i].real
-    for term,op in zip(app.terms,app.ops):
-        engine.log<<'%s: %s\n'%(term.id,op)
+    for term,m,dtype in zip(app.terms,ms,app.dtypes):
+        ops[term.id]=quad(fx,0,np.float(np.inf),args=m)[0]/nk/engine.ncopt*2/np.pi
+        if dtype in (np.float32,np.float64): ops[term.id]=ops[term.id].real
+    engine.log<<HP.Sheet(corner='Order',rows=['Value'],cols=ops.keys(),contents=np.array(ops.values()).reshape((1,-1)))<<'\n'
+    if app.returndata: return ops
 
 class DTBT(HP.App):
     '''
@@ -786,3 +771,4 @@ def VCADTBT(engine,app):
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result

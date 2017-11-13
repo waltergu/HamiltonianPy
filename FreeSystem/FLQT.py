@@ -89,3 +89,4 @@ def FLQTQEB(engine,app):
     name='%s_%s'%(engine,app.name)
     if app.savedata: savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result

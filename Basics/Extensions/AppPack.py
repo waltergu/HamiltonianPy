@@ -4,37 +4,14 @@ App pack
 --------
 
 App pack, including:
-    * classes: GSE, EB, POS, DOS, GF, FS, BC, BP, GP, CPFF
+    * classes: EB, POS, DOS, GF, FS, BC, BP, GP, CPFF
 '''
 
-__all__=['GSE','EB','POS','DOS','GF','FS','BC','BP','GP','CPFF']
+__all__=['EB','POS','DOS','GF','FS','BC','BP','GP','CPFF']
 
 import numpy as np
 from ..EngineApp import App
 from ..Utilities import berry_curvature,berry_phase
-
-class GSE(App):
-    '''
-    Ground state energy.
-
-    Attributes
-    ----------
-    gse : np.float64
-        The groundstate energy.
-    factor : integer
-        An extra factor.
-    '''
-
-    def __init__(self,factor=1,**karg):
-        '''
-        Constructor.
-
-        Parameters
-        ----------
-        factor : integer
-        '''
-        self.factor=factor
-        self.gse=None
 
 class EB(App):
     '''
@@ -144,8 +121,6 @@ class GF(App):
         The momentum of the GF.
     dtype : np.complex64 or np.complex128
         The data type of the Green's functions.
-    gf : 2d ndarray
-        The value of the GF.
     '''
 
     def __init__(self,operators,omega=None,k=None,dtype=np.complex128,**karg):
@@ -167,7 +142,6 @@ class GF(App):
         self.omega=omega
         self.k=k
         self.dtype=dtype
-        self.gf=np.zeros((self.nopt,self.nopt),dtype=dtype)
 
     @property
     def nopt(self):
@@ -219,14 +193,12 @@ class BC(App):
         The Fermi level.
     d : np.float64
         The step used to calculate the directives.
-    bc : 1d ndarray
-        The values of the Berry curvature.
-    cn : np.float64
-        The integration of the Berry curvature.
-         When BZ is the first Brillouin zone, this number is the first Chern number.
+    bcoff : logical, optional
+        When True, only the Chern number will be included in the returned data.
+        Otherwise, the Berry curvature will be included as well.
     '''
 
-    def __init__(self,BZ,mu=0.0,d=10**-6,**karg):
+    def __init__(self,BZ,mu=0.0,d=10**-6,bcoff=True,**karg):
         '''
         Constructor.
 
@@ -238,12 +210,14 @@ class BC(App):
             The Fermi level.
         d : np.float64, optional
             The step used to calculate the derivatives.
+        bcoff : logical, optional
+            When True, only the Chern number will be included in the returned data.
+            Otherwise, the Berry curvature will be included as well.
         '''
         self.BZ=BZ
         self.mu=mu
         self.d=d
-        self.bc=np.zeros(BZ.rank('k'))
-        self.cn=None
+        self.bcoff=bcoff
 
     def set(self,H):
         '''
@@ -253,10 +227,20 @@ class BC(App):
         ----------
         H : callable
             Input function which returns the Hamiltonian as a 2D ndarray.
+
+        Returns
+        -------
+        bc : 1d ndarray
+            The values of the Berry curvature.
+        cn : np.float64
+            The integration of the Berry curvature.
+            When BZ is the first Brillouin zone, this number is the first Chern number.
         '''
+        bc=np.zeros(self.BZ.rank('k'))
         for i,ks in enumerate(self.BZ()):
-            self.bc[i]=berry_curvature(H,ks['k'][0],ks['k'][1],self.mu,d=self.d)
-        self.cn=sum(self.bc)*self.BZ.volume('k')/len(self.bc)/2/np.pi
+            bc[i]=berry_curvature(H,ks['k'][0],ks['k'][1],self.mu,d=self.d)
+        cn=np.sum(bc)*self.BZ.volume('k')/len(bc)/2/np.pi
+        return bc,cn
 
 class BP(App):
     '''
@@ -268,8 +252,6 @@ class BP(App):
         The path in the base space along which to calculate the Berry phase.
     ns : iterable of int
         The sequences of bands whose Berry phases are wanted.
-    bps : 1d ndarray of np.float64
-        The Berry phases of the bands.
     '''
 
     def __init__(self,path,ns=(0,),**karg):
@@ -285,7 +267,6 @@ class BP(App):
         '''
         self.path=path
         self.ns=ns
-        self.bps=None
 
     def set(self,H,path):
         '''
@@ -297,8 +278,13 @@ class BP(App):
             Input function which returns the Hamiltonian as a 2D ndarray.
         path : list of dict
             The path of parameters passed to `H`.
+
+        Returns
+        -------
+        1d ndarray of np.float64
+            The Berry phases of the bands.
         '''
-        self.bps=berry_phase(H,path,self.ns)
+        return berry_phase(H,path,self.ns)
 
 class GP(App):
     '''
@@ -312,8 +298,6 @@ class GP(App):
         The Fermi level.
     filling : np.float64
         The filling factor.
-    gp : float64
-        The value of the grand potential.
     '''
 
     def __init__(self,BZ=None,mu=0.0,filling=None,**karg):
@@ -332,7 +316,6 @@ class GP(App):
         self.BZ=BZ
         self.mu=mu
         self.filling=filling
-        self.gp=0
 
 class CPFF(App):
     '''
@@ -340,17 +323,16 @@ class CPFF(App):
 
     Attributes
     ----------
-    task : 'FF', 'CP', optional
+    task : 'FF', 'CP'
         'FF' for filling factor and 'CP' for chemical potential.
     BZ : BaseSpace
         The Brillouin zone.
-    filling : np.float64
-        The value of the filling factor.
-    mu : np.float64
-        The value of the chemical potential.
+    cf : np.float64
+        * When `task` is 'FF': the chemical potential
+        * When `task` is 'CP': the filling factor
     '''
 
-    def __init__(self,task='FF',BZ=None,filling=0.0,mu=0.0,**karg):
+    def __init__(self,task='FF',BZ=None,cf=None,**karg):
         '''
         Constructor.
 
@@ -360,13 +342,11 @@ class CPFF(App):
             'FF' for filling factor and 'CP' for chemical potential.
         BZ : BaseSpace, optional
             The Brillouin zone.
-        filling : np.float64, optional
-            The value of the filling factor.
-        mu : np.float64, optional
-            The value of the chemical potential.
+        cf : np.float64, optional
+            * When `task` is 'FF': the chemical potential
+            * When `task` is 'CP': the filling factor
         '''
         assert task in ('FF','CP')
         self.task=task
         self.BZ=BZ
-        self.filling=filling
-        self.mu=mu
+        self.cf=cf

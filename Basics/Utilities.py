@@ -5,17 +5,18 @@ Utilities
 
 The utilities of the subpackage, including:
     * constants: RZERO
-    * classes: Arithmetic, Timer, Timers, Info, Log
+    * classes: Arithmetic, Timer, Timers, Sheet, Log
     * functions: parity, berry_curvature, berry_phase, decimaltostr, ordinal, mpirun
 '''
 
-__all__=['RZERO','Arithmetic','Timer','Timers','Info','Log','parity','berry_curvature','berry_phase','decimaltostr','ordinal','mpirun']
+__all__=['RZERO','Arithmetic','Timer','Timers','Sheet','Log','parity','berry_curvature','berry_phase','decimaltostr','ordinal','mpirun']
 
 from copy import copy
 from mpi4py import MPI
 from ..Misc import Tree
-import numpy as np
 from scipy.linalg import eigh
+import numpy as np
+import itertools as it
 import matplotlib.pyplot as plt
 import time
 import sys
@@ -374,83 +375,168 @@ class Timers(Tree):
         '''
         plt.close()
 
-class Info(object):
+class Sheet(object):
     '''
-    Information for code executing.
+    Sheet.
 
     Attributes
     ----------
-    entry : string
-        The name for the entries of Info.
-    content : string
-        The name for the contents of Info.
-    entries : list of string
-        The entries of the info.
-    contents : list of any object
-        The contents of the info.
-    formats : list of string
+    cols,rows : tuple of str
+        The tags of the columns/rows of the sheet.
+    corner : str
+        The tag of the corner of the sheet.
+    widths : list of int
+        The widths of the columns.
+    formats : 2d ndarray of str
         The output formats of the contents.
+    contents : 2d ndarray
+        The contents of the sheet.
+    sheet : 2d ndarray of str
+        The str representation of the contents.
     '''
 
-    def __init__(self,*entries,**karg):
+    def __init__(self,cols=(None,),rows=('Content',),corner='Entry',widths=None,formats=None,contents=None):
         '''
         Constructor.
 
         Parameters
         ----------
-        entries : list of string, optional
-            The entries of the info.
+        cols,rows : tuple of str, optional
+            The tags of the columns/rows of the sheet.
+        corner : str, optional
+            The tag of the corner of the sheet.
+        widths : list of int, optional
+            The widths of the columns.
+        formats : 2d ndarray, optional
+            The output formats of the contents.
+        contents : 2d ndarray, optional
+            The contents of the sheet.
         '''
-        self.entries=entries
-        self.entry=karg.get('entry','Entry')
-        self.content=karg.get('content','Content')
-        self.contents=[None]*len(entries)
-        self.formats=['%s']*len(entries)
+        self.cols=tuple(cols)
+        self.rows=tuple(rows)
+        self.corner=corner
+        self.widths=widths
+        if widths is not None: assert len(widths)==len(cols)+1
+        self.formats=np.array(['%s']*len(rows)*len(cols),dtype=object).reshape((len(rows),len(cols))) if formats is None else formats
+        assert self.formats.shape==(len(self.rows),len(self.cols))
+        if contents is None:
+            self.contents=np.array([None]*len(rows)*len(cols)).reshape((len(rows),len(cols)))
+            self.sheet=np.array(['']*len(rows)*len(cols),dtype=object).reshape((len(rows),len(cols)))
+        else:
+            assert contents.shape==(len(self.rows),len(self.cols))
+            self.contents=contents
+            self.sheet=np.array([format%content for content,format in zip(self.contents.flatten(),self.formats.flatten())],dtype=object).reshape((len(rows),len(cols)))
 
-    def __len__(self):
+    @property
+    def shape(self):
         '''
-        The length of the info.
+        The shape of the sheet.
         '''
-        return len(self.entries)
+        return self.contents.shape
+
+    def index(self,entry):
+        '''
+        The index of the input entry.
+
+        Parameters
+        ----------
+        entry : tuple, str or int
+            The input entry.
+
+        Returns
+        -------
+        2-tuple
+            The index of the input entry.
+        '''
+        if len(self.rows)==1:
+            assert isinstance(entry,str) or isinstance(entry,int) or isinstance(entry,long)
+            return (0,self.cols.index(entry) if isinstance(entry,str) else entry)
+        if len(self.cols)==1:
+            assert isinstance(entry,str) or isinstance(entry,int) or isinstance(entry,long)
+            return (self.rows.index(entry) if isinstance(entry,str) else entry,0)
+        assert isinstance(entry,tuple) and len(entry)==2
+        row=self.rows.index(entry[0]) if isinstance(entry[0],str) else entry[0]
+        col=self.cols.index(entry[1]) if isinstance(entry[1],str) else entry[1]
+        return row,col
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
-        N=max(len(self.entry)+2,len(self.content)+2)
-        lens=[max(len(str(entry)),len(format%(content,)))+2 for entry,content,format in zip(self.entries,self.contents,self.formats)]
-        result=[None,None,None,None,None]
-        result[0]=(sum(lens)+N+len(self))*'~'
-        result[1]=self.entry.center(N)+'|'+'|'.join([str(key).center(length) for key,length in zip(self.entries,lens)])
-        result[2]=(sum(lens)+N+len(self))*'-'
-        result[3]=self.content.center(N)+'|'+'|'.join([(format%(content,)).center(length) for content,format,length in zip(self.contents,self.formats,lens)])
-        result[4]=result[0]
-        return '\n'.join(result)
+        return self.tostr()
 
     def __setitem__(self,entry,content):
         '''
         Set the content of an entry.
         '''
-        index=self.entries.index(entry)
+        index=self.index(entry)
         if isinstance(content,tuple):
             assert len(content)==2
             self.contents[index]=content[0]
             self.formats[index]=content[1]
+            self.sheet[index]=content[1]%content[0]
         else:
             self.contents[index]=content
+            self.sheet[index]=self.formats[index]%content
 
     def __getitem__(self,entry):
         '''
         Get the content of an entry.
         '''
-        return self.contents[self.entries.index(entry)]
+        return self.contents[self.index(entry)]
+
+    def tostr(self,rowon=True,colon=True):
+        '''
+        Convert an instance to string.
+
+        Parameters
+        ----------
+        rowon,colon : logical, optional
+            True for including the tags of the rows/columns in the result and False for not.
+
+        Returns
+        -------
+        str
+            The converted string.
+        '''
+        sheet,rowadded,coladded=self.sheet,False,False
+        if rowon and self.rows!=(None,):
+            sheet=np.insert(sheet,0,self.rows,axis=1)
+            rowadded=True
+        if colon and self.cols!=(None,):
+            sheet=np.insert(sheet,0,((self.corner,) if rowadded else ())+self.cols,axis=0)
+            coladded=True
+        widths=np.max(np.array([len(entry) for entry in sheet.flatten()]).reshape(sheet.shape),axis=0) if self.widths is None else self.widths[(0 if colon else 1):]
+        result=[None]*(len(sheet)+(3 if coladded else 2))
+        length=np.sum(widths)+3*sheet.shape[1]-1
+        result[+0]=length*'~'
+        result[-1]=length*'~'
+        if coladded: result[2]=length*'-'
+        for i,row in enumerate(sheet):
+            index=i+2 if (coladded and i>0) else i+1
+            result[index]='|'.join(entry.center(width+2) for entry,width in zip(row,widths))
+            assert len(result[index])==length
+        return '\n'.join(result)
 
     @staticmethod
-    def from_ordereddict(od,**karg):
+    def from_ordereddict(od,mode='C'):
         '''
-        Convert an OrderedDict to Info.
+        Convert an OrderedDict to Sheet.
+
+        Parameters
+        ----------
+        od : OrderedDict
+            The ordered dict that contains the tags and contents of the sheet.
+        mode : 'R'/'C', optional
+            'R' for a m*1 sheet and 'C' for a 1*m sheet.
+
+        Returns
+        -------
+        Sheet
+            The converted sheet.
         '''
-        result=Info(*od.keys(),**karg)
+        assert mode in ('R','C')
+        result=Sheet(rows=od.keys()) if mode=='R' else Sheet(cols=od.keys())
         for key,value in od.iteritems():
             result[key]=value
         return result

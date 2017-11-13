@@ -220,12 +220,10 @@ def dmrgconstruct(parameters,lattice,terms,targets,core='idmrg',**karg):
         )
     # edit the value of nmax and nmaxs if needed
     if core=='idmrg':
-        tsg=DMRG.TSG(name='GROWTH',targets=targets,nmax=100,run=DMRG.DMRGTSG)
-        dmrg.register(tsg)
+        dmrg.register(DMRG.TSG(name='GROWTH',targets=targets,nmax=100,run=DMRG.DMRGTSG))
     elif core=='fdmrg':
-        tsg=DMRG.TSG(name='GROWTH',targets=targets,nmax=100,plot=False,run=DMRG.DMRGTSG)
-        tss=DMRG.TSS(name='SWEEP',target=targets[-1],nsite=dmrg.nspb*len(targets)*2,nmaxs=[100,100],dependences=[tsg],run=DMRG.DMRGTSS)
-        dmrg.register(tss)
+        dmrg.add(DMRG.TSG(name='GROWTH',targets=targets,nmax=100,plot=False,run=DMRG.DMRGTSG))
+        dmrg.register(DMRG.TSS(name='SWEEP',target=targets[-1],nsite=dmrg.nspb*len(targets)*2,nmaxs=[100,100],dependences=['GROWTH'],run=DMRG.DMRGTSS))
     else:
         raise ValueError('dmrgconstruct error: not supported core %s.'%core)
     dmrg.summary()

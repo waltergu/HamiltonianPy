@@ -10,7 +10,7 @@ Self-consistent mean field theory for fermionic systems, including:
 __all__=['OP','SCMF']
 
 from numpy import *
-from ..Basics import RZERO,Generator,Timers,Info
+from ..Basics import RZERO,Generator,Timers,Sheet
 from TBA import *
 from copy import deepcopy
 from collections import OrderedDict
@@ -157,5 +157,5 @@ class SCMF(TBA):
         with self.timers.get('Iteration'):
             x0=array([self.ops[key].value for key in self.ops.keys()])
             ops=broyden2(gx,x0,verbose=True,reduction_method='svd',maxiter=maxiter,x_tol=tol)
-        self.log<<'Order parameters:\n%s\n'%Info.from_ordereddict(OrderedDict([(name,op) for name,op in zip(self.ops.keys(),ops)]))
+        self.log<<'Order parameters:\n%s\n'%Sheet.from_ordereddict(OrderedDict([(name,op) for name,op in zip(self.ops.keys(),ops)]))
         self.log<<'Iterate: time consumed %ss.\n\n'%self.timers.time('Iteration')

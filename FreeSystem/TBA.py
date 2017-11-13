@@ -192,7 +192,7 @@ class TBA(Engine):
         '''
         return sort(self.eigvals(kspace))[0:int(round(filling*(1 if kspace is None else kspace.rank('k'))*self.nmatrix))].sum()
 
-class GSE(HP.GSE):
+class GSE(HP.App):
     '''
     The ground state energy.
 
@@ -223,8 +223,10 @@ def TBAGSE(engine,app):
     '''
     This method calculates the ground state energy.
     '''
-    app.gse=engine.gse(filling=app.filling,kspace=app.kspace)
-    engine.log<<Info.from_ordereddict({'Total':app.gse,'Site':app.gse/len(engine.lattice)/app.factor/(1 if app.kspace is None else app.kspace.rank('k'))})<<'\n'
+    gse=engine.gse(filling=app.filling,kspace=app.kspace)
+    engine.log<<engine<<'\n'
+    engine.log<<Sheet.from_ordereddict({'Total':gse,'Site':gse/len(engine.lattice)/(1 if app.kspace is None else app.kspace.rank('k'))})<<'\n'
+    if app.returndata: return gse
 
 def TBAEB(engine,app):
     '''
@@ -248,6 +250,7 @@ def TBAEB(engine,app):
     name='%s_%s'%(engine.tostr(mask=() if app.path is None else app.path.tags),app.name)
     if app.savedata: savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result
 
 def TBADOS(engine,app):
     '''
@@ -263,20 +266,19 @@ def TBADOS(engine,app):
     name='%s_%s'%(engine,app.name)
     if app.savedata: savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result
 
 def TBABC(engine,app):
     '''
     This method calculates the total Berry curvature and Chern number of the filled bands of the Hamiltonian.
     '''
-    app.set(lambda kx,ky: engine.matrix(k=[kx,ky]))
-    engine.log<<'Chern number(mu): %s(%s)'%(app.cn,app.mu)<<'\n'
-    if app.savedata or app.plot:
+    bc,cn=app.set(lambda kx,ky: engine.matrix(k=[kx,ky]))
+    engine.log<<'Chern number(mu): %s(%s)'%(cn,app.mu)<<'\n'
+    if app.savedata or app.plot or app.returndata:
         result=zeros((app.BZ.rank('k'),3))
         result[:,0:2]=app.BZ.mesh('k')
-        result[:,2]=app.bc
+        result[:,2]=bc
         name='%s_%s'%(engine,app.name)
         if app.savedata: savetxt('%s/%s.dat'%(engine.dout,name),result)
         if app.plot: app.figure('P',result.reshape((int(sqrt(result.shape[0])),int(sqrt(result.shape[0])),3)),'%s/%s'%(engine.dout,name),axis='equal')
-
-def TBAGF(engine,app):
-    pass
+        if app.returndata: return cn if app.bcoff else cn,result
