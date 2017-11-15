@@ -17,105 +17,114 @@ from numba import jit
 
 class FBasis(object):
     '''
-    Basis of fermionic systems in the occupation number representation. It provides a unified description of the three often-encountered cases:
-        * particle-non-conserved systems
-        * particle-conserved systems
-        * spin-conserved systems
+    Basis of fermionic systems in the occupation number representation.
 
     Attributes
     ----------
-    mode : string
-        A flag to tag the type of the three kinds of fore-mentioned systems:
-            * 'FG': particle-non-conserved systems
-            * 'FP': particle-conserved systems
-            * 'FS': spin-conserved systems
-    nstate : 1d ndarray of integers
-        An array containing the numbers of states.
-    nparticle : 1d ndarray of integers
-        An array containing the numbers of particles.
-    table : 1d ndarray of integers
-        The table of allowed binary basis of the Hilbert space.
-    nbasis : integer 
-        The dimension of the Hilbert space.
+    mode : 'FS','FP','FG','FGS','FGP'
+        * 'FS': particle-conserved and spin-conserved basis
+        * 'FP': particle-conserved and spin-non-conserved basis
+        * 'FG': particle-non-conserved and spin-non-conserved basis
+        * 'FGS': set of particle-conserved and spin-conserved bases
+        * 'FGP': set of particle-conserved and spin-non-conserved bases
+    nstate : int
+        The number of total single-particle states of the basis.
+    nparticle : int
+        The number of total particles of the basis.
+    spinz : half integer
+        The z component of the total spin of the basis.
+    table : 1d ndarray of int
+        The table of the binary representations of the basis.
+    nbasis : int
+        The dimension of the basis.
     '''
-    
-    def __init__(self,tuple=(),up=(),down=(),nstate=0,dtype=np.int64):
+
+    def __init__(self,mode,nstate,nparticle='N',spinz='N'):
         '''
-        Constructor. It can be used in three different ways:
-            * ``FBasis(nstate=...,dtype=...)``, which generates a a particle-non-conserved basis.
-            * ``FBasis((...,...),dtype=...)``, which generates a a particle-non-conserved basis
-            * ``FBasis(up=(...,...),down=(...,...),dtype=...)``, which generates a a particle-non-conserved basis
+        Constructor.
 
         Parameters
         ----------
-        tuple : 2-tuple, optional
-            This tuple contains the information to generate a particle-conserved basis:
-                * tuple[0]: integer
-                    The number of generalized orbitals.
-                * tuple[1]: integer
-                    The number of total electrons.
-        up,down : 2-tuple, optional
-            These two tuples contain the information to generate a spin-conserved basis:
-                * up[0]/down[0]: integer
-                    The number of spin-up/spin-down orbitals.
-                * up[1]/down[1]: integer
-                    The number of spin-up/spin-down electrons.
-        nstate : integer,optional
-            The number of states which is used to generate a particle-non-conserved basis.
-        dtype : dtype
-            The data type of the basis table.
-
-        Notes
-        -----
-        If more parameters than needed to generate a certain kind a basis are assigned, this method obeys the following priority to create the instance: "FP" > "FS" > "FG".
+        mode : 'FS','FP','FG','FGS','FGP'
+            * 'FS': particle-conserved and spin-conserved basis
+            * 'FP': particle-conserved and spin-non-conserved basis
+            * 'FG': particle-non-conserved and spin-non-conserved basis
+            * 'FGS': set of particle-conserved and spin-conserved bases
+            * 'FGP': set of particle-conserved and spin-non-conserved bases
+        nstate : int
+            The number of total single-particle states of the basis.
+        nparticle : int, optional
+            The number of total particles of the basis.
+        spinz : half integer, optional
+            The z component of the total spin of the basis.
         '''
-        if len(tuple)==2:
-            self.mode="FP"
-            self.nstate=np.array(tuple[0])
-            self.nparticle=np.array(tuple[1])
-            self.table=table_ep(tuple[0],tuple[1],dtype=dtype)
+        assert mode in ('FS','FP','FG','FGS','FGP') and nstate%2==0
+        self.mode=mode
+        self.nstate=nstate
+        self.nparticle=nparticle
+        self.spinz=spinz
+        if mode=='FS':
+            self.table=table_es(nstate,nparticle,spinz,dtype=np.int64)
             self.nbasis=len(self.table)
-        elif len(up)==2 and len(down)==2:
-            self.mode="FS"
-            self.nstate=np.array([up[0],down[0]])
-            self.nparticle=np.array([up[1],down[1]])
-            self.table=table_es(up,down,dtype=dtype)
+        elif mode=='FP':
+            self.table=table_ep(nstate,nparticle,dtype=np.int64)
             self.nbasis=len(self.table)
-        else:
-            self.mode="FG"
-            self.nstate=np.array(nstate)
-            self.nparticle=np.array([])
+        elif mode=='FG':
             self.table=np.array([])
             self.nbasis=2**nstate
+        else:
+            self.table=None
+            self.nbasis=None
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
-        result=''
-        if self.mode=='FG':
-            for i in xrange(self.nbasis):
-                result+=str(i)+': '+'{0:b}'.format(i)+'\n'
-        else:
-            for i,v in enumerate(self.table):
-                result+=str(i)+': '+'{0:b}'.format(v)+'\n'
-        return result
+        return '\n'.join('{:}: {:b}'.format(i,v) for i,v in enumerate(xrange(self.nbasis) if self.mode=='FG' else self.table))
 
     @property
     def rep(self):
         '''
         The string representation of the basis.
         '''
-        if 'FP' in self.mode:
-            return 'FP(%s-%s)'%(self.nstate,self.nparticle)
-        elif 'FS' in self.mode:
-            return 'FS(%s-%s,%s-%s)'%(self.nstate[0],self.nparticle[0],self.nstate[1],self.nparticle[1])
+        if self.mode in ('FS','FGS'):
+            return '%s(%s,%s,%s)'%(self.mode,self.nstate,self.nparticle,self.spinz)
+        elif self.mode in ('FP','FGP'):
+            return '%s(%s,%s)'%(self.mode,self.nstate,self.nparticle)
         else:
-            return 'FG(%s)'%self.nstate
+            return '%s(%s)'%(self.mode,self.nstate)
+
+    def replace(self,**karg):
+        '''
+        Replace `nstate`,`nparticle` or `spinz` of a basis and construct a new one.
+        '''
+        keys={'nstate','nparticle','spinz'}
+        assert set(karg.iterkeys())<=keys
+        return FBasis(mode=self.mode,**{key:karg.get(key,getattr(self,key)) for key in keys})
+
+    def iter(self):
+        '''
+        Return a generator over all the possible basis.
+        '''
+        if self.mode in ('FS','FP','FG'):
+            yield self
+        elif self.mode=='FGS':
+            for nparticle in xrange(self.nstate/2+1):
+                self.nparticle=nparticle
+                for ndw in xrange(self.nparticle+1):
+                    self.spinz=(self.nparticle-2*ndw)/2.0
+                    self.table=table_es(self.nstate,self.nparticle,self.spinz,dtype=np.int64)
+                    self.nbasis=len(self.table)
+                    yield self
+        elif self.mode=='FGP':
+            for nparticle in xrange(self.nstate/2+1):
+                self.nparticle=nparticle
+                self.table=table_ep(self.nstate,self.nparticle,dtype=np.int64)
+                yield self
 
 def table_ep(nstate,nparticle,dtype=np.int64):
     '''
-    This function generates the binary basis table with nstate orbitals occupied by nparticle electrons.
+    This function generates the table of binary representations of a particle-conserved and spin-non-conserved basis.
     '''
     result=np.zeros(factorial(nstate)/factorial(nparticle)/factorial(nstate-nparticle),dtype=dtype)
     buff=combinations(xrange(nstate),nparticle)
@@ -127,22 +136,22 @@ def table_ep(nstate,nparticle,dtype=np.int64):
     result.sort()
     return result
 
-def table_es(up,down,dtype=np.int64):
+def table_es(nstate,nparticle,spinz,dtype=np.int64):
     '''
-    This function generates the binary basis table according to the up and down tuples.
+    This function generates the table of binary representations of a particle-conserved and spin-conserved basis.
     '''
-    assert up[0]==down[0]
-    result=np.zeros(factorial(up[0])/factorial(up[1])/factorial(up[0]-up[1])*factorial(down[0])/factorial(down[1])/factorial(down[0]-down[1]),dtype=dtype)
-    buff_up=list(combinations(xrange(1,2*up[0],2),up[1]))
-    buff_dn=list(combinations(xrange(0,2*up[0],2),down[1]))
+    n,nup,ndw=nstate/2,(nparticle+int(2*spinz))/2,(nparticle-int(2*spinz))/2
+    result=np.zeros(factorial(n)/factorial(nup)/factorial(n-nup)*factorial(n)/factorial(ndw)/factorial(n-ndw),dtype=dtype)
+    buff_up=list(combinations(xrange(1,2*n,2),nup))
+    buff_dw=list(combinations(xrange(0,2*n,2),ndw))
     count=0
     for vup in buff_up:
         buff=0
         for num in vup:
             buff+=(1<<num)
-        for vdn in buff_dn:
+        for vdw in buff_dw:
             basis=buff
-            for num in vdn:
+            for num in vdw:
                 basis+=(1<<num)
             result[count]=basis
             count+=1

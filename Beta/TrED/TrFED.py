@@ -24,8 +24,9 @@ class TRBasis(HP.FBasis):
         self.mode='%sTR'%basis.mode
         self.nstate=basis.nstate
         self.nparticle=basis.nparticle
+        self.spinz=basis.spinz
         self.table=basis.table
-        seqs,maps,translations,signs,nbasis=trbasis(self.table,dk,nk,self.nstate.sum())
+        seqs,maps,translations,signs,nbasis=trbasis(self.table,dk,nk,self.nstate)
         self.seqs=seqs[:nbasis]
         self.maps=maps
         self.translations=translations

@@ -4,22 +4,19 @@ FBasis test.
 __all__=['test_fbasis']
 
 from HamiltonianPy.Basics.FermionicPackage.Basis import *
-from numba import jit
-import time
 
 def test_fbasis():
     print 'test_fbasis'
-    m,n,nloop=12,6,10
-    a=FBasis(up=(m,n),down=(m,n))
-    stime=time.time()
-    for j in xrange(nloop):
-        loop(a.table,a.nbasis)
-    etime=time.time()
-    print 'time consumed: %ss.'%(etime-stime)
+    m,n=2,1
+    bases=[     FBasis('FS',nstate=m*2,nparticle=n*2,spinz=1),
+                FBasis('FP',nstate=m*2,nparticle=n*2),
+                FBasis('FG',nstate=m*2),
+                FBasis('FGS',nstate=m*2),
+                FBasis('FGP',nstate=m*2)
+                ]
+    for basis in bases:
+        for bs in basis.iter():
+            print bs.rep
+            print bs
+            print
     print
-
-@jit
-def loop(table,nbasis):
-    for i in xrange(nbasis):
-        rep=table[i]
-        seq=sequence(rep,table)

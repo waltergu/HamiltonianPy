@@ -20,7 +20,7 @@ def test_fbasis():
     print 'test_fbasis'
     m=16
     t1=time.time()
-    nmbasis=FBasis(up=(m,m/4),down=(m,m/4))
+    nmbasis=FBasis('FS',m*2,m/2,0.0)
     t2=time.time()
     print 'NRM basis: %ss.'%(t2-t1)
     t3=time.time()
@@ -35,12 +35,12 @@ def test_fed():
     lattice=Square('S1')('%sP-1O'%m)
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fermi(norbital=1,nspin=2,nnambu=1))
 
-    basis=FBasis(up=(m,m/2),down=(m,m/2))
+    basis=FBasis('FS',m*2,m,0.0)
     ed=FED(name='OneD_%s_%s'%(lattice.name,basis.rep),basis=basis,lattice=lattice,config=config,terms=[Hopping('t1',t1),Hubbard('U',U)],dtype=np.complex128)
     ed.set_matrix()
     eigvals0=eigh(ed.matrix.todense(),eigvals_only=True)
 
-    basis=TRBasis(FBasis(up=(m,m/2),down=(m,m/2)),dk=2,nk=m)
+    basis=TRBasis(FBasis('FS',m*2,m,0.0),dk=2,nk=m)
     ed=TrFED(name='OneD_%s_%s'%(lattice.name,basis.rep),basis=basis,lattice=lattice,config=config,terms=[Hopping('t1',t1),Hubbard('U',U)],dtype=np.complex128)
     eigvals1=[]
     for k in xrange(m):

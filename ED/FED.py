@@ -83,22 +83,22 @@ class FED(ED):
         elif self.basis.mode=='FP':
             result=deepcopy(self)
             if nambu==HP.CREATION:
-                result.basis=HP.FBasis((self.basis.nstate,self.basis.nparticle+1))
+                result.basis=self.basis.replace(nparticle=self.basis.nparticle+1)
             else:
-                result.basis=HP.FBasis((self.basis.nstate,self.basis.nparticle-1))
+                result.basis=self.basis.replace(nparticle=self.basis.nparticle-1)
             result.matrix=csr_matrix((result.basis.nbasis,result.basis.nbasis),dtype=self.dtype)
             result.set_matrix()
             return result
         else:
             result=deepcopy(self)
             if nambu==HP.CREATION and spin==0:
-                result.basis=HP.FBasis(up=(self.basis.nstate[0],self.basis.nparticle[0]),down=(self.basis.nstate[1],self.basis.nparticle[1]+1))
+                result.basis=self.basis.replace(nparticle=self.basis.nparticle+1,spinz=self.basis.spinz-0.5)
             elif nambu==HP.ANNIHILATION and spin==0:
-                result.basis=HP.FBasis(up=(self.basis.nstate[0],self.basis.nparticle[0]),down=(self.basis.nstate[1],self.basis.nparticle[1]-1))
+                result.basis=self.basis.replace(nparticle=self.basis.nparticle-1,spinz=self.basis.spinz+0.5)
             elif nambu==HP.CREATION and spin==1:
-                result.basis=HP.FBasis(up=(self.basis.nstate[0],self.basis.nparticle[0]+1),down=(self.basis.nstate[1],self.basis.nparticle[1]))
+                result.basis=self.basis.replace(nparticle=self.basis.nparticle+1,spinz=self.basis.spinz+0.5)
             else:
-                result.basis=HP.FBasis(up=(self.basis.nstate[0],self.basis.nparticle[0]-1),down=(self.basis.nstate[1],self.basis.nparticle[1]))
+                result.basis=self.basis.replace(nparticle=self.basis.nparticle-1,spinz=self.basis.spinz-0.5)
             result.matrix=csr_matrix((result.basis.nbasis,result.basis.nbasis),dtype=self.dtype)
             result.set_matrix()
             return result

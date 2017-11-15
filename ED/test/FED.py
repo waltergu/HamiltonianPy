@@ -11,7 +11,7 @@ from HamiltonianPy.ED import *
 def test_fed():
     print 'test_fed'
     t,U,m,n=-1.0,8.0,2,2
-    basis=FBasis(up=(m*n,m*n/2),down=(m*n,m*n/2))
+    basis=FBasis('FS',2*m*n,m*n,0.0)
     lattice=Square('S1')('%sO-%sO'%(m,n))
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1))
     fed=FED(
