@@ -9,6 +9,9 @@ from HamiltonianPy.Basics.Extensions.KSpacePack import *
 
 def test_extensions_kspace():
     print 'test_extensions_kspace'
+    KMap.view('S',name='Square_KMap')
+    KMap.view('H',name='Hexagon_KMap')
+
     c=square_bz(reciprocals=[array([1.0,1.0]),array([1.0,-1.0])],nk=100)
     print 'volume: %s'%c.volume('k')
     c.plot(name='diamond')

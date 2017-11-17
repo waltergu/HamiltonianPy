@@ -14,84 +14,118 @@ from ..BaseSpace import *
 from ..Geometry import isintratriangle
 import numpy as np
 import numpy.linalg as nl
+import matplotlib.pyplot as plt
 
-def KMap(reciprocals,path):
+class KMap(list):
     '''
-    Convert path in the str form to the ndarray form.
-
-    Parameters
-    ----------
-    reciprocals : iterable of 1d ndarray
-        The translation vectors of the reciprocal lattice.
-    path : str
-        The str-formed path.
-
-    Returns
-    -------
-    list of 2-list
-        The ndarray-formed path.
+    This class converts path in the str form to the ndarray form.
     '''
-    path=path.replace(' ', '')
-    assert path[0] in ('L','S','H') and path[1]==':'
-    result,space,path=[],path[0],path[2:].split(',')
-    if space=='L':
-        assert len(reciprocals)==1
-    elif space=='S':
-        assert len(reciprocals)==2
-        inner=np.inner(reciprocals[0],reciprocals[1])/nl.norm(reciprocals[0])/nl.norm(reciprocals[1])
-        assert np.abs(inner)<RZERO
-    elif space=='H':
-        assert len(reciprocals)==2
-        inner=np.inner(reciprocals[0],reciprocals[1])/nl.norm(reciprocals[0])/nl.norm(reciprocals[1])
-        assert np.abs(np.abs(inner)-0.5)<RZERO
-        if np.abs(inner+0.5)<RZERO: reciprocals[1]=-reciprocals[1]
-    for segment in path:
-        segment=segment.split('-')
-        assert len(segment)==2
-        result.append([])
-        for rep in segment:
-            p=np.zeros(len(reciprocals))
-            if space=='L':
-                if rep=='G': pass
-                elif rep=='X': p[0]=0.5
-                elif rep=='G1': pass
-                elif rep=='G2': p[0]=1.0
-                elif rep=='X1': p[0]=0.5
-                elif rep=='X2': p[0]=-0.5
-                else: raise ValueError('KMap error: not supported representation(%s).'%rep)
-            elif space=='S':
-                if rep=='G': pass
-                elif rep=='X': p[0]=0.5
-                elif rep=='Y': p[1]=0.5
-                elif rep=='M': p[0],p[1]=0.5,0.5
-                elif rep=='X1': p[0]=0.5
-                elif rep=='X2': p[0]=-0.5
-                elif rep=='Y1': p[1]=0.5
-                elif rep=='Y2': p[1]=-0.5
-                elif rep=='M1': p[0],p[1]=0.5,0.5
-                elif rep=='M2': p[0],p[1]=-0.5,0.5
-                elif rep=='M3': p[0],p[1]=-0.5,-0.5
-                elif rep=='M4': p[0],p[1]=0.5,-0.5
-                else: raise ValueError('KMap error: not supported representation(%s).'%rep)
-            elif space=='H':
-                if rep=='G': pass
-                elif rep=='K': p[0],p[1]=1.0/3.0,1.0/3.0
-                elif rep=='M': p[0],p[1]=0.5,0.0
-                elif rep=='K1': p[0],p[1]=1.0/3.0,1.0/3.0
-                elif rep=='K2': p[0],p[1]=2.0/3.0,-1.0/3.0
-                elif rep=='K3': p[0],p[1]=1.0/3.0,-2.0/3.0
-                elif rep=='K4': p[0],p[1]=-1.0/3.0,-1.0/3.0
-                elif rep=='K5': p[0],p[1]=-2.0/3.0,1.0/3.0
-                elif rep=='K6': p[0],p[1]=-1.0/3.0,2.0/3.0
-                elif rep=='M1': p[0],p[1]=0.5,0.0
-                elif rep=='M2': p[0],p[1]=0.5,-0.5
-                elif rep=='M3': p[0],p[1]=0.0,-0.5
-                elif rep=='M4': p[0],p[1]=-0.5,0.0
-                elif rep=='M5': p[0],p[1]=-0.5,0.5
-                elif rep=='M6': p[0],p[1]=0.0,0.5
-                else: raise ValueError('KMap error: not supported representation(%s).'%rep)
-            result[-1].append(np.dot(np.asarray(reciprocals).T,p))
-    return result
+
+    database={
+        'L':{   'G' : np.array([0.0]),
+                'X' : np.array([0.5]),
+                'G1': np.array([0.0]),
+                'G2': np.array([1.0]),
+                'X1': np.array([0.5]),
+                'X2': np.array([-0.5])
+            },
+        'S':{   'G' : np.array([0.0,0.0]),
+                'X' : np.array([0.5,0.0]),
+                'Y' : np.array([0.0,0.5]),
+                'M' : np.array([0.5,0.5]),
+                'X1': np.array([0.5,0.0]),
+                'X2': np.array([-0.5,0.0]),
+                'Y1': np.array([0.0,0.5]),
+                'Y2': np.array([0.0,-0.5]),
+                'M1': np.array([0.5,0.5]),
+                'M2': np.array([-0.5,0.5]),
+                'M3': np.array([-0.5,-0.5]),
+                'M4': np.array([0.5,-0.5])
+            },
+        'H':{   'G' : np.array([0.0,0.0]),
+                'K' : np.array([1.0/3.0,1.0/3.0]),
+                'M' : np.array([0.5,0.0]),
+                'K1': np.array([1.0/3.0,1.0/3.0]),
+                'K2': np.array([2.0/3.0,-1.0/3.0]),
+                'K3': np.array([1.0/3.0,-2.0/3.0]),
+                'K4': np.array([-1.0/3.0,-1.0/3.0]),
+                'K5': np.array([-2.0/3.0,1.0/3.0]),
+                'K6': np.array([-1.0/3.0,2.0/3.0]),
+                'M1': np.array([0.5,0.0]),
+                'M2': np.array([0.5,-0.5]),
+                'M3': np.array([0.0,-0.5]),
+                'M4': np.array([-0.5,0.0]),
+                'M5': np.array([-0.5,0.5]),
+                'M6': np.array([0.0,0.5])
+            }
+        }
+
+    def __init__(self,reciprocals,path):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        reciprocals : iterable of 1d ndarray
+            The translation vectors of the reciprocal lattice.
+        path : str
+            The str-formed path.
+        '''
+        path=path.replace(' ', '')
+        assert path[0] in KMap.database and path[1]==':'
+        space,path,database,reciprocals=path[0],path[2:].split(','),KMap.database[path[0]],np.asarray(reciprocals)
+        if space=='L':
+            assert len(reciprocals)==1
+        elif space=='S':
+            assert len(reciprocals)==2
+            inner=np.inner(reciprocals[0],reciprocals[1])/nl.norm(reciprocals[0])/nl.norm(reciprocals[1])
+            assert np.abs(inner)<RZERO
+        elif space=='H':
+            assert len(reciprocals)==2
+            inner=np.inner(reciprocals[0],reciprocals[1])/nl.norm(reciprocals[0])/nl.norm(reciprocals[1])
+            assert np.abs(np.abs(inner)-0.5)<RZERO
+            if np.abs(inner+0.5)<RZERO: reciprocals[1]=-reciprocals[1]
+        for segment in path:
+            segment=segment.split('-')
+            assert len(segment)==2
+            self.append([reciprocals.T.dot(database[segment[0]]),reciprocals.T.dot(database[segment[1]])])
+
+    @staticmethod
+    def view(key,reciprocals=None,show=True,suspend=False,save=True,name='KMap'):
+        '''
+        View the KMap.
+
+        Parameters
+        ----------
+        key : 'L','S','H'
+            The key of the database of KMap.
+        reciprocals : iterable of 1d ndarray, optional
+            The translation vectors of the reciprocal lattice.
+        show : logical, optional
+            True for showing the view. Otherwise not.
+        suspend : logical, optional
+            True for suspending the view. Otherwise not.
+        save : logical, optional
+            True for saving the view. Otherwise not.
+        name : str, optional
+            The title and filename of the view. Otherwise not.
+        '''
+        assert key in KMap.database
+        if key=='L': reciprocals=np.asarray(reciprocals) or np.array([1.0])*2*np.pi
+        elif key=='S': reciprocals=np.asarray(reciprocals) or np.array([[1.0,0.0],[0.0,1.0]])*2*np.pi
+        elif key=='H': reciprocals=np.asarray(reciprocals) or np.array([[1.0,-1.0/np.sqrt(3.0)],[0,-2.0/np.sqrt(3.0)]])*2*np.pi
+        plt.title(name)
+        plt.axis('equal')
+        for tag,position in KMap.database[key].iteritems():
+            if '1' not in tag:
+                coords=reciprocals.T.dot(position)
+                assert len(coords)==2
+                plt.scatter(coords[0],coords[1])
+                plt.text(coords[0],coords[1],'%s(%s1)'%(tag,tag) if len(tag)==1 else tag,ha='center',va='bottom',color='green',fontsize=14)
+        if show and suspend: plt.show()
+        if show and not suspend: plt.pause(1)
+        if save: plt.savefig('%s.png'%name)
+        plt.close()
 
 def line_bz(reciprocals=None,nk=100):
     '''

@@ -610,7 +610,7 @@ def intralinks(mode='nb',cluster=(),indices=None,vectors=(),**options):
 
 def __links_nb__(cluster,indices,vectors,nneighbour,max_coordinate_number,return_mindists):
     '''
-    For details, see links.
+    For details, see intralinks.
     '''
     result,mindists=[],[]
     if len(cluster)>0:
@@ -649,7 +649,7 @@ def __links_nb__(cluster,indices,vectors,nneighbour,max_coordinate_number,return
 
 def __links_dt__(cluster,indices,vectors,r,max_translations,mindists):
     '''
-    For details, see links.
+    For details, see intralinks.
     '''
     result=[]
     if len(cluster)>0:
