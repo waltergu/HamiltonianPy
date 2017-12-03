@@ -5,10 +5,10 @@ Occupation number basis
 
 The basis of fermionic systems in the occupation number representation, including:
     * classes: FBasis
-    * function: sequence
+    * function: sequence, FBases
 '''
 
-__all__=['FBasis','sequence']
+__all__=['FBasis','sequence','FBases']
 
 import numpy as np
 from math import factorial
@@ -21,36 +21,28 @@ class FBasis(object):
 
     Attributes
     ----------
-    mode : 'FS','FP','FG','FGS','FGP'
+    mode : 'FS','FP','FG'
         * 'FS': particle-conserved and spin-conserved basis
         * 'FP': particle-conserved and spin-non-conserved basis
         * 'FG': particle-non-conserved and spin-non-conserved basis
-        * 'FGS': set of particle-conserved and spin-conserved bases
-        * 'FGP': set of particle-conserved and spin-non-conserved bases
+    table : 1d ndarray of int
+        The table of the binary representations of the basis.
+    nbasis : int
+        The dimension of the basis.
     nstate : int
         The number of total single-particle states of the basis.
     nparticle : int
         The number of total particles of the basis.
     spinz : half integer
         The z component of the total spin of the basis.
-    table : 1d ndarray of int
-        The table of the binary representations of the basis.
-    nbasis : int
-        The dimension of the basis.
     '''
 
-    def __init__(self,mode,nstate,nparticle='N',spinz='N'):
+    def __init__(self,nstate,nparticle=None,spinz=None):
         '''
         Constructor.
 
         Parameters
         ----------
-        mode : 'FS','FP','FG','FGS','FGP'
-            * 'FS': particle-conserved and spin-conserved basis
-            * 'FP': particle-conserved and spin-non-conserved basis
-            * 'FG': particle-non-conserved and spin-non-conserved basis
-            * 'FGS': set of particle-conserved and spin-conserved bases
-            * 'FGP': set of particle-conserved and spin-non-conserved bases
         nstate : int
             The number of total single-particle states of the basis.
         nparticle : int, optional
@@ -58,23 +50,23 @@ class FBasis(object):
         spinz : half integer, optional
             The z component of the total spin of the basis.
         '''
-        assert mode in ('FS','FP','FG','FGS','FGP') and nstate%2==0
-        self.mode=mode
+        assert nstate%2==0
+        if nparticle is None:
+            assert spinz is None
+            self.mode='FG'
+            self.table=np.array([])
+            self.nbasis=2**nstate
+        elif spinz is None:
+            self.mode='FP'
+            self.table=table_ep(nstate,nparticle,dtype=np.int64)
+            self.nbasis=len(self.table)
+        else:
+            self.mode='FS'
+            self.table=table_es(nstate,nparticle,spinz,dtype=np.int64)
+            self.nbasis=len(self.table)
         self.nstate=nstate
         self.nparticle=nparticle
         self.spinz=spinz
-        if mode=='FS':
-            self.table=table_es(nstate,nparticle,spinz,dtype=np.int64)
-            self.nbasis=len(self.table)
-        elif mode=='FP':
-            self.table=table_ep(nstate,nparticle,dtype=np.int64)
-            self.nbasis=len(self.table)
-        elif mode=='FG':
-            self.table=np.array([])
-            self.nbasis=2**nstate
-        else:
-            self.table=None
-            self.nbasis=None
 
     def __str__(self):
         '''
@@ -87,9 +79,9 @@ class FBasis(object):
         '''
         The string representation of the basis.
         '''
-        if self.mode in ('FS','FGS'):
+        if self.mode=='FS':
             return '%s(%s,%s,%s)'%(self.mode,self.nstate,self.nparticle,self.spinz)
-        elif self.mode in ('FP','FGP'):
+        elif self.mode=='FP':
             return '%s(%s,%s)'%(self.mode,self.nstate,self.nparticle)
         else:
             return '%s(%s)'%(self.mode,self.nstate)
@@ -100,27 +92,7 @@ class FBasis(object):
         '''
         keys={'nstate','nparticle','spinz'}
         assert set(karg.iterkeys())<=keys
-        return FBasis(mode=self.mode,**{key:karg.get(key,getattr(self,key)) for key in keys})
-
-    def iter(self):
-        '''
-        Return a generator over all the possible basis.
-        '''
-        if self.mode in ('FS','FP','FG'):
-            yield self
-        elif self.mode=='FGS':
-            for nparticle in xrange(self.nstate/2+1):
-                self.nparticle=nparticle
-                for ndw in xrange(self.nparticle+1):
-                    self.spinz=(self.nparticle-2*ndw)/2.0
-                    self.table=table_es(self.nstate,self.nparticle,self.spinz,dtype=np.int64)
-                    self.nbasis=len(self.table)
-                    yield self
-        elif self.mode=='FGP':
-            for nparticle in xrange(self.nstate/2+1):
-                self.nparticle=nparticle
-                self.table=table_ep(self.nstate,self.nparticle,dtype=np.int64)
-                yield self
+        return FBasis(**{key:karg.get(key,getattr(self,key)) for key in keys})
 
 def table_ep(nstate,nparticle,dtype=np.int64):
     '''
@@ -191,3 +163,27 @@ def sequence(rep,table):
         else:
             return result
         raise ValueError('sequence error: the input rep is not in the table.')
+
+def FBases(mode,nstate,select=None):
+    '''
+    This function returns a list of FBasis with the input mode and nstate.
+
+    Parameters
+    ----------
+    mode : 'FS','FP','FG'
+        The mode of the basis.
+    select : callable, optional
+        The select function of the basis.
+
+    Returns
+    -------
+    list of FBasis
+        The wanted list of FBasis.
+    '''
+    assert mode in ('FS','FP','FG') and nstate%2==0
+    if mode=='FG':
+        return [FBasis(nstate)]
+    elif mode=='FP':
+        return [FBasis(nstate,n) for n in xrange(nstate+1) if select is None or select(n)]
+    else:
+        return [FBasis(nstate,n,sz) for n in xrange(nstate+1) for sz in (n/2.0-np.array(xrange(max(n-nstate/2,0),min(n,nstate/2)+1))) if select is None or select(n,sz)]

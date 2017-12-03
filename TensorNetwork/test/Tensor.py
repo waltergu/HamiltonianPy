@@ -11,12 +11,12 @@ from HamiltonianPy.TensorNetwork import *
 from time import time
 
 def test_tensor():
-    test_tensor_ordinary()
-    test_tensor_qng()
-    test_tensor_svd()
-    test_tensor_directsum()
-    test_tensor_expanded_svd()
-    test_tensor_deparallelization()
+    #test_tensor_ordinary()
+    #test_tensor_qng()
+    #test_tensor_svd()
+    #test_tensor_directsum()
+    #test_tensor_expanded_svd()
+    #test_tensor_deparallelization()
     test_tensor_contract()
 
 def test_tensor_ordinary():
@@ -179,6 +179,7 @@ def test_tensor_contract():
     print 'test_tensor_contract'
     N,nmax=50,400
     mps=MPS.random(sites=[SPQNS(0.5)]*N,bonds=[SPQN((0.0,0.0)),SPQN((N,0.0))],cut=N/2,nmax=nmax)
+    print 'tensor shape: %s, %s, %s'%(mps[N/2-1].shape,mps[N/2].shape,mps[N/2+1].shape)
     t1=time()
     temp1=contract(mps[N/2-1:N/2+2],engine='einsum',sequential=True)
     print 'einsum time: %ss'%(time()-t1)

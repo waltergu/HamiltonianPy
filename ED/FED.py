@@ -5,37 +5,32 @@ Fermionic exact diagonalization
 
 Exact diagonalization for fermionic systems, including:
     * classes: FED
-    * functions: FGF
+    * functions: fedspgen, fedspcom, FGF
 '''
 
-__all__=['FED','FGF']
+__all__=['FED','fedspgen','fedspcom','FGF']
 
 from ED import *
-from scipy.sparse import csr_matrix
 from copy import deepcopy
 from collections import OrderedDict
 import HamiltonianPy as HP
+import HamiltonianPy.Misc as HM
 import HamiltonianPy.FreeSystem as TBA
 import numpy as np
 
 class FED(ED):
     '''
-    Exact diagonalization for an electron system.
-
-    Attributes
-    ----------
-    basis : FBasis
-        The occupation number basis of the system.
+    Exact diagonalization for a fermionic system.
     '''
 
-    def __init__(self,basis,lattice,config,terms=(),dtype=np.complex128,**karg):
+    def __init__(self,sectors,lattice,config,terms=(),dtype=np.complex128,**karg):
         '''
         Constructor.
 
         Parameters
         ----------
-        basis : FBasis
-            The occupation number basis of the system.
+        sectors : iterable of FBasis
+            The occupation number bases of the system.
         lattice : Lattice
             The lattice of the system.
         config : IDFConfig
@@ -45,22 +40,36 @@ class FED(ED):
         dtype : np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
         '''
-        self.basis=basis
+        self.sectors={sector.rep:sector for sector in sectors}
         self.lattice=lattice
         self.config=config
         self.terms=terms
         self.dtype=dtype
+        self.sector=None
         self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,dtype=dtype,half=True)
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
         self.operators=self.generator.operators
 
-    def set_matrix(self,refresh=True):
+    def matrix(self,sector,reset=True):
         '''
-        Set the csr_matrix representation of the Hamiltonian.
+        The matrix representation of the Hamiltonian.
+
+        Parameters
+        ----------
+        sector : str
+            The sector of the matrix representation of the Hamiltonian.
+        reset : logical, optional
+            True for resetting the matrix cache and False for not.
+
+        Returns
+        -------
+        csr_matrix
+            The matrix representation of the Hamiltonian.
         '''
-        if refresh: self.generator.set_matrix(HP.foptrep,self.basis,transpose=False,dtype=self.dtype)
-        matrix=self.generator.matrix
-        self.matrix=matrix.T+matrix.conjugate()
+        if reset: self.generator.set_matrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
+        self.sector=sector
+        matrix=self.generator.matrix(sector)
+        return matrix.T+matrix.conjugate()
 
     def __replace_basis__(self,nambu,spin):
         '''
@@ -78,59 +87,28 @@ class FED(ED):
         ED
             The new ED instance with the wanted new basis.
         '''
-        if self.basis.mode=='FG':
+        basis=self.sectors[self.sector]
+        if basis.mode=='FG':
             return self
-        elif self.basis.mode=='FP':
+        elif basis.mode=='FP':
             result=deepcopy(self)
-            if nambu==HP.CREATION:
-                result.basis=self.basis.replace(nparticle=self.basis.nparticle+1)
-            else:
-                result.basis=self.basis.replace(nparticle=self.basis.nparticle-1)
-            result.matrix=csr_matrix((result.basis.nbasis,result.basis.nbasis),dtype=self.dtype)
-            result.set_matrix()
+            new=basis.replace(nparticle=basis.nparticle+1) if nambu==HP.CREATION else basis.replace(nparticle=basis.nparticle-1)
+            result.sectors={new.rep:new}
+            result.sector=new.rep
             return result
         else:
             result=deepcopy(self)
             if nambu==HP.CREATION and spin==0:
-                result.basis=self.basis.replace(nparticle=self.basis.nparticle+1,spinz=self.basis.spinz-0.5)
+                new=basis.replace(nparticle=basis.nparticle+1,spinz=basis.spinz-0.5)
             elif nambu==HP.ANNIHILATION and spin==0:
-                result.basis=self.basis.replace(nparticle=self.basis.nparticle-1,spinz=self.basis.spinz+0.5)
+                new=basis.replace(nparticle=basis.nparticle-1,spinz=basis.spinz+0.5)
             elif nambu==HP.CREATION and spin==1:
-                result.basis=self.basis.replace(nparticle=self.basis.nparticle+1,spinz=self.basis.spinz+0.5)
+                new=basis.replace(nparticle=basis.nparticle+1,spinz=basis.spinz+0.5)
             else:
-                result.basis=self.basis.replace(nparticle=self.basis.nparticle-1,spinz=self.basis.spinz-0.5)
-            result.matrix=csr_matrix((result.basis.nbasis,result.basis.nbasis),dtype=self.dtype)
-            result.set_matrix()
+                new=basis.replace(nparticle=basis.nparticle-1,spinz=basis.spinz-0.5)
+            result.sectors={new.rep:new}
+            result.sector=new.rep
             return result
-
-    def Hmats_Omats(self,operators):
-        '''
-        The matrix representations of the system's Hamiltonian and the input operators.
-
-        Parameters
-        ----------
-        operators : list of Operator
-            The input Operators.
-
-        Returns
-        -------
-        Hmats : list of csr_matrix
-            The matrix representations of the system's Hamiltonian.
-        Omats : list of csr_matrix
-            The matrix representations of the input operators.
-        '''
-        Hmats,Omats=[],[]
-        for i,operator in enumerate(operators):
-            assert operator.rank==1
-            if self.basis.mode=='FS':
-                if i==0: efed=self.__replace_basis__(nambu=operator.indices[0].nambu,spin=operator.indices[0].spin)
-                if i==1: ofed=self.__replace_basis__(nambu=operator.indices[0].nambu,spin=operator.indices[0].spin)
-                fed=efed if i%2==0 else ofed
-            elif i==0:
-                fed=self.__replace_basis__(nambu=operator.indices[0].nambu,spin=operator.indices[0].spin)
-            Hmats.append(fed.matrix)
-            Omats.append(HP.foptrep(operator,basis=[self.basis,fed.basis],transpose=True))
-        return Hmats,Omats
 
     def totba(self):
         '''
@@ -149,8 +127,76 @@ class FED(ED):
             dtype=      self.dtype
             )
 
+def fedspgen(fed,operators,method='S'):
+    '''
+    This function generates the blocks of the zero-temperature single-particle Green's function of a fermionic system.
+
+    Parameters
+    ----------
+    fed : FED
+        The fermionic system.
+    operators : list of Operator
+        The input Operators.
+    method : 'S', 'B', or 'NB'
+        * 'S': simple Lanczos method;
+        * 'B': block Lanczos method;
+        * 'NB': number of blocks.
+
+    Yields
+    ------
+    When `method` is 'S' or 'B': BGF
+        The blocks of the zero-temperature single-particle Green's function.
+    When `method` is 'NB': int
+        The number of blocks.
+    '''
+    basis=fed.sectors[fed.sector]
+    if method=='NB':
+        yield 4 if basis.mode=='FS' else 2
+    else:
+        blocks=[{'inds':[],'opts':[]} for i in xrange(4 if basis.mode=='FS' else 2)]
+        for i,operator in enumerate(operators):
+            eindex=2 if basis.mode=='FS' and operator.indices[0].spin==1 else 0
+            hindex=3 if basis.mode=='FS' and operator.indices[0].spin==1 else 1
+            blocks[eindex]['inds'].append(i)
+            blocks[hindex]['inds'].append(i)
+            blocks[eindex]['opts'].append(operator.dagger)
+            blocks[hindex]['opts'].append(operator)
+        for i,block in enumerate(blocks):
+            nfed=fed.__replace_basis__(nambu=HP.CREATION if i%2==0 else HP.ANNIHILATION,spin=0 if i<=1 else 1)
+            yield BGF(
+                    method=     method,
+                    indices=    block['inds'],
+                    sign=       (-1)**i,
+                    matrix=     nfed.matrix(nfed.sector,reset=True),
+                    operators=  [HP.foptrep(operator,basis=[basis,nfed.sectors[nfed.sector]],transpose=True,dtype=fed.dtype) for operator in block['opts']],
+                    )
+
+def fedspcom(blocks,omega):
+    '''
+    This function composes the zero-temperature single-particle Green's function of a fermionic system from its blocks.
+
+    Parameters
+    ----------
+    blocks : list of BGF
+        The blocks of the Green's function.
+    omega : number
+        The frequency.
+
+    Returns
+    -------
+    2d ndarray
+        The composed Green's function.
+    '''
+    assert len(blocks) in (2,4)
+    if len(blocks)==2:
+        return blocks[0].gf(omega)+blocks[1].gf(omega).T
+    else:
+        gfdw,indsdw=blocks[0].gf(omega)+blocks[1].gf(omega).T,blocks[0].indices
+        gfup,indsup=blocks[2].gf(omega)+blocks[3].gf(omega).T,blocks[2].indices
+        return HM.reorder(HM.block_diag(gfdw,gfup),axes=[0,1],permutation=np.argsort(np.concatenate((indsdw,indsup))))
+
 def FGF(**karg):
     '''
     The zero-temperature single-particle Green's functions.
     '''
-    return GF(filter=lambda engine,app,i,j: True if engine.basis.mode in ('FP','FG') or (i%2,j%2) in ((0,0),(1,1)) else False,**karg)
+    return GF(generate=fedspgen,compose=fedspcom,**karg)

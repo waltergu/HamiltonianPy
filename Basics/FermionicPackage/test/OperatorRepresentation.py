@@ -17,7 +17,7 @@ def test_foptrep():
     generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=[]),terms=[Hopping('t',1.0,neighbour=1,indexpacks=sigmaz("SP"))])
     operator=generator.operators.values()[0]
     print 'operator:',operator
-    bases=[FBasis('FS',nstate=2*m*n,nparticle=m*n,spinz=0.0),FBasis('FP',nstate=2*m*n,nparticle=m*n),FBasis('FG',nstate=2*m*n)]
+    bases=[FBasis(nstate=2*m*n),FBasis(nstate=2*m*n,nparticle=m*n),FBasis(nstate=2*m*n,nparticle=m*n,spinz=0.0)]
     for basis in bases:
         stime=time.time()
         matrix=foptrep(operator,basis,transpose=False)

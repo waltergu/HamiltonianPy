@@ -113,20 +113,20 @@ from config import *
 
 __all__=['edconstruct']
 
-def edconstruct(parameters,lattice,target,terms,**karg):
+def edconstruct(parameters,lattice,sectors,terms,**karg):
     config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY,pids=lattice.pids,map=idfmap)
-    qnses=QNSConfig(indices=config.table().keys(),priority=DEFAULT_SPIN_PRIORITY,map=qnsmap)
+    qnses=None if qnsmap is None else QNSConfig(indices=config.table().keys(),priority=DEFAULT_SPIN_PRIORITY,map=qnsmap)
     ed=ED.SED(
         dlog=       'log',
         din=        'data',
         dout=       'result/ed',
-        name=       '%s_%s_%s'%(name,lattice.name,repr(target)),
+        name=       '%s_%s_%s'%(name,lattice.name,'_'.join(str(sector) for sector in sectors)),
         parameters= parameters,
         map=        parametermap,
-        qnses=      qnses,
         lattice=    lattice,
         config=     config,
-        target=     target,
+        qnses=      qnses,
+        sectors=    sectors,
         terms=      [term(**parameters) for term in terms],
         dtype=      np.complex128
         )
@@ -141,16 +141,16 @@ from config import *
 
 __all__=['edconstruct']
 
-def edconstruct(parameters,basis,lattice,terms,**karg):
+def edconstruct(parameters,sectors,lattice,terms,**karg):
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=idfmap)
     ed=ED.FED(
         dlog=       'log',
         din=        'data',
         dout=       'result/ed',
-        name=       '%s_%s_%s'%(name,lattice.name,basis.rep),
+        name=       '%s_%s_%s'%(name,lattice.name,'_'.join(sector.rep for sector in sectors)),
         parameters= parameters,
         map=        parametermap,
-        basis=      basis,
+        sectors=    sectors,
         lattice=    lattice,
         config=     config,
         terms=      [term(**parameters) for term in terms],
@@ -168,19 +168,19 @@ from config import *
 
 __all__=['vcaconstruct']
 
-def vcaconstruct(parameters,basis,cell,lattice,terms,weiss,mask=['nambu'],**karg):
+def vcaconstruct(parameters,sectors,cell,lattice,terms,weiss,mask=['nambu'],**karg):
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=idfmap)
     # edit the value of nstep if needed
-    cgf=ED.FGF(operators=fspoperators(config.table(),lattice),nstep=150,prepare=ED.EDGFP,run=ED.EDGF)
+    cgf=ED.FGF(operators=fspoperators(config.table(),lattice),nstep=150,method='S',prepare=ED.EDGFP,run=ED.EDGF)
     vca=VCA.VCA(
         dlog=       'log',
         din=        'data',
         dout=       'result/vca',
         cgf=        cgf,
-        name=       '%s_%s_%s'%(name,lattice.name,basis.rep),
+        name=       '%s_%s_%s'%(name,lattice.name,'_'.join(sector.rep for sector in sectors)),
         parameters= parameters,
         map=        parametermap,
-        basis=      basis,
+        sectors=    sectors,
         cell=       cell,
         lattice=    lattice,
         config=     config,

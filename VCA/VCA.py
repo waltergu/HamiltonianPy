@@ -13,7 +13,6 @@ __all__=['VCA','EB','VCAEB','VCADOS','VCAFS','VCABC','VCATEB','VCAGP','GPM','VCA
 from gf_contract import *
 from numpy.linalg import det,inv
 from scipy.linalg import eigh
-from scipy.sparse import csr_matrix
 from scipy.integrate import quad
 from scipy.optimize import minimize,broyden2
 from collections import OrderedDict
@@ -57,8 +56,10 @@ class VCA(ED.FED):
 
     Attributes
     ----------
-    basis : FBasis
-        The occupation number basis of the system.
+    sector : str
+        The sector of the system.
+    sectors : dict of FBasis
+        The occupation number bases of the system.
     cell : Lattice
         The unit cell of the system.
     lattice : Lattice
@@ -91,8 +92,6 @@ class VCA(ED.FED):
         It contains two entries, the necessary information to restore the translation symmetry broken by the explicit tiling of the original lattice:
         1) 'seqs': 2d ndarray of integers
         2) 'coords': 3d ndarray of floats
-    matrix : csr_matrix
-        The sparse matrix representation of the cluster Hamiltonian.
     cache : dict
         The cache during the process of calculation, usually to store some meshes.
 
@@ -114,7 +113,7 @@ class VCA(ED.FED):
         =========   ======================================================================================================================
     '''
 
-    def __init__(self,cgf,basis,cell,lattice,config,terms=(),weiss=(),mask=('nambu',),dtype=np.complex128,**karg):
+    def __init__(self,cgf,sectors,cell,lattice,config,terms=(),weiss=(),mask=('nambu',),dtype=np.complex128,**karg):
         '''
         Constructor.
 
@@ -122,8 +121,8 @@ class VCA(ED.FED):
         ----------
         cgf : HP.ED.GF
             The cluster Green's function.
-        basis : FBasis
-            The occupation number basis of the system.
+        sectors : iterable of FBasis
+            The occupation number bases of the system.
         cell : Lattice
             The unit cell of the system.
         lattice : Lattice
@@ -142,7 +141,7 @@ class VCA(ED.FED):
         '''
         self.preload(cgf)
         self.preload(HP.GF(operators=HP.fspoperators(HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map).table(),cell),dtype=cgf.dtype))
-        self.basis=basis
+        self.sectors={sector.rep:sector for sector in sectors}
         self.cell=cell
         self.lattice=lattice
         self.config=config
@@ -150,6 +149,7 @@ class VCA(ED.FED):
         self.weiss=weiss
         self.mask=mask
         self.dtype=dtype
+        self.sector=None
         self.generator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if bond.isintracell()],
             config=     config,
@@ -208,15 +208,28 @@ class VCA(ED.FED):
                 self.periodization['seqs'][i,j]=opt.seqs[0]+1
                 self.periodization['coords'][i,j,:]=opt.rcoord
 
-    def set_matrix(self,refresh=True):
+    def matrix(self,sector,reset=True):
         '''
-        Set the csr_matrix representation of the Hamiltonian.
+        The matrix representation of the Hamiltonian.
+
+        Parameters
+        ----------
+        sector : str
+            The sector of the matrix representation of the Hamiltonian.
+        reset : logical, optional
+            True for resetting the matrix cache and False for not.
+
+        Returns
+        -------
+        csr_matrix
+            The matrix representation of the Hamiltonian.
         '''
-        if refresh:
-            self.generator.set_matrix(HP.foptrep,self.basis,transpose=False,dtype=self.dtype)
-            self.bcgenerator.set_matrix(HP.foptrep,self.basis,transpose=False,dtype=self.dtype)
-        matrix=self.generator.matrix+self.bcgenerator.matrix
-        self.matrix=matrix.T+matrix.conjugate()
+        if reset:
+            self.generator.set_matrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
+            self.bcgenerator.set_matrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
+        self.sector=sector
+        matrix=self.generator.matrix(sector)+self.bcgenerator.matrix(sector)
+        return matrix.T+matrix.conjugate()
 
     def update(self,**karg):
         '''
@@ -353,7 +366,7 @@ class VCA(ED.FED):
             The mesh of the mixed Green's functions.
         '''
         cgf=self.cgf(omega)
-        return np.einsum('jk,ikl->ijl',cgf,inv(np.identity(cgf.shape[0],dtype=cgf.dtype)-self.pt_kmesh(kmesh).dot(cgf)))
+        return np.tensordot(cgf,inv(np.identity(cgf.shape[0],dtype=cgf.dtype)-self.pt_kmesh(kmesh).dot(cgf)),axes=([1],[1])).transpose((1,0,2))
 
     def gf(self,omega=None,k=()):
         '''

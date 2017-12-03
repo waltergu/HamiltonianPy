@@ -67,6 +67,7 @@ class Generator(object):
         self.options=options
         self.set_terms(terms)
         self.set_operators()
+        self._matrix_={}
 
     def reset(self,bonds=None,config=None,table=None,terms=None,dtype=None,**options):
         '''
@@ -94,6 +95,7 @@ class Generator(object):
         if len(options)>0: self.options=options
         if terms is not None: self.set_terms(terms)
         self.set_operators()
+        self._matrix_={}
 
     def set_terms(self,terms):
         '''
@@ -121,26 +123,28 @@ class Generator(object):
                 operators+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
             self._operators_['alter'].append(operators)
 
-    def set_matrix(self,optrep,*args,**kargs):
+    def set_matrix(self,sector,optrep,*args,**kargs):
         '''
         Set the cache of the matrix representation of the operators.
 
         Parameters
         ----------
+        sector : str
+            The sector of the matrix representation of the operators.
         optrep : callable
             The function to generate the matrix representation of a single operator.
         args,kargs : optional
             The extra arguments of the function `optrep`.
         '''
-        self._matrix_={'const':0,'alter':[]}
+        self._matrix_[sector]={'const':0,'alter':[]}
         for operator in self._operators_['const'].itervalues():
-            self._matrix_['const']+=optrep(operator,*args,**kargs)
+            self._matrix_[sector]['const']+=optrep(operator,*args,**kargs)
         for term in self.terms['alter']:
             term,matrix=term.unit,0
             for bond in self.bonds:
                 for operator in term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options).itervalues():
                     matrix+=optrep(operator,*args,**kargs)
-            self._matrix_['alter'].append(matrix)
+            self._matrix_[sector]['alter'].append(matrix)
 
     def __str__(self):
         '''
@@ -196,14 +200,23 @@ class Generator(object):
             result+=opts
         return result
 
-    @property
-    def matrix(self):
+    def matrix(self,sector):
         '''
         This method returns the matrix representation of the operators.
+
+        Parameters
+        ----------
+        sector : str
+            The sector of the matrix representation of the operators.
+
+        Returns
+        -------
+        matrix-like
+            The matrix representation of the operators.
         '''
         result=0
-        result+=self._matrix_['const']
-        for term,matrix in zip(self.terms['alter'],self._matrix_['alter']):
+        result+=self._matrix_[sector]['const']
+        for term,matrix in zip(self.terms['alter'],self._matrix_[sector]['alter']):
             result+=matrix*term.value
         return result
 
@@ -219,16 +232,16 @@ class Generator(object):
                 for bond in self.bonds:
                     self._operators_['alter'][pos]+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
 
-    def view(self,bondmask=None,termmask=None,pidon=True,bonddr='+',show=True,suspend=False,close=True):
+    def view(self,bondselect=None,termselect=None,pidon=True,bonddr='+',show=True,suspend=False,close=True):
         '''
         View the index packs of the terms on the bonds.
 
         Parameters
         ----------
-        bondmask : callable, optional
-            The mask function of the bonds.
-        termmask : callable, optional
-            The mask function of the terms.
+        bondselect : callable, optional
+            The select function of the bonds.
+        termselect : callable, optional
+            The select function of the terms.
         pidon : logical, optional
             True for showing the pids of the points of the bonds.
         bonddr : '+'/'-', optional
@@ -255,11 +268,11 @@ class Generator(object):
                     plt.scatter(x,y,zorder=2,alpha=0.5)
                     if pidon: plt.text(x,y,'%s%s'%('' if pid.scope is None else '%s*'%pid.scope,pid.site),color='blue',horizontalalignment='center',fontproperties=font)
                     points.add(point.pid)
-            if bondmask is None or bondmask(bond):
+            if bondselect is None or bondselect(bond):
                 assert bonddr in ('+','-')
                 (x,y),(dx,dy)=(bond.spoint.rcoord,bond.rcoord) if bonddr=='+' else (bond.epoint.rcoord,bond.reversed.rcoord)
                 if nl.norm(bond.rcoord)>RZERO: plt.arrow(x,y,dx,dy,ls='--' if nl.norm(bond.icoord)>RZERO else '-',lw=2,color='red',length_includes_head=True,alpha=0.5)
-                packs=[term.strrep(bond,self.config) for term in it.chain(self.terms['const'],self.terms['alter']) if termmask is None or termmask(term)]
+                packs=[term.strrep(bond,self.config) for term in it.chain(self.terms['const'],self.terms['alter']) if termselect is None or termselect(term)]
                 if len(packs)>0:
                     plt.text(x+dx/2,y+dy/2,'\n'.join(sorted(packs,key=len)),color='green',horizontalalignment='center',verticalalignment='center',fontproperties=font)
         plt.xlim([xmin-(xmax-xmin)*0.30,xmax+(xmax-xmin)*0.30])

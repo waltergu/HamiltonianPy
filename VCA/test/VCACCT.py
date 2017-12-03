@@ -29,8 +29,8 @@ def test_vcacct():
                         ],
         weiss=[         Onsite('afm',0.0,indexpacks=sigmaz('sp')*sigmaz('sl'),modulate=True)
                         ],
-        subsystems=[    {'basis':FBasis('FS',nstate=8,nparticle=4,spinz=0.0),'lattice':LA},
-                        {'basis':FBasis('FS',nstate=8,nparticle=4,spinz=0.0),'lattice':LB}
+        subsystems=[    {'sectors':[FBasis(nstate=8,nparticle=4,spinz=0.0)],'lattice':LA},
+                        {'sectors':[FBasis(nstate=8,nparticle=4,spinz=0.0)],'lattice':LB}
                         ],
         )
     vcacct.add(GP(name='GP',mu=U/2,BZ=KSpace(reciprocals=lattice.reciprocals,nk=100),run=VCAGP))

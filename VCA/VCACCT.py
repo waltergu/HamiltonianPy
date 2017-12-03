@@ -43,8 +43,8 @@ class VCACCT(VCA):
         cgf,cell,lattice,config,terms,weiss,mask :
             See VCA.__init__ for details.
         subsystem: dict
-            * entry 'basis': FBasis
-                The occupation number basis of the subsystem.
+            * entry 'sectors': iterable of FBasis
+                The occupation number bases of the subsystem.
             * entry 'lattice': Lattice
                 The lattice of the subsystem.
             * entry 'group': any hashable object, optional
@@ -64,11 +64,11 @@ class VCACCT(VCA):
         extras={key:value for key,value in karg.iteritems() if key!='name'}
         for group in set(self.groups):
             subsystem=subsystems[self.groups.index(group)]
-            subbasis,sublattice=subsystem['basis'],subsystem['lattice']
+            subsectors,sublattice=subsystem['sectors'],subsystem['lattice']
             subconfig=HP.IDFConfig(priority=config.priority,pids=subsystem['lattice'].pids,map=config.map)
             self.subsystems[group]=ED.FED(
                     name=           group,
-                    basis=          subbasis,
+                    sectors=        subsectors,
                     lattice=        sublattice,
                     config=         subconfig,
                     terms=          deepcopy(terms+weiss),

@@ -218,26 +218,25 @@ class Timer(object):
 class Timers(Tree):
     '''
     Timers for code executing. For each of its (key,value) pairs,
-        * key: string
+        * key: str
             The name of the timer.
         * value: Timer
             The corresponding timer.
     '''
     ALL=0
 
-    def __init__(self,*keys):
+    def __init__(self,*keys,**karg):
         '''
         Constructor.
 
         Parameters
         ----------
-        keys : list of string
+        keys : list of str
             The names of the timers.
         '''
-        super(Timers,self).__init__(root='Total',data=Timer())
-        for key in keys:
-            self.add_leaf('Total',key,Timer())
-        self['Total'].proceed()
+        super(Timers,self).__init__(root=karg.get('root','Total'),data=Timer())
+        for key in keys: self.add_leaf(self.root,key,Timer())
+        self[self.root].proceed()
 
     def __str__(self):
         '''
@@ -251,7 +250,7 @@ class Timers(Tree):
 
         Parameters
         ----------
-        keys : list of string, optional
+        keys : list of str, optional
             The names of the timers to be included in the representation.
         form : 's' or 'c', optional
             * When 's', only the last record of each timer will be included in the representation;
@@ -278,7 +277,7 @@ class Timers(Tree):
 
         Parameters
         ----------
-        parents : list of string, optional
+        parents : list of str, optional
             The names of the parent timers to be converted to a pie chart.
         form : 's' or 'c', optional
             * When 's', only the last record of each timer will be included in the representation;
@@ -335,13 +334,24 @@ class Timers(Tree):
 
         Parameters
         ----------
-        parent : string
+        parent : str
             The parent timer of the added timer.
-        name : string
+        name : str
             The name of the added timer.
         '''
         parent=self.root if parent is None else parent
         self.add_leaf(parent,name,Timer())
+
+    def remove(self,timer):
+        '''
+        Remove a timer and its subtimers.
+
+        Parameters
+        ----------
+        timer : str
+            The timer to be removed.
+        '''
+        self.remove_subtree(timer)
 
     def record(self):
         '''
@@ -356,6 +366,7 @@ class Timers(Tree):
         '''
         for timer in self.itervalues():
             timer.reset()
+        self[self.root].proceed()
 
     def time(self,key):
         '''
@@ -363,7 +374,7 @@ class Timers(Tree):
 
         Parameters
         ----------
-        key : string
+        key : str
             The timer whose cumulative time is queried.
         '''
         return self[key].time
@@ -374,6 +385,12 @@ class Timers(Tree):
         Close the graph.
         '''
         plt.close()
+
+    def cleancache(self):
+        '''
+        Clean the cache of the timers.
+        '''
+        if hasattr(self,'piecharts'): delattr(self,'piecharts')
 
 class Sheet(object):
     '''
@@ -434,6 +451,38 @@ class Sheet(object):
         '''
         return self.contents.shape
 
+    def rowindex(self,row):
+        '''
+        The index of a row.
+
+        Parameters
+        ----------
+        row : str or int
+            The row whose index is inquired.
+
+        Returns
+        -------
+        int
+            The row index.
+        '''
+        return row if isinstance(row,int) or isinstance(row,long) else self.rows.index(row)
+
+    def colindex(self,col):
+        '''
+        The index of a column.
+
+        Parameters
+        ----------
+        col : str or int
+            The column whose index is inquired.
+
+        Returns
+        -------
+        int
+            The column index.
+        '''
+        return col if isinstance(col,int) or isinstance(col,long) else self.cols.index(col)
+
     def index(self,entry):
         '''
         The index of the input entry.
@@ -448,16 +497,13 @@ class Sheet(object):
         2-tuple
             The index of the input entry.
         '''
-        if len(self.rows)==1:
-            assert isinstance(entry,str) or isinstance(entry,int) or isinstance(entry,long)
-            return (0,self.cols.index(entry) if isinstance(entry,str) else entry)
-        if len(self.cols)==1:
-            assert isinstance(entry,str) or isinstance(entry,int) or isinstance(entry,long)
-            return (self.rows.index(entry) if isinstance(entry,str) else entry,0)
+        try:
+            if len(self.rows)==1: return (0,self.colindex(entry))
+            if len(self.cols)==1: return (self.rowindex(entry),0)
+        except ValueError:
+            pass
         assert isinstance(entry,tuple) and len(entry)==2
-        row=self.rows.index(entry[0]) if isinstance(entry[0],str) else entry[0]
-        col=self.cols.index(entry[1]) if isinstance(entry[1],str) else entry[1]
-        return row,col
+        return self.rowindex(entry[0]),self.colindex(entry[1])
 
     def __str__(self):
         '''
@@ -501,12 +547,12 @@ class Sheet(object):
         '''
         sheet,rowadded,coladded=self.sheet,False,False
         if rowon and self.rows!=(None,):
-            sheet=np.insert(sheet,0,self.rows,axis=1)
+            sheet=np.insert(sheet,0,['{}'.format(tag) for tag in self.rows],axis=1)
             rowadded=True
         if colon and self.cols!=(None,):
-            sheet=np.insert(sheet,0,((self.corner,) if rowadded else ())+self.cols,axis=0)
+            sheet=np.insert(sheet,0,([self.corner] if rowadded else [])+['{}'.format(tag) for tag in self.cols],axis=0)
             coladded=True
-        widths=np.max(np.array([len(entry) for entry in sheet.flatten()]).reshape(sheet.shape),axis=0) if self.widths is None else self.widths[(0 if colon else 1):]
+        widths=np.max(np.array([len(entry) for entry in sheet.flatten()]).reshape(sheet.shape),axis=0) if self.widths is None else self.widths[(0 if rowadded else 1):]
         result=[None]*(len(sheet)+(3 if coladded else 2))
         length=np.sum(widths)+3*sheet.shape[1]-1
         result[+0]=length*'~'
@@ -517,6 +563,124 @@ class Sheet(object):
             result[index]='|'.join(entry.center(width+2) for entry,width in zip(row,widths))
             assert len(result[index])==length
         return '\n'.join(result)
+
+    def frame(self,rowon=True):
+        '''
+        Return the frame of the sheet.
+        '''
+        assert self.widths is not None
+        return '~'*(np.sum(self.widths[(0 if rowon else 1):])+3*(self.sheet.shape[1]+(1 if rowon else 0))-1)
+
+    def division(self,rowon=True):
+        '''
+        Return the division line of the sheet.
+        '''
+        assert self.widths is not None
+        return '-'*(np.sum(self.widths[(0 if rowon else 1):])+3*(self.sheet.shape[1]+(1 if rowon else 0))-1)
+
+    def coltagstostr(self,corneron=True):
+        '''
+        Convert the column tags to string.
+
+        Parameters
+        ----------
+        corneron : logical, optional
+            True for including the corner of the sheet and False for not.
+
+        Returns
+        -------
+        str
+            The converted string.
+        '''
+        assert self.widths is not None
+        content=['{}'.format(tag) for tag in self.cols]
+        sheet=np.concatenate(([self.corner],content)) if corneron else content
+        width=self.widths[(0 if corneron else 1):]
+        return '|'.join(entry.center(width+2) for entry,width in zip(sheet,width))
+
+    def rowtagstostr(self,corneron=True):
+        '''
+        Convert the row tags to string.
+
+        Parameters
+        ----------
+        corneron : logical, optional
+            True for including the corner of the sheet and False for not.
+
+        Returns
+        -------
+        str
+            The converted string.
+        '''
+        assert self.widths is not None
+        return '\n'.join(entry.center(self.widths[0]+2) for entry in it.chain([self.corner] if corneron else [],['{}'.format(tag) for tag in self.rows]))
+
+    def tagtostr(self,tag):
+        '''
+        Convert the/a/a tag of the corner/rows/columns to string.
+
+        Parameters
+        ----------
+        tag : str
+            The/A/A tag of the corner/rows/columns.
+
+        Returns
+        -------
+        str
+            The converted string.
+        '''
+        assert self.widths is not None
+        if tag==self.corner:
+            return self.corner.center(self.widths[0]+2)
+        else:
+            try:
+                index=self.rowindex(tag)
+                return '{}'.format(self.rows[index]).center(self.widths[0]+2)
+            except ValueError:
+                index=self.colindex(tag)
+                return '{}'.format(self.cols[index]).center(self.widths[index+1]+2)
+
+    def rowtostr(self,row,rowon=True):
+        '''
+        Convert a row to string.
+
+        Parameters
+        ----------
+        row : str or int
+            The row to be converted.
+        rowon : logical, optional
+            True for including the tag of the row.
+
+        Returns
+        -------
+        str
+            The converted string.
+        '''
+        assert self.widths is not None
+        index=self.rowindex(row)
+        tag='{}'.format(self.rows[index])
+        content=self.sheet[index,:]
+        sheet=np.concatenate(([tag],content)) if rowon else content
+        width=self.widths[(0 if rowon else 1):]
+        return '|'.join(entry.center(width+2) for entry,width in zip(sheet,width))
+
+    def entrytostr(self,entry):
+        '''
+        Convert an entry of the sheet to string.
+
+        Parameters
+        ----------
+        entry : tuple, str or int
+            The input entry.
+
+        Returns
+        -------
+        str
+            The converted string.
+        '''
+        assert self.widths is not None
+        index=self.index(entry)
+        return self.sheet[index].center(self.widths[index[1]+1]+2)
 
     @staticmethod
     def from_ordereddict(od,mode='C'):
@@ -558,6 +722,9 @@ class Log(object):
     -----
     When the log file is the stdout, the attribute `name` is set to be None.
     '''
+
+    ON=True
+    FLUSH=True
 
     def __init__(self,dir=None,name=None):
         '''
@@ -612,9 +779,10 @@ class Log(object):
         info : str
             The information to be written.
         '''
-        self.open()
-        self.fout.write(str(info))
-        self.fout.flush()
+        if Log.ON:
+            self.open()
+            self.fout.write(str(info))
+            if Log.FLUSH: self.fout.flush()
         return self
 
 def parity(permutation):

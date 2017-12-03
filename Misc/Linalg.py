@@ -16,6 +16,7 @@ import numpy.linalg as nl
 import scipy.sparse as sp
 import scipy.sparse.linalg as pl
 import scipy.linalg as sl
+import itertools as it
 from copy import copy
 from fkron import *
 
@@ -23,23 +24,37 @@ TOL=5*10**-12
 
 class Lanczos(object):
     '''
-    The Lanczos algorithm to deal with csr-formed sparse Hermitian matrices.
+    Band Lanczos method.
 
     Attributes
     ----------
     matrix : csr_matrix
         The csr-formed sparse Hermitian matrix.
-    zero : float
-        The precision used to cut off the Lanczos iterations.
-    new,old : 1d ndarray
-        The new and old vectors updated in the Lanczos iterations.
-    a,b : 1d list of floats
-        The coefficients calculated in the Lanczos iterations.
-    cut : logical
-        A flag to tag whether the iteration has been cut off.
+    candidates : list of 1d ndarray
+        The candidate vectors of the Krylov space.
+    maxiter : int
+        The maximum number of Lanczos iterations.
+    dtol : float
+        The tolerance of the Lanczos basis.
+    keepstate : logical
+        True for keeping all the Lanczos basis and False for keeping only the necessary Lanczos basis in the orthogonalization process.
+    nv0 : int
+        The number of starting vectors.
+    stop : logical
+        True when the Lanczos iteration has stopped.
+    niter : int
+        The number of iterations that has been carried out.
+    vectors : list of 1d ndarray
+        The Lanczos basis.
+    deflations : list of int
+        The index of the deflated basis.
+    _T_ : 2d ndarray
+        The Lanczos representation of the input Hermitian matrix.
+    P : 2d ndarray
+        The projection of the Lanczos basis onto the input vectors.
     '''
 
-    def __init__(self,matrix,v0=None,check_normalization=True,vtype='rd',zero=10**-10,dtype=np.complex128):
+    def __init__(self,matrix,v0=None,maxiter=1000,dtol=TOL,keepstate=False):
         '''
         Constructor.
 
@@ -47,119 +62,92 @@ class Lanczos(object):
         ----------
         matrix : csr_matrix
             The csr-formed sparse Hermitian matrix.
-        v0 : 1d ndarray, optional
-            The initial vector to begin with the Lanczos iterations. It must be normalized already.
-        check_normalization : logical, optional
-            When it is True, the input v0 will be check to see whether it is normalized.
-        vtype : string, optional
-            A flag to tell what type of initial vectors to use when the parameter vector is None.
-            'rd' means a random vector while 'sy' means a symmetric vector.
-        zero : float, optional
-            The precision used to cut off the Lanczos iterations.
-        dtype : dtype, optional
-            The data type of the iterated vectors.
+        v0 : list of 1d ndarray, optional
+            The starting vectors of the Krylov space.
+        maxiter : int, optional
+            The maximum number of Lanczos iterations.
+        dtol : float, optional
+            The tolerance of the Lanczos basis.
+        keepstate : logical, optional
+            True for keeping all the Lanczos basis and False for keeping only the necessary Lanczos basis in the orthogonalization process.
         '''
         self.matrix=matrix
-        self.zero=zero
-        if v0 is None:
-            if vtype.lower()=='rd':
-                self.new=np.zeros(matrix.shape[0],dtype=dtype)
-                self.new[:]=np.random.rand(matrix.shape[0])
-            else:
-                self.new=np.ones(matrix.shape[0],dtype=dtype)
-            self.new[:]=self.new[:]/nl.norm(self.new)
-        else:
-            if check_normalization:
-                temp=nl.norm(v0)
-                if abs(temp-v0)>zero:
-                    raise ValueError('Lanczos constructor error: v0(norm=%s) is not normalized.'%temp)
-            self.new=v0
-        self.old=copy(self.new)
-        self.cut=False
-        self.a=[]
-        self.b=[]
+        self.candidates=[np.random.random(self.matrix.shape[0])] if v0 is None else list(v0)
+        self.maxiter=maxiter
+        self.dtol=dtol
+        self.keepstate=keepstate
+        self.nv0=len(self.candidates)
+        self.stop=False
+        self.niter=0
+        self.vectors=[None]*self.maxiter
+        self.deflations=[]
+        self._T_=np.zeros((self.maxiter,self.maxiter),dtype=self.matrix.dtype)
+        self.P=np.zeros((self.nv0,self.nv0),dtype=self.matrix.dtype)
+
+    @property
+    def nc(self):
+        '''
+        The number of candidate vectors of the Krylov space.
+        '''
+        return len(self.candidates)
+
+    @property
+    def T(self):
+        '''
+        The Lanczos representation of the input Hermitian matrix.
+        '''
+        return self._T_[0:self.niter,0:self.niter]
 
     def iter(self):
         '''
         The Lanczos iteration.
         '''
-        count=len(self.a)
-        buff=self.matrix.dot(self.new)
-        self.a.append(np.vdot(self.new,buff))
-        if count>0:
-            buff[:]=buff[:]-self.a[count]*self.new-self.b[count-1]*self.old
+        while len(self.candidates)>0:
+            v=self.candidates.pop(0)
+            norm=nl.norm(v)
+            if norm>self.dtol:
+                break
+            elif self.niter>=self.nc:
+                self.deflations.append(self.niter-self.nc)
         else:
-            buff[:]=buff[:]-self.a[count]*self.new
-        nbuff=nl.norm(buff)
-        if nbuff>self.zero:
-            self.b.append(nbuff)
-            self.old[:]=self.new[:]
-            self.new[:]=buff[:]/nbuff
-        else:
-            self.cut=True
-            self.b.append(0.0)
-            self.old[:]=self.new[:]
-            self.new[:]=0.0
-
-    def tridiagnoal(self):
-        '''
-        This method returns the tridiagnoal matrix representation of the original sparse Hermitian matrix.
-
-        Returns
-        -------
-        2d ndarray
-            The tridiagnoal matrix representation of the original sparse Hermitian matrix.
-        '''
-        nmatrix=len(self.a)
-        result=np.zeros((nmatrix,nmatrix))
-        for i,(a,b) in enumerate(zip(self.a,self.b)):
-            result[i,i]=a.real
-            if i<nmatrix-1: 
-                result[i+1,i]=b
-                result[i,i+1]=b
-        return result
-
-    def eig(self,job='n',precision=10**-10):
-        '''
-        This method returns the ground state energy and optionally the ground state of the original sparse Hermitian matrix.
-
-        Parameters
-        ----------
-        job : string
-            A flag to tag what jobs the method does.
-            'n' means ground state energy only and 'v' means ground state energy and ground state both.
-        precision : float
-            The precision of the calculated ground state energy which is used to terminate the Lanczos iteration.
-
-        Returns
-        -------
-        gse : float
-            the ground state energy.
-        gs : 1d ndarray, optional
-            The ground state. Present when the parameter job is set to be 'V' or 'v'.
-        '''
-        if job in ('V','v'):gs=copy(self.new)
-        delta=1.0;buff=np.inf;gse=None;v=[]
-        while not self.cut and delta>precision:
-            self.iter()
-            if job in ('V','v'):
-                w,vs=sl.eigh(self.tridiagnoal())
-                gse=w[0];v=vs[:,0]
+            self.stop=True
+        if not self.stop:
+            self.vectors[self.niter]=v/norm
+            if self.niter-self.nc-1>=0:
+                self._T_[self.niter,self.niter-self.nc-1]=norm
             else:
-                gse=sl.eigh(self.tridiagnoal(),eigvals_only=True)[0]
-            delta=abs(gse-buff)
-            buff=gse
-        if job in ('V','v'):
-            self.a=[];self.b=[]
-            for i in xrange(len(v)):
-                if i==0:
-                    self.new[:]=gs[:]
-                    gs[:]=0.0
-                gs[:]+=self.new*v[i]
-                self.iter()
-            return gse,gs
-        else:
-            return gse
+                self.P[self.niter,self.niter-self.nc-1+self.nv0]=norm
+            for k,vc in enumerate(self.candidates):
+                overlap=np.vdot(self.vectors[self.niter],vc)
+                if k+self.niter>=self.nc:
+                    self._T_[self.niter,k+self.niter-self.nc]=overlap
+                else:
+                    self.P[self.niter,self.niter-self.nc+k+self.nv0]=overlap
+                vc-=overlap*self.vectors[self.niter]
+            v=self.matrix.dot(self.vectors[self.niter])
+            for k in xrange(max(self.niter-self.nc-1,0),self.niter):
+                self._T_[k,self.niter]=np.conjugate(self._T_[self.niter,k])
+                v-=self._T_[k,self.niter]*self.vectors[k]
+            for k in it.chain(self.deflations,[self.niter]):
+                overlap=np.vdot(self.vectors[k],v)
+                if k in set(self.deflations)|{self.niter}:
+                    self._T_[k,self.niter]=overlap
+                    self._T_[self.niter,k]=np.conjugate(overlap)
+                v-=overlap*self.vectors[k]
+            self.candidates.append(v)
+            if not self.keepstate and self.niter>=self.nc and self.niter-self.nc not in self.deflations: self.vectors[self.niter-self.nc]=None
+            self.niter+=1
+
+    def eigs(self):
+        '''
+        The eigenvalues of the Lanczos matrix.
+
+        Returns
+        -------
+        1d ndarray
+            The eigenvalues of the Lanczos matrix.
+        '''
+        return sl.eigh(self.T,eigvals_only=True)
 
 class LinearOperator(pl.LinearOperator):
     '''

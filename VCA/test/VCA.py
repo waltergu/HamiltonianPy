@@ -12,7 +12,7 @@ import numpy as np
 def test_vca():
     print 'test_vca'
     t,U,m,n=-1.0,8.0,2,2
-    basis=FBasis('FS',2*m*n,m*n,0.0)
+    basis=FBasis(2*m*n,m*n,0.0)
     cell=Square('S1')('1P-1P',1)
     lattice=Square('S1')('%sP-%sP'%(m,n),1)
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1))
@@ -20,7 +20,7 @@ def test_vca():
     vca=VCA.VCA(
             name=       'WG-%s-%s'%(lattice.name,basis.rep),
             cgf=        cgf,
-            basis=      basis,
+            sectors=    [basis],
             cell=       cell,
             lattice=    lattice,
             config=     config,

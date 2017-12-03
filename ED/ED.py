@@ -4,17 +4,17 @@ Exact diagonalization
 =====================
 
 Base class for exact diagonalization, including:
-    * classes: ED, EL, GF, EIGS
+    * classes: ED, EL, BGF, GF, EIGS
     * functions: EDEIGS, EDEL, EDGFP, EDGF, EDDOS
 '''
 
-__all__=['ED','EIGS','EDEIGS','EL','EDEL','GF','EDGFP','EDGF','EDDOS']
+__all__=['ED','EIGS','EDEIGS','EL','EDEL','BGF','GF','EDGFP','EDGF','EDDOS']
 
-from ..Misc import Lanczos,derivatives,eigsh
-from scipy.linalg import norm,solve_banded
 import numpy as np
 import pickle as pk
+import scipy.linalg as sl
 import HamiltonianPy as HP
+import HamiltonianPy.Misc as HM
 import matplotlib.pyplot as plt
 import os.path,time
 
@@ -24,6 +24,10 @@ class ED(HP.Engine):
 
     Attributes
     ----------
+    sector : any hashable object
+        The sector of the system.
+    sectors : iterable
+        The sectors of the system.
     lattice : Lattice
         The lattice of the system.
     config : IDFConfig
@@ -36,8 +40,8 @@ class ED(HP.Engine):
         The generator of the Hamiltonian.
     operators : Operators
         The operators of the Hamiltonian.
-    matrix : csr_matrix
-        The sparse matrix representation of the Hamiltonian.
+    timers : Timers
+        The timers of the ED processes.
 
     Supported methods:
         ========     ================================
@@ -50,6 +54,14 @@ class ED(HP.Engine):
         ========     ================================
     '''
 
+    def __new__(cls,*arg,**karg):
+        '''
+        Constructor.
+        '''
+        result=HP.Engine.__new__(cls,*arg,**karg)
+        result.timers=HP.Timers('Matrix','ES')
+        return result
+
     def update(self,**karg):
         '''
         Update the engine.
@@ -59,43 +71,98 @@ class ED(HP.Engine):
             self.generator.update(**self.data(karg))
             self.operators=self.generator.operators
 
-    def set_matrix(self,refresh=True):
+    def matrix(self,sector,reset=True):
         '''
-        Set the csr_matrix representation of the Hamiltonian.
-        '''
-        raise NotImplementedError("%s set_matrix err: not implemented."%self.__class__.__name__)
+        The matrix representation of the Hamiltonian.
 
-    def eigs(self,k=1,return_eigenvectors=False):
+        Parameters
+        ----------
+        sector : any hashable object
+            The sector of the matrix representation of the Hamiltonian.
+        reset : logical, optional
+            True for resetting the matrix cache and False for not.
+
+        Returns
+        -------
+        csr_matrix
+            The matrix representation of the Hamiltonian.
+        '''
+        raise NotImplementedError("%s matrix err: not implemented."%self.__class__.__name__)
+
+    def eigs(self,sector,v0=None,k=1,return_eigenvectors=False,reset_matrix=True,reset_timers=True,show_evs=True):
         '''
         Lowest k eigenvalues and optionally, the corresponding eigenvectors.
 
         Parameters
         ----------
+        sector : any hashable object
+            The sector of the eigensystem.
+        v0 : 1d ndarray, optional
+            The starting vector.
         k : integer, optional
             The number of eigenvalues to be computed.
         return_eigenvectors : logical, optional
             True for returning the eigenvectors and False for not.
-        '''
-        self.set_matrix()
-        return eigsh(self.matrix,k=k,which='SA',return_eigenvectors=return_eigenvectors)
-
-    def Hmats_Omats(self,operators):
-        '''
-        The matrix representations of the system's Hamiltonian and the input operators.
-
-        Parameters
-        ----------
-        operators : list of Operator
-            The input Operators.
+        reset_matrix : logical, optional
+            True for resetting the matrix cache and False for not.
+        reset_timers : logical, optional
+            True for resetting the timers and False for not.
+        show_evs : logical, optional
+            True for showing the calculated eigenvalues and False for not.
 
         Returns
         -------
-        Hmats : list of csr_matrix
-            The matrix representations of the system's Hamiltonian.
-        Omats : list of csr_matrix
-            The matrix representations of the input operators.
+        sectors : list of any hashable object
+            The sectors of the k eigenvalues
+        es : 1d ndarray
+            Array of k eigenvalues.
+        vs : list of 1d ndarray, optional
+            List of k eigenvectors.
         '''
-        raise NotImplementedError("%s Hmat_Omat err: not implemented."%self.__class__.__name__)
+        self.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value,n=7)) for key,value in self.parameters.iteritems()))
+        if reset_timers: self.timers.reset()
+        if sector is None and len(self.sectors)>1:
+            cols=['nopt','dim','nnz','Mt(s)','Et(s)']+(['E%s'%i for i in xrange(k-1,-1,-1)] if show_evs else [])
+            widths=[14,4,8,10,10,10]+([13]*k if show_evs else [])
+            info=HP.Sheet(corner='sector',rows=self.sectors,cols=cols,widths=widths)
+            self.log<<'%s\n%s\n%s\n'%(info.frame(),info.coltagstostr(corneron=True),info.division())
+            sectors,es,vs=[],[],[]
+            for i,sector in enumerate(self.sectors):
+                with self.timers.get('Matrix'): matrix=self.matrix(sector,reset=reset_matrix)
+                V0=None if v0 is None or matrix.shape[0]!=v0.shape[0] else v0
+                with self.timers.get('ES'): eigs=HM.eigsh(matrix,v0=V0,k=min(k,matrix.shape[0]),which='SA',return_eigenvectors=return_eigenvectors)
+                self.timers.record()
+                sectors.extend([sector]*min(k,matrix.shape[0]))
+                es.extend(eigs[0] if return_eigenvectors else eigs)
+                if return_eigenvectors: vs.extend(eigs[1].T)
+                info[(sector,'nopt')]=len(self.operators)
+                info[(sector,'dim')]=matrix.shape[0]
+                info[(sector,'nnz')]=matrix.nnz
+                info[(sector,'Mt(s)')]=self.timers['Matrix'].records[-1],'%.4e'
+                info[(sector,'Et(s)')]=self.timers['ES'].records[-1],'%.4e'
+                for j in xrange(k-1,-1,-1): info[(sector,'E%s'%j)]=(es[-1-j],'%.8f') if j<matrix.shape[0] else ''
+                self.log<<'%s\n'%info.rowtostr(row=sector)
+            indices=np.argsort(es)[:k]
+            sectors=[sectors[index] for index in indices]
+            es=np.asarray(es)[indices]
+            if return_eigenvectors: vs=[vs[index] for index in indices]
+            self.log<<'%s\n'%info.frame()
+        else:
+            if sector is None: sector=next(iter(self.sectors))
+            with self.timers.get('Matrix'): matrix=self.matrix(sector,reset=reset_matrix)
+            self.log<<'::<Information>:: nopt=%s, dim=%s, nnz=%s, '%(len(self.operators),matrix.shape[0],matrix.nnz)
+            V0=None if v0 is None or matrix.shape[0]!=v0.shape[0] else v0
+            with self.timers.get('ES'): eigs=HM.eigsh(matrix,v0=V0,k=k,which='SA',return_eigenvectors=return_eigenvectors)
+            self.timers.record()
+            sectors=[sector]*k
+            es=eigs[0] if return_eigenvectors else eigs
+            if return_eigenvectors: vs=list(eigs[1].T)
+            self.log<<'Mt=%.4es, Et=%.4es'%(self.timers['Matrix'].records[-1],self.timers['ES'].records[-1])
+            self.log<<(', evs=%s\n'%(' '.join('%.8f'%e for e in es)) if show_evs else '\n')
+        if return_eigenvectors:
+            return sectors,es,vs
+        else:
+            return sectors,es
 
 class EIGS(HP.App):
     '''
@@ -103,41 +170,44 @@ class EIGS(HP.App):
 
     Attributes
     ----------
+    sector : any hashable object
+        The sector of the eigensystem.
     ne : integer
         The number of lowest eigen values to compute.
-    evoff : logical
-        True for not calculating the eigenvectors. Otherwise yes.
+    evon : logical
+        True for calculating the eigenvectors and False for not.
     '''
 
-    def __init__(self,ne=1,evoff=True,**karg):
+    def __init__(self,sector=None,ne=1,evon=True,**karg):
         '''
         Constructor.
 
         Parameters
         ----------
+        sector : any hashable object, optional
+            The sector of the eigensystem.
         ne : integer, optional
             The number of lowest eigen values to compute.
-        evoff : logical, optional
-            True for not calculating the eigenvectors. Otherwise yes.
+        evon : logical, optional
+            True for calculating the eigenvectors and False for not.
         '''
         super(EIGS,self).__init__(**karg)
+        self.sector=sector
         self.ne=ne
-        self.evoff=evoff
+        self.evon=evon
 
 def EDEIGS(engine,app):
     '''
     This method calculates the lowest eigenvalues and optionally the corresponding eigenvectors of the engine.
     '''
-    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value)) for key,value in engine.parameters.iteritems()))
-    timers=HP.Timers('Matrix','GSE')
-    with timers.get('Matrix'):
-        engine.set_matrix()
-    with timers.get('GSE'):
-        eigs=eigsh(engine.matrix,k=app.ne,which='SA',return_eigenvectors=not app.evoff)
-        evs=eigs if app.evoff else eigs[0]
-    timers.record()
-    engine.log<<'::<Time>:: matrix(shape=%s,nnz=%s)=%.4es, gse=%.4es\n'%(engine.matrix.shape,engine.matrix.nnz,timers.time('Matrix'),timers.time('GSE'))
-    engine.log<<HP.Sheet(corner='Energy',rows=['Es','Et'],cols=['Level %s'%(app.ne-i-1) for i in xrange(app.ne)],contents=np.array([evs,evs/len(engine.lattice)]))<<'\n'
+    eigs=engine.eigs(sector=app.sector,k=app.ne,return_eigenvectors=app.evon,reset_matrix=True,reset_timers=True)
+    engine.log<<'::<Time>:: matrix=%.4es, gse=%.4es\n'%(engine.timers.time('Matrix'),engine.timers.time('ES'))
+    engine.log<<HP.Sheet(
+                    corner=     'Energy',
+                    rows=       ['Es','Et'],
+                    cols=       ['Level %s'%(i+1) for i in xrange(app.ne)],
+                    contents=   np.array([eigs[1],eigs[1]/len(engine.lattice)])
+                    )<<'\n'
     if app.returndata: return eigs
 
 class EL(HP.EB):
@@ -146,24 +216,29 @@ class EL(HP.EB):
 
     Attributes
     ----------
+    sector : any hashable object
+        The sector of the energy levels.
     nder : integer
         The order of derivatives to be computed.
     ns : integer
         The number of energy levels.
     '''
-    
-    def __init__(self,nder=0,ns=6,**karg):
+
+    def __init__(self,sector=None,nder=0,ns=6,**karg):
         '''
         Constructor.
 
         Parameters
         ----------
+        sector : any hashable object, optional
+            The sector of the energy levels.
         nder : integer, optional
             The order of derivatives to be computed.
         ns : integer, optional
             The number of energy levels.
         '''
         super(EL,self).__init__(**karg)
+        self.sector=sector
         self.nder=nder
         self.ns=ns
 
@@ -171,32 +246,167 @@ def EDEL(engine,app):
     '''
     This method calculates the energy levels of the Hamiltonian.
     '''
-    timers=HP.Timers('Matrix','GSE')
     name='%s_%s'%(engine.tostr(mask=app.path.tags),app.name)
     result=np.zeros((app.path.rank(0),app.ns*(app.nder+1)+1))
     result[:,0]=app.path.mesh(0) if len(app.path.tags)==1 and app.path.mesh(0).ndim==1 else np.array(xrange(app.path.rank(0)))
     for i,paras in enumerate(app.path('+')):
         engine.update(**paras)
-        engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value)) for key,value in engine.parameters.iteritems()))
-        with timers.get('Matrix'):
-            engine.set_matrix(refresh=True if i==0 else False)
-        with timers.get('GSE'):
-            result[i,1:app.ns+1]=eigsh(engine.matrix,k=app.ns,which='SA',return_eigenvectors=False)
-        timers.record()
-        engine.log<<'%s\n'%timers.tostr(HP.Timers.ALL)
-        if app.plot: timers.graph(parents=HP.Timers.ALL)
+        result[i,1:app.ns+1]=engine.eigs(sector=app.sector,k=app.ns,return_eigenvectors=False,reset_matrix=True if i==0 else False,reset_timers=True if i==0 else False)[1]
+        engine.log<<'%s\n'%engine.timers.tostr(HP.Timers.ALL)
+        if app.plot: engine.timers.graph(parents=HP.Timers.ALL)
     else:
-        if app.plot and app.savefig: plt.savefig('%s/%s_TIMERS.png'%(engine.log.dir,name))
-        if app.plot: plt.close()
+        if app.plot:
+            engine.timers.cleancache()
+            if app.savefig: plt.savefig('%s/%s_TIMERS.png'%(engine.log.dir,name))
+            plt.close()
     if app.nder>0:
-        for i in xrange(app.ns):
-            result.T[[j*app.ns+i+1 for j in xrange(1,app.nder+1)]]=derivatives(result[:,0],result[:,i+1],ders=range(1,app.nder+1))
+        for i in xrange(app.ns): result.T[[j*app.ns+i+1 for j in xrange(1,app.nder+1)]]=HM.derivatives(result[:,0],result[:,i+1],ders=range(1,app.nder+1))
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot:
         ns=app.ns
-        options={'legend':[('%s der of '%HP.ordinal(k/ns) if k/ns>0 else '')+'$E_{%s}$'%(k%ns) for k in xrange(result.shape[1]-1)],'legendloc':'lower right'} if ns<=10 else {}
+        options={'legend':[('%s der of '%HP.ordinal(k/ns-1) if k/ns>0 else '')+'$E_{%s}$'%(k%ns) for k in xrange(result.shape[1]-1)],'legendloc':'lower right'} if ns<=10 else {}
         app.figure('L',result,'%s/%s'%(engine.dout,name),**options)
     if app.returndata: return result
+
+class BGF(object):
+    '''
+    A block of a zero-temperature Green's function.
+
+    Attributes
+    ----------
+    method : 'S' or 'B'
+        'S' for simple Lanczos method and 'B' for block Lanczos method.
+    indices : 1d ndarray
+        The block's indices in the Green's function.
+    controllers : dict
+        The controllers to set the cached data of the block.
+    data : dict
+        The cached data to calculate the block valus of the Green's function.
+    '''
+
+    def __init__(self,method,indices,sign,matrix,operators):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        indices : 1d ndarray
+            The block's indices in the Green's function.
+        method : 'S' or 'B'
+            'S' for simple Lanczos method and 'B' for block Lanczos method.
+        sign : +1,-1
+            The corresponding sign of the block.
+        matrix : csr_matrix
+            The corresponding matrix of the block.
+        operators : list of csr_matrix
+            The matrix representations of the corresponding operators of the block.
+        '''
+        assert method in ('S','B') and np.abs(sign)==1
+        self.method=method
+        self.indices=indices
+        self.controllers={'sign':sign,'matrix':matrix,'operators':operators}
+        self.data={}
+
+    def prepare(self,groundstate,nstep):
+        '''
+        Prepare the lanczos representation of the block.
+
+        Parameters
+        ----------
+        groundstate : 1d ndarray
+            The ground state.
+        nstep : int
+            The number of iterations over the whole starting states.
+        '''
+        matrix,operators=self.controllers['matrix'],self.controllers['operators']
+        if self.method=='S':
+            self.controllers['vecs'],self.controllers['lczs']=[],[]
+            for operator in operators:
+                v0=operator.dot(groundstate)
+                self.controllers['vecs'].append(v0.conjugate())
+                self.controllers['lczs'].append(HM.Lanczos(matrix,[v0],maxiter=nstep,keepstate=False))
+            self.controllers['vecs']=np.asarray(self.controllers['vecs'])
+            self.controllers['Qs']=np.zeros((len(operators),len(operators),nstep),dtype=matrix.dtype)
+        else:
+            self.controllers['lanczos']=HM.Lanczos(matrix,v0=[operator.dot(groundstate) for operator in operators],maxiter=nstep*len(operators),keepstate=False)
+
+    @property
+    def maxiter(self):
+        '''
+        The maximum number of iterations.
+        '''
+        return self.controllers['lczs'][0].maxiter if self.method=='S' else self.controllers['lanczos'].maxiter
+
+    def iter(self):
+        '''
+        A step of Lanczos iteration of the block.
+        '''
+        if self.method=='S':
+            vecs,lczs,Qs=self.controllers['vecs'],self.controllers['lczs'],self.controllers['Qs']
+            for i,lanczos in enumerate(lczs):
+                if not lanczos.stop:
+                    lanczos.iter()
+                    Qs[i,:,lanczos.niter-1]=vecs.dot(lanczos.vectors[lanczos.niter-1])
+        else:
+            self.controllers['lanczos'].iter()
+
+    def set(self,gse):
+        '''
+        Set the Lambda matrix, Q matrix and QT matrix of the block.
+
+        Parameters
+        ----------
+        gse : number
+            The groundstate energy.
+        '''
+        sign=self.controllers['sign']
+        if self.method=='S':
+            lczs,Qs=self.controllers['lczs'],self.controllers['Qs']
+            self.data['niters']=np.zeros(Qs.shape[0],dtype=np.int32)
+            self.data['Lambdas']=np.zeros((Qs.shape[0],Qs.shape[2]),dtype=np.float64)
+            self.data['Qs']=np.zeros(Qs.shape,dtype=Qs.dtype)
+            self.data['QTs']=np.zeros((Qs.shape[0],Qs.shape[2]),dtype=Qs.dtype)
+            for i,(lcz,Q) in enumerate(zip(lczs,Qs)):
+                E,V=sl.eigh(lcz.T,eigvals_only=False)
+                self.data['niters'][i]=lcz.niter
+                self.data['Lambdas'][i,0:lcz.niter]=sign*(E-gse)
+                self.data['Qs'][i,:,0:lcz.niter]=Q[:,0:lcz.niter].dot(V)
+                self.data['QTs'][i,0:lcz.niter]=lcz.P[0,0]*V[0,:].conjugate()
+        else:
+            lanczos=self.controllers['lanczos']
+            E,V=sl.eigh(lanczos.T,eigvals_only=False)
+            self.data['Lambda']=sign*(E-gse)
+            self.data['Q']=lanczos.P[:min(lanczos.nv0,lanczos.niter),:].T.conjugate().dot(V[:min(lanczos.nv0,lanczos.niter),:])
+            self.data['QT']=HM.dagger(self.data['Q'])
+
+    def clear(self):
+        '''
+        Clear the controllers of the block.
+        '''
+        delattr(self,'controllers')
+
+    def gf(self,omega):
+        '''
+        The values of the block of the Green's function.
+
+        Parameters
+        ----------
+        omega : number
+            The frequency.
+
+        Returns
+        -------
+        2d ndarray
+            The values of the block.
+        '''
+        if self.method=='S':
+            niters,Lambdas,Qs,QTs=self.data['niters'],self.data['Lambdas'],self.data['Qs'],self.data['QTs']
+            result=np.zeros((Lambdas.shape[0],Lambdas.shape[0]),dtype=np.complex128)
+            for i in xrange(Lambdas.shape[0]):
+                result[i,:]=(Qs[i,:,0:niters[i]]/(omega-Lambdas[i,0:niters[i]])[np.newaxis,:]).dot(QTs[i,0:niters[i]])
+            return result
+        else:
+            return (self.data['Q']/(omega-self.data['Lambda'])[np.newaxis,:]).dot(self.data['QT'])
 
 class GF(HP.GF):
     '''
@@ -204,102 +414,97 @@ class GF(HP.GF):
 
     Attributes
     ----------
-    filter : callable
-        A function to filter out the entries of the GF to be computed.
-    v0 : 1D ndarray
+    generate : callable
+        The function that generates the blocks of the Green's function.
+    compose : callable
+        The function that composes the Green's function from its blocks.
+    v0 : 1d ndarray
         The initial guess of the groundstate.
-    nstep : integer
-        The max number of steps for the Lanczos iteration.
-    tol : float
-        The tolerance used to terminate the iteration.
-    gse : float64
-        The ground state energy of the system.
-    coeff,hs : 4d ndarray
-        The auxiliary data for the computing of GF.
+    nstep : int
+        The number of steps for the Lanczos iteration.
+    gse : number
+        The groundstate energy.
+    blocks : list of BGF
+        The blocks of the Green's function.
     '''
 
-    def __init__(self,filter=None,v0=None,nstep=200,tol=0.0,**karg):
+    def __init__(self,generate,compose,v0=None,nstep=200,method='S',**karg):
         '''
         Constructor.
 
         Parameters
         ----------
-        filter : callable, optional
-            A function to filter out the entries of the GF to be computed.
-        v0 : 1D ndarray, optional
+        generate : callable
+            The function that generates the blocks of the Green's function.
+        compose : callable
+            The function that composes the Green's function from its blocks.
+        v0 : 1d ndarray, optional
             The initial guess of the groundstate.
-        nstep : integer, optional
-            The max number of steps for the Lanczos iteration.
-        tol : float, optional
-            The tol used to terminate the iteration.
+        nstep : int, optional
+            The number of steps for the Lanczos iteration.
+        method : 'S' or 'B', optional
+            'S' for simple Lanczos method and 'B' for block Lanczos method.
         '''
         super(GF,self).__init__(**karg)
-        self.filter=filter
+        self.generate=generate
+        self.compose=compose
         self.v0=v0
         self.nstep=nstep
-        self.tol=tol
+        self.method=method
 
 def EDGFP(engine,app):
     '''
     This method prepares the GF.
     '''
-    engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value)) for key,value in engine.parameters.iteritems()))
     if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine)):
+        engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value,n=7)) for key,value in engine.parameters.iteritems()))
         with open('%s/%s_coeff.dat'%(engine.din,engine),'rb') as fin:
             app.gse=pk.load(fin)
-            app.coeff=pk.load(fin)
-            app.hs=pk.load(fin)
+            app.blocks=pk.load(fin)
         return
-    timers=HP.Timers('Matrix','GSE','GF')
-    timers.add(parent='GF',name='Preparation')
-    timers.add(parent='GF',name='Iteration')
-    with timers.get('Matrix'):
-        engine.set_matrix()
-        engine.log<<'::<Information>:: %s=%s, %s=%s, %s=%s, '%('nopts',len(engine.operators),'shape',engine.matrix.shape,'nnz',engine.matrix.nnz)
-    with timers.get('GSE'):
-        es,vs=eigsh(engine.matrix,k=1,which='SA',v0=app.v0,tol=app.tol)
-        app.gse,app.v0=es[0],vs[:,0]
-        engine.log<<'%s=%.6f\n'%('GSE',app.gse)
-    with timers.get('GF'):
-        app.coeff=np.zeros((2,app.nopt,app.nopt,app.nstep),dtype=app.dtype)
-        app.hs=np.zeros((2,app.nopt,2,app.nstep),dtype=app.dtype)
-        engine.log<<'%s\n'%('~'*56)
-        engine.log<<'%s|%s|%s|%s\n%s\n'%('Time(seconds)'.center(13),'Preparation'.center(13),'Iteration'.center(13),'Total'.center(13),'-'*56)
-        for h in xrange(2):
-            t0=time.time()
-            with timers.get('Preparation'):
-                engine.log<<'%s|'%(':Electron:' if h==0 else ':Hole:').center(13)
-                Hmats,Omats=engine.Hmats_Omats([operator.dagger if h==0 else operator for operator in app.operators])
-                states,norms,lczs=[],[],[]
-                for i,(Hmat,Omat) in enumerate(zip(Hmats,Omats)):
-                    states.append(Omat.dot(app.v0))
-                    norms.append(norm(states[-1]))
-                    lczs.append(Lanczos(Hmat,v0=states[-1]/norms[-1],check_normalization=False))
-                    engine.log<<'%s%s'%('\b'*21 if i>0 else '',('%s/%s(%1.5es)'%(i,app.nopt,time.time()-t0)).center(21))
-                engine.log<<'%s%s|'%('\b'*21,('%1.5e'%(time.time()-t0)).center(13))
-            t1=time.time()
-            with timers.get('Iteration'):
-                for k in xrange(app.nstep):
-                    for i,(nm,lcz) in enumerate(zip(norms,lczs)):
-                        if not lcz.cut:
-                            for j,state in enumerate(states):
-                                if app.filter(engine,app,i,j): app.coeff[h,i,j,k]=np.vdot(state,lcz.new)*nm
-                            lcz.iter()
-                    engine.log<<'%s%s'%(('\b'*21 if k>0 else ''),('%s/%s(%1.5es)'%(k,app.nstep,time.time()-t1)).center(21))
-                engine.log<<'%s%s|'%('\b'*21,('%1.5e'%(time.time()-t1)).center(13))
-                for i,lcz in enumerate(lczs):
-                    app.hs[h,i,0,0:len(lcz.a)]=np.array(lcz.a)
-                    app.hs[h,i,1,0:len(lcz.b)]=np.array(lcz.b)
-            engine.log<<('%1.5e'%(time.time()-t0)).center(13)<<'\n'
-        tp,ti,tg=('%1.5e'%timers.time('Preparation')).center(13),('%1.5e'%timers.time('Iteration')).center(13),('%1.5e'%timers.time('GF')).center(13)
-        engine.log<<'%s|%s|%s|%s\n%s\n'%('Summary'.center(13),tp,ti,tg,'~'*56)
-    timers.record()
-    engine.log<<'Summary of the gf preparation:\n%s\n'%timers.tostr(None,form='s')
+    sectors,es,vs=engine.eigs(sector=None,v0=app.v0,k=1,return_eigenvectors=True,reset_matrix=True,reset_timers=True)
+    engine.sector,app.gse,app.v0=sectors[0],es[0],vs[0]
+    app.blocks,nb,blocks=[],next(iter(app.generate(engine,app.operators,'NB'))),app.generate(engine,app.operators,app.method)
+    timers=HP.Timers('Preparation','Iteration','Diagonalization',root='Total')
+    info=HP.Sheet(corner='GF Block',cols=['Preparation','Iteration','Diagonalization','Total'],rows=['# %s'%(i+1) for i in xrange(nb)]+['Summary'],widths=[8,11,11,15,11])
+    engine.log<<'%s\n%s\n%s\n'%(info.frame(),info.coltagstostr(corneron=True),info.division())
+    for i in xrange(nb):
+        with timers.get('Total') as gftimer:
+            bnum='# %s'%(i+1)
+            engine.log<<'%s|'%info.tagtostr(bnum)
+            with timers.get('Preparation') as timer:
+                block=next(iter(blocks))
+                block.prepare(app.v0,app.nstep)
+                timer.record()
+                info[(bnum,'Preparation')]=timer.records[-1],'%.5e'
+                engine.log<<'%s|'%info.entrytostr((bnum,'Preparation'))
+            with timers.get('Iteration') as timer:
+                for niter in xrange(block.maxiter):
+                    ts=time.time()
+                    if niter>0: engine.log<<'\b'*22
+                    block.iter()
+                    te=time.time()
+                    engine.log<<('%s/%s(%.4es)'%(niter,block.maxiter,te-ts)).center(22)
+                timer.record()
+                info[(bnum,'Iteration')]=timer.records[-1],'%.5e'
+                engine.log<<'%s%s|'%('\b'*22,info.entrytostr((bnum,'Iteration')))
+            with timers.get('Diagonalization') as timer:
+                block.set(app.gse)
+                block.clear()
+                app.blocks.append(block)
+                timer.record()
+                info[(bnum,'Diagonalization')]=timer.records[-1],'%.5e'
+                engine.log<<'%s|'%info.entrytostr((bnum,'Diagonalization'))
+            gftimer.record()
+            info[(bnum,'Total')]=gftimer.records[-1],'%.5e'
+            engine.log<<'%s\n'%info.entrytostr((bnum,'Total'))
+    for key in ['Preparation','Iteration','Diagonalization','Total']:
+        info[('Summary',key)]=timers.time(key),'%.5e'
+    engine.log<<'%s\n%s\n'%(info.rowtostr('Summary'),info.frame())
     if app.savedata:
         with open('%s/%s_coeff.dat'%(engine.din,engine),'wb') as fout:
             pk.dump(app.gse,fout,2)
-            pk.dump(app.coeff,fout,2)
-            pk.dump(app.hs,fout,2)
+            pk.dump(app.blocks,fout,2)
 
 def EDGF(engine,app):
     '''
@@ -307,23 +512,7 @@ def EDGF(engine,app):
     '''
     gf=engine.records[app.name]
     if app.omega is not None:
-        if gf is None:
-            gf=np.zeros((app.nopt,app.nopt),dtype=app.dtype)
-        else:
-            gf[...]=0.0
-        buff=np.zeros((3,app.nstep),dtype=app.dtype)
-        b=np.zeros(app.nstep,dtype=app.dtype)
-        for h in xrange(2):
-            for i in xrange(app.nopt):
-                b[...]=0
-                b[0]=1
-                buff[0,1:]=app.hs[h,i,1,0:app.nstep-1]*(-1)**(h+1)
-                buff[1,:]=app.omega-(app.hs[h,i,0,:]-app.gse)*(-1)**h
-                buff[2,:]=app.hs[h,i,1,:]*(-1)**(h+1)
-                if h==0:
-                    gf[:,i]+=np.dot(app.coeff[h,i,:,:],solve_banded((1,1),buff,b,overwrite_ab=True,overwrite_b=True,check_finite=False))
-                else:
-                    gf[i,:]+=np.dot(app.coeff[h,i,:,:],solve_banded((1,1),buff,b,overwrite_ab=True,overwrite_b=True,check_finite=False))
+        gf=app.compose(app.blocks,app.omega)
         engine.records[app.name]=gf
     return gf
 
