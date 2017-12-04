@@ -119,7 +119,7 @@ class ED(HP.Engine):
         vs : list of 1d ndarray, optional
             List of k eigenvectors.
         '''
-        self.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value,n=7)) for key,value in self.parameters.iteritems()))
+        self.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value,n=10)) for key,value in self.parameters.iteritems()))
         if reset_timers: self.timers.reset()
         if sector is None and len(self.sectors)>1:
             cols=['nopt','dim','nnz','Mt(s)','Et(s)']+(['E%s'%i for i in xrange(k-1,-1,-1)] if show_evs else [])
@@ -150,7 +150,7 @@ class ED(HP.Engine):
         else:
             if sector is None: sector=next(iter(self.sectors))
             with self.timers.get('Matrix'): matrix=self.matrix(sector,reset=reset_matrix)
-            self.log<<'::<Information>:: nopt=%s, dim=%s, nnz=%s, '%(len(self.operators),matrix.shape[0],matrix.nnz)
+            self.log<<'::<Information>:: sector=%s, nopt=%s, dim=%s, nnz=%s, '%(sector,len(self.operators),matrix.shape[0],matrix.nnz)
             V0=None if v0 is None or matrix.shape[0]!=v0.shape[0] else v0
             with self.timers.get('ES'): eigs=HM.eigsh(matrix,v0=V0,k=k,which='SA',return_eigenvectors=return_eigenvectors)
             self.timers.record()
@@ -457,7 +457,7 @@ def EDGFP(engine,app):
     This method prepares the GF.
     '''
     if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine)):
-        engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value,n=7)) for key,value in engine.parameters.iteritems()))
+        engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value,n=10)) for key,value in engine.parameters.iteritems()))
         with open('%s/%s_coeff.dat'%(engine.din,engine),'rb') as fin:
             app.gse=pk.load(fin)
             app.blocks=pk.load(fin)

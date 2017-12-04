@@ -160,21 +160,21 @@ class TrFED(ED.FED):
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
         self.operators=self.generator.operators
 
-    def matrix(self,k,reset=True):
+    def matrix(self,sector,reset=True):
         '''
         The matrix representation of the Hamiltonian.
 
         Parameters
         ----------
-        k : int
+        sector : int
         reset : logical, optional
 
         Returns
         -------
         csr_matrix
         '''
-        if reset: self.generator.set_matrix(k,trfoptrep,k=k,basis=self.basis,dtype=self.dtype)
-        return self.generator.matrix(k)
+        if reset: self.generator.set_matrix(sector,trfoptrep,k=sector,basis=self.basis,dtype=self.dtype)
+        return self.generator.matrix(sector)
 
 class EB(HP.EB):
     '''
@@ -205,9 +205,9 @@ def TrFEDEB(engine,app):
     '''
     result=np.zeros((engine.basis.nk+(1 if app.kend else 0),app.ns+1))
     for i in xrange(engine.basis.nk):
-        matrix=engine.matrix(i)
         result[i,0]=i
-        result[i,1:]=HM.eigsh(matrix,return_eigenvectors=False,which='SA',k=app.ns)
+        result[i,1:]=engine.eigs(sector=i,k=app.ns,return_eigenvectors=False,reset_timers=True if i==0 else False,show_evs=False)[1]
+        engine.log<<'\n'
     if app.kend:
         result[-1,0]=engine.basis.nk
         result[-1,1:]=result[0,1:]
