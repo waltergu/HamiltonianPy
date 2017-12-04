@@ -10,6 +10,7 @@ from fbasis import *
 from numba import jit
 from math import sqrt
 from scipy.sparse import csr_matrix
+from collections import OrderedDict
 import numpy as np
 import HamiltonianPy as HP
 import HamiltonianPy.ED as ED
@@ -17,7 +18,30 @@ import HamiltonianPy.Misc as HM
 import matplotlib.pyplot as plt
 
 class TRBasis(HP.FBasis):
+    '''
+    1D translation invariant fermionic binary basis.
+
+    Attributes
+    ----------
+    dk : int
+    nk : int
+    seqs : 1d ndarray of int
+    maps : 1d ndarray of int
+    translations : 1d ndarray of int
+    signs : 1d ndarray of int
+    masks : 1d ndarray of int
+    '''
+
     def __init__(self,basis,dk,nk):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        basis : FBasis
+        dk : int
+        nk : int
+        '''
         assert isinstance(basis,HP.FBasis) and basis.mode in ('FP','FS')
         self.dk=dk
         self.nk=nk
@@ -34,6 +58,9 @@ class TRBasis(HP.FBasis):
         self.masks=trmasks(self.seqs,self.translations,self.signs,nk)
 
     def tostr(self,protocol=0):
+        '''
+        Convert instance to string.
+        '''
         assert protocol in (0,1)
         if protocol==0:
             return '\n'.join('{}({}): {:b}'.format(i,self.translations[index],self.table[index]) for i,index in enumerate(self.seqs))
@@ -42,12 +69,36 @@ class TRBasis(HP.FBasis):
 
     @property
     def nbasis(self):
+        '''
+        The number of basis.
+        '''
         return len(self.seqs)
 
     def indices(self,k):
+        '''
+        The indices of the basis that is compatiable with the input k.
+
+        Parameters
+        ----------
+        k : int
+
+        Returns
+        -------
+        1d ndarray
+        '''
         return np.concatenate(np.argwhere(self.masks[k,:]>=0))
 
 def trfoptrep(operator,k,basis,dtype=np.complex128):
+    '''
+    The matrix representation of an operator on a translation invariant basis.
+
+    Parameters
+    ----------
+    operator : FOperator
+    k : int
+    basis : TRBasis
+    dtype : np.float32, np.float64, np.complex64, or np.complex128, optional
+    '''
     assert operator.rank%2==0 and isinstance(basis,TRBasis) and 0<=k<basis.nk
     value,nambus,sequences=operator.value,(np.array([index.nambu for index in operator.indices])>0)[::-1],np.array(operator.seqs)[::-1]
     table,seqs,maps,translations,signs,masks,nk=basis.table,basis.seqs,basis.maps,basis.translations,basis.signs,basis.masks,basis.nk
@@ -84,24 +135,79 @@ def _trfoptrep_(k,value,nambus,sequences,table,seqs,maps,translations,signs,mask
     return data[:ndata],indices[:ndata],indptr[:dim+1],dim
 
 class TrFED(ED.FED):
-    def set_matrix(self,k):
-        self.matrix=0
-        for operator in self.operators.itervalues():
-            self.matrix+=trfoptrep(operator,k,self.basis,dtype=self.dtype)
-            self.matrix+=trfoptrep(operator.dagger,k,self.basis,dtype=self.dtype)
+    '''
+    Translation invariant exact diagonalization of 1d fermionic systems.
+    '''
+
+    def __init__(self,basis,lattice,config,terms=(),dtype=np.complex128,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        basis : TRBasis
+        lattice : Lattice
+        config : IDFConfig
+        terms : list of Term, optional
+        dtype : np.float32, np.float64, np.complex64, np.complex128
+        '''
+        self.basis=basis
+        self.lattice=lattice
+        self.config=config
+        self.terms=terms
+        self.dtype=dtype
+        self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,dtype=dtype,half=False)
+        if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
+        self.operators=self.generator.operators
+
+    def matrix(self,k,reset=True):
+        '''
+        The matrix representation of the Hamiltonian.
+
+        Parameters
+        ----------
+        k : int
+        reset : logical, optional
+
+        Returns
+        -------
+        csr_matrix
+        '''
+        if reset: self.generator.set_matrix(k,trfoptrep,k=k,basis=self.basis,dtype=self.dtype)
+        return self.generator.matrix(k)
 
 class EB(HP.EB):
+    '''
+    Energy bands.
+
+    Attributes
+    ----------
+    ns : int
+    kend : logical
+    '''
+
     def __init__(self,ns=6,kend=True,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        ns : int, optional
+        kend : logical, optional
+        '''
         super(EB,self).__init__(**karg)
         self.ns=ns
         self.kend=kend
 
 def TrFEDEB(engine,app):
+    '''
+    This function calculates the energy bands.
+    '''
     result=np.zeros((engine.basis.nk+(1 if app.kend else 0),app.ns+1))
     for i in xrange(engine.basis.nk):
-        engine.set_matrix(i)
+        matrix=engine.matrix(i)
         result[i,0]=i
-        result[i,1:]=HM.eigsh(engine.matrix,return_eigenvectors=False,which='SA',k=app.ns)
+        result[i,1:]=HM.eigsh(matrix,return_eigenvectors=False,which='SA',k=app.ns)
     if app.kend:
         result[-1,0]=engine.basis.nk
         result[-1,1:]=result[0,1:]
