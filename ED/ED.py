@@ -252,7 +252,7 @@ def EDEL(engine,app):
     for i,paras in enumerate(app.path('+')):
         engine.update(**paras)
         result[i,1:app.ns+1]=engine.eigs(sector=app.sector,k=app.ns,return_eigenvectors=False,reset_matrix=True if i==0 else False,reset_timers=True if i==0 else False)[1]
-        engine.log<<'%s\n'%engine.timers.tostr(HP.Timers.ALL)
+        engine.log<<'%s\n\n'%engine.timers.tostr(HP.Timers.ALL)
         if app.plot: engine.timers.graph(parents=HP.Timers.ALL)
     else:
         if app.plot:

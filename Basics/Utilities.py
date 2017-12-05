@@ -18,10 +18,13 @@ from scipy.linalg import eigh
 import numpy as np
 import itertools as it
 import matplotlib.pyplot as plt
+import warnings
 import time
 import sys
 
 RZERO=10**-10
+
+warnings.filterwarnings("ignore",".*GUI is implemented.*")
 
 class Arithmetic(object):
     '''

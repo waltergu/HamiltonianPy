@@ -17,7 +17,6 @@ from numpy.linalg import norm
 from scipy import interpolate
 from collections import OrderedDict
 from Utilities import RZERO,Log,Timers,decimaltostr
-from warnings import warn
 
 class Parameters(OrderedDict):
     '''
