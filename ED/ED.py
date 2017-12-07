@@ -361,7 +361,6 @@ class BGF(object):
                 if log: log<<'%s%s%s'%('\b'*30 if i>0 else '',('%s/%s(%.2es/%.3es)'%(i+1,lanczos.maxiter,te-ts,te-t0)).center(30),'\b'*30 if i==lanczos.maxiter-1 else '')
         elif self.method=='S' and np is not None:
             path,Qs=os.path.dirname(os.path.realpath(__file__)),self.controllers['Qs']
-            assert np>0 and len(Qs)%np==0
             datas=[[self.controllers['vecs'],[],[]] for i in xrange(np)]
             for i,lanczos in enumerate(self.controllers['lczs']):
                 datas[i%np][1].append(lanczos)
