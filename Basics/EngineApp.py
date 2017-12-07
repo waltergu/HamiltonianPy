@@ -226,7 +226,7 @@ class App(object):
     virgin : logical
         True when the app has not been run. Otherwise False.
     np : integer
-        The number of processes will be used in parallel computing. 0 means the available maximum.
+        The number of processes will be used in parallel computing. 0 or None means not using parallel computing.
     plot : logical
         When True, the results will be be plotted. Otherwise not.
     show : logical

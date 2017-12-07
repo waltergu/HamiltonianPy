@@ -924,7 +924,7 @@ def ordinal(number):
     '''
     return '1st' if number==0 else ('2nd' if number==1 else ('3rd' if number==2 else '%sth'%(number+1)))
 
-def mpirun(f,arguments,bcast=True):
+def mpirun(f,arguments,comm=MPI.COMM_WORLD,bcast=True):
     '''
     Wrapper for the parallel running of f using the mpi4py.
 
@@ -934,6 +934,8 @@ def mpirun(f,arguments,bcast=True):
         The function to be parallelly run using the mpi4py.
     arguments : list of tuple
         The list of arguments passed to the function f.
+    comm : MPI.Comm, optional
+        The MPI communicator.
     bcast : True or False
         When True, broadcast the result for all processes;
         Otherwise only the rank 0 process hold the result.
@@ -943,7 +945,6 @@ def mpirun(f,arguments,bcast=True):
     list
         The returned values of f with respect to the arguments.
     '''
-    comm=MPI.COMM_WORLD
     size=comm.Get_size()
     rank=comm.Get_rank()
     if size>1:

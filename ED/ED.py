@@ -16,7 +16,8 @@ import scipy.linalg as sl
 import HamiltonianPy as HP
 import HamiltonianPy.Misc as HM
 import matplotlib.pyplot as plt
-import os.path,time
+import os,sys,time
+from mpi4py import MPI
 
 class ED(HP.Engine):
     '''
@@ -330,25 +331,59 @@ class BGF(object):
         else:
             self.controllers['lanczos']=HM.Lanczos(matrix,v0=[operator.dot(groundstate) for operator in operators],maxiter=nstep*len(operators),keepstate=False)
 
-    @property
-    def maxiter(self):
+    def iter(self,log=None,np=None):
         '''
-        The maximum number of iterations.
-        '''
-        return self.controllers['lczs'][0].maxiter if self.method=='S' else self.controllers['lanczos'].maxiter
+        The iteration of the Lanczos.
 
-    def iter(self):
+        Parameters
+        ----------
+        log : Log, optional
+            The log file to record the iteration information.
+        np : int, optional
+            The number of subprocess to perform the iteration.
         '''
-        A step of Lanczos iteration of the block.
-        '''
-        if self.method=='S':
-            vecs,lczs,Qs=self.controllers['vecs'],self.controllers['lczs'],self.controllers['Qs']
-            for i,lanczos in enumerate(lczs):
-                if not lanczos.stop:
+        t0=time.time()
+        if self.method=='S' and (np is None or np<=0):
+            vecs,Qs=self.controllers['vecs'],self.controllers['Qs']
+            for i,lanczos in enumerate(self.controllers['lczs']):
+                ts=time.time()
+                while lanczos.niter<lanczos.maxiter and not lanczos.stop:
                     lanczos.iter()
                     Qs[i,:,lanczos.niter-1]=vecs.dot(lanczos.vectors[lanczos.niter-1])
+                te=time.time()
+                if log: log<<'%s%s%s'%('\b'*30 if i>0 else '',('%s/%s(%.2es/%.3es)'%(i+1,len(Qs),te-ts,te-t0)).center(30),'\b'*30 if i==len(Qs)-1 else '')
+        elif self.method=='B':
+            lanczos=self.controllers['lanczos']
+            for i in xrange(lanczos.maxiter):
+                ts=time.time()
+                lanczos.iter()
+                te=time.time()
+                if log: log<<'%s%s%s'%('\b'*30 if i>0 else '',('%s/%s(%.2es/%.3es)'%(i+1,lanczos.maxiter,te-ts,te-t0)).center(30),'\b'*30 if i==lanczos.maxiter-1 else '')
+        elif self.method=='S' and np is not None:
+            path,Qs=os.path.dirname(os.path.realpath(__file__)),self.controllers['Qs']
+            assert np>0 and len(Qs)%np==0
+            datas=[[self.controllers['vecs'],[],[]] for i in xrange(np)]
+            for i,lanczos in enumerate(self.controllers['lczs']):
+                datas[i%np][1].append(lanczos)
+                datas[i%np][2].append(i)
+            comm=MPI.COMM_SELF.Spawn(sys.executable,args=['%s/edbgf.py'%path],maxprocs=np)
+            for i,data in enumerate(datas):
+                comm.send(data,dest=i,tag=0)
+            info,ic,nc=MPI.Status(),0,0
+            while nc<np:
+                data=comm.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=info)
+                if info.Get_tag()==0:
+                    for index,(_T_,P,niter),Q in data:
+                        lanczos=self.controllers['lczs'][index]
+                        lanczos._T_,lanczos.P,lanczos.niter=_T_,P,niter
+                        Qs[index,:,:]=Q
+                    nc+=1
+                else:
+                    ic,(index,t)=ic+1,data
+                    if log: log<<'%s%s%s'%('\b'*30 if ic>1 else '',('%s/%s(%.2es/%.3es)'%(ic,len(Qs),t,time.time()-t0)).center(30),'\b'*30 if ic==len(Qs) else '')
+            comm.Disconnect()
         else:
-            self.controllers['lanczos'].iter()
+            raise ValueError('BGF iter error: not supported.')
 
     def set(self,gse):
         '''
@@ -479,15 +514,10 @@ def EDGFP(engine,app):
                 info[(bnum,'Preparation')]=timer.records[-1],'%.5e'
                 engine.log<<'%s|'%info.entrytostr((bnum,'Preparation'))
             with timers.get('Iteration') as timer:
-                for niter in xrange(block.maxiter):
-                    ts=time.time()
-                    if niter>0: engine.log<<'\b'*22
-                    block.iter()
-                    te=time.time()
-                    engine.log<<('%s/%s(%.4es)'%(niter,block.maxiter,te-ts)).center(22)
+                block.iter(engine.log,np=app.np)
                 timer.record()
                 info[(bnum,'Iteration')]=timer.records[-1],'%.5e'
-                engine.log<<'%s%s|'%('\b'*22,info.entrytostr((bnum,'Iteration')))
+                engine.log<<'%s|'%info.entrytostr((bnum,'Iteration'))
             with timers.get('Diagonalization') as timer:
                 block.set(app.gse)
                 block.clear()
