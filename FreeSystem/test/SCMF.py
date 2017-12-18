@@ -20,7 +20,7 @@ def test_scmf():
     print 'test_scmf'
     U,t1,t2=3.13,-1.0,0.1
     H2=Hexagon(name='H2')
-    lattice=Lattice(name='H2_SCMF',rcoords=H2.rcoords,vectors=H2.vectors,nneighbour=2)
+    lattice=Lattice(name='H2_SCMF',rcoords=H2.rcoords,vectors=H2.vectors,neighbours=2)
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY)
     for pid in lattice.pids:
         config[pid]=Fermi(atom=pid.site%2,norbital=1,nspin=2,nnambu=1)

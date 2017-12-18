@@ -4,11 +4,11 @@ Lattice construction
 ====================
 
 This module provides enormous functions and classes to construct a lattice, including
-    * functions: azimuthd, azimuth, polard, polar, volume, isparallel, isintratriangle, issubordinate, reciprocals, translation, rotation, tiling, intralinks, interlinks
+    * functions: azimuthd, azimuth, polard, polar, volume, isparallel, isintratriangle, issubordinate, reciprocals, translation, rotation, tiling, minimumlengths, intralinks, interlinks
     * classes: PID, Point, Bond, Link, Lattice, SuperLattice, Cylinder
 '''
 
-__all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'isparallel', 'isintratriangle', 'issubordinate', 'reciprocals', 'translation', 'rotation', 'tiling', 'intralinks', 'interlinks', 'PID', 'Point', 'Bond', 'Link', 'Lattice', 'SuperLattice','Cylinder']
+__all__=['azimuthd', 'azimuth', 'polard', 'polar', 'volume', 'isparallel', 'isintratriangle', 'issubordinate', 'reciprocals', 'translation', 'rotation', 'tiling', 'minimumlengths','intralinks', 'interlinks', 'PID', 'Point', 'Bond', 'Link', 'Lattice', 'SuperLattice','Cylinder']
 
 from Utilities import RZERO
 from collections import namedtuple,Iterable
@@ -17,6 +17,7 @@ import numpy as np
 import numpy.linalg as nl
 import matplotlib.pyplot as plt
 import itertools as it
+import warnings
 
 def azimuthd(self):
     '''
@@ -207,7 +208,7 @@ def issubordinate(rcoord,vectors):
     b=np.zeros(3)
     b[0:len(rcoord)]=rcoord
     x=nl.inv(a).dot(b)
-    if max(np.abs(x-np.around(x)))<RZERO:
+    if np.max(np.abs(x-np.around(x)))<RZERO:
         return True
     else:
         return False
@@ -332,86 +333,37 @@ class PID(namedtuple('PID',['scope','site'])):
 
 PID.__new__.__defaults__=(None,)*len(PID._fields)
 
-class Point(np.ndarray):
+class Point(object):
     '''
-    Point, which is a 2d ndarray with a shape of (2,N), with N being the dimension of the coordinates, and
-        * Point[0,:]: The rcoord part of the Point.
-        * Point[1,:]: The icoord part of the Point.
+    Point class.
 
     Attributes
     ----------
     pid : PID
-        The specific ID of a point.
+        The point id.
+    rcoord : 1d ndarray
+        The point rcoord.
+    icoord : 1d ndarray
+        The point icoord.
     '''
 
-    def __new__(cls,pid,rcoord=None,icoord=None):
+    def __init__(self,pid,rcoord,icoord=None):
         '''
         Constructor.
 
         Parameters
         ----------
         pid : PID
-            The specific ID of a point
+            The point id.
         rcoord : 1d array-like
-            The coordinate in real space.
-        icoord : 1d array-like,optional
-            The coordinate in lattice space.
+            The point rcoord.
+        icoord : 1d array-like, optional
+            The point icoord.
         '''
         assert isinstance(pid,PID)
-        result=np.asarray([[] if rcoord is None else rcoord, [] if icoord is None else icoord]).view(cls)
-        result.pid=pid
-        return result
-
-    def __array_finalize__(self,obj):
-        '''
-        Initialize an instance through both explicit and implicit constructions, i.e. constructor, view and slice.
-        '''
-        if obj is None:
-            return
-        else:
-            self.pid=getattr(obj,'pid',None)
-
-    def __reduce__(self):
-        '''
-        numpy.ndarray uses __reduce__ to pickle. Therefore this method needs overriding for subclasses.
-        '''
-        data=super(Point,self).__reduce__()
-        return data[0],data[1],data[2]+(self.pid,)
-
-    def __setstate__(self,state):
-        '''
-        Set the state of the Point for pickle and copy.
-        '''
-        self.pid=state[-1]
-        super(Point,self).__setstate__(state[0:-1])
-
-    @property
-    def rcoord(self):
-        '''
-        The coordinate in real space.
-        '''
-        return np.asarray(self)[0,:]
-
-    @rcoord.setter
-    def rcoord(self,value):
-        '''
-        Set the rcoord of a point.
-        '''
-        self[0,:]=value
-
-    @property
-    def icoord(self):
-        '''
-        The coordinate in lattice space.
-        '''
-        return np.asarray(self)[1,:]
-
-    @icoord.setter
-    def icoord(self,value):
-        '''
-        Set the icoord of a point.
-        '''
-        self[1,:]=value
+        self.pid=pid
+        self.rcoord=np.asarray(rcoord)
+        self.icoord=np.zeros(self.rcoord.shape) if icoord is None else np.asarray(icoord)
 
     def __str__(self):
         '''
@@ -425,7 +377,7 @@ class Point(np.ndarray):
         '''
         Overloaded operator(==).
         '''
-        return self.pid==other.pid and nl.norm(self-other)<RZERO
+        return self.pid==other.pid and nl.norm(self.rcoord-other.rcoord)<RZERO and nl.norm(self.icoord-other.icoord)<RZERO
     
     def __ne__(self,other):
         '''
@@ -506,7 +458,7 @@ class Link(object):
 
     Attributes
     ----------
-    neighbour : integer
+    neighbour : int
         The rank of the neighbour of the link.
     sindex : integer
         The start index of the link in the lattice.
@@ -542,172 +494,115 @@ class Link(object):
         '''
         return 'Link(%s, %s, %s, %s)'%(self.neighbour,self.sindex,self.eindex,self.disp)
 
-def intralinks(mode='nb',cluster=(),indices=None,vectors=(),**options):
+def minimumlengths(cluster,vectors=(),nneighbour=1,max_coordinate_number=8):
     '''
-    This function searches the wanted links intra a cluster.
+    This function searches the minimum bond lengths of a cluster.
 
     Parameters
     ----------
-    mode : 'nb' or 'dt'
-        * When 'nb', the function searches the links within a certain order of nearest neighbour;
-        * When 'dt', the function searches the links within a certain distance.
     cluster : list of 1d ndarray
-        The cluster where the links are searched.
+        The coordinates of the cluster.
     vectors : list of 1d ndarray, optional
         The translation vectors of the cluster.
-    indices : list of integer, optional
-        The indices of the points of the cluster.
-    options : dict
-        When mode is 'nb', it contains:
-            * `nneighbour`: integer, optional, default 1
-                The highest order of neighbour to be searched.
-            * `max_coordinate_number`: integer, optional, default 8
-                The max coordinate number for every neighbour.
-            * `return_mindists`: logical, optional, default False
-                When True, the nneighbour minimum distances will also be returned.
-        When mode is 'dt', it contains:
-            * `r`: float64, optional, default 1.0
-                The distance upper bound within which the links are searched.
-            * `max_translations`: tuple, optional
-                The maximum translations of the original cluster, which will be omitted if ``len(vectors)==0``.
-                When `r` is properly set, its default value can make sure that all the required links will be searched and returned.
-            * `mindists`: list of float64, optional, default empty list
-                The distances of the lowest orders of nearest neighbours.
-                If it doesn't contain the distance of the returned link, the attribute `neighbour` of the latter will be set to be inf.
+    nneighbour : int, optional
+        The order of the minimum bond lengths.
+    max_coordinate_number : int, optional
+        The max coordinate number for every order of neighbour.
 
     Returns
     -------
-    result: list of Link
-        The calculated links.
-    mindists: list of float64, optional
-        The `nneighbour`-th minimum distances within the cluster.
-        It will be returned only when ``mode=='nb' and options['return_mindists']==True``.
-
-    Notes
-    -----
-        * The zero-th neighbour links i.e. links with distances equal to zero are also included in `result`.
-        * When `vectors` **NOT** empty, periodic boundary condition is assumed and the links across the boundaries of the cluster are also searched.
+    1d ndarray
+        The minimum bond lengths.
     '''
-    assert mode in ('nb','dt')
-    if mode=='nb':
-        return __links_nb__(
-            cluster=                cluster,
-            indices=                indices,
-            vectors=                vectors,
-            nneighbour=             options.get('nneighbour',1),
-            max_coordinate_number=  options.get('max_coordinate_number',8),
-            return_mindists=        options.get('return_mindists',False)
-            )
-    elif mode=='dt':
-        return __links_dt__(
-            cluster=            cluster,
-            indices=            indices,
-            vectors=            vectors,
-            r=                  options.get('r',1.0),
-            max_translations=   options.get('max_translations',tuple([int(np.ceil(options.get('r',1.0)/nl.norm(vector))) for vector in vectors])),
-            mindists=           options.get('mindists',[])
-            )
-
-def __links_nb__(cluster,indices,vectors,nneighbour,max_coordinate_number,return_mindists):
-    '''
-    For details, see intralinks.
-    '''
-    result,mindists=[],[]
+    assert nneighbour>=0
+    result=np.array([np.inf]*(nneighbour+1))
     if len(cluster)>0:
         translations=list(it.product(*([xrange(-nneighbour,nneighbour+1)]*len(vectors))))
         for translation in translations:
             if any(translation): translations.remove(tuple([-i for i in translation]))
         translations=sorted(translations,key=nl.norm)
         supercluster=tiling(cluster,vectors=vectors,translations=translations)
-        disps=tiling([np.zeros(len(next(iter(cluster))))]*len(cluster),vectors=vectors,translations=translations)
-        tree=cKDTree(supercluster)
-        distances,eseqses=tree.query(cluster,k=nneighbour*max_coordinate_number if nneighbour>0 else 2)
-        mindists=[np.inf]*(nneighbour+1)
-        for dist in np.concatenate(distances):
-            for i,mindist in enumerate(mindists):
-                if abs(dist-mindist)<RZERO:
+        for length in cKDTree(supercluster).query(cluster,k=nneighbour*max_coordinate_number if nneighbour>0 else 1)[0].flatten():
+            for i,minlength in enumerate(result):
+                if abs(length-minlength)<RZERO:
                     break
-                elif dist<mindist:
-                    if nneighbour>0: mindists[i+1:nneighbour+1]=mindists[i:nneighbour]
-                    mindists[i]=dist
+                elif length<minlength:
+                    if nneighbour>0: result[i+1:nneighbour+1]=result[i:nneighbour]
+                    result[i]=length
                     break
-        mindists=[mindist for mindist in mindists if mindist!=np.inf]
-        for sseq,(dists,eseqs) in enumerate(zip(distances,eseqses)):
-            if dists[-1]<mindists[-1] or abs(dists[-1]-mindists[-1])<RZERO:
-                raise ValueError("Function _links_nb_ error: the max_coordinate_number(%s) should be larger."%max_coordinate_number)
-            for dist,eseq in zip(dists,eseqs):
-                if sseq<=eseq:
-                    for neighbour,mindist in enumerate(mindists):
-                        if abs(dist-mindist)<RZERO:
-                            sindex=sseq if indices is None else indices[sseq]
-                            eindex=eseq%len(cluster) if indices is None else indices[eseq%len(cluster)]
-                            result.append(Link(neighbour,sindex=sindex,eindex=eindex,disp=disps[eseq]))
-    if return_mindists:
-        return result,mindists
-    else:
-        return result
-
-def __links_dt__(cluster,indices,vectors,r,max_translations,mindists):
-    '''
-    For details, see intralinks.
-    '''
-    result=[]
-    if len(cluster)>0:
-        translations=list(it.product(*[xrange(-nnb,nnb+1) for nnb in max_translations]))
-        for translation in translations:
-            if any(translation):translations.remove(tuple([-i for i in translation]))
-        translations=sorted(translations,key=nl.norm)
-        supercluster=tiling(cluster,vectors=vectors,translations=translations)
-        disps=tiling([np.zeros(len(next(iter(cluster))))]*len(cluster),vectors=vectors,translations=translations)
-        tree,other=cKDTree(cluster),cKDTree(supercluster)
-        smatrix=tree.sparse_distance_matrix(other,r)
-        for (i,j),dist in smatrix.items():
-            if i<=j:
-                for k,mindist in enumerate(mindists):
-                    if abs(mindist-dist)<RZERO: 
-                        neighbour=k
-                        break
-                else:
-                    neighbour=np.inf
-                sindex=i if indices is None else indices[i]
-                eindex=j%len(cluster) if indices is None else indices[j%len(cluster)]
-                result.append(Link(neighbour,sindex=sindex,eindex=eindex,disp=disps[j]))
+    if np.any(result==np.inf):
+        warnings.warn('minimumlengths warning: np.inf remained in the result. Larger(>%s) max_coordinate_number may be needed.'%max_coordinate_number)
     return result
 
-def interlinks(cluster1,cluster2,maxdist,indices1=None,indices2=None,mindists=()):
+def intralinks(cluster,vectors=(),max_translations=None,neighbours=None):
     '''
-    This function searches the links between two clusters with the distances less than a certain value.
+    This function searches a certain set of neighbours intra a cluster.
 
     Parameters
     ----------
-    cluster1, cluster2 : list of 1d ndarray
-        The clusters.
-    maxdist : float64
-        The maximum distance.
-    indices1, indices2 : list of integer, optional
-        The indices of the points of the clusters.
-    mindists : list of float64, optional
-        The values of the distances between minimum neighbours.
+    cluster : list of 1d ndarray
+        The coordinates of the cluster.
+    vectors : list of 1d ndarray, optional
+        The translation vectors of the cluster.
+    max_translations: tuple of int, optional
+        The maximum translations of the original cluster.
+    neighbours : dict, optional
+        The neighbour-length map of the bonds to be searched.
 
     Returns
     -------
     list of Link
-        The wanted links.
+        The searched links.
+
+    Notes
+    -----
+        * When `vectors` **NOT** empty, periodic boundary condition is assumed and the links across the boundaries of the cluster are also searched.
+    '''
+    result=[]
+    if len(cluster)>0:
+        if max_translations is None: max_translations=[len(neighbours)-1]*len(vectors)
+        if neighbours is None: neighbours={0:0.0}
+        assert len(max_translations)==len(vectors)
+        translations=list(it.product(*[xrange(-nnb,nnb+1) for nnb in max_translations]))
+        for translation in translations:
+            if any(translation): translations.remove(tuple([-i for i in translation]))
+        translations=sorted(translations,key=nl.norm)
+        supercluster=tiling(cluster,vectors=vectors,translations=translations)
+        disps=tiling([np.zeros(len(next(iter(cluster))))]*len(cluster),vectors=vectors,translations=translations)
+        smatrix=cKDTree(cluster).sparse_distance_matrix(cKDTree(supercluster),np.max(neighbours.values())+RZERO)
+        for (i,j),dist in smatrix.items():
+            if i<=j:
+                for neighbour,length in neighbours.iteritems():
+                    if abs(length-dist)<RZERO:
+                        result.append(Link(neighbour,sindex=i,eindex=j%len(cluster),disp=disps[j]))
+                        break
+    return result
+
+def interlinks(cluster1,cluster2,neighbours=None):
+    '''
+    This function searches a certain set of neighbours between two clusters.
+
+    Parameters
+    ----------
+    cluster1, cluster2 : list of 1d ndarray
+        The coordinates of the clusters.
+    neighbours : dict, optional
+        The neighbour-length map of the links to be searched.
+
+    Returns
+    -------
+    list of Link
+        The searched links.
     '''
     result=[]
     if len(cluster1)>0 and len(cluster2)>0:
-        tree1,tree2=cKDTree(cluster1),cKDTree(cluster2)
-        smatrix=tree1.sparse_distance_matrix(tree2,maxdist)
+        if neighbours is None: neighbours={0:0.0}
+        smatrix=cKDTree(cluster1).sparse_distance_matrix(cKDTree(cluster2),np.max(neighbours.values())+RZERO)
         for (i,j),dist in smatrix.items():
-            for k,mindist in enumerate(mindists):
-                if abs(mindist-dist)<RZERO:
-                    neighbour=k
+            for neighbour,length in neighbours.iteritems():
+                if abs(length-dist)<RZERO:
+                    result.append(Link(neighbour,sindex=i,eindex=j,disp=0))
                     break
-            else:
-                neighbour=np.inf
-            sindex=i if indices1 is None else indices1[i]
-            eindex=j if indices2 is None else indices2[j]
-            result.append(Link(neighbour,sindex=sindex,eindex=eindex,disp=0))
     return result
 
 class Lattice(object):
@@ -718,119 +613,137 @@ class Lattice(object):
     ----------
     name : string
         The lattice's name.
-    points : list of Point
-        The points of the lattice.
+    pids : list of PID
+        The pids of the lattice.
+    rcoords : 2d ndarray
+        The rcoords of the lattice.
+    icoords : 2d ndarray
+        The icoords of the lattice.
     vectors : list of 1d ndarray
         The translation vectors.
     reciprocals : list of 1d ndarray
         The dual translation vectors.
-    nneighbour : integer
-        The highest order of neighbours;
-    links : list of Link
-        The links of the lattice system.
-    mindists : list of float
-        The minimum distances within this lattice.
-    max_coordinate_number : int
-        The max coordinate number for every neighbour.
-        This attribute is used in the search for links.
+    neighbours : dict
+        The neighbour-length map of the lattice.
     '''
-    max_coordinate_number=8
+    ZMAX=8
 
-    def __init__(self,name=None,rcoords=(),icoords=None,vectors=(),nneighbour=1,max_coordinate_number=None):
+    def __init__(self,name,pids=None,rcoords=(),icoords=None,vectors=(),neighbours=1):
         '''
         Construct a lattice directly from its coordinates.
 
         Parameters
         ----------
-        name : string
+        name : str
             The name of the lattice.
-        rcoords : list of 1d ndarray, optional
+        pids : list of PID, optional
+            The pids of the lattice.
+        rcoords : 2d array-like, optional
             The rcoords of the lattice.
-        icoords : list of 1d ndarray, optional
+        icoords : 2d array-like, optional
             The icoords of the lattice.
         vectors : list of 1d ndarray, optional
             The translation vectors of the lattice.
-        nneighbour : integer, optional
-            The highest order of neighbours.
-        max_coordinate_number : int, optional 
-            The max coordinate number for every neighbour.
+        neighbours : dict, optional
+            The neighbour-length map of the lattice.
         '''
-        assert icoords is None or len(icoords)==len(rcoords)
-        if max_coordinate_number is not None: Lattice.max_coordinate_number=max_coordinate_number
-        self.name=name
         rcoords=np.asarray(rcoords)
-        icoords=np.zeros(rcoords.shape) if icoords is None else np.asarray(icoords)
-        self.points=[Point(PID(scope=name,site=i),rcoord=rcoord,icoord=icoord) for i,(rcoord,icoord) in enumerate(zip(rcoords,icoords))]
+        if pids is None: pids=[PID(scope=name,site=i) for i in xrange(len(rcoords))]
+        if icoords is None: icoords=np.zeros(rcoords.shape)
+        assert len(pids)==len(rcoords)==len(icoords)
+        self.name=name
+        self.pids=pids
+        self.rcoords=rcoords
+        self.icoords=icoords
         self.vectors=vectors
         self.reciprocals=reciprocals(vectors)
-        self.nneighbour=nneighbour
-        links,mindists=intralinks('nb',rcoords,None,vectors,nneighbour=nneighbour,max_coordinate_number=Lattice.max_coordinate_number,return_mindists=True)
-        self.links=links
-        self.mindists=mindists
+        self.neighbours=neighbours if isinstance(neighbours,dict) else {i:length for i,length in enumerate(minimumlengths(rcoords,vectors,neighbours,Lattice.ZMAX))}
 
     @classmethod
-    def compose(cls,name=None,points=(),vectors=(),nneighbour=1,max_coordinate_number=None):
+    def compose(cls,name,points=(),vectors=(),neighbours=1):
         '''
         Construct a lattice from its contained points.
 
         Parameters
         ----------
-        name : string
+        name : str
             The name of the lattice.
         points : list of Point, optional
             The lattice points.
         vectors : list of 1d ndarray, optional
             The translation vectors of the lattice.
-        nneighbour : integer, optional
-            The highest order of neighbours.
-        max_coordinate_number : int, optional
-            The max coordinate number for every neighbour.
+        neighbours : dict, optional
+            The neighbour-length map of the lattice.
+
+        Returns
+        -------
+        Lattice
+            The composed lattice.
         '''
-        if max_coordinate_number is not None: Lattice.max_coordinate_number=max_coordinate_number
-        result=object.__new__(cls)
-        result.name=name
-        result.points=points
-        result.vectors=vectors
-        result.reciprocals=reciprocals(vectors)
-        result.nneighbour=nneighbour
-        rcoords=np.asarray([point.rcoord for point in points])
-        links,mindists=intralinks('nb',rcoords,None,vectors,nneighbour=nneighbour,max_coordinate_number=Lattice.max_coordinate_number,return_mindists=True)
-        result.links=links
-        result.mindists=mindists
-        return result
+        return Lattice(
+                    name=           name,
+                    pids=           [point.pid for point in points],
+                    rcoords=        [point.rcoord for point in points],
+                    icoords=        [point.icoord for point in points],
+                    vectors=        vectors,
+                    neighbours=     neighbours
+                    )
+
+    @classmethod
+    def merge(self,name,sublattices,vectors=(),neighbours=1):
+        '''
+        Merge sublattices into a new lattice.
+
+        Parameters
+        ----------
+        name : str
+            The name of the new lattice.
+        sublattices : list of Lattice
+            The sublattices of the new lattice.
+        vectors : list of 1d ndarray, optional
+            The translation vectors of the new lattice.
+        neighbours : dict, optional
+            The neighbour-length map of the lattice.
+
+        Returns
+        -------
+        Lattice
+            The merged lattice.
+        '''
+        return Lattice(
+                    name=           name,
+                    pids=           [pid for lattice in sublattices for pid in lattice.pids],
+                    rcoords=        np.concatenate([lattice.rcoords for lattice in sublattices]),
+                    icoords=        np.concatenate([lattice.icoords for lattice in sublattices]),
+                    vectors=        vectors,
+                    neighbours=     neighbours
+                    )
 
     def __len__(self):
         '''
         The number of points contained in this lattice.
         '''
-        return len(self.points)
+        return len(self.pids)
 
-    def __str__(self):
+    def __repr____(self):
         '''
         Convert an instance to string.
         '''
-        return '\n'.join([str(link) for link in self.links])
+        return '%s(%s)'%(self.__class__.__name__,self.name)
 
     @property
-    def pids(self):
+    def nneighbour(self):
         '''
-        The pids of the lattice.
+        The highest order of neighbours.
         '''
-        return [point.pid for point in self.points]
+        return len(self.neighbours)-1
 
     @property
-    def rcoords(self):
+    def points(self):
         '''
-        The rcoords of the lattice.
+        The points of the lattice.
         '''
-        return np.asarray([point.rcoord for point in self.points])
-
-    @property
-    def icoords(self):
-        '''
-        The icoords of the lattice.
-        '''
-        return np.asarray([point.icoord for point in self.points])
+        return [Point(pid=pid,rcoord=rcoord,icoord=icoord) for pid,rcoord,icoord in zip(self.pids,self.rcoords,self.icoords)]
 
     @property
     def bonds(self):
@@ -838,11 +751,53 @@ class Lattice(object):
         The bonds of the lattice.
         '''
         result=[]
-        for link in self.links:
-            spoint=self.points[link.sindex]
-            epoint=self.points[link.eindex]+link.disp
+        for link in intralinks(self.rcoords,vectors=self.vectors,neighbours=self.neighbours):
+            spoint=Point(pid=self.pids[link.sindex],rcoord=self.rcoords[link.sindex],icoord=self.icoords[link.sindex])
+            epoint=Point(pid=self.pids[link.eindex],rcoord=self.rcoords[link.eindex]+link.disp,icoord=self.icoords[link.eindex]+link.disp)
             result.append(Bond(link.neighbour,spoint,epoint))
         return result
+
+    def sublattice(self,name,subset):
+        '''
+        A sublattice of the original lattice.
+
+        Parameters
+        ----------
+        name : str
+            The name of the sublattice.
+        subset : list of PID/int
+            The sub-pids/sub-indices of the sublattice.
+
+        Returns
+        -------
+        Lattice
+            The sublattice.
+        '''
+        subset=[self.pids.index(index) if isinstance(index,PID) else index for index in subset]
+        return Lattice(
+                    name=           name,
+                    pids=           [self.pids[index] for index in subset],
+                    rcoords=        self.rcoords[subset],
+                    icoords=        self.icoords[subset],
+                    vectors=        self.vectors,
+                    neighbours=     self.neighbours
+                    )
+
+    def point(self,pid):
+        '''
+        Return a specific point of the lattice.
+
+        Parameters
+        ----------
+        pid : PID
+            The pid of the point.
+
+        Returns
+        -------
+        Point
+            The point.
+        '''
+        return Point(pid=pid,rcoord=self.rcoord(pid),icoord=self.icoord(pid))
 
     def rcoord(self,pid):
         '''
@@ -858,7 +813,7 @@ class Lattice(object):
         1d ndarray
             The rcoord of the point.
         '''
-        return self.points[self.pids.index(pid)].rcoord
+        return self.rcoords[self.pids.index(pid)]
 
     def icoord(self,pid):
         '''
@@ -874,68 +829,54 @@ class Lattice(object):
         1d ndarray
             The icoord of the point.
         '''
-        return self.points[self.pids.index(pid)].icoord
+        return self.icoords[self.pids.index(pid)]
 
-    def translate(self,vector):
+    def append(self,point):
         '''
-        Translate the whole lattice by a vector.
+        Append a point to the lattice.
 
         Parameters
         ----------
-        vector : 1d ndarray
-            The translation vector.
+        point : Point or 2-tuple
+            The inserted point.
         '''
-        for point in self.points:
-            point.rcoord+=vector
+        pid,rcoord=(point.pid,point.rcoord) if isinstance(point,Point) else point
+        self.pids.append(pid)
+        self.rcoords=np.append(self.rcoords,[rcoord],axis=0)
 
-    def rename(self,name=None,pids=None):
+    def insert(self,position,point):
         '''
-        Rename the lattice and its points.
+        Insert a point to the lattice.
 
         Parameters
         ----------
-        name : string, optional
-            The new name of the lattice.
-        pids : list of PID, optional
-            The new pids of the points of the lattice.
+        position : PID or int
+            The position before which to insert the point.
+        point : Point or 2-tuple
+            The inserted point.
         '''
-        if name is not None: self.name=name
-        if pids is not None:
-            assert len(pids)==len(self)
-            for pid,point in zip(pids,self.points):
-                point.pid=pid
+        if isinstance(position,PID): position=self.pids.index(position)
+        pid,rcoord=(point.pid,point.rcoord) if isinstance(point,Point) else point
+        self.pids.insert(position,pid)
+        self.rcoords=np.insert(self.rcoords,position,rcoord,axis=0)
 
-    def plot(self,fig=None,ax=None,show=True,suspend=False,save=True,close=True,pidon=False):
+    def plot(self,show=True,suspend=False,save=True,close=True,pidon=False):
         '''
         Plot the lattice points and bonds. Only 2D or quasi 1d systems are supported.
         '''
-        if fig is None or ax is None: fig,ax=plt.subplots()
+        fig,ax=plt.subplots()
         ax.axis('off')
         ax.axis('equal')
         ax.set_title(self.name)
         for bond in self.bonds:
-            nb=bond.neighbour
-            if nb<0: nb=self.nneighbour+2
-            elif nb==np.inf: nb=self.nneighbour+1
-            if nb==1: color='k'
-            elif nb==2: color='r'
-            elif nb==3: color='b'
-            else: color=str(nb*1.0/(self.nneighbour+1))
+            nb=bond.neighbour if 0<=bond.neighbour<np.inf else self.nneighbour+(2 if bond.neighbour<0 else 1)
+            color='k' if nb==1 else 'r' if nb==2 else 3 if nb==3 else str(nb*1.0/(self.nneighbour+10))
             if nb==0:
-                x,y=bond.spoint.rcoord[0],bond.spoint.rcoord[1]
+                pid,x,y=bond.spoint.pid,bond.spoint.rcoord[0],bond.spoint.rcoord[1]
                 ax.scatter(x,y)
-                if pidon:
-                    pid=bond.spoint.pid
-                    if pid.scope is None:
-                        tag=str(pid.site)
-                    else:
-                        tag=str(pid.scope)+'*'+str(pid.site)
-                    ax.text(x,y,tag,fontsize=10,color='blue',horizontalalignment='center')
+                if pidon: ax.text(x,y,'%s%s'%('' if pid.scope is None else str(pid.scope)+'*',pid.site),fontsize=10,color='blue',ha='center',va='bottom')
             else:
-                if bond.isintracell():
-                    ax.plot([bond.spoint.rcoord[0],bond.epoint.rcoord[0]],[bond.spoint.rcoord[1],bond.epoint.rcoord[1]],color=color)
-                else:
-                    ax.plot([bond.spoint.rcoord[0],bond.epoint.rcoord[0]],[bond.spoint.rcoord[1],bond.epoint.rcoord[1]],color=color,ls='--')
+                ax.plot([bond.spoint.rcoord[0],bond.epoint.rcoord[0]],[bond.spoint.rcoord[1],bond.epoint.rcoord[1]],color=color,ls='-' if bond.isintracell() else '--')
         if show and suspend: plt.show()
         if show and not suspend: plt.pause(1)
         if save: plt.savefig(self.name+'.png')
@@ -949,117 +890,43 @@ class SuperLattice(Lattice):
     ---------
     sublattices : list of Lattice
         The sublattices of the superlattice.
-    _merge_ : list of string
-        The names of sublattices that are merged to form new links.
-    _union_ : list of 2-tuple
-        The pairs of names of sublattices that are united to form new links.
     '''
 
-    def __init__(self,name,sublattices,vectors=(),nneighbour=1,merge=None,union=None,mindists=None,maxdist=None,max_coordinate_number=None):
+    def __init__(self,name,sublattices,vectors=(),neighbours=1):
         '''
         Constructor.
 
         Parameters
         ----------
-        name : string
+        name : str
             The name of the superlattice.
         sublattices : list of Lattice
             The sublattices of the superlattice.
         vectors : list of 1d ndarray, optional
             The translation vectors of the superlattice.
-        nneighbour : integer, optional
-            The highest order of neighbours.
-        merge : list of integer, optional
-            The indices of the sublattices that are merged to form new links.
-        union : list of 2-tuple of integer, optional
-            The pairs of indices of the sublattices that are united to form new links.
-        mindists : list of float64, optional
-            The values of the distances between minimum neighbours.
-        maxdist : float64, optional
-            The maximum distance.
-        max_coordinate_number : int, optional
-            The max coordinate number for every neighbour.
+        neighbours : dict, optional
+            The neighbour-length map of the lattice.
         '''
-        if max_coordinate_number is not None: Lattice.max_coordinate_number=max_coordinate_number
         self.name=name
         self.sublattices=sublattices
-        self.points=[point for lattice in sublattices for point in lattice.points]
+        self.pids=[pid for lattice in sublattices for pid in lattice.pids]
+        self.rcoords=np.concatenate([lattice.rcoords for lattice in sublattices])
+        self.icoords=np.concatenate([lattice.icoords for lattice in sublattices])
         self.vectors=vectors
         self.reciprocals=reciprocals(vectors)
-        self._merge_=[] if merge is None else merge
-        if len(self._merge_)>0:
-            self.nneighbour=nneighbour
-            links,mindists=intralinks(
-                    mode=                   'nb',
-                    cluster=                np.concatenate([self.sublattices[name].rcoords for name in self._merge_]),
-                    vectors=                vectors,
-                    nneighbour=             nneighbour,
-                    max_coordinate_number=  Lattice.max_coordinate_number,
-                    return_mindists=        True
-                    )
-            self.links=links
-            self.mindists=mindists
-        else:
-            assert mindists is not None
-            self.links=[]
-            self.mindists=mindists
-            self.nneighbour=len(mindists)-1
-        if union is None:
-            uns=sorted(set(xrange(len(self.sublattices)))-set(self._merge_))
-            self._union_=[(n1,n2) for n1 in uns for n2 in uns if n1<n2]
-        else:
-            uns=sorted(set(np.concatenate(union)))
-            self._union_=union
-        indiceses={n:[self.pids.index(pid) for pid in self.sublattices[n].pids] for n in uns}
-        for n1,n2 in self._union_:
-            self.links.extend(interlinks(
-                    cluster1=       self.sublattices[n1].rcoords,
-                    cluster2=       self.sublattices[n2].rcoords,
-                    maxdist=        mindists[-1]+RZERO if maxdist is None else maxdist,
-                    indices1=       indiceses[n1],
-                    indices2=       indiceses[n2],
-                    mindists=       mindists
-                    ))
-
-    @staticmethod
-    def merge(name,sublattices,vectors=(),nneighbour=1,max_coordinate_number=None):
-        '''
-        This is a simplified version of SuperLattice.__init__ by just merging sublattices to construct the superlattice.
-        For details, see SuperLattice.__init__.
-        '''
-        return SuperLattice(
-            name=                       name,
-            sublattices=                sublattices,
-            vectors=                    vectors,
-            merge=                      range(len(sublattices)),
-            nneighbour=                 nneighbour,
-            max_coordinate_number=      max_coordinate_number
-            )
-
-    @staticmethod
-    def union(name,sublattices,mindists,vectors=(),union=None,maxdist=None):
-        '''
-        This is a simplified version of SuperLattice.__init__ by just uniting sublattices to construct the superlattice.
-        For details, see SuperLattice.__init__.
-        '''
-        return SuperLattice(
-            name=               name,
-            sublattices=        sublattices,
-            vectors=            vectors,
-            union=              union,
-            nneighbour=         len(mindists)-1,
-            maxdist=            maxdist,
-            mindists=           mindists
-            )
+        self.neighbours=neighbours if isinstance(neighbours,dict) else {i:length for i,length in enumerate(minimumlengths(self.rcoords,vectors,neighbours,Lattice.ZMAX))}
 
     @property
     def bonds(self):
         '''
         The bonds of the superlattice.
         '''
-        result=super(SuperLattice,self).bonds
-        for n in set(xrange(len(self.sublattices)))-set(self._merge_):
-            result.extend(self.sublattices[n].bonds)
+        result=[bond for lattice in self.sublattices for bond in lattice.bonds]
+        for sub1,sub2 in it.combinations(self.sublattices,2):
+            for link in interlinks(sub1.rcoords,sub2.rcoords,neighbours=self.neighbours):
+                spoint=Point(pid=sub1.pids[link.sindex],rcoord=sub1.rcoords[link.sindex],icoord=sub1.icoords[link.sindex])
+                epoint=Point(pid=sub2.pids[link.eindex],rcoord=sub2.rcoords[link.eindex]+link.disp,icoord=sub2.icoords[link.eindex]+link.disp)
+                result.append(Bond(link.neighbour,spoint,epoint))
         return result
 
 class Cylinder(Lattice):
@@ -1101,34 +968,26 @@ class Cylinder(Lattice):
             The new scopes for the points of the cylinder before the insertion.
             If None, the old scopes remain unchanged.
         '''
+        aspids,bspids,asrcoords,bsrcoords=[],[],[],[]
+        for i,rcoord in enumerate(self.block):
+            aspids.append(PID(scope=A,site=i))
+            bspids.append(PID(scope=B,site=i))
+            asrcoords.append(rcoord-self.translation/2)
+            bsrcoords.append(rcoord+self.translation/2)
         if len(self)==0:
-            aps=[Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
-            bps=[Point(PID(scope=B,site=i),rcoord=rcoord+self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
-            ass,bss=[],[]
+            self.pids=aspids+bspids
+            self.rcoords=np.vstack([asrcoords,bsrcoords])
         else:
             if news is not None:
                 assert len(news)*len(self.block)==len(self)
-                for i,scope in enumerate(news):
-                    for j in xrange(len(self.block)):
-                        self.points[i*len(self.block)+j].pid=self.points[i*len(self.block)+j].pid._replace(scope=scope)
-            aps,bps=self.points[:len(self)/2],self.points[len(self)/2:]
-            for ap,bp in zip(aps,bps):
-                ap.rcoord-=self.translation
-                bp.rcoord+=self.translation
-            ass=[Point(PID(scope=A,site=i),rcoord=rcoord-self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
-            bss=[Point(PID(scope=B,site=i),rcoord=rcoord+self.translation/2,icoord=np.zeros_like(rcoord)) for i,rcoord in enumerate(self.block)]
-        self.points=aps+ass+bss+bps
-        links,mindists=intralinks(
-                mode=                   'nb',
-                cluster=                np.asarray([p.rcoord for p in self.points]),
-                indices=                None,
-                vectors=                self.vectors,
-                nneighbour=             self.nneighbour,
-                max_coordinate_number=  self.max_coordinate_number,
-                return_mindists=        True
-                )
-        self.links=links
-        self.mindists=mindists
+                self.pids=[PID(scope=scope,site=i) for scope in news for i in xrange(len(self.block))]
+            apids,bpids=self.pids[:len(self)/2],self.pids[len(self)/2:]
+            arcoords,brcoords=self.rcoords[:len(self)/2]-self.translation,self.rcoords[len(self)/2:]+self.translation
+            self.pids=apids+aspids+bspids+bpids
+            self.rcoords=np.vstack([arcoords,asrcoords,bsrcoords,brcoords])
+        self.icoords=np.zeros(self.rcoords.shape)
+        if np.any(np.asarray(self.neighbours.values())==np.inf):
+            self.neighbours={i:length for i,length in enumerate(minimumlengths(self.rcoords,self.vectors,self.nneighbour,Lattice.ZMAX))}
 
     def __call__(self,scopes):
         '''
@@ -1144,7 +1003,14 @@ class Cylinder(Lattice):
         Lattice
             The constructed cylinder.
         '''
-        points,num=[],len(scopes)
-        for i,rcoord in enumerate(tiling(self.block,[self.translation],np.linspace(-(num-1)/2.0,(num-1)/2.0,num) if num>1 else xrange(1))):
-            points.append(Point(PID(scope=scopes[i/len(self.block)],site=i%len(self.block)),rcoord=rcoord,icoord=np.zeros_like(rcoord)))
-        return Lattice.compose(name=self.name.replace('+',str(num)),points=points,vectors=self.vectors,nneighbour=self.nneighbour)
+        result=Lattice(
+                    name=           self.name.replace('+',str(len(scopes))),
+                    pids=           [PID(scope=scope,site=i) for scope in scopes for i in xrange(len(self.block))],
+                    rcoords=        tiling(self.block,[self.translation],np.linspace(-(len(scopes)-1)/2.0,(len(scopes)-1)/2.0,len(scopes)) if len(scopes)>1 else xrange(1)),
+                    icoords=        None,
+                    vectors=        self.vectors,
+                    neighbours=     self.neighbours
+                    )
+        if np.any(np.asarray(result.neighbours.values())==np.inf):
+            result.neighbours={i:length for i,length in enumerate(minimumlengths(result.rcoords,result.vectors,result.nneighbour,Lattice.ZMAX))}
+        return result

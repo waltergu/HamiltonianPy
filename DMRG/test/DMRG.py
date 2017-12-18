@@ -41,7 +41,7 @@ def dmrg_spin(mode,spin,N,J,qnon=True,matvec='lo'):
     dmrg=DMRG(
         name=       '%s-spin-%s'%(mode,spin),
         mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
-        lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0]),nneighbour=1),
+        lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0]),neighbours=1),
         terms=      [SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())],
         config=     IDFConfig(priority=priority,map=lambda pid: Spin(S=spin)),
         degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SQNS(S=spin)) if qnon else
@@ -113,7 +113,7 @@ def dmrg_honeycomb_heisenberg(mode,N,J,qnon=True,matvec='lo'):
     dmrg=DMRG(
         name=       '%s-honeycomb-heisenberg'%mode,
         mps=        MPS(mode='QN') if qnon else MPS(mode='NB'),
-        lattice=    Cylinder(name='WG',block=h4.rcoords,translation=h4.vectors[0],vectors=[h4.vectors[1]],nneighbour=1),
+        lattice=    Cylinder(name='WG',block=h4.rcoords,translation=h4.vectors[0],vectors=[h4.vectors[1]],neighbours=1),
         terms=      [SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())],
         config=     IDFConfig(priority=priority,map=lambda pid: Spin(S=0.5)),
         degfres=    DegFreTree(mode='QN',layers=layers,priority=priority,map=lambda index: SQNS(S=0.5)) if qnon else

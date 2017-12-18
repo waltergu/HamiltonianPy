@@ -24,7 +24,7 @@ def test_mpo_spin():
     for scope in xrange(Nscope):
         for site in xrange(Nsite):
             points.append(Point(PID(scope=scope,site=site),rcoord=a1*site+a2*scope,icoord=[0.0,0.0]))
-    lattice=Lattice.compose(name='WG',points=points,nneighbour=1)
+    lattice=Lattice.compose(name='WG',points=points,neighbours=1)
     lattice.plot(pidon=True)
 
     # set the terms
@@ -74,7 +74,7 @@ def test_mpo_fermi():
     for scope in xrange(Nscope):
         for site in xrange(Nsite):
             points.append(Point(PID(scope=scope,site=site),rcoord=a1*site+a2*scope,icoord=[0.0,0.0]))
-    lattice=Lattice.compose(name='WG',points=points,nneighbour=1)
+    lattice=Lattice.compose(name='WG',points=points,neighbours=1)
     lattice.plot(pidon=True)
 
     # set the terms

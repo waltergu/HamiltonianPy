@@ -15,7 +15,7 @@ def test_soperator():
     J,N=1.0,2
     a1=array([1.0,0.0])
     rcoords=tiling([array([0.0,0.0])],vectors=[a1],translations=xrange(N))
-    lattice=Lattice(name='WG',rcoords=rcoords,vectors=[a1*N],nneighbour=1)
+    lattice=Lattice(name='WG',rcoords=rcoords,vectors=[a1*N],neighbours=1)
 
     config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY,pids=lattice.pids,map=lambda pid: Spin(S=0.5))
     opts,table=Operators(),config.table()

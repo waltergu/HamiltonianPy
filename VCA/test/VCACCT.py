@@ -12,10 +12,9 @@ import HamiltonianPy.ED as ED
 def test_vcacct():
     print 'test_vcacct'
     t1,U=-1.0,8.0
-    H2,H4A,H4B,H8P=Hexagon('H2'),Hexagon('H4A'),Hexagon('H4B'),Hexagon('H8P')
-    cell,LA,LB=H2('1P-1P',nneighbour=1),H4A(nneighbour=1),H4B(nneighbour=1)
-    lattice=Lattice.compose(name='H4CCT',points=LA.points+LB.points,vectors=H8P.vectors,nneighbour=1)
-    map=lambda ndx: Fermi(atom=0 if (ndx.scope in ('H4A','H2') and ndx.site==0) or (ndx.scope=='H4B' and ndx.site>0) else 1,norbital=1,nspin=2,nnambu=1)
+    H2,H4C=Hexagon('H2'),Hexagon('H4C')
+    cell,LA,LB,lattice=H2('1P-1P',nneighbour=1),H4C.sublattice(0,nneighbour=1),H4C.sublattice(1,nneighbour=1),H4C('1P-1P',nneighbour=1)
+    map=lambda ndx: Fermi(atom=0 if (ndx.scope in ('H4C-0','H2') and ndx.site==0) or (ndx.scope=='H4C-1' and ndx.site>0) else 1,norbital=1,nspin=2,nnambu=1)
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=map)
     cgf=ED.FGF(operators=fspoperators(config.table(),lattice),nstep=200,savedata=False,prepare=VCACCTGFP,run=VCACCTGF)
     vcacct=VCACCT(

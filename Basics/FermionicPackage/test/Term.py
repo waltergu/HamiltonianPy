@@ -61,7 +61,7 @@ def test_coulomb():
     print 'test_coulomb'
     p1=Point(PID(site=0,scope='WG'),rcoord=[0.0,0.0],icoord=[0.0,0.0])
     p2=Point(PID(site=1,scope='WG'),rcoord=[1.0,0.0],icoord=[0.0,0.0])
-    l=Lattice.compose(name='WG',points=[p1,p2],nneighbour=1)
+    l=Lattice.compose(name='WG',points=[p1,p2],neighbours=1)
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=l.pids,map=lambda pid: Fermi(atom=pid.site%2,norbital=1,nspin=2,nnambu=1))
     table=config.table(mask=['nambu'])
     a=Coulomb('U',1.0,neighbour=0,indexpacks=(sigmap('sp'),sigmam('sp')))

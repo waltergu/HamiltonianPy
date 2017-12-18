@@ -13,7 +13,7 @@ from HamiltonianPy.Basics.SpinPackage import *
 def test_spin_term():
     print 'test_spin_term'
     J,h,N=1.0,5.0,2
-    lattice=Lattice(name='WG',rcoords=tiling([array([0.0,0.0])],vectors=[array([1.0,0.0])],translations=xrange(N)),vectors=[array([1.0,0.0])*N],nneighbour=1)
+    lattice=Lattice(name='WG',rcoords=tiling([array([0.0,0.0])],vectors=[array([1.0,0.0])],translations=xrange(N)),vectors=[array([1.0,0.0])*N],neighbours=1)
     config=IDFConfig(priority=DEFAULT_SPIN_PRIORITY,map=lambda pid: Spin(S=0.5),pids=lattice.pids)
     table=config.table()
     terms=[ SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg()),

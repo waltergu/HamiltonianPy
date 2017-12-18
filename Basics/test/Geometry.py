@@ -15,8 +15,8 @@ def test_geometry():
     test_bond()
     test_link()
     test_lattice()
-    test_super_lattice_merge()
-    test_super_lattice_union()
+    test_lattice_merge()
+    test_superlattice()
 
 def test_functions():
     print 'test_function'
@@ -67,18 +67,16 @@ def test_bond():
 
 def test_link():
     print 'test_link'
-    print "intralinks with mode='nb':"
-    a1,a2=array([1.0,0.0]),array([0.0,1.0])
-    links,mindists=intralinks('nb',cluster=[array([0.0,0.0])],vectors=[a1,a2],nneighbour=3,return_mindists=True)
-    print '\n'.join([str(link) for link in links])
-    print 'mindists: %s'%', '.join(str(mindist) for mindist in mindists)
+    point,a1,a2=array([0.0,0.0]),array([1.0,0.0]),array([0.0,1.0])
+    lengths=minimumlengths(cluster=[point],vectors=[a1,a2],nneighbour=3)
+    print 'minimum link lengths: %s\n'%(','.join(str(length) for length in lengths))
     print
-    print "intralinks with mode='nb':"
-    links=intralinks('dt',cluster=[array([0.0,0.0])],vectors=[a1,a2],r=2.0,mindists=mindists)
+    print "intralinks"
+    links=intralinks(cluster=[point],vectors=[a1,a2],neighbours={i:length for i,length in enumerate(lengths)})
     print '\n'.join([str(link) for link in links])
     print
     print 'interlinks'
-    links=interlinks([array([0.0,0.0])],[array([0.0,1.0])],maxdist=2.0,mindists=mindists)
+    links=interlinks([array([0.0,0.0])],[array([0.0,1.0])],neighbours={i:length for i,length in enumerate(lengths)})
     print '\n'.join([str(link) for link in links])
     print
 
@@ -89,45 +87,44 @@ def test_lattice():
     a1,a2=array([1.0,0.0]),array([0.0,1.0])
     rcoords=tiling(cluster=[array([0.0,0.0])],vectors=[a1,a2],translations=itertools.product(xrange(m),xrange(n)))
     stime=time.time()
-    a=Lattice(name,rcoords,vectors=[a1*m,a2*n],nneighbour=2)
+    a=Lattice('%s_P'%name,rcoords=rcoords,vectors=[a1*m,a2*n],neighbours=2)
     etime=time.time()
     print 'Construction time for %s*%s lattice: %s'%(m,n,etime-stime)
     a.plot(show=True,pidon=False,suspend=False)
     stime=time.time()
-    b=Lattice(name,rcoords,nneighbour=2)
+    b=Lattice('%s_O'%name,rcoords=rcoords,neighbours=2)
     etime=time.time()
     print 'Construction time for %s*%s cluster: %s'%(m,n,etime-stime)
     b.plot(show=True,pidon=False,suspend=False)
-    c=Lattice('WG',rcoords=[array([0.0,0.0])],vectors=[a1,a2],nneighbour=2)
+    c=Lattice('WG',rcoords=[array([0.0,0.0])],vectors=[a1,a2],neighbours=2)
     c.plot(show=True,pidon=True,suspend=False)
     print
 
-def test_super_lattice_merge():
-    print 'test_super_lattice_merge'
+def test_lattice_merge():
+    print 'test_lattice_merge'
     M,m,n=2,2,2
     a1,a2=array([1.0,0.0]),array([0.0,1.0])
     rcoords=tiling(cluster=[array([0.0,0.0])],vectors=[a1,a2],translations=itertools.product(xrange(m),xrange(n)))
     a=SuperLattice.merge(
-        name='Super',
+        name='Merge',
         sublattices=[Lattice(name='sub'+str(i),rcoords=translation(rcoords,a1*m*i)) for i in xrange(M)],
         vectors=[a1*m*M,a2*n],
-        nneighbour=2
+        neighbours=2
         )
     a.plot(pidon=True)
     print
 
-def test_super_lattice_union():
-    print 'test_super_lattice_union'
+def test_superlattice():
+    print 'test_superlattice'
     N=4
-    a=Lattice(name='bath',rcoords=[array([-0.5,-0.3]),array([-0.5,+0.3])],nneighbour=0)
+    a=Lattice(name='bath',rcoords=[array([-0.4,-0.3]),array([-0.4,+0.3])],neighbours=0)
     name,a1,a2='WG',array([1.0,0.0]),array([0.0,1.0])
     for m in xrange(N):
         b=Lattice('%s-%s'%(name,m),rcoords=[a1*m],vectors=[a2])
-        a=SuperLattice.union(
-            name=           'super',
+        a=SuperLattice(
+            name=           'Super',
             sublattices=    [a,b],
-            maxdist=        1.0,
-            mindists=       [0.0,1.0]
+            neighbours=     {0:0.0,1:1.0,-1:0.5}
             )
         a.plot(pidon=True,suspend=False)
     print

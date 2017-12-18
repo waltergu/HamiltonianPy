@@ -4,16 +4,83 @@ Lattice pack
 ------------
 
 Lattice pack, including:
-    * classes: Cluster
-    * functions: Square, Hexagon, Triangle, Kagome
+    * classes: Pieces, Cluster, Line, Square, Hexagon, Triangle, Kagome
 '''
 
-__all__=['Cluster','Square','Hexagon','Triangle','Kagome']
+__all__=['Pieces','Cluster','Line','Square','Hexagon','Triangle','Kagome']
 
-from ..Geometry import Lattice,Cylinder,tiling,rotation,translation
-from numpy import asarray,array,sqrt
+from ..Geometry import PID,Lattice,Cylinder,SuperLattice,tiling,minimumlengths
+import numpy as np
 import itertools as it
 import re
+
+class Pieces(object):
+    '''
+    The tiling pieces of a cluster.
+
+    Attributes
+    ----------
+    rcoords : list of 1d ndarray
+        The rcoord indices of the components of the pieces.
+    baths : list of 1d ndarray
+        The bath indices of the components of the pieces.
+    '''
+
+    def __init__(self,*pieces):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        pieces : list of 2-tuple
+            The rcoord indices and bath indices of the components of the pieces.
+        '''
+        self.rcoords,self.baths=[],[]
+        for rcoords,baths in pieces:
+            self.rcoords.append(None if rcoords is None else np.asarray(rcoords))
+            self.baths.append(None if baths is None else np.asarray(baths))
+
+    def __len__(self):
+        '''
+        The number of the components of the pieces.
+        '''
+        return len(self.rcoords)
+
+    def tiling(self,ts):
+        '''
+        New pieces by tiling.
+
+        Parameters
+        ----------
+        ts : tuple of int
+            The tiling information.
+
+        Returns
+        -------
+        Pieces
+            The new pieces.
+        '''
+        result=Pieces()
+        rnum,bnum=self.rcoordnum,self.bathnum
+        for i in xrange(np.product(ts)):
+            for rcoords,baths in zip(self.rcoords,self.baths):
+                if rcoords is not None: result.rcoords.append(rcoords+i*rnum)
+                if baths is not None: result.baths.append(baths+i*bnum)
+        return result
+
+    @property
+    def rcoordnum(self):
+        '''
+        The total number of rcoords of the pieces.
+        '''
+        return sum((0 if rcoords is None else len(rcoords)) for rcoords in self.rcoords)
+
+    @property
+    def bathnum(self):
+        '''
+        The total number of baths of the pieces.
+        '''
+        return sum((0 if baths is None else len(baths)) for baths in self.baths)
 
 class Cluster(object):
     '''
@@ -21,30 +88,54 @@ class Cluster(object):
 
     Attributes
     ----------
-    name : string
+    name : str
         The name of the cluster.
     rcoords : 2d ndarray
         The rcoords of the cluster.
     vectors : 2d ndarray
         The translation vectors of the cluster.
+    tiles : list of str
+        The tiling information of the cluster.
+    baths : 2d ndarray
+        The baths of the cluster.
+    pieces : Pieces
+        The tiling pieces of the cluster.
     '''
+    BATHRATIO=0.3
 
-    def __init__(self,name,rcoords,vectors):
+    def __init__(self,name,rcoords,vectors,tiles=None,baths=None,pieces=None):
         '''
         Constructor.
 
         Parameters
         ----------
-        name : string
+        name : str
             The name of the cluster.
         rcoords : 2d ndarray
             The rcoords of the cluster.
         vectors : 2d ndarray
             The translation vectors of the cluster.
+        tiles : list of str, optional
+            The tiling information of the cluster.
+        baths : 2d ndarray, optional
+            The baths of the cluster.
+        pieces : Pieces, optional
+            The tiling pieces of the cluster.
         '''
+        if pieces is not None: assert pieces.rcoordnum==len(rcoords) and (baths is None or pieces.bathnum==len(baths))
         self.name=name
-        self.rcoords=asarray(rcoords)
-        self.vectors=asarray(vectors)
+        self.rcoords=np.asarray(rcoords)
+        self.vectors=np.asarray(vectors)
+        self.tiles=tiles
+        self.baths=None if baths is None else np.asarray(baths)
+        self.pieces=pieces
+
+    @property
+    def piecenum(self):
+        '''
+        The number of pieces of the cluster.
+        '''
+        return 0 if self.pieces is None else len(self.pieces)
 
     def tiling(self,ts):
         '''
@@ -52,8 +143,8 @@ class Cluster(object):
 
         Parameters
         ----------
-        ts : tuple of integer
-            The translation and boundary conditions.
+        ts : tuple of int
+            The tiling information.
 
         Returns
         -------
@@ -61,11 +152,14 @@ class Cluster(object):
             The new cluster after the tiling.
         '''
         assert len(ts)==len(self.vectors)
-        return Cluster(
-                name=       '%s^%s'%(self.name,'-'.join(str(t) for t in ts)),
-                rcoords=    tiling(cluster=self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts])),
-                vectors=    [self.vectors[i]*t for i,t in enumerate(ts)]
-                )
+        result=Cluster.__new__(self.__class__)
+        result.name=self.name
+        result.rcoords=np.asarray(tiling(cluster=self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(t) for t in ts])))
+        result.vectors=np.asarray([self.vectors[i]*t for i,t in enumerate(ts)])
+        result.tiles=['%s%s'%('' if self.tiles is None else self.tiles[i]+'^',str(t)) for t in ts]
+        result.baths=None if self.baths is None else np.asarray(tiling(cluster=self.baths,vectors=self.vectors,translations=it.product(*[xrange(t) for t in ts])))
+        result.pieces=None if self.pieces is None else self.pieces.tiling(ts)
+        return result
 
     def __call__(self,tbs=None,nneighbour=1):
         '''
@@ -75,7 +169,7 @@ class Cluster(object):
         ----------
         tbs : str, optional
             The translation and boundary conditions.
-        nneighbour : integer, optional
+        nneighbour : int, optional
             The highest order of the neighbours.
 
         Returns
@@ -83,19 +177,89 @@ class Cluster(object):
         Lattice
             The constructed lattice.
         '''
-        tbs=tbs or '-'.join(['1P']*len(self.vectors))
-        ts,bcs=re.findall('\d+',tbs),re.findall('[P,p,O,o]',tbs)
-        assert len(ts)==len(self.vectors) and len(bcs)==len(self.vectors)
-        return Lattice(
-                name=       '%s(%s)'%(self.name,tbs.upper()) if len(tbs)>0 else self.name,
-                rcoords=    tiling(cluster=self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts])),
-                vectors=    [self.vectors[i]*int(t) for i,(t,bc) in enumerate(zip(ts,bcs)) if bc.lower()=='p'],
-                nneighbour= nneighbour
-                )
+        ts,bcs=([1]*len(self.vectors),['P']*len(self.vectors)) if tbs is None else ([int(t) for t in re.findall('\d+',tbs)],re.findall('[P,p,O,o]',tbs))
+        assert len(ts)==len(bcs)==len(self.vectors)
+        cluster=self.tiling(ts) if np.any(ts)>0 else self
+        tiles,neighbours=['']*len(self.vectors) if self.tiles is None else ['%s^'%tile for tile in self.tiles],cluster.neighbours(nneighbour,bcs)
+        if cluster.baths is None:
+            return Lattice(
+                    name=           '%s(%s)'%(self.name,'-'.join('%s%s%s'%(tile,t,bc.upper()) for tile,t,bc in zip(tiles,ts,bcs))),
+                    pids=           [PID(cluster.name,i) for i in xrange(len(cluster.rcoords))] if cluster.pieces is None else
+                                    [PID('%s-%s'%(cluster.name,i),j) for i in xrange(len(cluster.pieces)) for j in xrange(len(cluster.pieces.rcoords[i]))],
+                    rcoords=        cluster.rcoords,
+                    vectors=        [cluster.vectors[i] for i,bc in enumerate(bcs) if bc.lower()=='p'],
+                    neighbours=     neighbours
+                    )
+        else:
+            lattice=Lattice(
+                    name=           '%s-L'%self.name,
+                    pids=           [PID('%s-L'%cluster.name,i) for i in xrange(len(cluster.rcoords))] if cluster.pieces is None else
+                                    [PID('%s-L%s'%(cluster.name,i),j) for i in xrange(len(cluster.pieces)) for j in xrange(len(cluster.pieces.rcoords[i]))],
+                    rcoords=        cluster.rcoords,
+                    vectors=        [cluster.vectors[i] for i,bc in enumerate(bcs) if bc.lower()=='p'],
+                    neighbours=     neighbours
+                    )
+            bath=Lattice(
+                    name=           '%s-B'%self.name,
+                    pids=           [PID('%s-B'%cluster.name,i) for i in xrange(len(cluster.baths))] if cluster.pieces is None else
+                                    [PID('%s-B%s'%(cluster.name,i),j) for i in xrange(len(cluster.pieces)) for j in xrange(len(cluster.pieces.baths[i]))],
+                    rcoords=        cluster.baths,
+                    neighbours=     0
+                    )
+            return SuperLattice(
+                    name=           '%s(%s)'%(self.name,'-'.join('%s%s%s'%(tile,t,bc.upper()) for tile,t,bc in zip(tiles,ts,bcs))),
+                    sublattices=    [lattice,bath],
+                    vectors=        [cluster.vectors[i] for i,bc in enumerate(bcs) if bc.lower()=='p'],
+                    neighbours=     neighbours
+                    )
+
+    def sublattice(self,index,nneighbour=1):
+        '''
+        Construct a sublattice from a piece of the cluster.
+
+        Parameters
+        ----------
+        index : int
+            The index of the piece.
+        nneighbour : int, optional
+            The highest order of the neighbours.
+
+        Returns
+        -------
+        Lattice
+            The constructed sublattice.
+        '''
+        assert self.pieces is not None
+        neighbours=self.neighbours(nneighbour,['O']*len(self.vectors))
+        if self.baths is None:
+            return Lattice(
+                    name=           '%s%s-%s'%(self.name,'' if self.tiles is None else '(%s)'%('-'.join(str(tile) for tile in self.tiles)),index),
+                    pids=           [PID('%s-%s'%(self.name,index),i) for i in xrange(len(self.pieces.rcoords[index]))],
+                    rcoords=        self.rcoords[self.pieces.rcoords[index]],
+                    neighbours=     neighbours
+                    )
+        else:
+            lattice=Lattice(
+                    name=           '%s%s-L%s'%(self.name,'' if self.tiles is None else '(%s)'%('-'.join(str(tile) for tile in self.tiles)),index),
+                    pids=           [PID('%s-L%s'%(self.name,index),i) for i in xrange(len(self.pieces.rcoords[index]))],
+                    rcoords=        self.rcoords[self.pieces.rcoords[index]],
+                    neighbours=     neighbours
+                    )
+            bath=Lattice(
+                    name=           '%s%s-B%s'%(self.name,'' if self.tiles is None else '(%s)'%('-'.join(str(tile) for tile in self.tiles)),index),
+                    pids=           [PID('%s-B%s'%(self.name,index),i) for i in xrange(len(self.pieces.baths[index]))],
+                    rcoords=        self.baths[self.pieces.baths[index]],
+                    neighbours= 0
+                    )
+            return SuperLattice(
+                    name=           '%s%s-%s'%(self.name,'' if self.tiles is None else '(%s)'%('-'.join(str(tile) for tile in self.tiles)),index),
+                    sublattices=    [lattice,bath],
+                    neighbours=     neighbours
+                    )
 
     def cylinder(self,dt,tbs=None,nneighbour=1):
         '''
-        Construct a cylinder according the extension direction and the translation and boundary conditions.
+        Construct a cylinder according to the extension direction and the translation-and-boundary conditions.
 
         Parameters
         ----------
@@ -103,7 +267,7 @@ class Cluster(object):
             The direction along which the cylinder extends.
         tbs : str, optional
             The translation and boundary conditions.
-        nneighbour : integer, optional
+        nneighbour : int, optional
             The highest order of the neighbours.
 
         Returns
@@ -113,345 +277,329 @@ class Cluster(object):
 
         Notes
         -----
-        The boundary along the cylinder must be open.
+        The condition of the boundary along the cylinder must be open.
         '''
-        tbs=tbs or '-'.join(['1O']*len(self.vectors))
+        tbs='-'.join(['1O']*len(self.vectors)) if tbs is None else tbs
         ts,bcs=re.findall('\d+',tbs),re.findall('[P,p,O,o]',tbs)
-        assert len(ts)==len(self.vectors) and len(bcs)==len(self.vectors) and bcs[dt].upper()=='O'
+        assert self.baths is None and self.pieces is None and len(ts)==len(bcs)==len(self.vectors) and bcs[dt].upper()=='O'
+        tiles=['']*len(self.vectors) if self.tiles is None else ['%s^'%tile for tile in self.tiles]
         return Cylinder(
-                name=           '%s^%s(%s)'%(self.name,'-'.join(ts),'-'.join('%s%s'%('+' if i==dt else 1,bc.upper()) for i,bc in enumerate(bcs))),
-                block=          tiling(self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts])),
-                translation=    self.vectors[dt]*int(ts[dt]),
-                vectors=        [self.vectors[i]*int(t) for i,(t,bc) in enumerate(zip(ts,bcs)) if bc.upper()=='P'],
-                nneighbour=     nneighbour
-                )
+                    name=           '%s(%s)'%(self.name,'-'.join('%s%s^%s'%(tile,t,('+' if i==dt else '')+bc.upper()) for i,(tile,t,bc) in enumerate(zip(tiles,ts,bcs)))),
+                    block=          tiling(self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts])),
+                    translation=    self.vectors[dt]*int(ts[dt]),
+                    vectors=        [self.vectors[i]*int(t) for i,(t,bc) in enumerate(zip(ts,bcs)) if bc.upper()=='P'],
+                    neighbours=     nneighbour
+                    )
 
-    def translation(self,name=None,vector=0):
+    @property
+    def unit(self):
         '''
-        Return a translated cluster.
-
-        Parameters
-        ----------
-        name : string, optional
-            The name of the new cluster.
-        vector : 1d array-like, optional
-            The translation vector.
+        The least unit cell of the cluster.
 
         Returns
         -------
-        Cluster
-            The translated cluster.
+        rcoords : 2d ndarray-like
+            The coordinates of the least unit cell.
+        vectors : 2d ndarray-like
+            The translation vectors of the least unit cell.
         '''
-        return Cluster(name or self.name,translation(self.rcoords,vector),self.vectors)
+        raise NotImplementedError('%s unit error: not implemented.'%self.__class__.__name__)
 
-    def rotation(self,name=None,angle=0,center=None):
+    def neighbours(self,nneighbour,bcs=None):
         '''
-        Return a rotated cluster.
+        The neighbour-length map of the cluster.
 
         Parameters
         ----------
-        name : string, optional
-            The name of the new cluster.
-        angle : float
-            The rotated angle.
-        center : 1d array-like, optional
-            The center of the axis. Default the origin.
+        nneighbour : int
+            The highest order of the neighbours.
+        bcs : iterable of 'O','o','P' and 'p', optional
+            The boundary conditions of the cluster.
 
         Returns
         -------
-        Cluster
-            The rotated cluster.
+        dict
+            The requested neighbour-length map.
         '''
-        return Cluster(name or self.name,rotation(self.rcoords,angle,center),rotation(self.vectors,angle,center))
+        bcs='P'*len(self.vectors) if bcs is None else ''.join(bcs).upper()
+        assert len(bcs)==len(self.vectors)
+        rcoords,vectors=self.unit if set(bcs)=={'P'} else (self.rcoords,[vector for i,vector in enumerate(self.vectors) if bcs[i]=='P'])
+        result={order:length for order,length in enumerate(minimumlengths(rcoords,vectors,nneighbour))}
+        if self.baths is not None: result[-1]=result[1]*Cluster.BATHRATIO
+        return result
 
-def Square(name):
+class Line(Cluster):
+    '''
+    Cluster of one dimensional lattices.
+    '''
+    unit=[[0.0,0.0]],[[1.0,0.0]]
+
+    def __init__(self,name,pieces=False):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        name : 'L1','L2'
+            The name of the cluster.
+        pieces : logical, optional
+            True for generating pieces for the cluster and False for not.
+        '''
+        if name not in ['L1','L2']:
+            raise ValueError('Line __init__ error: unexpected name(%s).'%name)
+        if name=='L1':
+            rcoords=[[0.0,0.0]]
+            vectors=[[1.0,0.0]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='L2':
+            rcoords=[[0.0,0.0],[1.0,0.0]]
+            vectors=[[2.0,0.0]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        super(Line,self).__init__(name,rcoords,vectors,baths=baths,pieces=pieces)
+
+class Square(Cluster):
     '''
     Cluster of square lattices.
-
-    Parameters
-    ----------
-    name : 'S1','S2x','S2y','S4','S10','S12','S13'
-        The name of the cluster.
-
-    Returns
-    -------
-    Cluster
-        The cluster of square lattices.
     '''
-    if name not in ['S1','S2x','S2y','S4','S10','S12','S13']:
-        raise ValueError('Square error: unexpected name(%s).'%name)
-    rcoords,vectors=[],[]
-    if name=='S1':
-        rcoords.append(array([0.0,0.0]))
-        vectors.append(array([1.0,0.0]))
-        vectors.append(array([0.0,1.0]))
-    elif name=='S2x':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([1.0,0.0]))
-        vectors.append(array([2.0,0.0]))
-        vectors.append(array([0.0,1.0]))
-    elif name=='S2y':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([0.0,1.0]))
-        vectors.append(array([1.0,0.0]))
-        vectors.append(array([0.0,2.0]))
-    elif name=='S4':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([0.0,1.0]))
-        rcoords.append(array([1.0,1.0]))
-        vectors.append(array([2.0,0.0]))
-        vectors.append(array([0.0,2.0]))
-    elif name=='S10':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([0.0,1.0]))
-        rcoords.append(array([1.0,1.0]))
-        rcoords.append(array([0.0,2.0]))
-        rcoords.append(array([2.0,1.0]))
-        rcoords.append(array([1.0,2.0]))
-        rcoords.append(array([2.0,2.0]))
-        rcoords.append(array([1.0,3.0]))
-        rcoords.append(array([2.0,3.0]))
-        vectors.append(array([3.0,1.0]))
-        vectors.append(array([-1.0,3.0]))
-    elif name=='S12':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([0.0,1.0]))
-        rcoords.append(array([1.0,1.0]))
-        rcoords.append(array([-1.0,1.0]))
-        rcoords.append(array([2.0,1.0]))
-        rcoords.append(array([0.0,2.0]))
-        rcoords.append(array([1.0,2.0]))
-        rcoords.append(array([-1.0,2.0]))
-        rcoords.append(array([2.0,2.0]))
-        rcoords.append(array([0.0,3.0]))
-        rcoords.append(array([1.0,3.0]))
-        vectors.append(array([2.0,3.0]))
-        vectors.append(array([-2.0,3.0]))
-    elif name=='S13':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([-1.0,0.0]))
-        rcoords.append(array([0.0,1.0]))
-        rcoords.append(array([0.0,-1.0]))
-        rcoords.append(array([1.0,1.0]))
-        rcoords.append(array([-1.0,1.0]))
-        rcoords.append(array([1.0,-1.0]))
-        rcoords.append(array([-1.0,-1.0]))
-        rcoords.append(array([2.0,0.0]))
-        rcoords.append(array([-2.0,0.0]))
-        rcoords.append(array([0.0,2.0]))
-        rcoords.append(array([0.0,-2.0]))
-        vectors.append(array([3.0,2.0]))
-        vectors.append(array([-2.0,3.0]))
-    return Cluster(name,rcoords,vectors)
+    unit=[[0.0,0.0]],[[1.0,0.0],[0.0,1.0]]
+    BNBS=0.3
 
-def Hexagon(name):
+    def __init__(self,name,pieces=False):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        name : 'S1','S2x','S2y','S4','S4B8','S10','S12','S13'
+            The name of the cluster.
+        pieces : logical, optional
+            True for generating pieces for the cluster and False for not.
+        '''
+        if name not in ['S1','S2x','S2y','S4','S4B8','S10','S12','S13']:
+            raise ValueError('Square __init__ error: unexpected name(%s).'%name)
+        if name=='S1':
+            rcoords=[[0.0,0.0]]
+            vectors=[[1.0,0.0],[0.0,1.0]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='S2x':
+            rcoords=[[0.0,0.0],[1.0,0.0]]
+            vectors=[[2.0,0.0],[0.0,1.0]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='S2y':
+            rcoords=[[0.0,0.0],[0.0,1.0]]
+            vectors=[[1.0,0.0],[0.0,2.0]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='S4' or name=='S4B8':
+            rcoords=[[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0]]
+            vectors=[[2.0,0.0],[0.0,2.0]]
+            if name=='S4':
+                baths=None
+                pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            else:
+                baths=[[-0.3,0.0],[0.0,-0.3],[1.0,-0.3],[ 1.3,0.0],
+                       [ 1.3,1.0],[1.0, 1.3],[0.0, 1.3],[-0.3,1.0]]
+                pieces=Pieces((range(len(rcoords)),range(len(baths)))) if pieces else None
+        elif name=='S10':
+            rcoords=[[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0],
+                     [0.0,2.0],[2.0,1.0],[1.0,2.0],[2.0,2.0],
+                     [1.0,3.0],[2.0,3.0]
+                     ]
+            vectors=[[3.0,1.0],[-1.0,3.0]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='S12':
+            rcoords=[[ 0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0],
+                     [-1.0,1.0],[2.0,1.0],[0.0,2.0],[1.0,2.0],
+                     [-1.0,2.0],[2.0,2.0],[0.0,3.0],[1.0,3.0]
+                     ]
+            vectors=[[2.0,3.0],[-2.0,3.0]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='S13':
+            rcoords=[[ 0.0, 0.0],[1.0,0.0],[-1.0,0.0],[0.0, 1.0],
+                     [ 0.0,-1.0],[1.0,1.0],[-1.0,1.0],[1.0,-1.0],
+                     [-1.0,-1.0],[2.0,0.0],[-2.0,0.0],[0.0, 2.0],
+                     [ 0.0,-2.0]
+                     ]
+            vectors=[[3.0,2.0],[-2.0,3.0]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        super(Square,self).__init__(name,rcoords,vectors,baths=baths,pieces=pieces)
+
+class Hexagon(Cluster):
     '''
     Cluster of hexagonal lattices.
-
-    Parameters
-    ----------
-    name : 'H2','H4','H6','H8O','H8P','H10','H24','H4A','H4B'
-        The name of the cluster.
-
-    Returns
-    -------
-    Cluster
-        The cluster of hexagonal lattices.
     '''
-    if name not in ['H2','H4','H6','H8O','H8P','H10','H24','H4A','H4B']:
-        raise ValueError('Hexagon error: unexpected name(%s).'%name)
-    rcoords,vectors=[],[]
-    if name=='H2':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([0.0,sqrt(3)/3]))
-        vectors.append(array([1.0,0.0]))
-        vectors.append(array([0.5,sqrt(3)/2]))
-    elif name=='H4':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([0.0,sqrt(3)/3]))
-        rcoords.append(array([0.5,sqrt(3)/2]))
-        rcoords.append(array([0.5,-sqrt(3)/6]))
-        vectors.append(array([1.0,0.0]))
-        vectors.append(array([0.0,sqrt(3.0)]))
-    elif name=='H4A':
-        rcoords.append(array([0.5,-sqrt(3)/6]))
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([0.5,-sqrt(3)/2]))
-        rcoords.append(array([1.0,0.0]))
-    elif name=='H4B':
-        rcoords.append(array([0.5,sqrt(3)/2]))
-        rcoords.append(array([0.0,sqrt(3)/3]))
-        rcoords.append(array([1.0,sqrt(3)/3]))
-        rcoords.append(array([0.5,sqrt(3)*5/6]))
-    elif name=='H6':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([0.0,sqrt(3)/3]))
-        rcoords.append(array([0.5,sqrt(3)/2]))
-        rcoords.append(array([0.5,-sqrt(3)/6]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([1.0,sqrt(3)/3]))
-        vectors.append(array([1.5,sqrt(3)/2]))
-        vectors.append(array([1.5,-sqrt(3)/2]))
-    elif name=='H8P':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([0.0,sqrt(3)/3]))
-        rcoords.append(array([0.5,sqrt(3)/2]))
-        rcoords.append(array([0.5,-sqrt(3)/6]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([1.0,sqrt(3)/3]))
-        rcoords.append(array([0.5,-sqrt(3)/2]))
-        rcoords.append(array([0.5,sqrt(3)*5/6]))
-        vectors.append(array([1.0,sqrt(3)]))
-        vectors.append(array([1.5,-sqrt(3)/2]))
-    elif name=='H8O':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([0.0,sqrt(3)/3]))
-        rcoords.append(array([0.5,sqrt(3)/2]))
-        rcoords.append(array([0.5,-sqrt(3)/6]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([1.0,sqrt(3)/3]))
-        rcoords.append(array([1.5,sqrt(3)/2]))
-        rcoords.append(array([1.5,-sqrt(3)/6]))
-        vectors.append(array([2.0,0.0]))
-        vectors.append(array([0.0,sqrt(3)]))
-    elif name=='H10':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([0.0,sqrt(3)/3]))
-        rcoords.append(array([0.5,sqrt(3)/2]))
-        rcoords.append(array([0.5,-sqrt(3)/6]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([1.0,sqrt(3)/3]))
-        rcoords.append(array([1.5,sqrt(3)/2]))
-        rcoords.append(array([1.5,-sqrt(3)/6]))
-        rcoords.append(array([2.0,0.0]))
-        rcoords.append(array([2.0,sqrt(3)/3]))
-        vectors.append(array([2.5,sqrt(3)/2]))
-        vectors.append(array([0.0,sqrt(3)]))
-    elif name=='H24':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([0.0,sqrt(3)/3]))
-        rcoords.append(array([0.5,sqrt(3)/2]))
-        rcoords.append(array([0.5,-sqrt(3)/6]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([1.0,sqrt(3)/3]))
-        rcoords.append(array([1.5,sqrt(3)/2]))
-        rcoords.append(array([1.5,-sqrt(3)/6]))
-        rcoords.append(array([2.0,0.0]))
-        rcoords.append(array([2.0,sqrt(3)/3]))
-        rcoords.append(array([2.5,sqrt(3)/2]))
-        rcoords.append(array([2.5,-sqrt(3)/6]))
-        rcoords.append(array([3.0,0.0]))
-        rcoords.append(array([3.0,sqrt(3)/3]))
-        rcoords.append(array([0.5,-sqrt(3)/2]))
-        rcoords.append(array([1.0,-sqrt(3)*2/3]))
-        rcoords.append(array([1.5,-sqrt(3)/2]))
-        rcoords.append(array([2.0,-sqrt(3)*2/3]))
-        rcoords.append(array([2.5,-sqrt(3)/2]))
-        rcoords.append(array([0.5,sqrt(3)*5/6]))
-        rcoords.append(array([1.0,sqrt(3)]))
-        rcoords.append(array([1.5,sqrt(3)*5/6]))
-        rcoords.append(array([2.0,sqrt(3)]))
-        rcoords.append(array([2.5,sqrt(3)*5/6]))
-        vectors.append(array([3.0,sqrt(3)]))
-        vectors.append(array([3.0,-sqrt(3)]))
-    return Cluster(name,rcoords,vectors)
+    unit=[[0.0,0.0],[0.0,np.sqrt(3)/3]],[[1.0,0.0],[0.5,np.sqrt(3)/2]]
+    BNBS=np.sqrt(3)/10
 
-def Triangle(name):
+    def __init__(self,name,pieces=False):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        name : 'H2','H4','H6','H6B6','H8O','H8P','H10','H24','H4C','H4CB6C'
+            The name of the cluster.
+        pieces : logical, optional
+            True for generating pieces for the cluster and False for not.
+        '''
+        if name not in ['H2','H4','H6','H6B6','H8O','H8P','H10','H24','H4C','H4CB6C']:
+            raise ValueError('Hexagon __init__ error: unexpected name(%s).'%name)
+        if name=='H2':
+            rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3]]
+            vectors=[[1.0,0.0],[0.5,np.sqrt(3)/2]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='H4':
+            rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3],[0.5,np.sqrt(3)/2],[0.5,-np.sqrt(3)/6]]
+            vectors=[[1.0,0.0],[0.0,np.sqrt(3)]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='H6' or name=='H6B6':
+            rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3],[0.5,np.sqrt(3)/2],[0.5,-np.sqrt(3)/6],
+                     [1.0,0.0],[1.0,np.sqrt(3)/3]
+                     ]
+            vectors=[[1.5,np.sqrt(3)/2],[1.5,-np.sqrt(3)/2]]
+            if name=='H6':
+                baths=None
+                pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            else:
+                baths=[[-0.15,-np.sqrt(3)/20],[-0.15,np.sqrt(3)*23/60],[0.5,np.sqrt(3)*3/5],[0.5,-np.sqrt(3)*4/15],
+                       [ 1.15,-np.sqrt(3)/20],[ 1.15,np.sqrt(3)*23/60]
+                       ]
+                pieces=Pieces((range(len(rcoords)),range(len(baths)))) if pieces else None
+        elif name=='H8P':
+            rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3],[0.5, np.sqrt(3)/2],[0.5, -np.sqrt(3)/6],
+                     [1.0,0.0],[1.0,np.sqrt(3)/3],[0.5,-np.sqrt(3)/2],[0.5,np.sqrt(3)*5/6]
+                     ]
+            vectors=[[1.0,np.sqrt(3)],[1.5,-np.sqrt(3)/2]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='H8O':
+            rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3],[0.5,np.sqrt(3)/2],[0.5,-np.sqrt(3)/6],
+                     [1.0,0.0],[1.0,np.sqrt(3)/3],[1.5,np.sqrt(3)/2],[1.5,-np.sqrt(3)/6]
+                     ]
+            vectors=[[2.0,0.0],[0.0,np.sqrt(3)]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='H10':
+            rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3],[0.5,np.sqrt(3)/2],[0.5,-np.sqrt(3)/6],
+                     [1.0,0.0],[1.0,np.sqrt(3)/3],[1.5,np.sqrt(3)/2],[1.5,-np.sqrt(3)/6],
+                     [2.0,0.0],[2.0,np.sqrt(3)/3]
+                     ]
+            vectors=[[2.5,np.sqrt(3)/2],[0.0,np.sqrt(3)]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='H24':
+            rcoords=[[0.0,          0.0],[0.0,   np.sqrt(3)/3],[0.5, np.sqrt(3)/2],[0.5,  -np.sqrt(3)/6],
+                     [1.0,          0.0],[1.0,   np.sqrt(3)/3],[1.5, np.sqrt(3)/2],[1.5,  -np.sqrt(3)/6],
+                     [2.0,          0.0],[2.0,   np.sqrt(3)/3],[2.5, np.sqrt(3)/2],[2.5,  -np.sqrt(3)/6],
+                     [3.0,          0.0],[3.0,   np.sqrt(3)/3],[0.5,-np.sqrt(3)/2],[1.0,-np.sqrt(3)*2/3],
+                     [1.5,-np.sqrt(3)/2],[2.0,-np.sqrt(3)*2/3],[2.5,-np.sqrt(3)/2],[0.5, np.sqrt(3)*5/6],
+                     [1.0,   np.sqrt(3)],[1.5, np.sqrt(3)*5/6],[2.0,   np.sqrt(3)],[2.5, np.sqrt(3)*5/6]
+                     ]
+            vectors=[[3.0,np.sqrt(3)],[3.0,-np.sqrt(3)]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='H4C' or name=='H4CB6C':
+            rcoords=[[0.5,-np.sqrt(3)/6],[0.0,         0.0],[0.5,-np.sqrt(3)/2],[1.0,           0.0],
+                     [0.5, np.sqrt(3)/2],[0.0,np.sqrt(3)/3],[1.0, np.sqrt(3)/3],[0.5,np.sqrt(3)*5/6]
+                     ]
+            vectors=[[1.0,np.sqrt(3)],[1.5,-np.sqrt(3)/2]]
+            if name=='H4C':
+                baths=None
+                pieces=Pieces(([0,1,2,3],None),([4,5,6,7],None))
+            else:
+                baths=[[ 0.0,  np.sqrt(3)/10],[-0.15,  -np.sqrt(3)/20],[ 0.35,-np.sqrt(3)*11/20],[0.65,-np.sqrt(3)*11/20],
+                       [1.15, -np.sqrt(3)/20],[  1.0,   np.sqrt(3)/10],[-0.15, np.sqrt(3)*23/60],[ 0.0,  np.sqrt(3)*7/30],
+                       [ 1.0,np.sqrt(3)*7/30],[ 1.15,np.sqrt(3)*23/60],[ 0.65, np.sqrt(3)*53/60],[0.35, np.sqrt(3)*53/60]
+                       ]
+                pieces=Pieces(([0,1,2,3],[0,1,2,3,4,5]),([4,5,6,7],[6,7,8,9,10,11]))
+        super(Hexagon,self).__init__(name,rcoords,vectors,baths=baths,pieces=pieces)
+
+class Triangle(Cluster):
     '''
     Cluster of triangular lattices.
-
-    Parameters
-    ----------
-    name : 'T1','T12'
-        The name of the cluster.
-
-    Returns
-    -------
-    Cluster
-        The cluster of triangular lattices.
     '''
-    if name not in ['T1','T3','T12']:
-        raise ValueError('Triangle error: unexpected name(%s).'%name)
-    rcoords,vectors=[],[]
-    if name=='T1':
-        rcoords.append(array([0.0,0.0]))
-        vectors.append(array([1.0,0.0]))
-        vectors.append(array([0.5,sqrt(3)/2]))
-    elif name=='T3':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([0.5,sqrt(3.0)/2]))
-        vectors.append(array([1.5,sqrt(3.0)/2]))
-        vectors.append(array([1.5,-sqrt(3.0)/2]))
-    elif name=='T12':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([2.0,0.0]))
-        rcoords.append(array([3.0,0.0]))
-        rcoords.append(array([0.5,-sqrt(3.0)/2]))
-        rcoords.append(array([1.5,-sqrt(3.0)/2]))
-        rcoords.append(array([2.5,-sqrt(3.0)/2]))
-        rcoords.append(array([1.0,-sqrt(3.0)]))
-        rcoords.append(array([2.0,-sqrt(3.0)]))
-        rcoords.append(array([0.5,sqrt(3.0)/2]))
-        rcoords.append(array([1.5,sqrt(3.0)/2]))
-        rcoords.append(array([2.5,sqrt(3.0)/2]))
-        vectors.append(array([0.0,2*sqrt(3.0)]))
-        vectors.append(array([3.0,sqrt(3.0)]))
-    return Cluster(name,rcoords,vectors)
+    unit=[[0.0,0.0]],[[1.0,0.0],[0.5,np.sqrt(3)/2]]
 
-def Kagome(name):
+    def __init__(self,name,pieces=False):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        name : 'T1','T3','T12'
+            The name of the cluster.
+        pieces : logical, optional
+            True for generating pieces for the cluster and False for not.
+        '''
+        if name not in ['T1','T3','T12']:
+            raise ValueError('Triangle __init__ error: unexpected name(%s).'%name)
+        if name=='T1':
+            rcoords=[[0.0,0.0]]
+            vectors=[[1.0,0.0],[0.5,np.sqrt(3)/2]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='T3':
+            rcoords=[[0.0,0.0],[1.0,0.0],[0.5,np.sqrt(3)/2]]
+            vectors=[[1.5,np.sqrt(3)/2],[1.5,-np.sqrt(3)/2]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='T12':
+            rcoords=[[0.0,          0.0],[1.0,          0.0],[2.0,          0.0],[3.0,         0.0],
+                     [0.5,-np.sqrt(3)/2],[1.5,-np.sqrt(3)/2],[2.5,-np.sqrt(3)/2],[1.0, -np.sqrt(3)],
+                     [2.0,  -np.sqrt(3)],[0.5, np.sqrt(3)/2],[1.5, np.sqrt(3)/2],[2.5,np.sqrt(3)/2]
+                     ]
+            vectors=[[0.0,2*np.sqrt(3)],[3.0,np.sqrt(3)]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        super(Triangle,self).__init__(name,rcoords,vectors,baths=baths,pieces=pieces)
+
+class Kagome(Cluster):
     '''
     Cluster of Kagome lattices.
-
-    Parameters
-    ----------
-    name : 'K3'
-        The name of the cluster.
-
-    Returns
-    -------
-    Cluster
-        The cluster of Kagome lattices.
     '''
-    if name not in ['K3','K9','K12']:
-        raise ValueError('Kagome error: unexpected name(%s).'%name)
-    rcoords,vectors=[],[]
-    if name=='K3':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([0.5,0.0]))
-        rcoords.append(array([0.25,sqrt(3.0)/4]))
-        vectors.append(array([1.0,0.0]))
-        vectors.append(array([0.5,sqrt(3.0)/2]))
-    elif name=='K9':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([0.5,0.0]))
-        rcoords.append(array([0.25,sqrt(3.0)/4]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([1.5,0.0]))
-        rcoords.append(array([1.25,sqrt(3.0)/4]))
-        rcoords.append(array([0.5,sqrt(3.0)/2]))
-        rcoords.append(array([1.0,sqrt(3.0)/2]))
-        rcoords.append(array([0.75,sqrt(3.0)*3/4]))
-        vectors.append(array([1.5,sqrt(3.0)/2]))
-        vectors.append(array([1.5,-sqrt(3.0)/2]))
-    elif name=='K12':
-        rcoords.append(array([0.0,0.0]))
-        rcoords.append(array([0.5,0.0]))
-        rcoords.append(array([0.25,sqrt(3.0)/4]))
-        rcoords.append(array([1.0,0.0]))
-        rcoords.append(array([1.5,0.0]))
-        rcoords.append(array([1.25,sqrt(3.0)/4]))
-        rcoords.append(array([0.5,sqrt(3.0)/2]))
-        rcoords.append(array([1.0,sqrt(3.0)/2]))
-        rcoords.append(array([0.75,sqrt(3.0)*3/4]))
-        rcoords.append(array([1.5,sqrt(3.0)/2]))
-        rcoords.append(array([0.0,sqrt(3.0)/2]))
-        rcoords.append(array([0.75,-sqrt(3.0)/4]))
-        vectors.append(array([2.0,0.0]))
-        vectors.append(array([1.0,sqrt(3.0)]))
-    return Cluster(name,rcoords,vectors)
+    unit=[[0.0,0.0],[0.5,0.0],[0.25,np.sqrt(3.0)/4]],[[1.0,0.0],[0.5,np.sqrt(3)/2]]
+
+    def __init__(self,name,pieces=False):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        name : 'K3','K9','K12'
+            The name of the cluster.
+        pieces : logical, optional
+            True for generating pieces for the cluster and False for not.
+        '''
+        if name not in ['K3','K9','K12']:
+            raise ValueError('Kagome __init__ error: unexpected name(%s).'%name)
+        if name=='K3':
+            rcoords=[[0.0,0.0],[0.5,0.0],[0.25,np.sqrt(3.0)/4]]
+            vectors=[[1.0,0.0],[0.5,np.sqrt(3.0)/2]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='K9':
+            rcoords=[[ 0.0,             0.0],[ 0.5,           0.0],[0.25,np.sqrt(3.0)/4],[1.0,           0.0],
+                     [ 1.5,             0.0],[1.25,np.sqrt(3.0)/4],[ 0.5,np.sqrt(3.0)/2],[1.0,np.sqrt(3.0)/2],
+                     [0.75,np.sqrt(3.0)*3/4]
+                     ]
+            vectors=[[1.5,np.sqrt(3.0)/2],[1.5,-np.sqrt(3.0)/2]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='K12':
+            rcoords=[[ 0.0,             0.0],[ 0.5,           0.0],[0.25,np.sqrt(3.0)/4],[ 1.0,            0.0],
+                     [ 1.5,             0.0],[1.25,np.sqrt(3.0)/4],[ 0.5,np.sqrt(3.0)/2],[ 1.0, np.sqrt(3.0)/2],
+                     [0.75,np.sqrt(3.0)*3/4],[ 1.5,np.sqrt(3.0)/2],[ 0.0,np.sqrt(3.0)/2],[0.75,-np.sqrt(3.0)/4]
+                     ]
+            vectors=[[2.0,0.0],[1.0,np.sqrt(3.0)]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        super(Kagome,self).__init__(name,rcoords,vectors,baths=baths,pieces=pieces)
