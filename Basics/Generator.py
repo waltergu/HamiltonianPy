@@ -158,38 +158,6 @@ class Generator(object):
         return ', '.join(result)
 
     @property
-    def parameters(self):
-        '''
-        The parameters of the generator.
-        '''
-        result=OrderedDict()
-        for term in self.terms['const']:
-            result[term.id]=term.value
-        for term in self.terms['alter']:
-            result[term.id]=term.value
-        return result
-
-    @property
-    def const(self):
-        '''
-        The constant parameters of the generator.
-        '''
-        result=OrderedDict()
-        for term in self.terms['const']:
-            result[term.id]=term.value
-        return result
-
-    @property
-    def alter(self):
-        '''
-        The alterable parameters of the generator.
-        '''
-        result=OrderedDict()
-        for term in self.terms['alter']:
-            result[term.id]=term.value
-        return result
-
-    @property
     def operators(self):
         '''
         This method returns all the generated operators, both constant ones and alterable ones.

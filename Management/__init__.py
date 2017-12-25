@@ -77,6 +77,7 @@ class Manager(object):
         subcommand=self.add_subcommand('add',add)
         subcommand.add_argument('engine',help='The engine to be added to the project.',choices=['tba','ed','vca','dmrg','fbfm'])
         subcommand.add_argument('-s','--system',help="'spin' for spin systems and 'fermi' for fermionic systems.",default='fermi',choices=['spin','fermi'])
+        subcommand.add_argument('-c','--cluster',help="'single' for single cluster and 'multi' for multicluster.",default='single',choices=['single','multi'])
 
     def execute(self):
         '''
@@ -153,7 +154,7 @@ def init(directory,project,authors,email,readme,license,gitignore):
     with open('%s/__init__.py'%sdir,'w') as fout:
         fout.write('from config import *\n')
 
-def add(engine,system):
+def add(engine,**kargs):
     '''
     Add an engine to a project.
 
@@ -161,14 +162,12 @@ def add(engine,system):
     ----------
     engine : 'tba','ed','vca','dmrg','fbfm'
         The engine ot be added.
-    system : 'spin' or 'fermi'
-        'spin' for spin systems and 'fermi' for fermionic systems.
     '''
     if Manager.has_project():
         if not os.path.exists('result/%s'%engine):
             os.makedirs('result/%s'%engine)
         with open('source/%s.py'%engine,'w') as fout:
-            fout.write(getattr(Template,engine)(system))
+            fout.write(getattr(Template,engine)(**kargs))
         with open('source/__init__.py') as fin:
             content=set(fin.readlines())
         with open('source/__init__.py','a+') as fout:

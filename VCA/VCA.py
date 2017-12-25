@@ -4,11 +4,11 @@ Cluster perturbation theory and variational cluster approach
 ============================================================
 
 CPT and VCA, including:
-    * classes: VCA, EB, GPM, CPFF, OP, DTBT
+    * classes: VG, FVCA, EB, GPM, CPFF, OP, DTBT
     * functions: VCAEB, VCADOS, VCAFS, VCABC, VCATEB, VCAGP, VCAGPM, VCACPFF, VCAOP, VCADTBT
 '''
 
-__all__=['VCA','EB','VCAEB','VCADOS','VCAFS','VCABC','VCATEB','VCAGP','GPM','VCAGPM','CPFF','VCACPFF','OP','VCAOP','DTBT','VCADTBT']
+__all__=['VGF','VCA','EB','VCAEB','VCADOS','VCAFS','VCABC','VCATEB','VCAGP','GPM','VCAGPM','CPFF','VCACPFF','OP','VCAOP','DTBT','VCADTBT']
 
 from gf_contract import *
 from numpy.linalg import det,inv
@@ -22,6 +22,7 @@ import HamiltonianPy as HP
 import HamiltonianPy.FreeSystem as TBA
 import HamiltonianPy.Misc as HM
 import HamiltonianPy.ED as ED
+import itertools as it
 import matplotlib.pyplot as plt
 import os
 
@@ -50,6 +51,71 @@ def _gf_contract_(k,mgf,seqs,coords):
     else:
         raise ValueError("_gf_contract_ error: mgf must be of type np.complex64 or np.complex128.")
 
+class VGF(ED.GF):
+    '''
+    VCA single-particle Green's function with baths degrees of freedom.
+
+    Attributes
+    ----------
+    lindices : 1d ndarray
+        The indices of the lattice degrees of freedom.
+    bindices : 1d ndarray
+        The indices of the bath degrees of freedom.
+    '''
+
+    def __init__(self,operators=(),generate=ED.fedspgen,compose=ED.fedspcom,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        operators : list of FLinear, optional
+            The single-particle operators of the Green's function.
+        generate : callable, optional
+            The function that generates the blocks of the Green's function.
+        compose : callable, optional
+            The function that composes the Green's function from its blocks.
+        '''
+        super(VGF,self).__init__(operators=operators,generate=generate,compose=compose,**karg)
+        self.lindices=np.asarray([i for i,operator in enumerate(self.operators) if 'BATH' not in operator.index.scope],dtype=np.int)
+        self.bindices=np.asarray([i for i,operator in enumerate(self.operators) if 'BATH' in operator.index.scope],dtype=np.int)
+
+    def resetopts(self,operators):
+        '''
+        Reset the operators of the Green's function.
+        '''
+        self.operators=operators
+        self.lindices=np.asarray([i for i,operator in enumerate(self.operators) if 'BATH' not in operator.index.scope],dtype=np.int)
+        self.bindices=np.asarray([i for i,operator in enumerate(self.operators) if 'BATH' in operator.index.scope],dtype=np.int)
+
+    @property
+    def loperators(self):
+        '''
+        The lattice single-particle operators.
+        '''
+        return [self.operators[index] for index in self.lindices]
+
+    @property
+    def boperators(self):
+        '''
+        The bath single-particle operators.
+        '''
+        return [self.operators[index] for index in self.bindices]
+
+    @property
+    def nlopt(self):
+        '''
+        The number of lattice single-particle operators.
+        '''
+        return len(self.lindices)
+
+    @property
+    def nbopt(self):
+        '''
+        The number of bath single-particle operators.
+        '''
+        return len(self.bindices)
+
 class VCA(ED.FED):
     '''
     This class implements the algorithm of the variational cluster approach of an electron system.
@@ -71,30 +137,27 @@ class VCA(ED.FED):
         The weiss terms are not included in this list.
     weiss : list of Term
         The Weiss terms of the system.
+    baths : list of Term
+        The bath terms of the system.
     mask : [] or ['nambu']
         * []: using the nambu space and computing the anomalous Green's functions;
         * ['nambu']: not using the nambu space and not computing the anomalous Green's functions.
     dtype : np.float32, np.float64, np.complex64, np.complex128
         The data type of the matrix representation of the Hamiltonian.
-    generator : Generator
-        The generator for the cluster Hamiltonian, including the Weiss terms.
-    pthgenerator : Generator
-        The generator for the perturbation coming from the inter-cluster single-particle terms.
-    ptwgenerator : Generator
-        The generator for the perturbation coming from the Weiss terms.
+    hgenerator,wgenerator,bgenerator : Generator
+        The generator of the original/Weiss/bath part of the cluster Hamiltonian.
+    pthgenerator,ptwgenerator,ptbgenerator : Generator
+        The generator of the original/Weiss/bath part of single-particle perturbation terms.
     operators : Operators
-        The 'half' of the operators for the cluster Hamiltonian, including the Weiss terms.
-    pthoperators : Operators
-        The 'half' of the operators for the perturbation, not including Weiss terms.
-    ptwoperators : Operators
-        The 'half' of the operators for the perturbation of Weiss terms.
+        The 'half' of the operators of the cluster Hamiltonian.
+    pthoperators,ptwoperators,ptboperators : Operators
+        The 'half' of the operators of the original/Weiss/bath part of single-particle perturbation terms.
     periodization : dict
         It contains two entries, the necessary information to restore the translation symmetry broken by the explicit tiling of the original lattice:
         1) 'seqs': 2d ndarray of integers
         2) 'coords': 3d ndarray of floats
     cache : dict
         The cache during the process of calculation, usually to store some meshes.
-
 
     Supported methods:
         =========   ======================================================================================================================
@@ -113,13 +176,13 @@ class VCA(ED.FED):
         =========   ======================================================================================================================
     '''
 
-    def __init__(self,cgf,sectors,cell,lattice,config,terms=(),weiss=(),mask=('nambu',),dtype=np.complex128,**karg):
+    def __init__(self,cgf,sectors,cell,lattice,config,terms=(),weiss=(),baths=(),mask=('nambu',),dtype=np.complex128,**karg):
         '''
         Constructor.
 
         Parameters
         ----------
-        cgf : HP.ED.GF
+        cgf : VGF
             The cluster Green's function.
         sectors : iterable of FBasis
             The occupation number bases of the system.
@@ -133,12 +196,16 @@ class VCA(ED.FED):
             The terms of the system.
         weiss : list of Term, optional
             The Weiss terms of the system.
+        baths : list of Term, optional
+            The bath terms of the system.
         mask : [] or ['nambu']
             * []: using the nambu space and computing the anomalous Green's functions;
             * ['nambu']: not using the nambu space and not computing the anomalous Green's functions.
         dtype : np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
         '''
+        assert isinstance(cgf,VGF)
+        cgf.resetopts(HP.fspoperators(config.table(),lattice))
         self.preload(cgf)
         self.preload(HP.GF(operators=HP.fspoperators(HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map).table(),cell),dtype=cgf.dtype))
         self.sectors={sector.rep:sector for sector in sectors}
@@ -147,27 +214,36 @@ class VCA(ED.FED):
         self.config=config
         self.terms=terms
         self.weiss=weiss
+        self.baths=baths
         self.mask=mask
         self.dtype=dtype
         self.sector=None
-        self.generator=HP.Generator(
-            bonds=      [bond for bond in lattice.bonds if bond.isintracell()],
+        self.hgenerator=HP.Generator(
+            bonds=      [bond for bond in lattice.bonds if bond.isintracell() and 'BATH' not in bond.spoint.pid.scope and 'BATH' not in bond.epoint.pid.scope],
             config=     config,
             table=      config.table(mask=['nambu']),
-            terms=      deepcopy(terms+weiss),
+            terms=      deepcopy(terms),
             dtype=      dtype,
             half=       True
             )
-        self.bcgenerator=HP.Generator(
-            bonds=      [bond for bond in lattice.bonds if not bond.isintracell()],
+        self.wgenerator=HP.Generator(
+            bonds=      [bond for bond in lattice.bonds if 'BATH' not in bond.spoint.pid.scope and 'BATH' not in bond.epoint.pid.scope],
             config=     config,
             table=      config.table(mask=['nambu']),
             terms=      deepcopy(weiss),
             dtype=      dtype,
             half=       True
             )
+        self.bgenerator=HP.Generator(
+            bonds=      [bond for bond in lattice.bonds if 'BATH' in bond.spoint.pid.scope or 'BATH' in bond.epoint.pid.scope],
+            config=     config,
+            table=      config.table(mask=['nambu']),
+            terms=      deepcopy(baths),
+            dtype=      dtype,
+            half=       True
+            )
         self.pthgenerator=HP.Generator(
-            bonds=      [bond for bond in lattice.bonds if not bond.isintracell()],
+            bonds=      [bond for bond in lattice.bonds if not bond.isintracell() and 'BATH' not in bond.spoint.pid.scope and 'BATH' not in bond.epoint.pid.scope],
             config=     config,
             table=      config.table(mask=mask),
             terms=      [deepcopy(term) for term in terms if isinstance(term,HP.Quadratic)],
@@ -175,17 +251,26 @@ class VCA(ED.FED):
             half=       True
             )
         self.ptwgenerator=HP.Generator(
-            bonds=      lattice.bonds,
+            bonds=      [bond for bond in lattice.bonds if 'BATH' not in bond.spoint.pid.scope and 'BATH' not in bond.epoint.pid.scope],
             config=     config,
             table=      config.table(mask=mask),
-            terms=      None if weiss is None else [deepcopy(term)*(-1) for term in weiss],
+            terms=      deepcopy(weiss),
             dtype=      dtype,
             half=       True
             )
-        if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms+weiss))
-        self.operators=self.generator.operators+self.bcgenerator.operators
+        self.ptbgenerator=HP.Generator(
+            bonds=      [bond for bond in lattice.bonds if 'BATH' in bond.spoint.pid.scope or 'BATH' in bond.epoint.pid.scope],
+            config=     config,
+            table=      config.table(mask=mask),
+            terms=      deepcopy(baths),
+            dtype=      dtype,
+            half=       True
+            )
+        if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in it.chain(terms,weiss,baths)))
+        self.operators=self.hgenerator.operators+self.wgenerator.operators+self.bgenerator.operators
         self.pthoperators=self.pthgenerator.operators
         self.ptwoperators=self.ptwgenerator.operators
+        self.ptboperators=self.ptbgenerator.operators
         self.periodize()
         self.cache={}
 
@@ -194,18 +279,18 @@ class VCA(ED.FED):
         Set self.periodization.
         '''
         self.periodization={}
-        cgf,gf=self.apps[self.preloads[0]],self.apps[self.preloads[1]]
+        cgf,gf=self.CGF,self.GF
         groups=[[] for i in xrange(gf.nopt)]
-        for copt in cgf.operators:
+        for index,copt in enumerate(cgf.loperators):
             for i,opt in enumerate(gf.operators):
                 if copt.indices[0].iid==opt.indices[0].iid and HP.issubordinate(copt.rcoord-opt.rcoord,self.cell.vectors):
-                    groups[i].append(copt)
+                    groups[i].append((index,copt))
                     break
-        self.periodization['seqs']=np.zeros((gf.nopt,cgf.nopt/gf.nopt),dtype=np.int64)
-        self.periodization['coords']=np.zeros((gf.nopt,cgf.nopt/gf.nopt,len(gf.operators[0].rcoord)),dtype=np.float64)
+        self.periodization['seqs']=np.zeros((gf.nopt,cgf.nlopt/gf.nopt),dtype=np.int64)
+        self.periodization['coords']=np.zeros((gf.nopt,cgf.nlopt/gf.nopt,len(gf.operators[0].rcoord)),dtype=np.float64)
         for i in xrange(gf.nopt):
-            for j,opt in enumerate(sorted(groups[i],key=lambda operator: operator.seqs[0])):
-                self.periodization['seqs'][i,j]=opt.seqs[0]+1
+            for j,(index,opt) in enumerate(sorted(groups[i],key=lambda entry: entry[0])):
+                self.periodization['seqs'][i,j]=index+1
                 self.periodization['coords'][i,j,:]=opt.rcoord
 
     def matrix(self,sector,reset=True):
@@ -225,10 +310,11 @@ class VCA(ED.FED):
             The matrix representation of the Hamiltonian.
         '''
         if reset:
-            self.generator.set_matrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
-            self.bcgenerator.set_matrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
+            self.hgenerator.set_matrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
+            self.wgenerator.set_matrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
+            self.bgenerator.set_matrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
         self.sector=sector
-        matrix=self.generator.matrix(sector)+self.bcgenerator.matrix(sector)
+        matrix=self.hgenerator.matrix(sector)+self.wgenerator.matrix(sector)+self.bgenerator.matrix(sector)
         return matrix.T+matrix.conjugate()
 
     def update(self,**karg):
@@ -236,30 +322,61 @@ class VCA(ED.FED):
         Update the engine.
         '''
         if len(karg)>0:
-            self.apps[self.preloads[0]].virgin=True
+            self.CGF.virgin=True
             super(ED.ED,self).update(**karg)
             karg=self.data(karg)
-            self.generator.update(**karg)
-            self.bcgenerator.update(**karg)
+            self.hgenerator.update(**karg)
+            self.wgenerator.update(**karg)
+            self.bgenerator.update(**karg)
             self.pthgenerator.update(**karg)
             self.ptwgenerator.update(**karg)
-            self.operators=self.generator.operators+self.bcgenerator.operators
+            self.ptbgenerator.update(**karg)
+            self.operators=self.hgenerator.operators+self.wgenerator.operators+self.bgenerator.operators
             self.pthoperators=self.pthgenerator.operators
             self.ptwoperators=self.ptwgenerator.operators
+            self.ptboperators=self.ptbgenerator.operators
+
+    @property
+    def CGF(self):
+        '''
+        The cluster Green's function.
+        '''
+        return self.apps[self.preloads[0]]
+
+    @property
+    def GF(self):
+        '''
+        The VCA Green's function.
+        '''
+        return self.apps[self.preloads[1]]
 
     @property
     def ncopt(self):
         '''
-        The number of the cluster single particle operators.
+        The number of the single particle operators of the cluster.
         '''
-        return self.apps[self.preloads[0]].nopt
+        return self.CGF.nopt
+
+    @property
+    def nclopt(self):
+        '''
+        The number of the lattice single particle operators of the cluster.
+        '''
+        return self.CGF.nlopt
+
+    @property
+    def ncbopt(self):
+        '''
+        The number of the bath single particle operators of the cluster.
+        '''
+        return self.CGF.nbopt
 
     @property
     def nopt(self):
         '''
-        The number of the unit cell single particle operators.
+        The number of the single particle operators of the unit cell.
         '''
-        return self.apps[self.preloads[1]].nopt
+        return self.GF.nopt
 
     def cgf(self,omega=None):
         '''
@@ -275,7 +392,7 @@ class VCA(ED.FED):
         2d ndarray
             The cluster Green's function.
         '''
-        app=self.apps[self.preloads[0]]
+        app=self.CGF
         if omega is not None:
             app.omega=omega
             if app.virgin:
@@ -286,23 +403,25 @@ class VCA(ED.FED):
 
     def pt(self,k=()):
         '''
-        Returns the matrix form of the inter-cluster perturbations.
+        Returns the matrix form of the perturbations.
 
         Parameters
         ----------
         k : 1d ndarray like, optional
-            The momentum of the inter-cluster perturbations.
+            The momentum of the perturbations.
 
         Returns
         -------
         2d ndarray
-            The matrix form of the inter-cluster perturbations.
+            The matrix form of the perturbations.
         '''
         result=np.zeros((self.ncopt,self.ncopt),dtype=np.complex128)
         for opt in self.pthoperators.itervalues():
             result[opt.seqs]+=opt.value*(1 if len(k)==0 else np.exp(-1j*np.inner(k,opt.icoord)))
         for opt in self.ptwoperators.itervalues():
-            result[opt.seqs]+=opt.value
+            result[opt.seqs]-=opt.value
+        for opt in self.ptboperators.itervalues():
+            result[opt.seqs]-=opt.value
         return result+result.T.conjugate()
 
     def pt_kmesh(self,kmesh):
@@ -345,8 +464,11 @@ class VCA(ED.FED):
         2d ndarray
             The mixed Green's function.
         '''
-        cgf=self.cgf(omega)
-        return cgf.dot(inv(np.identity(cgf.shape[0],dtype=cgf.dtype)-self.pt(k).dot(cgf)))
+        ginv=inv(self.cgf(omega))-self.pt(k)
+        if self.ncbopt==0:
+            return inv(ginv)
+        else:
+            return inv(ginv[self.CGF.lindices,:][:,self.CGF.lindices])
 
     def mgf_kmesh(self,omega,kmesh):
         '''
@@ -365,8 +487,11 @@ class VCA(ED.FED):
         3d ndarray
             The mesh of the mixed Green's functions.
         '''
-        cgf=self.cgf(omega)
-        return np.tensordot(cgf,inv(np.identity(cgf.shape[0],dtype=cgf.dtype)-self.pt_kmesh(kmesh).dot(cgf)),axes=([1],[1])).transpose((1,0,2))
+        ginv=inv(self.cgf(omega))-self.pt_kmesh(kmesh)
+        if self.ncbopt==0:
+            return inv(ginv)
+        else:
+            return inv(ginv[:,self.CGF.lindices,:][:,:,self.CGF.lindices])
 
     def gf(self,omega=None,k=()):
         '''
@@ -384,7 +509,7 @@ class VCA(ED.FED):
         2d ndarray
             The VCA Green's function.
         '''
-        return _gf_contract_(k,self.mgf(omega,k),self.periodization['seqs'],self.periodization['coords'])/(self.ncopt/self.nopt)
+        return _gf_contract_(k,self.mgf(omega,k),self.periodization['seqs'],self.periodization['coords'])/(self.nclopt/self.nopt)
 
     def gf_kmesh(self,omega,kmesh):
         '''
@@ -407,7 +532,7 @@ class VCA(ED.FED):
         result=np.zeros((kmesh.shape[0],self.nopt,self.nopt),dtype=np.complex128)
         for n,k in enumerate(kmesh):
             result[n,:,:]=_gf_contract_(k,mgf_kmesh[n,:,:],self.periodization['seqs'],self.periodization['coords'])
-        return result/(self.ncopt/self.nopt)
+        return result/(self.nclopt/self.nopt)
 
     def totba(self):
         '''
@@ -487,7 +612,7 @@ def VCADOS(engine,app):
     result=np.zeros((app.ne,2))
     for i,omega in enumerate(erange):
         result[i,0]=omega
-        result[i,1]=-np.trace(engine.mgf_kmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).sum().imag/engine.ncopt/nk/np.pi
+        result[i,1]=-np.trace(engine.mgf_kmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).sum().imag/engine.nclopt/nk/np.pi
     engine.log<<'Sum of DOS: %s\n'%(sum(result[:,1])*(app.emax-app.emin)/app.ne)
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
@@ -503,7 +628,7 @@ def VCAFS(engine,app):
     kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
     result=np.zeros((nk,3))
     result[:,0:2]=kmesh
-    result[:,2]=-np.trace(engine.gf_kmesh(app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).imag/engine.ncopt/np.pi
+    result[:,2]=-np.trace(engine.gf_kmesh(app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).imag/engine.nclopt/np.pi
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('P',result.reshape((int(np.sqrt(nk)),int(np.sqrt(nk)),3)),'%s/%s'%(engine.dout,name),axis='equal')
@@ -548,15 +673,15 @@ def VCAGP(engine,app):
     '''
     This method calculates the grand potential.
     '''
-    if app.name in engine.apps: engine.rundependences(app.name)
+    engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
-    cgf,kmesh,nk=engine.apps[engine.preloads[0]],app.BZ.mesh('k'),app.BZ.rank('k')
-    fx=lambda omega: np.log(np.abs(det(np.eye(engine.ncopt)-engine.pt_kmesh(kmesh).dot(engine.cgf(omega=omega*1j+app.mu))))).sum()
-    part1=-quad(fx,0,np.float(np.inf))[0]/np.pi
-    part2=np.trace(engine.pt_kmesh(kmesh),axis1=1,axis2=2).sum().real
-    if np.abs(part2)>HP.RZERO: part2=part2*app.filling
-    gp=(cgf.gse+(part1+part2)/nk)/(engine.ncopt/engine.nopt)/len(engine.cell)
-    engine.log<<'gp(mu): %s(%s)\n\n'%(gp,app.mu)
+    cgf,pt_kmesh,nk=engine.CGF,engine.pt_kmesh(app.BZ.mesh('k')),app.BZ.rank('k')
+    fx=lambda omega: np.log(np.abs(det(np.eye(engine.ncopt)-np.tensordot(pt_kmesh,engine.cgf(omega=omega*1j+app.mu),axes=(2,0))))).sum()
+    rquad=quad(fx,0,np.float(np.inf),full_output=2)
+    part1=-rquad[0]/np.pi
+    part2=np.trace(pt_kmesh,axis1=1,axis2=2).sum().real/2
+    gp=(cgf.gse+(part1+part2)/nk)/(engine.nclopt/engine.nopt)/len(engine.cell)
+    engine.log<<'gp(mu=%s,err=%.2e,neval=%s): %s\n\n'%(HP.decimaltostr(app.mu),rquad[1],rquad[2]['neval'],gp)
     if app.returndata: return gp
 
 class GPM(HP.App):
@@ -665,15 +790,16 @@ def VCACPFF(engine,app):
     engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
     kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
-    fx=lambda omega,mu: (np.trace(engine.mgf_kmesh(omega=mu+1j*omega,kmesh=kmesh),axis1=1,axis2=2)-engine.ncopt/(1j*omega-app.p)).sum().real
+    fx=lambda omega,mu: (np.trace(engine.mgf_kmesh(omega=mu+1j*omega,kmesh=kmesh),axis1=1,axis2=2)-engine.nclopt/(1j*omega-app.p)).sum().real
     if app.task=='CP':
-        gx=lambda mu: quad(fx,0,np.float(np.inf),args=mu)[0]/nk/engine.ncopt/np.pi-app.cf
+        gx=lambda mu: quad(fx,0,np.float(np.inf),args=mu)[0]/nk/engine.nclopt/np.pi-app.cf
         mu=broyden2(gx,app.options.pop('x0',0.0),**app.options)
         engine.log<<'mu(error): %s(%s)\n'%(mu,gx(mu))
         if app.returndata: return mu
     else:
-        filling=quad(fx,0,np.float(np.inf),args=app.cf)[0]/nk/engine.ncopt/np.pi
-        engine.log<<'Filling factor: %s\n'%filling
+        rquad=quad(fx,0,np.float(np.inf),args=app.cf,full_output=2)
+        filling=rquad[0]/nk/engine.nclopt/np.pi
+        engine.log<<'Filling factor(mu=%s,err=%.2e,neval=%s): %s\n'%(HP.decimaltostr(app.cf),rquad[1],rquad[2]['neval'],filling)
         if app.returndata: return filling
 
 class OP(HP.App):
@@ -724,17 +850,18 @@ def VCAOP(engine,app):
     '''
     engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
-    cgf,kmesh,nk=engine.apps[engine.preloads[0]],app.BZ.mesh('k'),app.BZ.rank('k')
-    ops,ms={},np.zeros((len(app.terms),engine.ncopt,engine.ncopt),dtype=np.complex128)
+    cgf,kmesh,nk=engine.CGF,app.BZ.mesh('k'),app.BZ.rank('k')
+    ops,ms={},np.zeros((len(app.terms),engine.nclopt,engine.nclopt),dtype=np.complex128)
+    table=HP.Table([operator.index for operator in cgf.loperators])
     for i,term in enumerate(app.terms):
         order=deepcopy(term)
         order.value=1.0
-        for opt in HP.Generator(engine.lattice.bonds,engine.config,table=engine.config.table(mask=engine.mask),terms=[order],half=True).operators.itervalues():
+        for opt in HP.Generator(engine.lattice.bonds,engine.config,table=table,terms=[order],half=True).operators.itervalues():
             ms[i,opt.seqs[0],opt.seqs[1]]+=opt.value
         ms[i,:,:]+=ms[i,:,:].T.conjugate()
-    fx=lambda omega,m: (np.trace(engine.mgf_kmesh(omega=app.mu+1j*omega,kmesh=kmesh).dot(m),axis1=1,axis2=2)-np.trace(m)/(1j*omega-app.p)).sum().real
+    fx=lambda omega,m: (np.trace(np.tensordot(engine.mgf_kmesh(omega=app.mu+1j*omega,kmesh=kmesh),m,axes=(2,0)),axis1=1,axis2=2)-np.trace(m)/(1j*omega-app.p)).sum().real
     for term,m,dtype in zip(app.terms,ms,app.dtypes):
-        ops[term.id]=quad(fx,0,np.float(np.inf),args=m)[0]/nk/engine.ncopt*2/np.pi
+        ops[term.id]=quad(fx,0,np.float(np.inf),args=m)[0]/nk/engine.nclopt*2/np.pi
         if dtype in (np.float32,np.float64): ops[term.id]=ops[term.id].real
     engine.log<<HP.Sheet(corner='Order',rows=['Value'],cols=ops.keys(),contents=np.array(ops.values()).reshape((1,-1)))<<'\n'
     if app.returndata: return ops

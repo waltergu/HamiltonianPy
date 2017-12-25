@@ -200,9 +200,9 @@ class Cluster(object):
                     neighbours=     neighbours
                     )
             bath=Lattice(
-                    name=           '%s-B'%self.name,
-                    pids=           [PID('%s-B'%cluster.name,i) for i in xrange(len(cluster.baths))] if cluster.pieces is None else
-                                    [PID('%s-B%s'%(cluster.name,i),j) for i in xrange(len(cluster.pieces)) for j in xrange(len(cluster.pieces.baths[i]))],
+                    name=           '%s-BATH'%self.name,
+                    pids=           [PID('%s-BATH'%cluster.name,i) for i in xrange(len(cluster.baths))] if cluster.pieces is None else
+                                    [PID('%s-BATH%s'%(cluster.name,i),j) for i in xrange(len(cluster.pieces)) for j in xrange(len(cluster.pieces.baths[i]))],
                     rcoords=        cluster.baths,
                     neighbours=     0
                     )
@@ -246,8 +246,8 @@ class Cluster(object):
                     neighbours=     neighbours
                     )
             bath=Lattice(
-                    name=           '%s%s-B%s'%(self.name,'' if self.tiles is None else '(%s)'%('-'.join(str(tile) for tile in self.tiles)),index),
-                    pids=           [PID('%s-B%s'%(self.name,index),i) for i in xrange(len(self.pieces.baths[index]))],
+                    name=           '%s%s-BATH%s'%(self.name,'' if self.tiles is None else '(%s)'%('-'.join(str(tile) for tile in self.tiles)),index),
+                    pids=           [PID('%s-BATH%s'%(self.name,index),i) for i in xrange(len(self.pieces.baths[index]))],
                     rcoords=        self.baths[self.pieces.baths[index]],
                     neighbours= 0
                     )
@@ -372,12 +372,12 @@ class Square(Cluster):
 
         Parameters
         ----------
-        name : 'S1','S2x','S2y','S4','S4B8','S10','S12','S13'
+        name : 'S1','S2x','S2y','S4','S4B4','S4B8','S8','S10','S12','S13'
             The name of the cluster.
         pieces : logical, optional
             True for generating pieces for the cluster and False for not.
         '''
-        if name not in ['S1','S2x','S2y','S4','S4B8','S10','S12','S13']:
+        if name not in ['S1','S2x','S2y','S4','S4B4','S4B8','S8','S10','S12','S13']:
             raise ValueError('Square __init__ error: unexpected name(%s).'%name)
         if name=='S1':
             rcoords=[[0.0,0.0]]
@@ -394,16 +394,29 @@ class Square(Cluster):
             vectors=[[1.0,0.0],[0.0,2.0]]
             baths=None
             pieces=Pieces((range(len(rcoords)),None)) if pieces else None
-        elif name=='S4' or name=='S4B8':
+        elif name=='S4' or name=='S4B4' or name=='S4B8':
             rcoords=[[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0]]
             vectors=[[2.0,0.0],[0.0,2.0]]
             if name=='S4':
                 baths=None
                 pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            elif name=='S4B4':
+                baths=[[-np.sqrt(2)*3/20, -np.sqrt(2)*3/20],[np.sqrt(2)*3/20+1, -np.sqrt(2)*3/20],
+                       [-np.sqrt(2)*3/20,np.sqrt(2)*3/20+1],[np.sqrt(2)*3/20+1,np.sqrt(2)*3/20+1]
+                       ]
+                pieces=Pieces((range(len(rcoords)),range(len(baths)))) if pieces else None
             else:
                 baths=[[-0.3,0.0],[0.0,-0.3],[1.0,-0.3],[ 1.3,0.0],
-                       [ 1.3,1.0],[1.0, 1.3],[0.0, 1.3],[-0.3,1.0]]
+                       [ 1.3,1.0],[1.0, 1.3],[0.0, 1.3],[-0.3,1.0]
+                       ]
                 pieces=Pieces((range(len(rcoords)),range(len(baths)))) if pieces else None
+        elif name=='S8':
+            rcoords=[[0.0,0.0],[1.0,0.0],[2.0,0.0],[1.0,-1.0],
+                     [0.0,1.0],[1.0,1.0],[2.0,1.0],[1.0, 2.0]
+                     ]
+            vectors=[[2.0,2.0],[2.0,-2.0]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
         elif name=='S10':
             rcoords=[[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0],
                      [0.0,2.0],[2.0,1.0],[1.0,2.0],[2.0,2.0],
@@ -444,18 +457,22 @@ class Hexagon(Cluster):
 
         Parameters
         ----------
-        name : 'H2','H4','H6','H6B6','H8O','H8P','H10','H24','H4C','H4CB6C'
+        name : 'H2','H2B4','H4','H6','H6B6','H8O','H8P','H10','H24','H4C','H4CB6C'
             The name of the cluster.
         pieces : logical, optional
             True for generating pieces for the cluster and False for not.
         '''
-        if name not in ['H2','H4','H6','H6B6','H8O','H8P','H10','H24','H4C','H4CB6C']:
+        if name not in ['H2','H2B4','H4','H6','H6B6','H8O','H8P','H10','H24','H4C','H4CB6C']:
             raise ValueError('Hexagon __init__ error: unexpected name(%s).'%name)
-        if name=='H2':
+        if name=='H2' or name=='H2B4':
             rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3]]
             vectors=[[1.0,0.0],[0.5,np.sqrt(3)/2]]
-            baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            if name=='H2':
+                baths=None
+                pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            else:
+                baths=[[-0.15,-np.sqrt(3)/20],[0.15,-np.sqrt(3)/20],[0.15,np.sqrt(3)*23/60],[-0.15,np.sqrt(3)*23/60]]
+                pieces=Pieces((range(len(rcoords)),range(len(baths)))) if pieces else None
         elif name=='H4':
             rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3],[0.5,np.sqrt(3)/2],[0.5,-np.sqrt(3)/6]]
             vectors=[[1.0,0.0],[0.0,np.sqrt(3)]]

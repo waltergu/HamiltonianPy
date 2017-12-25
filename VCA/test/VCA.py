@@ -16,7 +16,7 @@ def test_vca():
     cell=Square('S1')('1P-1P',1)
     lattice=Square('S1')('%sP-%sP'%(m,n),1)
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1))
-    cgf=ED.FGF(operators=fspoperators(config.table(),lattice),nstep=200,prepare=ED.EDGFP,savedata=False,run=ED.EDGF)
+    cgf=VCA.VGF(nstep=200,prepare=ED.EDGFP,savedata=False,run=ED.EDGF)
     vca=VCA.VCA(
             name=       'WG-%s-%s'%(lattice.name,basis.rep),
             cgf=        cgf,

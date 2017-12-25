@@ -349,7 +349,7 @@ class BGF(object):
                 ts=time.time()
                 while lanczos.niter<lanczos.maxiter and not lanczos.stop:
                     lanczos.iter()
-                    Qs[i,:,lanczos.niter-1]=vecs.dot(lanczos.vectors[lanczos.niter-1])
+                    if lanczos.niter>0: Qs[i,:,lanczos.niter-1]=vecs.dot(lanczos.vectors[lanczos.niter-1])
                 te=time.time()
                 if log: log<<'%s%s%s'%('\b'*30 if i>0 else '',('%s/%s(%.2es/%.3es)'%(i+1,len(Qs),te-ts,te-t0)).center(30),'\b'*30 if i==len(Qs)-1 else '')
         elif self.method=='B':
@@ -401,11 +401,12 @@ class BGF(object):
             self.data['Qs']=np.zeros(Qs.shape,dtype=Qs.dtype)
             self.data['QTs']=np.zeros((Qs.shape[0],Qs.shape[2]),dtype=Qs.dtype)
             for i,(lcz,Q) in enumerate(zip(lczs,Qs)):
-                E,V=sl.eigh(lcz.T,eigvals_only=False)
-                self.data['niters'][i]=lcz.niter
-                self.data['Lambdas'][i,0:lcz.niter]=sign*(E-gse)
-                self.data['Qs'][i,:,0:lcz.niter]=Q[:,0:lcz.niter].dot(V)
-                self.data['QTs'][i,0:lcz.niter]=lcz.P[0,0]*V[0,:].conjugate()
+                if lcz.niter>0:
+                    E,V=sl.eigh(lcz.T,eigvals_only=False)
+                    self.data['niters'][i]=lcz.niter
+                    self.data['Lambdas'][i,0:lcz.niter]=sign*(E-gse)
+                    self.data['Qs'][i,:,0:lcz.niter]=Q[:,0:lcz.niter].dot(V)
+                    self.data['QTs'][i,0:lcz.niter]=lcz.P[0,0]*V[0,:].conjugate()
         else:
             lanczos=self.controllers['lanczos']
             E,V=sl.eigh(lanczos.T,eigvals_only=False)

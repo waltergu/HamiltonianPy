@@ -195,7 +195,7 @@ class Quadratic(Term):
                 edgr,sdgr=config[bond.epoint.pid],config[bond.spoint.pid]
                 for fpack in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
                     if not hasattr(fpack,'atoms') or (edgr.atom,sdgr.atom)==fpack.atoms:
-                        result.append('qd:%s*%s'%(decimaltostr(value,Term.NDECIMAL),fpack.tostr(mask=('atoms',),form='repr')))
+                        result.append('%s:%s*%s'%(self.mode,decimaltostr(value,Term.NDECIMAL),fpack.tostr(mask=('atoms',),form='repr')))
         return '\n'.join(result)
 
 def Hopping(id,value,neighbour=1,atoms=None,orbitals=None,spins=None,indexpacks=None,amplitude=None,modulate=None):

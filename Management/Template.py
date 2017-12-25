@@ -168,16 +168,14 @@ from config import *
 
 __all__=['vcaconstruct']
 
-def vcaconstruct(parameters,sectors,cell,lattice,terms,weiss,mask=['nambu'],**karg):
+def vcaconstruct(parameters,sectors,cell,lattice,terms,weiss,baths=(),mask=['nambu'],**karg):
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=idfmap)
-    # edit the value of nstep if needed
-    cgf=ED.FGF(operators=fspoperators(config.table(),lattice),nstep=150,method='S',prepare=ED.EDGFP,run=ED.EDGF)
     vca=VCA.VCA(
         dlog=       'log',
         din=        'data',
         dout=       'result/vca',
-        cgf=        cgf,
         name=       '%s_%s_%s'%(name,lattice.name,'_'.join(sector.rep for sector in sectors)),
+        cgf=        ED.FGF(nstep=150,method='S',prepare=ED.EDGFP,run=ED.EDGF),
         parameters= parameters,
         map=        parametermap,
         sectors=    sectors,
@@ -186,10 +184,43 @@ def vcaconstruct(parameters,sectors,cell,lattice,terms,weiss,mask=['nambu'],**ka
         config=     config,
         terms=      [term(**parameters) for term in terms],
         weiss=      [term(**parameters) for term in weiss],
+        baths=      [term(**parameters) for term in baths],
         mask=       mask,
         dtype=      np.complex128
         )
     return vca
+"""
+
+vcacct_template="""\
+import numpy as np
+import HamiltonianPy.ED as ED
+import HamiltonianPy.VCA as VCA
+from HamiltonianPy import *
+from config import *
+
+__all__=['vcacctconstruct']
+
+def vcacctconstruct(parameters,cell,lattice,terms,weiss,baths=(),subsystems=(),mask=['nambu'],**karg):
+    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=idfmap)
+    vcacct=VCA.VCACCT(
+        dlog=       'log',
+        din=        'data',
+        dout=       'result/vca',
+        name=       '%s_%s'%(name,lattice.name),
+        cgf=        ED.FGF(nstep=150,method='S',prepare=VCA.VCACCTGFP,run=VCA.VCACCTGF),
+        parameters= parameters,
+        map=        parametermap,
+        cell=       cell,
+        lattice=    lattice,
+        config=     config,
+        terms=      [term(**parameters) for term in terms],
+        weiss=      [term(**parameters) for term in weiss],
+        baths=      [term(**parameters) for term in baths],
+        subsystems= subsystems,
+        mask=       mask,
+        dtype=      np.complex128
+        )
+    return vcacct
 """
 
 dmrg_template="""\
@@ -260,8 +291,8 @@ def license(authors): return license_template.format(year=datetime.datetime.now(
 def gitignore(): return gitignore_template
 def manager(): return manager_template
 def config(): return config_template
-def tba(*arg): return tba_template
-def ed(system): return sed_template if system=='spin' else fed_template
-def vca(*arg): return vca_template
-def dmrg(system): return dmrg_template.format(system='SPIN' if system=='spin' else 'FERMIONIC',mask='' if system=='spin' else 'nambu')
-def fbfm(*arg): return fbfm_template
+def tba(**karg): return tba_template
+def ed(**karg): return sed_template if karg['system']=='spin' else fed_template
+def vca(**karg): return vca_template if karg['cluster']=='single' else vcacct_template
+def dmrg(**karg): return dmrg_template.format(system='SPIN' if karg['system']=='spin' else 'FERMIONIC',mask='' if karg['system']=='spin' else 'nambu')
+def fbfm(**karg): return fbfm_template

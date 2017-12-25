@@ -159,6 +159,34 @@ class Engine(object):
         self.add(app)
         self.preloads.append(app.name)
 
+    def run(self,name,clock=True):
+        '''
+        This method run an app already added to the engine.
+
+        Parameters
+        ----------
+        name : str
+            The name of the app to be run.
+        '''
+        def _run_(engine,app):
+            match=app.parameters.match(engine.parameters)
+            if app.virgin or not match:
+                if not match: engine.update(**app.parameters)
+                if app.prepare is not None: app.prepare(engine,app)
+                if app.run is not None: engine.records[app.name]=app.run(engine,app)
+                app.virgin=False
+                app.update(**engine.parameters)
+                app.parameters.update(engine.parameters)
+        app=self.apps[name]
+        self.log.open()
+        if clock:
+            self.clock.add(name=app.name)
+            with self.clock.get(app.name): _run_(self,app)
+            self.log<<'App %s(%s): time consumed %ss.\n\n'%(app.name,app.__class__.__name__,self.clock.time(app.name))
+        else:
+            _run_(self,app)
+        self.log.close()
+
     def register(self,app):
         '''
         This method register a new app on the engine.
@@ -169,19 +197,7 @@ class Engine(object):
             The app to be registered on this engine.
         '''
         self.add(app)
-        self.log.open()
-        self.clock.add(name=app.name)
-        with self.clock.get(app.name):
-            match=app.parameters.match(self.parameters)
-            if app.virgin or not match:
-                if not match: self.update(**app.parameters)
-                if app.prepare is not None: app.prepare(self,app)
-                if app.run is not None: self.records[app.name]=app.run(self,app)
-                app.virgin=False
-                app.update(**self.parameters)
-                app.parameters.update(self.parameters)
-        self.log<<'App %s(%s): time consumed %ss.\n\n'%(app.name,app.__class__.__name__,self.clock.time(app.name))
-        self.log.close()
+        self.run(app.name,clock=True)
 
     def rundependences(self,name):
         '''
