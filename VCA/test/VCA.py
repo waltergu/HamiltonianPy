@@ -31,7 +31,7 @@ def test_vca():
             )
     vca.add(GP(name='GP',mu=U/2,BZ=square_bz(reciprocals=lattice.reciprocals,nk=100),run=VCA.VCAGP))
     vca.register(VCA.GPM(name='afm-1',BS=BaseSpace(('afm',np.linspace(0.0,0.3,16))),dependences=['GP'],savedata=False,run=VCA.VCAGPM))
-    vca.register(VCA.GPM(name='afm-2',BS={'afm':0.1},options={'method':'BFGS','options':{'disp':True}},dependences=['GP'],savedata=False,run=VCA.VCAGPM))
+    vca.register(VCA.GPM(name='afm-2',BS={'afm':0.1},options={'tol':10**-4},dependences=['GP'],savedata=False,run=VCA.VCAGPM))
     vca.register(VCA.EB(name='EB',parameters={'afm':0.20},path=square_gxm(nk=100),mu=U/2,emax=6.0,emin=-6.0,eta=0.05,ne=400,savedata=False,run=VCA.VCAEB))
     vca.register(DOS(name='DOS',parameters={'afm':0.20},BZ=KSpace(reciprocals=lattice.reciprocals,nk=20),mu=U/2,emin=-10,emax=10,ne=400,eta=0.05,savedata=False,run=VCA.VCADOS))
     vca.register(FS(name='FS',parameters={'afm':0.20},mu=U/2,BZ=square_bz(nk=100),savedata=False,run=VCA.VCAFS))

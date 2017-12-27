@@ -691,40 +691,31 @@ class GPM(HP.App):
     Attributes
     ----------
     BS : BaseSpace or dict
-        * BaseSpace: the basespace on which to compute the grand potential;
+        * BaseSpace: the basespace on which to compute the grand potential
         * dict: the initial guess in the basespace.
-    job : 'min','der'
-        * 'min': minimize the grand potential
-        * 'der': derivate the grand potential
     options : dict
-        The extra parameters to help handle the job.
-            * job=='min': passed to scipy.optimize.minimize, please refer to http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html for details.
-            * job=='der': entry 'nder', the number of derivates to calculates.
+        The extra options.
+            * BS is BaseSpace: entry 'nder','minormax'
+            * BS is dict: entry 'tol','rate','maxiter'
     '''
 
-    def __init__(self,BS,job='min',options={},**karg):
+    def __init__(self,BS,options={},**karg):
         '''
         Constructor.
 
         Parameters
         ----------
         BS : BaseSpace or dict
-            * BaseSpace: the basespace on which to compute the grand potential;
+            * BaseSpace: the basespace on which to compute the grand potential
             * dict: the initial guess in the basespace.
-        job : 'min','der', optional
-            * 'min': minimize the grand potential
-            * 'der': derivate the grand potential
         options : dict, optional
-            The extra parameters to help handle the job.
-                * job=='min': the optional parameters passed to scipy.optimize.minimize.
-                * job=='der': entry 'nder', the number of derivates to calculates.
+            The extra options.
+                * BS is BaseSpace: entry 'nder','minormax'
+                * BS is dict: entry 'tol','rate','maxiter'
         '''
-        self.BS=BS
-        self.job=job
-        assert job in ('min','der')
         assert isinstance(BS,HP.BaseSpace) or isinstance(BS,dict)
-        if job=='min': self.options={'method':options.get('method',None),'options':options.get('options',None)} if isinstance(BS,dict) else {'mode':'+'}
-        if job=='der': self.options={'mode':'+','nder':options.get('nder',2)}
+        self.BS=BS
+        self.options=options
 
 def VCAGPM(engine,app):
     '''
@@ -736,25 +727,26 @@ def VCAGPM(engine,app):
         engine.rundependences(app.name)
         return engine.records[app.dependences[0]]
     if isinstance(app.BS,HP.BaseSpace):
-        mode,nbs,nder=app.options.get('mode','+'),len(app.BS.tags),app.options.get('nder',0)
-        if app.job=='der' or app.plot: assert mode=='+' or nbs==1
-        result=np.zeros((app.BS.rank(0),nder+2)) if mode=='+' else np.zeros((np.product([app.BS.rank(i) for i in xrange(nbs)]),nbs+nder+1))
+        mode,nbs,nder,minormax='+',len(app.BS.tags),app.options.get('nder',0),app.options.get('minormax','min')
+        result=np.zeros((app.BS.rank(0),nbs+nder+1))
         for i,paras in enumerate(app.BS(mode)):
-            result[i,0:(1 if mode=='+' else nbs)]=paras.values()[0] if mode=='+' else np.array(paras.values())
-            result[i,1 if mode=='+' else nbs]=gp(paras.values(),paras.keys())
-        if app.job=='der': result[:,2:]=HM.derivatives(result[:,0],result[:,1],ders=range(1,nder+1)).T
-        index=np.argmin(result[:,-1]) if app.job=='min' else np.argmax(np.abs(result[:,-1]))
-        engine.log<<'Summary:\n%s\n'%HP.Sheet(cols=app.BS.tags+['value'],contents=np.append(result[index,0:nbs],result[index,-1]).reshape((1,-1)))
+            result[i,0:nbs]=np.array(paras.values())
+            result[i,nbs]=gp(paras.values(),paras.keys())
+        result[:,nbs+1:]=HM.derivatives(result[:,0],result[:,nbs],ders=range(1,nder+1)).T
+        index=np.argmin(result[:,-1]) if minormax=='min' else np.argmax(result[:,-1]) if minormax=='max' else np.argmax(np.abs(result[:,-1]))
+        engine.log<<'Summary:\n%s\n'%HP.Sheet(
+                                cols=           app.BS.tags+['%sgp'%('' if nder==0 else '%s der of '%HP.original(nder-1))],
+                                contents=       np.append(result[index,0:nbs],result[index,-1]).reshape((1,-1))
+                                )
         name='%s_%s'%(engine.tostr(mask=app.BS.tags),app.name)
         if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
         if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name),interpolate=True,legend=['%sgp'%('%s der of '%HP.ordinal(k-1) if k>0 else '') for k in xrange(nder+1)])
         if app.returndata: return result
     else:
-        assert app.job=='min'
-        result=minimize(gp,app.BS.values(),args=(app.BS.keys()),**app.options)
-        engine.log<<'Summary:\n%s\n'%HP.Sheet(cols=app.BS.keys()+['value'],contents=np.append(result.x,result.fun).reshape((1,-1)))
-        if app.savedata: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.tostr(mask=app.BS.keys()),app.name),np.append(result.x,result.fun))
-        if app.returndata: return {key:value for key,value in zip(app.BS.keys(),result.x)},result.fun
+        xs,f,err,niter=HM.fstable(gp,app.BS.values(),args=(app.BS.keys(),),**app.options)
+        engine.log<<'Summary:\n%s\n'%HP.Sheet(cols=app.BS.keys()+['gp','xerr','niter'],contents=np.append(xs,[f,err,niter]).reshape((1,-1)))
+        if app.savedata: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.tostr(mask=app.BS.keys()),app.name),np.append(xs,f))
+        if app.returndata: return {key:value for key,value in zip(app.BS.keys(),xs)},f
 
 class CPFF(HP.CPFF):
     '''
