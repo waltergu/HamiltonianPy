@@ -699,7 +699,7 @@ class GPM(HP.App):
             * BS is dict: entry 'tol','rate','maxiter'
     '''
 
-    def __init__(self,BS,options={},**karg):
+    def __init__(self,BS,options=None,**karg):
         '''
         Constructor.
 
@@ -715,7 +715,7 @@ class GPM(HP.App):
         '''
         assert isinstance(BS,HP.BaseSpace) or isinstance(BS,dict)
         self.BS=BS
-        self.options=options
+        self.options={} if options is None else options
 
 def VCAGPM(engine,app):
     '''
@@ -760,7 +760,7 @@ class CPFF(HP.CPFF):
         Extra options.
     '''
 
-    def __init__(self,p=1.0,options={},**karg):
+    def __init__(self,p=1.0,options=None,**karg):
         '''
         Constructor.
 
@@ -773,7 +773,7 @@ class CPFF(HP.CPFF):
         '''
         super(CPFF,self).__init__(**karg)
         self.p=p
-        self.options=options
+        self.options={} if options is None else options
 
 def VCACPFF(engine,app):
     '''
