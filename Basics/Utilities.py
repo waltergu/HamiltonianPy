@@ -309,10 +309,10 @@ class Timers(Tree):
             parents=[parent for parent in self.expand(mode=Tree.WIDTH,return_form=Tree.NODE) if not self.is_leaf(parent)]
         if hasattr(self,'piecharts'):
             for parent in parents:
-                fractions=[self[child].records[-1]/self[parent].records[-1] for child in self.children(parent)]
+                fractions=[self[child].records[-1]/(self[parent].records[-1]+RZERO) for child in self.children(parent)]
                 update(self.piecharts[(parent,'s')],fractions+[1.0-sum(fractions)])
                 if form=='c':
-                    fractions=[self.time(child)/self.time(parent) for child in self.children(parent)]
+                    fractions=[self.time(child)/(self.time(parent)+RZERO) for child in self.children(parent)]
                     update(self.piecharts[(parent,'c')],fractions+[1.0-sum(fractions)])
         else:
             self.piecharts={}
@@ -322,12 +322,12 @@ class Timers(Tree):
                 axes[i,0].axis('equal')
                 axes[i,0].set_title(parent)
                 labels=self.children(parent)
-                fractions=[self[child].records[-1]/self[parent].records[-1] for child in labels]
+                fractions=[self[child].records[-1]/(self[parent].records[-1]+RZERO) for child in labels]
                 self.piecharts[(parent,'s')]=axes[i,0].pie(fractions+[1.0-sum(fractions)],labels=labels+['others'],autopct='%1.1f%%')
                 if form=='c':
                     axes[i,1].axis('equal')
                     axes[i,1].set_title('%s (%s)'%(parent,'Acc.'))
-                    fractions=[self.time(child)/self.time(parent) for child in labels]
+                    fractions=[self.time(child)/(self.time(parent)+RZERO) for child in labels]
                     self.piecharts[(parent,'c')]=axes[i,1].pie(fractions+[1.0-sum(fractions)],labels=labels+['others'],autopct='%1.1f%%')
         plt.pause(10**-6)
 
@@ -501,8 +501,8 @@ class Sheet(object):
             The index of the input entry.
         '''
         try:
-            if len(self.rows)==1: return (0,self.colindex(entry))
-            if len(self.cols)==1: return (self.rowindex(entry),0)
+            if len(self.rows)==1: return 0,self.colindex(entry)
+            if len(self.cols)==1: return self.rowindex(entry),0
         except ValueError:
             pass
         assert isinstance(entry,tuple) and len(entry)==2
