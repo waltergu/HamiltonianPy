@@ -24,6 +24,9 @@ build/
 data/
 log/
 
+# pycharm
+.idea/
+
 # tex
 *.aux
 *.bak
