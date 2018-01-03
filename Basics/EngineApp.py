@@ -175,8 +175,6 @@ class Engine(object):
                 if app.prepare is not None: app.prepare(engine,app)
                 if app.run is not None: engine.records[app.name]=app.run(engine,app)
                 app.virgin=False
-                app.update(**engine.parameters)
-                app.parameters.update(engine.parameters)
         app=self.apps[name]
         self.log.open()
         if clock:
@@ -213,7 +211,6 @@ class Engine(object):
             match=self.parameters.match(app.parameters)
             if app.virgin or not match:
                 app.update(**self.parameters)
-                app.parameters.update(self.parameters)
                 if app.prepare is not None: app.prepare(self,app)
                 if app.run is not None: self.records[app.name]=app.run(self,app)
                 app.virgin=False
@@ -295,6 +292,7 @@ class App(object):
             for key,value in self.map(karg).iteritems():
                 assert hasattr(self,key)
                 setattr(self,key,value)
+        self.parameters.update(karg)
 
     def figure(self,mode,data,name,**options):
         '''

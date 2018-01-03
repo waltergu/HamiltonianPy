@@ -659,8 +659,8 @@ class Lattice(object):
         self.reciprocals=reciprocals(vectors)
         self.neighbours=neighbours if isinstance(neighbours,dict) else {i:length for i,length in enumerate(minimumlengths(rcoords,vectors,neighbours,Lattice.ZMAX))}
 
-    @classmethod
-    def compose(cls,name,points=(),vectors=(),neighbours=1):
+    @staticmethod
+    def compose(name,points=(),vectors=(),neighbours=1):
         '''
         Construct a lattice from its contained points.
 
@@ -689,8 +689,8 @@ class Lattice(object):
                     neighbours=     neighbours
                     )
 
-    @classmethod
-    def merge(self,name,sublattices,vectors=(),neighbours=1):
+    @staticmethod
+    def merge(name,sublattices,vectors=(),neighbours=1):
         '''
         Merge sublattices into a new lattice.
 
@@ -725,7 +725,7 @@ class Lattice(object):
         '''
         return len(self.pids)
 
-    def __repr____(self):
+    def __repr__(self):
         '''
         Convert an instance to string.
         '''

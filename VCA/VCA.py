@@ -139,9 +139,9 @@ class VCA(ED.FED):
         The Weiss terms of the system.
     baths : list of Term
         The bath terms of the system.
-    mask : [] or ['nambu']
-        * []: using the nambu space and computing the anomalous Green's functions;
-        * ['nambu']: not using the nambu space and not computing the anomalous Green's functions.
+    mask : () or ('nambu',)
+        * (): using the nambu space and computing the anomalous Green's functions;
+        * ('nambu',): not using the nambu space and not computing the anomalous Green's functions.
     dtype : np.float32, np.float64, np.complex64, np.complex128
         The data type of the matrix representation of the Hamiltonian.
     hgenerator,wgenerator,bgenerator : Generator
@@ -198,9 +198,9 @@ class VCA(ED.FED):
             The Weiss terms of the system.
         baths : list of Term, optional
             The bath terms of the system.
-        mask : [] or ['nambu']
-            * []: using the nambu space and computing the anomalous Green's functions;
-            * ['nambu']: not using the nambu space and not computing the anomalous Green's functions.
+        mask : () or ('nambu',), optional
+            * (): using the nambu space and computing the anomalous Green's functions;
+            * ('nambu',): not using the nambu space and not computing the anomalous Green's functions.
         dtype : np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
         '''
@@ -221,7 +221,7 @@ class VCA(ED.FED):
         self.hgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if bond.isintracell() and 'BATH' not in bond.spoint.pid.scope and 'BATH' not in bond.epoint.pid.scope],
             config=     config,
-            table=      config.table(mask=['nambu']),
+            table=      config.table(mask=('nambu',)),
             terms=      deepcopy(terms),
             dtype=      dtype,
             half=       True
@@ -229,7 +229,7 @@ class VCA(ED.FED):
         self.wgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if 'BATH' not in bond.spoint.pid.scope and 'BATH' not in bond.epoint.pid.scope],
             config=     config,
-            table=      config.table(mask=['nambu']),
+            table=      config.table(mask=('nambu',)),
             terms=      deepcopy(weiss),
             dtype=      dtype,
             half=       True
@@ -237,7 +237,7 @@ class VCA(ED.FED):
         self.bgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if 'BATH' in bond.spoint.pid.scope or 'BATH' in bond.epoint.pid.scope],
             config=     config,
-            table=      config.table(mask=['nambu']),
+            table=      config.table(mask=('nambu',)),
             terms=      deepcopy(baths),
             dtype=      dtype,
             half=       True
@@ -535,9 +535,19 @@ class VCA(ED.FED):
             result[n,:,:]=_gf_contract_(k,mgf_kmesh[n,:,:],self.periodization['seqs'],self.periodization['coords'])
         return result/(self.nclopt/self.nopt)
 
-    def totba(self):
+    def totba(self,weisson=False):
         '''
         Convert the free part of the system to tba.
+
+        Parameters
+        ----------
+        weisson : logical, optional
+            True for including the weiss terms in the converted tba and False for not.
+
+        Returns
+        -------
+        TBA
+            The converted tba.
         '''
         return TBA.TBA(
             dlog=       self.log.dir,
@@ -546,9 +556,9 @@ class VCA(ED.FED):
             name=       self.name,
             parameters= self.parameters,
             map=        self.map,
-            lattice=    self.lattice,
+            lattice=    self.lattice.sublattice(self.lattice.name,[pid for pid in self.lattice.pids if 'BATH' not in pid.scope]),
             config=     self.config,
-            terms=      [term for term in self.terms+self.weiss if isinstance(term,HP.Quadratic)],
+            terms=      [term for term in it.chain(self.terms,self.weiss if weisson else ()) if isinstance(term,HP.Quadratic)],
             mask=       self.mask,
             dtype=      self.dtype
             )
@@ -736,7 +746,7 @@ def VCAGPM(engine,app):
         if nder>0:result[:,nbs+1:]=HM.derivatives(result[:,0],result[:,nbs],ders=range(1,nder+1)).T
         index=np.argmin(result[:,-1]) if minormax=='min' else np.argmax(result[:,-1]) if minormax=='max' else np.argmax(np.abs(result[:,-1]))
         engine.log<<'Summary:\n%s\n'%HP.Sheet(
-                                cols=           app.BS.tags+['%sgp'%('' if nder==0 else '%s der of '%HP.original(nder-1))],
+                                cols=           app.BS.tags+['%sgp'%('' if nder==0 else '%s der of '%HP.ordinal(nder-1))],
                                 contents=       np.append(result[index,0:nbs],result[index,-1]).reshape((1,-1))
                                 )
         name='%s_%s'%(engine.tostr(mask=app.BS.tags),app.name)

@@ -49,7 +49,7 @@ class SubVCA(ED.FED):
         self.hgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if bond.isintracell() and 'BATH' not in bond.spoint.pid.scope and 'BATH' not in bond.epoint.pid.scope],
             config=     config,
-            table=      config.table(mask=['nambu']),
+            table=      config.table(mask=('nambu',)),
             terms=      deepcopy(terms),
             dtype=      dtype,
             half=       True
@@ -57,7 +57,7 @@ class SubVCA(ED.FED):
         self.wgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if 'BATH' not in bond.spoint.pid.scope and 'BATH' not in bond.epoint.pid.scope],
             config=     config,
-            table=      config.table(mask=['nambu']),
+            table=      config.table(mask=('nambu',)),
             terms=      deepcopy(weiss),
             dtype=      dtype,
             half=       True
@@ -65,7 +65,7 @@ class SubVCA(ED.FED):
         self.bgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if 'BATH' in bond.spoint.pid.scope or 'BATH' in bond.epoint.pid.scope],
             config=     config,
-            table=      config.table(mask=['nambu']),
+            table=      config.table(mask=('nambu',)),
             terms=      deepcopy(baths),
             dtype=      dtype,
             half=       True
