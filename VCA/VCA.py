@@ -14,7 +14,7 @@ from gf_contract import *
 from numpy.linalg import det,inv
 from scipy.linalg import eigh
 from scipy.integrate import quad
-from scipy.optimize import minimize,broyden2
+from scipy.optimize import broyden2
 from collections import OrderedDict
 from copy import deepcopy
 import numpy as np
@@ -273,6 +273,7 @@ class VCA(ED.FED):
         self.ptboperators=self.ptbgenerator.operators
         self.periodize()
         self.cache={}
+        self.logging()
 
     def periodize(self):
         '''
@@ -677,7 +678,7 @@ def VCAGP(engine,app):
     engine.cache.pop('pt_kmesh',None)
     cgf,pt_kmesh,nk=engine.CGF,engine.pt_kmesh(app.BZ.mesh('k')),app.BZ.rank('k')
     fx=lambda omega: np.log(np.abs(det(np.eye(engine.ncopt)-np.tensordot(pt_kmesh,engine.cgf(omega=omega*1j+app.mu),axes=(2,0))))).sum()
-    rquad=quad(fx,0,np.float(np.inf),full_output=2)
+    rquad=quad(fx,0,np.float(np.inf),full_output=2,epsrel=1.49e-12)
     part1=-rquad[0]/np.pi
     part2=np.trace(pt_kmesh,axis1=1,axis2=2).sum().real/2
     gp=(cgf.gse+(part1+part2)/nk)/(engine.nclopt/engine.nopt)/len(engine.cell)
@@ -696,7 +697,7 @@ class GPM(HP.App):
     options : dict
         The extra options.
             * BS is BaseSpace: entry 'nder','minormax'
-            * BS is dict: entry 'tol','rate','maxiter'
+            * BS is dict: entry 'step','tol','rate','maxiter'
     '''
 
     def __init__(self,BS,options=None,**karg):
@@ -711,7 +712,7 @@ class GPM(HP.App):
         options : dict, optional
             The extra options.
                 * BS is BaseSpace: entry 'nder','minormax'
-                * BS is dict: entry 'tol','rate','maxiter'
+                * BS is dict: entry 'step','tol','rate','maxiter'
         '''
         assert isinstance(BS,HP.BaseSpace) or isinstance(BS,dict)
         self.BS=BS
@@ -732,7 +733,7 @@ def VCAGPM(engine,app):
         for i,paras in enumerate(app.BS(mode)):
             result[i,0:nbs]=np.array(paras.values())
             result[i,nbs]=gp(paras.values(),paras.keys())
-        result[:,nbs+1:]=HM.derivatives(result[:,0],result[:,nbs],ders=range(1,nder+1)).T
+        if nder>0:result[:,nbs+1:]=HM.derivatives(result[:,0],result[:,nbs],ders=range(1,nder+1)).T
         index=np.argmin(result[:,-1]) if minormax=='min' else np.argmax(result[:,-1]) if minormax=='max' else np.argmax(np.abs(result[:,-1]))
         engine.log<<'Summary:\n%s\n'%HP.Sheet(
                                 cols=           app.BS.tags+['%sgp'%('' if nder==0 else '%s der of '%HP.original(nder-1))],

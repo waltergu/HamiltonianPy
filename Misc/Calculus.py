@@ -80,7 +80,7 @@ def bisect(f,xs,args=()):
         else:
             return xs[xnew],xs[xnew]
 
-def fstable(fx,x0,args=(),tol=10**-6,rate=0.9,maxiter=50):
+def fstable(fx,x0,args=(),step=10**-4,tol=10**-6,rate=0.9,maxiter=50):
     '''
     Find the stable point of a function.
 
@@ -92,6 +92,8 @@ def fstable(fx,x0,args=(),tol=10**-6,rate=0.9,maxiter=50):
         The initial guess of the stable point.
     args : tuple, optional
         The extra parameters passed to `fx`.
+    step : float, optional
+        The initial step.
     tol : float, optional
         The tolerance of the solution.
     rate : float, optional
@@ -142,7 +144,7 @@ def fstable(fx,x0,args=(),tol=10**-6,rate=0.9,maxiter=50):
                     fx2[j,i]=fx2[i,j]
                 count+=1
         return fx2,fx1,fx0,b[0]
-    xold,err,niter,step=np.asarray(x0),1.0,0,10**-4
+    xold,err,niter=np.asarray(x0),1.0,0
     while err>tol and niter<maxiter:
         fx2,fx1,fx0,f=quadratic(fx,xold,args,step)
         xnew=nl.solve(fx2,-fx1/2.0)

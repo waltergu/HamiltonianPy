@@ -152,6 +152,7 @@ class DMRG(Engine):
             self.timers.add('Diagonalization','matvec')
             self.info=Sheet(('Etotal','Esite','dE/E','nmatvec','nbasis','nslice','overlap','err'))
         self.cache={}
+        self.logging()
 
     @property
     def graph(self):

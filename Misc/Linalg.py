@@ -360,9 +360,9 @@ def eigsh(A,max_try=6,return_eigenvectors=True,**karg):
     if A.shape==(1,1):
         assert 'M' not in karg and 'sigma' not in karg and karg.get('k',1)==1
         if return_eigenvectors:
-            return A.dot(np.ones(1)).reshape(-1),np.ones((1,1),dtype=A.dtype)
+            return A.dot(np.ones(1)).reshape(-1).real,np.ones((1,1),dtype=A.dtype)
         else:
-            return A.dot(np.ones(1)).reshape(-1)
+            return A.dot(np.ones(1)).reshape(-1).real
     else:
         ntry=1
         while True:

@@ -103,7 +103,6 @@ class SCMF(TBA):
         self.mask=mask
         self.parameters.update({'filling':filling,'temperature':temperature})
         self.parameters.update(OrderedDict((term.id,term.value) for term in it.chain(terms if self.map is None else (),orders)))
-        self.logging()
         self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms+orders,half=True)
         self.ops=OrderedDict()
         for order in self.orders:
@@ -113,6 +112,7 @@ class SCMF(TBA):
             m+=conjugate(m.T)
             self.ops[order.id]=OP(order.value,m)
         self.timers=Timers('Iteration')
+        self.logging()
 
     def update_ops(self,kspace=None):
         '''

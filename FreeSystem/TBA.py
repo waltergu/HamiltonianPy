@@ -66,8 +66,8 @@ class TBA(Engine):
         self.terms=terms
         self.mask=mask
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
-        self.logging()
         self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms,half=True)
+        self.logging()
 
     def update(self,**karg):
         '''
@@ -155,20 +155,39 @@ class TBA(Engine):
             result=asarray([eigh(self.matrix(**paras),eigvals_only=True) for paras in basespace(mode)]).reshape(-1)
         return result
 
+    def filling(self,mu,kspace=None):
+        '''
+        Return the filling factor of the system.
+
+        Parameters
+        ----------
+        mu : float
+            The chemical potential of the system.
+        kspace : BaseSpace, optional
+            The first Brillouin zone.
+
+        Returns
+        -------
+        float
+            The filling factor of the system.
+        '''
+        eigvals=sort(self.eigvals(kspace))
+        return searchsorted(eigvals,mu)*1.0/len(eigvals)
+
     def mu(self,filling,kspace=None):
         '''
         Return the chemical potential of the system.
 
         Parameters
         ----------
-        filling : float64
+        filling : float
             The filling factor of the system.
         kspace : BaseSpace, optional
             The first Brillouin zone.
 
         Returns
         -------
-        float64
+        float
             The chemical potential of the system.
         '''
         nelectron,eigvals=int(round(filling*(1 if kspace is None else kspace.rank('k'))*self.nmatrix)),sort(self.eigvals(kspace))
@@ -180,14 +199,14 @@ class TBA(Engine):
 
         Parameters
         ----------
-        filling : float64
+        filling : float
             The filling factor of the system.
         kspace : BaseSpace, optional
             The first Brillouin zone.
 
         Returns
         -------
-        float64
+        float
             The ground state energy of the system.
         '''
         return sort(self.eigvals(kspace))[0:int(round(filling*(1 if kspace is None else kspace.rank('k'))*self.nmatrix))].sum()
@@ -198,7 +217,7 @@ class GSE(HP.App):
 
     Attributes
     ----------
-    filling : float64
+    filling : float
         The filling factor of the system.
     kspace : BaseSpace
         The first Brillouin zone.
@@ -210,7 +229,7 @@ class GSE(HP.App):
 
         Parameters
         ----------
-        filling : float64
+        filling : float
             The filling factor of the system.
         kspace : BaseSpace, optional
             The first Brillouin zone.

@@ -49,6 +49,7 @@ class FED(ED):
         self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,dtype=dtype,half=True)
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
         self.operators=self.generator.operators
+        self.logging()
 
     def matrix(self,sector,reset=True):
         '''
@@ -189,10 +190,10 @@ def fedspcom(blocks,omega):
     '''
     assert len(blocks) in (2,4)
     if len(blocks)==2:
-        return blocks[0].gf(omega)+blocks[1].gf(omega).T
+        return blocks[0].gf(omega).T+blocks[1].gf(omega)
     else:
-        gfdw,indsdw=blocks[0].gf(omega)+blocks[1].gf(omega).T,blocks[0].indices
-        gfup,indsup=blocks[2].gf(omega)+blocks[3].gf(omega).T,blocks[2].indices
+        gfdw,indsdw=blocks[0].gf(omega).T+blocks[1].gf(omega),blocks[0].indices
+        gfup,indsup=blocks[2].gf(omega).T+blocks[3].gf(omega),blocks[2].indices
         return HM.reorder(HM.block_diag(gfdw,gfup),axes=[0,1],permutation=np.argsort(np.concatenate((indsdw,indsup))))
 
 def FGF(**karg):

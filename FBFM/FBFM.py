@@ -252,6 +252,7 @@ class FBFM(HP.Engine):
         self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,dtype=dtype,half=True)
         self.igenerator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['spin','nambu']),terms=interactions,dtype=dtype,half=False,order='density')
         self.basis.set(self.spmatrix)
+        self.logging()
 
     def spmatrix(self,k=()):
         '''

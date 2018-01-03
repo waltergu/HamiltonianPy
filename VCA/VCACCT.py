@@ -73,6 +73,7 @@ class SubVCA(ED.FED):
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in it.chain(terms,weiss,baths)))
         self.operators=self.hgenerator.operators+self.wgenerator.operators+self.bgenerator.operators
         self.cache={}
+        self.logging()
 
     def matrix(self,sector,reset=True):
         '''
@@ -216,6 +217,7 @@ class VCACCT(VCA):
         self.ptboperators=self.ptbgenerator.operators
         self.periodize()
         self.cache={}
+        self.logging()
 
     def update(self,**karg):
         '''
