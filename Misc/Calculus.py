@@ -112,14 +112,14 @@ def fstable(fx,x0,args=(),step=10**-4,tol=10**-6,rate=0.9,maxiter=50):
     niter : int
         The number of iterations.
     '''
-    def quadratic(fx,x0,args,step):
+    def quadratic(fx,x0,args,steps):
         N=len(x0)
         xs=[x0]
         es=np.eye(N)
         for i in xrange(N):
-            xs.append(x0+step*es[i])
-            xs.append(x0-step*es[i])
-            for j in xrange(i): xs.append(x0+step*(es[i]+es[j]))
+            xs.append(x0+steps[i]*es[i])
+            xs.append(x0-steps[i]*es[i])
+            for j in xrange(i): xs.append(x0+steps[i]*es[i]+steps[j]*es[j])
         a=np.zeros(((N+1)*(N+2)/2,(N+1)*(N+2)/2))
         b=np.zeros((N+1)*(N+2)/2)
         for n,x in enumerate(xs):
@@ -144,13 +144,13 @@ def fstable(fx,x0,args=(),step=10**-4,tol=10**-6,rate=0.9,maxiter=50):
                     fx2[j,i]=fx2[i,j]
                 count+=1
         return fx2,fx1,fx0,b[0]
-    xold,err,niter=np.asarray(x0),1.0,0
+    xold,err,niter,steps=np.asarray(x0),1.0,0,np.array([step]*len(x0))
     while err>tol and niter<maxiter:
-        fx2,fx1,fx0,f=quadratic(fx,xold,args,step)
+        fx2,fx1,fx0,f=quadratic(fx,xold,args,steps)
         xnew=nl.solve(fx2,-fx1/2.0)
-        err=nl.norm(xnew-xold)
+        diff=xnew-xold
+        err,steps=nl.norm(diff),rate*diff
         xold=xnew
-        step=err*rate
         niter+=1
     if err>tol: warnings.warn('fstable warning: not converged after %s iterations with current err being %s.'%(niter,err))
     return xnew,f,err,niter

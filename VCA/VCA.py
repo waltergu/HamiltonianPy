@@ -24,6 +24,7 @@ import HamiltonianPy.Misc as HM
 import HamiltonianPy.ED as ED
 import itertools as it
 import matplotlib.pyplot as plt
+import time
 import os
 
 def _gf_contract_(k,mgf,seqs,coords):
@@ -686,13 +687,15 @@ def VCAGP(engine,app):
     '''
     engine.rundependences(app.name)
     engine.cache.pop('pt_kmesh',None)
+    stime=time.time()
     cgf,pt_kmesh,nk=engine.CGF,engine.pt_kmesh(app.BZ.mesh('k')),app.BZ.rank('k')
     fx=lambda omega: np.log(np.abs(det(np.eye(engine.ncopt)-np.tensordot(pt_kmesh,engine.cgf(omega=omega*1j+app.mu),axes=(2,0))))).sum()
     rquad=quad(fx,0,np.float(np.inf),full_output=2,epsrel=1.49e-12)
     part1=-rquad[0]/np.pi
     part2=np.trace(pt_kmesh,axis1=1,axis2=2).sum().real/2
     gp=(cgf.gse+(part1+part2)/nk)/(engine.nclopt/engine.nopt)/len(engine.cell)
-    engine.log<<'gp(mu=%s,err=%.2e,neval=%s): %s\n\n'%(HP.decimaltostr(app.mu),rquad[1],rquad[2]['neval'],gp)
+    etime=time.time()
+    engine.log<<'gp(mu=%s,err=%.2e,neval=%s,time=%.2es): %s\n\n'%(HP.decimaltostr(app.mu),rquad[1],rquad[2]['neval'],etime-stime,gp)
     if app.returndata: return gp
 
 class GPM(HP.App):
