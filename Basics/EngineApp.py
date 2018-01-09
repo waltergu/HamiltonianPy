@@ -102,12 +102,14 @@ class Engine(object):
         '''
         if not self.DEBUG: self.log.reset('%s.log'%self)
 
-    def tostr(self,mask=()):
+    def tostr(self,ndecimal=10,mask=()):
         '''
         Get the engine's string representation.
 
         Parameters
         ----------
+        ndecimal : int, optional
+            The number of decimals to keep.
         mask : tuple of str
             The mask of the object's data.
 
@@ -118,7 +120,7 @@ class Engine(object):
         '''
         result=[]
         result.append(self.name)
-        result.append('_'.join(decimaltostr(value,Engine.NDECIMAL) for key,value in self.parameters.iteritems() if key not in mask))
+        result.append('_'.join(decimaltostr(value,ndecimal) for key,value in self.parameters.iteritems() if key not in mask))
         result.append(self.__class__.__name__)
         return '_'.join(result)
 

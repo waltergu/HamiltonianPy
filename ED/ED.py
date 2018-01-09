@@ -491,9 +491,9 @@ def EDGFP(engine,app):
     '''
     This method prepares the GF.
     '''
-    if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine)):
+    if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine.tostr(ndecimal=14))):
         engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value,n=10)) for key,value in engine.parameters.iteritems()))
-        with open('%s/%s_coeff.dat'%(engine.din,engine),'rb') as fin:
+        with open('%s/%s_coeff.dat'%(engine.din,engine.tostr(ndecimal=14)),'rb') as fin:
             app.gse=pk.load(fin)
             app.blocks=pk.load(fin)
         return
@@ -533,7 +533,7 @@ def EDGFP(engine,app):
         info[('Summary',key)]=timers.time(key),'%.5e'
     engine.log<<'%s\n%s\n'%(info.rowtostr('Summary'),info.frame())
     if app.savedata:
-        with open('%s/%s_coeff.dat'%(engine.din,engine),'wb') as fout:
+        with open('%s/%s_coeff.dat'%(engine.din,engine.tostr(ndecimal=14)),'wb') as fout:
             pk.dump(app.gse,fout,2)
             pk.dump(app.blocks,fout,2)
 
