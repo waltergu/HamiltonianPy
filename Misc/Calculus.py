@@ -4,14 +4,15 @@ Calculus
 ========
 
 Calculus related functions, including
-    * functions: derivatives, bisect, fstable
+    * functions: derivatives, bisect, fstable, newton
 '''
 
-__all__=['derivatives','bisect','fstable']
+__all__=['derivatives','bisect','fstable','newton']
 
 import numpy as np
 import numpy.linalg as nl
 import scipy.interpolate as ip
+import scipy.optimize as op
 import warnings
 
 def derivatives(xs,ys,ders=(1,)):
@@ -80,29 +81,74 @@ def bisect(f,xs,args=()):
         else:
             return xs[xnew],xs[xnew]
 
-def fstable(fx,x0,args=(),step=10**-4,tol=10**-6,rate=0.9,maxiter=50):
+def fstable(fun,x0,args=(),method='Newton',tol=10**-6,callback=None,options=None):
     '''
     Find the stable point of a function.
 
     Parameters
     ----------
-    fx : callable
+    fun : callable
+        The function whose stable point is to be searched.
+    x0 : 1d ndarray
+        The initial guess of the stable point.
+    args : tuple, optional
+        The extra parameters passed to `fun`.
+    method : 'Newton','BFGS','CG', optional
+        The method used to find the stable point.
+    tol : float, optional
+        The tolorence of the result.
+    callback : callable, optional
+        The callback function after each iteration.
+    options : dict, optional
+        The extra options of each specific method.
+
+    Returns
+    -------
+    OptimizeResult
+        The result.
+
+    Notes
+    -----
+    Method 'Newton' searches for maxima, minima or saddle points while method 'BFGS' and 'CG' noly searches for minima.
+    '''
+    assert method in ('Newton','BFGS','CG')
+    if method=='Newton':
+        return newton(fun,x0,args,tol=tol,callback=callback,**(options or {}))
+    else:
+        return op.minimize(fun,x0,args,method,tol=tol,callback=callback,options=options)
+
+def newton(fun,x0,args=(),tol=10**-6,callback=None,disp=False,eps=10**-4,rate=0.9,return_all=False,maxiter=50):
+    '''
+    Find the stable point of a function.
+
+    Parameters
+    ----------
+    fun : callable
         The function whose stable point is to be searched.
     x0 : 1d ndarray like
         The initial guess of the stable point.
     args : tuple, optional
-        The extra parameters passed to `fx`.
-    step : float, optional
-        The initial step.
+        The extra parameters passed to `fun`.
     tol : float, optional
         The tolerance of the solution.
+    callback : callable, optional
+        The callback function after each iteration.
+    disp : logical, optional
+        True for displaying the convergence messages.
+    eps : float, optional
+        The initial step size.
     rate : float, optional
         The learning rate of the steps.
+    return_all : logical, optional
+        True for returning all the convergence information.
     maxiter : int, optional
         The maximum number of iterations.
 
     Returns
     -------
+    OptimizeResult
+        The result.
+
     xnew : 1d ndarray
         The solution of the stable point.
     f : float
@@ -112,7 +158,7 @@ def fstable(fx,x0,args=(),step=10**-4,tol=10**-6,rate=0.9,maxiter=50):
     niter : int
         The number of iterations.
     '''
-    def quadratic(fx,x0,args,steps):
+    def quadratic(fun,x0,args,steps):
         N=len(x0)
         xs=[x0]
         es=np.eye(N)
@@ -129,7 +175,7 @@ def fstable(fx,x0,args=(),step=10**-4,tol=10**-6,rate=0.9,maxiter=50):
                 a[n,N+1+count:N+1+count+i+1]=xi*x[:i+1]
                 count+=i+1
             a[n,0]=1
-            b[n]=fx(x,*args)
+            b[n]=fun(x,*args)
         coeff=nl.solve(a,b)
         fx0=coeff[0]
         fx1=coeff[1:N+1]
@@ -143,14 +189,30 @@ def fstable(fx,x0,args=(),step=10**-4,tol=10**-6,rate=0.9,maxiter=50):
                     fx2[i,j]=coeff[N+1+count]/2
                     fx2[j,i]=fx2[i,j]
                 count+=1
-        return fx2,fx1,fx0,b[0]
-    xold,err,niter,steps=np.asarray(x0),1.0,0,np.array([step]*len(x0))
+        return fx2,fx1,fx0,b[0],len(xs)
+    result=op.OptimizeResult()
+    if return_all: result.allvecs=[np.asarray(x0)]
+    xold,err,count,niter,steps=np.asarray(x0),10*np.abs(tol),0,0,np.array([eps]*len(x0))
     while err>tol and niter<maxiter:
-        fx2,fx1,fx0,f=quadratic(fx,xold,args,steps)
+        fx2,fx1,fx0,f,nfev=quadratic(fun,xold,args,steps)
+        count+=nfev
         xnew=nl.solve(fx2,-fx1/2.0)
         diff=xnew-xold
         err,steps=nl.norm(diff),rate*diff
         xold=xnew
         niter+=1
-    if err>tol: warnings.warn('fstable warning: not converged after %s iterations with current err being %s.'%(niter,err))
-    return xnew,f,err,niter
+        if return_all: result.allvecs.append(xold)
+        if callback is not None: callback(xold)
+    result.x,result.fun,result.nfev,result.nit=xold,f,count,niter
+    if err>tol:
+        message='newton warning: not converged after %s iterations with current err being %s.'%(niter,err)
+        warnings.warn(message)
+        result.success,result.status,result.message=False,1,message
+    else:
+        result.success,result.status,result.message=True,0,'Optimization terminated successfully.'
+    if disp:
+        print result.message
+        print 'Current function value: %s'%result.fun
+        print 'Iterations: %s'%result.nit
+        print 'Function evaluations: %s'%result.nfev
+    return result

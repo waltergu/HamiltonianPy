@@ -710,7 +710,7 @@ class GPM(HP.App):
     options : dict
         The extra options.
             * BS is BaseSpace: entry 'nder','minormax'
-            * BS is dict: entry 'step','tol','rate','maxiter'
+            * BS is dict: see HamiltonianPy.Misc.fstable for details.
     '''
 
     def __init__(self,BS,options=None,**karg):
@@ -725,7 +725,7 @@ class GPM(HP.App):
         options : dict, optional
             The extra options.
                 * BS is BaseSpace: entry 'nder','minormax'
-                * BS is dict: entry 'step','tol','rate','maxiter'
+                * BS is dict: see HamiltonianPy.Misc.fstable for details.
         '''
         assert isinstance(BS,HP.BaseSpace) or isinstance(BS,dict)
         self.BS=BS
@@ -757,10 +757,10 @@ def VCAGPM(engine,app):
         if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name),interpolate=True,legend=['%sgp'%('%s der of '%HP.ordinal(k-1) if k>0 else '') for k in xrange(nder+1)])
         if app.returndata: return result
     else:
-        xs,f,err,niter=HM.fstable(gp,app.BS.values(),args=(app.BS.keys(),),**app.options)
-        engine.log<<'Summary:\n%s\n'%HP.Sheet(cols=app.BS.keys()+['gp','xerr','niter'],contents=np.append(xs,[f,err,niter]).reshape((1,-1)))
-        if app.savedata: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.tostr(mask=app.BS.keys()),app.name),np.append(xs,f))
-        if app.returndata: return {key:value for key,value in zip(app.BS.keys(),xs)},f
+        result=HM.fstable(gp,app.BS.values(),args=(app.BS.keys(),),**app.options)
+        engine.log<<'Summary:\n%s\n'%HP.Sheet(cols=app.BS.keys()+['niter','nfev','gp'],contents=np.append(result.x,[result.nit,result.nfev,result.fun]).reshape((1,-1)))
+        if app.savedata: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.tostr(mask=app.BS.keys()),app.name),np.append(result.x,result.fun))
+        if app.returndata: return {key:value for key,value in zip(app.BS.keys(),result.x)},result.fun
 
 class CPFF(HP.CPFF):
     '''
