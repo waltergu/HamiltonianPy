@@ -4,42 +4,16 @@ Calculus
 ========
 
 Calculus related functions, including
-    * functions: derivatives, bisect, fstable, newton
+    * functions: bisect, derivatives, fpapprox, quadapprox, line_search_stable, newton, fstable
 '''
 
-__all__=['derivatives','bisect','fstable','newton']
+__all__=['bisect','derivatives','fpapprox','quadapprox','line_search_stable','newton','fstable']
 
 import numpy as np
 import numpy.linalg as nl
 import scipy.interpolate as ip
 import scipy.optimize as op
 import warnings
-
-def derivatives(xs,ys,ders=(1,)):
-    '''
-    Calculate the numerical derivatives of `ys` at points `xs` by use of the third-order spline interpolation.
-
-    Parameters
-    ----------
-    xs : 1d ndarray
-        The sample points of the argument.
-    ys: 1d ndarray
-        The corresponding sample points of the function.
-    ders : tuple of integer
-        The derivatives to calculate.
-
-    Returns
-    -------
-    2d ndarray
-        The derivatives at the sample points of the argument.
-    '''
-    assert len(xs)==len(ys)
-    xs,ys=np.asarray(xs),np.asarray(ys)
-    result=np.zeros((len(ders),len(xs)),dtype=ys.dtype)
-    tck=ip.splrep(xs,ys,s=0)
-    for i,der in enumerate(ders):
-        result[i]=ip.splev(xs,tck,der=der)
-    return result
 
 def bisect(f,xs,args=()):
     '''
@@ -81,7 +55,250 @@ def bisect(f,xs,args=()):
         else:
             return xs[xnew],xs[xnew]
 
-def fstable(fun,x0,args=(),method='Newton',tol=10**-6,callback=None,options=None):
+def derivatives(xs,ys,ders=(1,)):
+    '''
+    Calculate the numerical derivatives of `ys` at points `xs` by use of the third-order spline interpolation.
+
+    Parameters
+    ----------
+    xs : 1d ndarray
+        The sample points of the argument.
+    ys: 1d ndarray
+        The corresponding sample points of the function.
+    ders : tuple of integer
+        The derivatives to calculate.
+
+    Returns
+    -------
+    2d ndarray
+        The derivatives at the sample points of the argument.
+    '''
+    assert len(xs)==len(ys)
+    xs,ys=np.asarray(xs),np.asarray(ys)
+    result=np.zeros((len(ders),len(xs)),dtype=ys.dtype)
+    tck=ip.splrep(xs,ys,s=0)
+    for i,der in enumerate(ders):
+        result[i]=ip.splev(xs,tck,der=der)
+    return result
+
+def fpapprox(fun,x0,args=(),eps=1.49e-06,fpmode=0):
+    '''
+    Finite-difference approximation of the gradient of a scalar function at a given point.
+
+    Parameters
+    ----------
+    fun : callable
+        The function whose gradient is to be approximated.
+    x0 : 1d ndarray
+        The given point.
+    args : tuple, optional
+        The extra arguments of the function ``fun``.
+    eps : float, optional
+        The step size.
+    fpmode : 0 or 1, optional
+        * 0 use ``(f(x+eps)-f(x))/eps`` to approximate fp;
+        * 1 use ``(f(x+eps)-f(x-eps))/2/eps`` to approximate fp.
+
+    Returns
+    -------
+    1d ndarray
+        The approximated gradient.
+    '''
+    if fpmode==0:
+        return op.approx_fprime(x0,fun,eps,*args)
+    else:
+        result,dx=np.zeros(len(x0)),np.eye(len(x0))
+        for i in xrange(len(x0)):
+            result[i]=(fun(x0+eps*dx[i],*args)-fun(x0-eps*dx[i],*args))/2/eps
+        return result
+
+def quadapprox(fun,x0,args=(),eps=1.49e-06):
+    '''
+    Quadratic approximation of a function at a given point.
+
+    Parameters
+    ----------
+    fun : callable
+        The function to be approximated.
+    x0 : 1d ndarray
+        The given point.
+    args : tuple, optional
+        The extra arguments of the function ``fun``.
+    eps : float, optional
+        The step size.
+
+    Returns
+    -------
+    f0 : float
+        The function value at the given point.
+    fp1 : 1d ndarray
+        The approximated first order derivatives at the given point.
+    fp2 : 2d ndarray
+        The approximated second order derivatives at the given point.
+    '''
+    N,xs,diffs=len(x0),[],[]
+    es,eps=np.eye(N),[eps]*N if isinstance(eps,float) else eps
+    for i in xrange(N):
+        xs.append(x0+eps[i]*es[i])
+        diffs.append(eps[i]*es[i])
+        xs.append(x0-eps[i]*es[i])
+        diffs.append(-eps[i]*es[i])
+        for j in xrange(i):
+            xs.append(x0+eps[i]*es[i]+eps[j]*es[j])
+            diffs.append(eps[i]*es[i]+eps[j]*es[j])
+    f0,nfev=fun(x0,*args),len(xs)+1
+    a,b=np.zeros((N*(N+3)/2,N*(N+3)/2)),np.zeros(N*(N+3)/2)
+    for n,(x,diff) in enumerate(zip(xs,diffs)):
+        count=0
+        for i,di in enumerate(diff):
+            a[n,i]=di
+            a[n,N+count:N+count+i+1]=di*diff[:i+1]
+            count+=i+1
+        b[n]=fun(x,*args)
+    coeff,count=nl.solve(a,b-f0),0
+    fp1,fp2=coeff[:N],np.zeros((N,N))
+    for i in xrange(N):
+        for j in xrange(i+1):
+            if j==i:
+                fp2[i,j]=coeff[N+count]*2
+            else:
+                fp2[i,j]=coeff[N+count]
+                fp2[j,i]=fp2[i,j]
+            count+=1
+    return f0,fp1,fp2
+
+def line_search_stable(fun,x0,dx,fp1,fp2,args=(),eps=1.49e-06,fpmode=0,c1=1e-4):
+    '''
+    Use the Armijo condition to search the stationary point of a function along a direction.
+
+    Parameters
+    ----------
+    fun : callable
+        Objective function.
+    x0 : 1d ndarray
+        The starting point.
+    dx : 1d ndarray
+        The search direction.
+    fp1 : 1d ndarray
+        The first derivative of the objective function at the starting point.
+    fp2 : 1d ndarray
+        The second derivative of the objective function at the starting point.
+    args : tuple, optional
+        The extra arguments of the ojective function.
+    eps : float, optioinal
+        The step size to approximate the derivatives of the objective function.
+    fpmode : 0 or 1, optional
+        * 0 use ``(f(x+eps)-f(x))/eps`` to approximate fp;
+        * 1 use ``(f(x+eps)-f(x-eps))/2/eps`` to approximate fp.
+    c1 : float, optional
+        Parameter for Armijo condition rule.
+
+    Returns
+    -------
+    alpha : float
+        The best alpha.
+    fop : float
+        The function value at the optimal point.
+    fp1op : float
+        The directional derivative of the object function at the optimal point.
+    '''
+    eps=eps/nl.norm(dx)
+    record=[]
+    fa=lambda alpha: fun(x0+alpha*dx,*args)
+    fap=(lambda alpha:(fa(alpha+eps)-fa(alpha))/eps) if fpmode==0 else (lambda alpha:(fa(alpha+eps)-fa(alpha-eps))/2/eps)
+    def phi(alpha):
+        record.append(alpha)
+        return fap(alpha)**2
+    alpha=op.linesearch.scalar_search_armijo(phi,(fp1.dot(dx))**2,fp1.dot(fp2.dot(fp1)),c1=c1,amin=10*eps)[0]
+    if alpha is None:
+        warnings.warn('line_search_stable warning: not converged, last value used as the final alpha.')
+        alpha=record[-1]
+    fop,fp1op=fa(alpha),fap(alpha)
+    return alpha,fop,fp1op
+
+def newton(fun,x0,args=(),tol=10**-4,callback=None,disp=False,eps=1.49e-06,fpmode=0,hesmode='quadapprox',return_all=False,maxiter=50):
+    '''
+    Find the stable point of a function.
+
+    Parameters
+    ----------
+    fun : callable
+        The function whose stable point is to be searched.
+    x0 : 1d ndarray like
+        The initial guess of the stable point.
+    args : tuple, optional
+        The extra parameters passed to `fun`.
+    tol : float, optional
+        The tolerance of the solution.
+    callback : callable, optional
+        The callback function after each iteration.
+    disp : logical, optional
+        True for displaying the convergence messages.
+    eps : float, optional
+        The initial step size.
+    fpmode : 0 or 1, optional
+        * 0 use ``(f(x+eps)-f(x))/eps`` to approximate fp;
+        * 1 use ``(f(x+eps)-f(x-eps))/2/eps`` to approximate fp.
+    hesmode : 'quadapprox' or 'BFGS', optional
+        * 'quadapprox' use ``quadapprox`` to approximate the Hessian matrix at each iteration;
+        * 'BFGS' use ``quadapprox`` to approximate the Hessian matrix at the beginning and update it by the BFGS formula.
+    return_all : logical, optional
+        True for returning all the convergence information.
+    maxiter : int, optional
+        The maximum number of iterations.
+
+    Returns
+    -------
+    OptimizeResult
+        The result.
+    '''
+    record={}
+    def fx(x):
+        xt=tuple(x)
+        if xt not in record: record[xt]=fun(x,*args)
+        return record[xt]
+    def fpquadapprox(f,x):
+        f,fp1,fp2=quadapprox(f,x,eps=eps)
+        return fp1,fp2
+    def fpbfgs(f,x,dx,fp1,fp2):
+        nfp=fpapprox(f,x,eps=eps,fpmode=fpmode)
+        dfp=nfp-fp1
+        fp1=nfp
+        fp2+=np.einsum('i,j->ij',dfp,dfp)/dfp.dot(dx)-np.einsum('i,j->ij',fp2.dot(dx),fp2.T.dot(dx))/dx.dot(fp2.dot(dx))
+        return fp1,fp2
+    result=op.OptimizeResult()
+    x=np.asarray(x0)
+    fp1,fp2=fpquadapprox(fx,x)
+    for niter in xrange(maxiter):
+        diff=nl.solve(fp2,-fp1)
+        print '\ndiff: %s\n'%diff
+        err=nl.norm(diff)
+        if err<=tol:
+            x+=diff
+            if callable(callback): callback(x)
+            break
+        alpha=line_search_stable(fx,x,diff,fp1,fp2,eps=eps,fpmode=fpmode)[0]
+        print '\nalpha: %s\n'%alpha
+        err*=np.abs(alpha)
+        x+=alpha*diff
+        if callable(callback): callback(x)
+        if err<=tol: break
+        fp1,fp2=fpquadapprox(fx,x) if hesmode=='quadapprox' else fpbfgs(fx,x,alpha*diff,fp1,fp2)
+    result.x,result.fun,result.nfev,result.nit=x,fx(x),len(record),niter+1
+    if err>tol:
+        message='newton warning: not converged after %s iterations with current err being %s.'%(niter,err)
+        warnings.warn(message)
+        result.success,result.status,result.message=False,1,message
+    else:
+        result.success,result.status,result.message=True,0,'Optimization terminated successfully.'
+    if disp:
+        print result.message
+        print 'Current function value: %s'%result.fun
+        print 'Iterations: %s'%result.nit
+        print 'Function evaluations: %s'%result.nfev
+    return result
+
+def fstable(fun,x0,args=(),method='Newton',tol=10**-4,callback=None,options=None):
     '''
     Find the stable point of a function.
 
@@ -116,103 +333,3 @@ def fstable(fun,x0,args=(),method='Newton',tol=10**-6,callback=None,options=None
         return newton(fun,x0,args,tol=tol,callback=callback,**(options or {}))
     else:
         return op.minimize(fun,x0,args,method,tol=tol,callback=callback,options=options)
-
-def newton(fun,x0,args=(),tol=10**-6,callback=None,disp=False,eps=10**-4,rate=0.9,return_all=False,maxiter=50):
-    '''
-    Find the stable point of a function.
-
-    Parameters
-    ----------
-    fun : callable
-        The function whose stable point is to be searched.
-    x0 : 1d ndarray like
-        The initial guess of the stable point.
-    args : tuple, optional
-        The extra parameters passed to `fun`.
-    tol : float, optional
-        The tolerance of the solution.
-    callback : callable, optional
-        The callback function after each iteration.
-    disp : logical, optional
-        True for displaying the convergence messages.
-    eps : float, optional
-        The initial step size.
-    rate : float, optional
-        The learning rate of the steps.
-    return_all : logical, optional
-        True for returning all the convergence information.
-    maxiter : int, optional
-        The maximum number of iterations.
-
-    Returns
-    -------
-    OptimizeResult
-        The result.
-
-    xnew : 1d ndarray
-        The solution of the stable point.
-    f : float
-        The function value at the stable point.
-    err : float
-        The err of the stable point.
-    niter : int
-        The number of iterations.
-    '''
-    def quadratic(fun,x0,args,steps):
-        N=len(x0)
-        xs=[x0]
-        es=np.eye(N)
-        for i in xrange(N):
-            xs.append(x0+steps[i]*es[i])
-            xs.append(x0-steps[i]*es[i])
-            for j in xrange(i): xs.append(x0+steps[i]*es[i]+steps[j]*es[j])
-        a=np.zeros(((N+1)*(N+2)/2,(N+1)*(N+2)/2))
-        b=np.zeros((N+1)*(N+2)/2)
-        for n,x in enumerate(xs):
-            count=0
-            for i,xi in enumerate(x):
-                a[n,1+i]=xi
-                a[n,N+1+count:N+1+count+i+1]=xi*x[:i+1]
-                count+=i+1
-            a[n,0]=1
-            b[n]=fun(x,*args)
-        coeff=nl.solve(a,b)
-        fx0=coeff[0]
-        fx1=coeff[1:N+1]
-        fx2=np.zeros((N,N))
-        count=0
-        for i in xrange(N):
-            for j in xrange(i+1):
-                if j==i:
-                    fx2[i,j]=coeff[N+1+count]
-                else:
-                    fx2[i,j]=coeff[N+1+count]/2
-                    fx2[j,i]=fx2[i,j]
-                count+=1
-        return fx2,fx1,fx0,b[0],len(xs)
-    result=op.OptimizeResult()
-    if return_all: result.allvecs=[np.asarray(x0)]
-    xold,err,count,niter,steps=np.asarray(x0),10*np.abs(tol),0,0,np.array([eps]*len(x0))
-    while err>tol and niter<maxiter:
-        fx2,fx1,fx0,f,nfev=quadratic(fun,xold,args,steps)
-        count+=nfev
-        xnew=nl.solve(fx2,-fx1/2.0)
-        diff=xnew-xold
-        err,steps=nl.norm(diff),rate*diff
-        xold=xnew
-        niter+=1
-        if return_all: result.allvecs.append(xold)
-        if callback is not None: callback(xold)
-    result.x,result.fun,result.nfev,result.nit=xold,f,count,niter
-    if err>tol:
-        message='newton warning: not converged after %s iterations with current err being %s.'%(niter,err)
-        warnings.warn(message)
-        result.success,result.status,result.message=False,1,message
-    else:
-        result.success,result.status,result.message=True,0,'Optimization terminated successfully.'
-    if disp:
-        print result.message
-        print 'Current function value: %s'%result.fun
-        print 'Iterations: %s'%result.nit
-        print 'Function evaluations: %s'%result.nfev
-    return result

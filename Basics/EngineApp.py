@@ -90,11 +90,12 @@ class Engine(object):
         result.records={}
         return result
 
-    def data(self,parameters):
+    @property
+    def data(self):
         '''
         The data of the engine.
         '''
-        return self.map(parameters) if callable(self.map) else parameters
+        return self.map(self.parameters) if callable(self.map) else self.parameters
 
     def logging(self):
         '''

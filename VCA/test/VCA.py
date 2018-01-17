@@ -38,6 +38,6 @@ def test_vca():
     vca.register(VCA.OP(name='OP',parameters={'afm':0.20},mu=U/2,terms=vca.weiss,BZ=square_bz(reciprocals=lattice.reciprocals,nk=100),run=VCA.VCAOP))
     vca.register(VCA.DTBT(name='DTBT',parameters={'afm':0.20},path=square_gxm(nk=100),mu=U/2,savedata=False,run=VCA.VCADTBT))
     vca.register(VCA.CPFF(name='FF',task='FF',parameters={'afm':0.20},cf=U/2,BZ=KSpace(reciprocals=lattice.reciprocals,nk=100),run=VCA.VCACPFF))
-    vca.register(VCA.CPFF(name='CP',task='CP',cf=0.5,BZ=KSpace(reciprocals=lattice.reciprocals,nk=100),options={'x0':1.0,'x_tol':10**-6,'maxiter':20},run=VCA.VCACPFF))
+    #vca.register(VCA.CPFF(name='CP',task='CP',cf=0.5,BZ=KSpace(reciprocals=lattice.reciprocals,nk=100),options={'x0':1.0,'x_tol':10**-6,'maxiter':20},run=VCA.VCACPFF))
     vca.summary()
     print

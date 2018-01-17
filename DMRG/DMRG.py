@@ -176,7 +176,7 @@ class DMRG(Engine):
         '''
         if len(karg)>0:
             super(DMRG,self).update(**karg)
-            self.generator.update(**self.data(karg))
+            self.generator.update(**self.data)
             self.set_operators()
             self.set_mpo()
             self.set_Hs_()

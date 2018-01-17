@@ -105,10 +105,10 @@ class SubVCA(ED.FED):
         '''
         if len(karg)>0:
             super(ED.ED,self).update(**karg)
-            karg=self.data(karg)
-            self.hgenerator.update(**karg)
-            self.wgenerator.update(**karg)
-            self.bgenerator.update(**karg)
+            data=self.data
+            self.hgenerator.update(**data)
+            self.wgenerator.update(**data)
+            self.bgenerator.update(**data)
             self.operators=self.hgenerator.operators+self.wgenerator.operators+self.bgenerator.operators
 
 class VCACCT(VCA):
@@ -228,10 +228,10 @@ class VCACCT(VCA):
             for subsystem in self.subsystems.itervalues():
                 subsystem.update(**karg)
             super(ED.ED,self).update(**karg)
-            karg=self.data(karg)
-            self.pthgenerator.update(**karg)
-            self.ptwgenerator.update(**karg)
-            self.ptbgenerator.update(**karg)
+            data=self.data
+            self.pthgenerator.update(**data)
+            self.ptwgenerator.update(**data)
+            self.ptbgenerator.update(**data)
             self.pthoperators=self.pthgenerator.operators
             self.ptwoperators=self.ptwgenerator.operators
             self.ptboperators=self.ptbgenerator.operators

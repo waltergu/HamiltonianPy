@@ -280,9 +280,9 @@ class FBFM(HP.Engine):
         '''
         if len(karg)>0:
             super(FBFM,self).update(**karg)
-            karg=self.data(karg)
-            self.generator.update(**karg)
-            self.igenerator.update(**karg)
+            data=self.data
+            self.generator.update(**data)
+            self.igenerator.update(**data)
             self.basis.set(self.spmatrix)
 
     @property

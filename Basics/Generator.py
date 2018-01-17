@@ -240,7 +240,7 @@ class Generator(object):
                 assert bonddr in ('+','-')
                 (x,y),(dx,dy)=(bond.spoint.rcoord,bond.rcoord) if bonddr=='+' else (bond.epoint.rcoord,bond.reversed.rcoord)
                 if nl.norm(bond.rcoord)>RZERO: plt.arrow(x,y,dx,dy,ls='--' if nl.norm(bond.icoord)>RZERO else '-',lw=2,color='red',length_includes_head=True,alpha=0.5)
-                packs=[term.strrep(bond,self.config) for term in it.chain(self.terms['const'],self.terms['alter']) if termselect is None or termselect(term)]
+                packs=[term.strrep(bond if bonddr=='+' else bond.reversed,self.config) for term in it.chain(self.terms['const'],self.terms['alter']) if termselect is None or termselect(term)]
                 if len(packs)>0:
                     plt.text(x+dx/2,y+dy/2,'\n'.join(sorted(packs,key=len)),color='green',horizontalalignment='center',verticalalignment='center',fontproperties=font)
         plt.xlim([xmin-(xmax-xmin)*0.30,xmax+(xmax-xmin)*0.30])
