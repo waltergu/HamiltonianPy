@@ -43,3 +43,4 @@ release=u'1.2.0'
 # Options for HTML output
 html_theme='classic'
 html_last_updated_fmt=''
+html_sidebars={'**':['globaltoc.html','relations.html','sourcelink.html','searchbox.html']}
