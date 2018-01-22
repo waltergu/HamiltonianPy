@@ -372,12 +372,12 @@ class Square(Cluster):
 
         Parameters
         ----------
-        name : 'S1','S2x','S2y','S4','S4B4','S4B8','S8','S10','S12','S13'
+        name : 'S1','S2x','S2y','S2xxy','S2yxy','S4','S4B4','S4B8','S8','S10','S12','S13'
             The name of the cluster.
         pieces : logical, optional
             True for generating pieces for the cluster and False for not.
         '''
-        if name not in ['S1','S2x','S2y','S4','S4B4','S4B8','S8','S10','S12','S13']:
+        if name not in ['S1','S2x','S2y','S2xxy','S2yxy','S4','S4B4','S4B8','S8','S10','S12','S13']:
             raise ValueError('Square __init__ error: unexpected name(%s).'%name)
         if name=='S1':
             rcoords=[[0.0,0.0]]
@@ -392,6 +392,16 @@ class Square(Cluster):
         elif name=='S2y':
             rcoords=[[0.0,0.0],[0.0,1.0]]
             vectors=[[1.0,0.0],[0.0,2.0]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='S2xxy':
+            rcoords=[[0.0,0.0],[1.0,0.0]]
+            vectors=[[1.0,1.0],[1.0,-1.0]]
+            baths=None
+            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+        elif name=='S2yxy':
+            rcoords=[[0.0,0.0],[0.0,1.0]]
+            vectors=[[1.0,1.0],[1.0,-1.0]]
             baths=None
             pieces=Pieces((range(len(rcoords)),None)) if pieces else None
         elif name=='S4' or name=='S4B4' or name=='S4B8':

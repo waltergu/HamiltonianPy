@@ -23,7 +23,7 @@ def test_extensions_line():
 
 def test_extensions_square():
     print 'test_extensions_square'
-    for name in ['S1','S2x','S2y','S4','S4B4','S4B8','S8','S10','S12','S13']:
+    for name in ['S1','S2x','S2y','S2xxy','S2yxy','S4','S4B4','S4B8','S8','S10','S12','S13']:
         lattice=Square(name)('1P-1P')
         lattice.plot(pidon=True)
     print
