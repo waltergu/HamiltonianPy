@@ -735,11 +735,14 @@ def VCAGPM(engine,app):
     '''
     This method implements the grand potential based methods.
     '''
+    records={}
     def gp(values,keys):
-        engine.cache.pop('pt_kmesh',None)
-        engine.update(**{key:value for key,value in zip(keys,values)})
-        engine.rundependences(app.name)
-        return engine.records[app.dependences[0]]
+        if tuple(values) not in records:
+            engine.cache.pop('pt_kmesh',None)
+            engine.update(**{key:value for key,value in zip(keys,values)})
+            engine.rundependences(app.name)
+            records[tuple(values)]=engine.records[app.dependences[0]]
+        return records[tuple(values)]
     if isinstance(app.BS,HP.BaseSpace):
         mode,nbs,nder,minormax='+',len(app.BS.tags),app.options.get('nder',0),app.options.get('minormax','min')
         result=np.zeros((app.BS.rank(0),nbs+nder+1))
