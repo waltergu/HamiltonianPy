@@ -55,8 +55,8 @@ def JWBosonization(operator,table):
     Notes
     -----
     The rules for the tag of the transformed operator:
-        * '+' for creation operator
-        * '-' for annihilation operator
+        * 'p' for creation operator
+        * 'm' for annihilation operator
         * 's' for sign operator
         * 'i' for identity operator
         * multi-characters for operator multiplications
@@ -69,7 +69,7 @@ def JWBosonization(operator,table):
     for k in permutation:
         leaf=table[operator.indices[k].replace(nambu=None)]
         m=np.array([[0.0,0.0],[1.0,0.0]],dtype=dtype) if operator.indices[k].nambu==CREATION else np.array([[0.0,1.0],[0.0,0.0]],dtype=dtype)
-        tag='+' if operator.indices[k].nambu==CREATION else '-'
+        tag='p' if operator.indices[k].nambu==CREATION else 'm'
         if leaf in ms:
             ms[leaf]=ms[leaf].dot(m)
             counts[-1]+=1

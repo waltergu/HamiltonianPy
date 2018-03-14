@@ -63,3 +63,6 @@ target/
 
 # pycharm
 .idea/
+
+# vscode
+.vscode/

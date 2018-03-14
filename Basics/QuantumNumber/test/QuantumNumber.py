@@ -33,30 +33,30 @@ def test_quantumnumbers_ordinary():
     print 'copy(a): %s'%copy(a)
     print 'deepcopy(a): %s'%deepcopy(a)
 
-    b,permutation=QuantumNumbers.kron([a]*2).sort(history=True)
-    print 'b: ',b
+    b,permutation=QuantumNumbers.kron([a]*2).sorted(history=True)
+    print 'b: %s'%b
     print 'permutation of b:%s'%permutation
     print 'b.reorder(permutation,protocol="EXPANSION"): \n%s'%b.reorder(permutation,protocol="EXPANSION")
     print 'b.reorder([4,3,2,1,0],protocol="CONTENTS"): \n%s'%b.reorder([4,3,2,1,0],protocol="CONTENTS")
 
     c=b.to_ordereddict(protocol=QuantumNumbers.COUNTS)
     print 'c(b.to_ordereddict(protocol=QuantumNumbers.COUNTS)):\n%s'%('\n'.join('%s: %s'%(key,value) for key,value in c.iteritems()))
-    print 'QuantumNumbers.from_ordereddict(SQN,c,protocol=QuantumNumbers.COUNTS):\n%s'%QuantumNumbers.from_ordereddict(SQN,c,protocol=QuantumNumbers.COUNTS)
+    print 'QuantumNumbers.from_ordereddict(c,SQN,protocol=QuantumNumbers.COUNTS):\n%s'%QuantumNumbers.from_ordereddict(c,protocol=QuantumNumbers.COUNTS)
 
     d=b.to_ordereddict(protocol=QuantumNumbers.INDPTR)
     print 'd(b.to_ordereddict(protocol=QuantumNumbers.INDPTR)):\n%s'%('\n'.join('%s: %s'%(key,value)for key,value in d.iteritems()))
-    print 'QuantumNumbers.from_ordereddict(SQN,d,protocol=QuantumNumbers.INDPTR):\n%s'%QuantumNumbers.from_ordereddict(SQN,d,protocol=QuantumNumbers.INDPTR)
+    print 'QuantumNumbers.from_ordereddict(d,SQN,protocol=QuantumNumbers.INDPTR):\n%s'%QuantumNumbers.from_ordereddict(d,protocol=QuantumNumbers.INDPTR)
     print
 
 def test_quantumnumbers_time():
     print 'test_quantumnumbers_time'
     N=6
     t1=time()
-    b=QuantumNumbers.kron([SQNS(1.0)]*N).sort()
+    b=QuantumNumbers.kron([SQNS(1.0)]*N).sorted()
     t2=time()
     print 'Summation form 1 to %s: %ss.'%(N,t2-t1)
     t3=time()
-    QuantumNumbers.kron([b,b]).sort(history=True)
+    QuantumNumbers.kron([b,b]).sorted(history=True)
     t4=time()
     print 'Summation of %s and %s: %ss.'%(N,N,t4-t3)
     print
@@ -66,13 +66,13 @@ def test_quantumnumbers_kron():
     N,S=2,0.5
     a,b,c,d=np.random.random((N,N)),np.random.random((N,N)),np.random.random((N,N)),np.random.random((N,N))
 
-    s211=QuantumNumbers.kron([SQNS(S)]*2,signs='+-')
-    s422,p422=QuantumNumbers.kron([s211,s211],signs='++').sort(history=True)
+    s211=QuantumNumbers.kron([SQNS(S)]*2,signs=(+1,-1))
+    s422,p422=QuantumNumbers.kron([s211,s211],signs=(+1,+1)).sorted(history=True)
     tmp1,tmp2=np.kron(a,b),np.kron(c,d)
     m1=hm.reorder(np.kron(tmp1,tmp2),permutation=p422)
     print 'p422: %s'%p422
 
-    s41111,p41111=QuantumNumbers.kron([SQNS(S)]*4,signs='+-+-').sort(history=True)
+    s41111,p41111=QuantumNumbers.kron([SQNS(S)]*4,signs=(+1,-1,+1,-1)).sorted(history=True)
     m2=hm.reorder(np.kron(np.kron(np.kron(a,b),c),d),permutation=p41111)
     print 'p41111: %s'%p41111
 
@@ -81,7 +81,7 @@ def test_quantumnumbers_kron():
 
 def test_quantumnumbers_decomposition():
     print 'test_quantumnumbers_decomposition'
-    qnses,signs=[SQNS(0.5)]*4,'+-+-'
+    qnses,signs=[SQNS(0.5)]*4,(+1,-1,+1,-1)
     print 'Exhaustion method:'
     for index in QuantumNumbers.decomposition(qnses,signs=signs,target=SQN(0.0),method='exhaustion',nmax=None):
         print index

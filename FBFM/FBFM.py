@@ -160,7 +160,7 @@ def optrep(operator,k,basis):
         The matrix representation of the operator.
     '''
     nk,nsp=basis.nk,basis.nsp
-    permutation=np.array([0]) if basis.BZ is None else np.argsort((basis.BZ-k).sort(history=True)[1])
+    permutation=np.array([0]) if basis.BZ is None else np.argsort((basis.BZ-k).sorted(history=True)[1])
     if operator is None:
         result=np.zeros((nk,nsp,nsp,nk,nsp,nsp),dtype=basis.dtype)
         for i in xrange(nk):

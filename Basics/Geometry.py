@@ -530,8 +530,8 @@ def minimumlengths(cluster,vectors=(),nneighbour=1,max_coordinate_number=8):
                     if nneighbour>0: result[i+1:nneighbour+1]=result[i:nneighbour]
                     result[i]=length
                     break
-    if np.any(result==np.inf):
-        warnings.warn('minimumlengths warning: np.inf remained in the result. Larger(>%s) max_coordinate_number may be needed.'%max_coordinate_number)
+        if np.any(result==np.inf):
+            warnings.warn('minimumlengths warning: np.inf remained in the result. Larger(>%s) max_coordinate_number may be needed.'%max_coordinate_number)
     return result
 
 def intralinks(cluster,vectors=(),max_translations=None,neighbours=None):
@@ -864,7 +864,7 @@ class Lattice(object):
         '''
         Plot the lattice points and bonds. Only 2D or quasi 1d systems are supported.
         '''
-        fig,ax=plt.subplots()
+        ax=plt.subplots()[1]
         ax.axis('off')
         ax.axis('equal')
         ax.set_title(self.name)

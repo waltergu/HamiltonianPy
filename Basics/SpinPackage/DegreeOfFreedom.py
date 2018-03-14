@@ -123,32 +123,32 @@ class SpinMatrix(ndarray):
         ----------
         S : integer or half integer
             The total spin.
-        tag : 'I','i','X','x','Y','y','Z','z','+','-', and any other hashable object
+        tag : 'I','i','X','x','Y','y','Z','z','P','p','M','m', and any other hashable object
             The tag of the matrix.
         matrix : 2d ndarray, optional
-            The matrix of the SpinMatrix beyond the predefined set, which will be omitted when ``tag`` is in ('I','i','X','x','Y','y','Z','z','+','-').
+            The matrix of the SpinMatrix beyond the predefined set, which will be omitted when ``tag`` is in ('I','i','X','x','Y','y','Z','z','P','p','M','m').
         dtype : float64 or complex128, optional
             The data type of the matrix.
         '''
         delta=lambda i,j: 1 if i==j else 0
         result=zeros((int(S*2)+1,int(S*2)+1),dtype=dtype).view(cls)
-        if tag in ('I','i','X','x','Y','y','Z','z','+','-'):
+        if tag in ('I','i','X','x','Y','y','Z','z','P','p','M','m'):
             tag=tag.lower()
             for i in xrange(int(S*2)+1):
                 row,m=int(S*2)-i,S-i
                 for j in xrange(int(S*2)+1):
                     col,n=int(S*2)-j,S-j
-                    if tag in ('I','i'):
+                    if tag=='i':
                         result[row,col]=delta(i,j)
-                    elif tag in ('X','x'):
+                    elif tag=='x':
                         result[row,col]=(delta(i+1,j)+delta(i,j+1))*sqrt(S*(S+1)-m*n)/2
-                    elif tag in ('Y','y'):
+                    elif tag=='y':
                         result[row,col]=(delta(i+1,j)-delta(i,j+1))*sqrt(S*(S+1)-m*n)/2j
-                    elif tag in ('Z','z'):
+                    elif tag=='z':
                         result[row,col]=delta(i,j)*m
-                    elif tag in '+':
+                    elif tag=='p':
                         result[row,col]=delta(i+1,j)*sqrt(S*(S+1)-m*n)
-                    elif tag in '-':
+                    elif tag=='m':
                         result[row,col]=delta(i,j+1)*sqrt(S*(S+1)-m*n)
         elif matrix is not None:
             assert matrix.shape==result.shape
@@ -202,7 +202,7 @@ class SpinPack(IndexPack):
     tags : tuple of characters
         Each element is the tag of a SpinMatrix.
     matrices : tuple of 2d ndarray/None
-        Each element is the matrix of a SpinMatrix, which should be None when the corresponding tag is in ('I','i','X','x','Y','y','Z','z','+','-').
+        Each element is the matrix of a SpinMatrix, which should be None when the corresponding tag is in ('I','i','X','x','Y','y','Z','z','P','p','M','m').
     orbitals : tuple of integers
         The orbital indices for the spin term.
     '''
@@ -218,7 +218,7 @@ class SpinPack(IndexPack):
         tags : tuple of characters
             Each element is the tag of a SpinMatrix.
         matrices : tuple of 2d ndarray/None, optional
-            Each element is the matrix of a SpinMatrix, which should be None when the corresponding tag is in ('I','i','X','x','Y','y','Z','z','+','-').
+            Each element is the matrix of a SpinMatrix, which should be None when the corresponding tag is in ('I','i','X','x','Y','y','Z','z','P','p','M','m').
         orbitals : tuple of integers, optional
             The orbital indices for the spin term.
         '''
@@ -254,8 +254,8 @@ def Heisenberg(orbitals=None):
     The Heisenberg spin packs.
     '''
     result=IndexPacks()
-    result.append(SpinPack(0.5,('+','-'),orbitals=orbitals))
-    result.append(SpinPack(0.5,('-','+'),orbitals=orbitals))
+    result.append(SpinPack(0.5,('p','m'),orbitals=orbitals))
+    result.append(SpinPack(0.5,('m','p'),orbitals=orbitals))
     result.append(SpinPack(1.0,('z','z'),orbitals=orbitals))
     return result
 

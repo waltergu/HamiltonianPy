@@ -22,7 +22,7 @@ import warnings
 import time
 import sys
 
-RZERO=10**-10
+RZERO=10**-12
 
 warnings.filterwarnings("ignore",".*GUI is implemented.*")
 
@@ -84,6 +84,12 @@ class Arithmetic(object):
         Overloaded subtraction(-) operator.
         '''
         return self+other*(-1.0)
+
+    def __rsub__(self,other):
+        '''
+        Overloaded subtraction(-) operator.
+        '''
+        return -self+other
 
     def __imul__(self,other):
         '''

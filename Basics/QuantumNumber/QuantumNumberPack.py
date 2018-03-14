@@ -5,14 +5,14 @@ Common classes and functions
 
 Quantum number pack, including:
     * classes: SQN, PQN, SPQN, Z2QN
-    * functions: NewQuantumNumber, SQNS, PQNS, SzPQNS, SPQNS, Z2QNS
+    * functions: NewQuantumNumber, SQNS, PQNS, SzPQNS, SPQNS, Z2QNS, TQNS
 '''
 
 import numpy as np
 import itertools as it
 from QuantumNumber import *
 
-__all__=['NewQuantumNumber','SQN','SQNS','PQN','PQNS','SPQN','SzPQNS','SPQNS','Z2QN','Z2QNS']
+__all__=['NewQuantumNumber','SQN','SQNS','PQN','PQNS','SPQN','SzPQNS','SPQNS','Z2QN','Z2QNS','TQNS']
 
 template="""\
 class {typename}(QuantumNumber):
@@ -40,7 +40,7 @@ def NewQuantumNumber(typename,names,periods,doc=None):
         The type name of the subclass.
     names : tuple of str
         The names of the quantum number of the subclass.
-    periods : tuple of None/integer
+    periods : tuple of None/int
         The periods of the quantum number of the subclass.
     doc : str, optional
         The docstring of the subclass.
@@ -73,7 +73,7 @@ def SQNS(S):
 
     Parameters
     ----------
-    S : integer / half integer
+    S : int / half int
         The value of the spin.
 
     Returns
@@ -89,7 +89,7 @@ def PQNS(N):
 
     Parameters
     ----------
-    N: integer
+    N: int
         The maximum number of the particle number.
 
     Returns
@@ -105,7 +105,7 @@ def SzPQNS(Sz):
 
     Parameters
     ----------
-    Sz : integer / half integer
+    Sz : int / half int
         The value of the particle's spin.
 
     Returns
@@ -121,7 +121,7 @@ def SPQNS(S):
 
     Parameters
     ----------
-    S : integer / half integer
+    S : int / half int
         The value of the particle's spin.
 
     Returns
@@ -134,7 +134,7 @@ def SPQNS(S):
         pn=PQN(n)
         for ss in it.combinations(spins,n):
             qns.append(SPQN.directsum(pn,sum(ss)))
-    return QuantumNumbers('G',(qns,range(len(qns)+1)),protocol=QuantumNumbers.INDPTR).sort()
+    return QuantumNumbers('G',(qns,range(len(qns)+1)),protocol=QuantumNumbers.INDPTR).sorted()
 
 def Z2QNS():
     '''
@@ -146,3 +146,19 @@ def Z2QNS():
         As above.
     '''
     return QuantumNumbers('C',([Z2QN(0.0),Z2QN(1.0)],range(3)),protocol=QuantumNumbers.INDPTR)
+
+def TQNS(n):
+    '''
+    Trivial quantum numbers.
+
+    Parameters
+    ----------
+    n : int
+        The dimension of the trivial quantum numbers.
+
+    Returns
+    -------
+    QuantumNumbers
+        As above.
+    '''
+    return QuantumNumbers.mono(PQN(0),n)

@@ -32,8 +32,8 @@ def test_spin_matrix():
     print SpinMatrix(N,'x',dtype=float64)
     print SpinMatrix(N,'y',dtype=complex128)
     print SpinMatrix(N,'z',dtype=float64)
-    print SpinMatrix(N,'+',dtype=float64)
-    print SpinMatrix(N,'-',dtype=float64)
+    print SpinMatrix(N,'p',dtype=float64)
+    print SpinMatrix(N,'m',dtype=float64)
     print SpinMatrix(N,'WG',matrix=random.random((2*N+1,2*N+1)),dtype=float64)
     print
 
