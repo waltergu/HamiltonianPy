@@ -1,8 +1,9 @@
 '''
-===================================
-Tree of internal degrees of freedom
-===================================
-The tree of physical degrees of freedom, including:
+================================
+The structure of tensor networks
+================================
+
+The structure of tensor networks, including:
     * constants: DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS,DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
     * classes: DegFreTree
 '''
@@ -11,8 +12,8 @@ __all__=['DEGFRE_FERMIONIC_PRIORITY','DEGFRE_SPIN_PRIORITY','DEGFRE_FERMIONIC_LA
 
 import numpy as np
 from HamiltonianPy import PID,Table,QuantumNumbers
-from ..Misc import Tree
-from Tensor import Label
+from HamiltonianPy.Misc import Tree
+from HamiltonianPy.TensorNetwork.Tensor import Label
 
 DEGFRE_FERMIONIC_PRIORITY=('scope','site','orbital','spin','nambu')
 DEGFRE_FERMIONIC_LAYERS=[('scope','site','orbital'),('spin',)]
@@ -25,19 +26,19 @@ class DegFreTree(Tree):
     For each (node,data) pair of the tree,
         * node: Index
             The selected index which can represent a couple of indices.
-        * data: integer or QuantumNumbers
-            When an integer, it is the number of degrees of freedom that the index represents;
+        * data: int or QuantumNumbers
+            When an int, it is the number of degrees of freedom that the index represents;
             When a QuantumNumbers, it is the quantum number collection that the index is associated with.
 
     Attributes
     ----------
     mode : 'QN' or 'NB'
         The mode of the DegFreTree.
-    layers : list of tuples of string
+    layers : list of tuples of str
         The tag of each layer of indices.
-    priority : list of string
+    priority : list of str
         The sequence priority of the allowed indices.
-    map : function
+    map : callable
         This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
     cache : dict
         The cache of the degfretree.
@@ -51,13 +52,13 @@ class DegFreTree(Tree):
         ----------
         mode : 'QN' or 'NB'
             The mode of the DegFreTree.
-        layers : list of tuples of string
+        layers : list of tuples of str
             The tag of each layer of indices.
-        priority : list of string
+        priority : list of str
             The sequence priority of the allowed indices.
         leaves : list of Index, optional
             The leaves (bottom indices) of the DegFreTree.
-        map : function, optional
+        map : callable, optional
             This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
         '''
         self.reset(mode=mode,layers=layers,priority=priority,leaves=leaves,map=map)
@@ -113,7 +114,7 @@ class DegFreTree(Tree):
 
         Returns
         -------
-        integer
+        int
             The number of degrees of freedom.
         '''
         if self.mode=='NB':
@@ -127,7 +128,7 @@ class DegFreTree(Tree):
 
         Parameters
         ----------
-        layer : integer/tuple-of-string, optional
+        layer : int/tuple-of-str, optional
             The layer where the indices are restricted.
 
         Returns
@@ -143,7 +144,7 @@ class DegFreTree(Tree):
 
         Parameters
         ----------
-        layer : integer/tuple-of-string
+        layer : int/tuple-of-str
             The layer where the indices are restricted.
 
         Returns
@@ -163,7 +164,7 @@ class DegFreTree(Tree):
             * 'B' for bond labels of an mps;
             * 'S' for site labels of an mps or an mpo;
             * 'O' for bond labels of an mpo.
-        layer : integer/tuple-of-string, optional
+        layer : int/tuple-of-str, optional
             The layer information of the inquired labels.
 
         Returns
@@ -175,8 +176,8 @@ class DegFreTree(Tree):
         assert mode in ('B','S','O')
         if ('labels',mode,layer) not in self.cache:
             if mode in ('B','O'):
-                result=[Label(identifier='%s%s-%s'%(mode,self.layers.index(layer),i),qns=None) for i in xrange(len(self.indices(layer))+1)]
+                result=[Label('%s%s-%s'%(mode,self.layers.index(layer),i),None,None) for i in xrange(len(self.indices(layer))+1)]
             else:
-                result=[Label(identifier=index,qns=self[index]) for index in self.indices(layer)]
+                result=[Label(index,self[index],None) for index in self.indices(layer)]
             self.cache[('labels',mode,layer)]=result
         return self.cache[('labels',mode,layer)]

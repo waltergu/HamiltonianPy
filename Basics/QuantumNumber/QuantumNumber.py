@@ -9,7 +9,7 @@ Quantum number, including:
 
 from copy import copy
 from collections import OrderedDict
-from fpermutation import *
+from fpermutation import fpermutation
 from ..Utilities import Arithmetic
 import numpy as np
 import itertools as it
@@ -174,6 +174,18 @@ class QuantumNumber(Arithmetic,tuple):
             return self
 
     __isub__=__sub__
+
+    def __mul__(self,other):
+        '''
+        Overloaded left multiplication(*) operator, which supports the left multiplication of a quantum number with +1/-1.
+        '''
+        assert other==1 or other==-1
+        if other==1:
+            return self
+        else:
+            return -self
+
+    __imul__=__mul__
 
     __eq__=tuple.__eq__
 

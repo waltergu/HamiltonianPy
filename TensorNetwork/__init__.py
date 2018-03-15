@@ -3,21 +3,23 @@
 Introduction
 ============
 
-This subpackage defines tensor, matrix product states and matrix product operators.
+This subpackage implements the basics of tensor network algorithms, including
+* Tensor: labeled multi-dimensional tensors;
+* Structure: structure of tensor networks;
+* MPS: matrix product state;
+* MPO: matrix product operator.
 
-============    ==========================================
+===========     =================================
 MODULES         DESCRIPTION
-============    ==========================================
+===========     =================================
 `Tensor`        Labeled multi-dimensional tensors
-`DegFreTree`    Tree of internal degrees of freedom
+`Structure`     Structure of tensor networks
 `MPS`           Matrix product states
 `MPO`           Matrix product operators
-`Misc`          Miscellaneous useful functions and classes
-============    ==========================================
+===========     =================================
 '''
 
 from Tensor import *
-from DegFreTree import *
+from Structure import *
 from MPS import *
 from MPO import *
-from Misc import *

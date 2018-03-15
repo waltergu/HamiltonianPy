@@ -13,33 +13,23 @@ from HamiltonianPy.TensorNetwork import *
 def test_mpo():
     print 'test_mpo'
     test_mpo_spin()
-    test_mpo_fermi()
+    #test_mpo_fermi()
 
 def test_mpo_spin():
     print 'test_mpo_spin'
 
-    # set the lattice
-    Nscope,Nsite=2,2
-    a1,a2,points=np.array([1.0,0.0]),np.array([0.0,1.0]),[]
-    for scope in xrange(Nscope):
-        for site in xrange(Nsite):
-            points.append(Point(PID(scope=scope,site=site),rcoord=a1*site+a2*scope,icoord=[0.0,0.0]))
-    lattice=Lattice.compose(name='WG',points=points,neighbours=1)
-    lattice.plot(pidon=True)
-
-    # set the terms
+    # set the lattice and terms
+    lattice=Cylinder(name='WG',block=[np.array([0.0,0.0]),np.array([0.0,1.0])],translation=np.array([1.0,0.0]))([0,1])
     terms=[SpinTerm('J',1.0,neighbour=1,indexpacks=Heisenberg())]
 
     # set the degfres
-    S,priority,layers=1.0,['scope','site','orbital','S'],[('scope',),('site','orbital','S')]
-    config=IDFConfig(priority=priority)
-    for pid in lattice.pids:
-        config[pid]=Spin(S=S)
+    S,priority,layers=0.5,['scope','site','orbital','S'],[('scope',),('site','orbital','S')]
+    config=IDFConfig(priority=priority,pids=lattice.pids,map=lambda pid: Spin(S=S))
     table=config.table(mask=[])
     degfres=DegFreTree(mode='QN',layers=layers,priority=priority,leaves=table.keys(),map=lambda index:SQNS(S))
 
     # set the operators
-    opts=Generator(lattice.bonds,config,terms=terms,dtype=np.complex128).operators.values()
+    opts=Generator(lattice.bonds,config,terms=terms,dtype=np.float64).operators.values()
     optstrs=[OptStr.from_operator(opt,degfres,layers[-1]) for opt in opts]
     mpos=[optstr.to_mpo(degfres) for optstr in optstrs]
 
@@ -47,7 +37,7 @@ def test_mpo_spin():
     sites,bonds=degfres.labels(mode='S',layer=layers[-1]),degfres.labels(mode='B',layer=layers[-1])
     bonds[+0]=bonds[+0].replace(qns=QuantumNumbers.mono(SQN(0.0)))
     bonds[-1]=bonds[-1].replace(qns=QuantumNumbers.mono(SQN(0.0)))
-    cut=np.random.randint(0,Nsite*Nscope+1)
+    cut=np.random.randint(0,len(lattice)+1)
     mps1,mps2=MPS.random(sites,bonds,cut=cut,nmax=20),MPS.random(sites,bonds,cut=cut,nmax=20)
 
     # set the reference of test

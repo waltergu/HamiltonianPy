@@ -21,11 +21,13 @@ def test_mps_ordinary():
     N=4
     np.random.seed()
     state,target=np.zeros((2,)*N),SQN(0.0)
-    for index in QuantumNumbers.decomposition([SQNS(0.5)]*N,signs='+'*N,target=target):
+    for index in QuantumNumbers.decomposition([SQNS(0.5)]*N,signs=[1]*N,target=target):
         state[index]=np.random.random()
     state=state.reshape((-1,))
-    sites=[Label('S%s'%i,qns=SQNS(0.5)) for i in xrange(N)]
-    bonds=[Label('B%s'%i,qns=SQNS(0.0) if i==0 else (QuantumNumbers.mono(target) if i==N else None)) for i in xrange(N+1)]
+    sites=[Label('S%s'%i,qns=SQNS(0.5),flow=1) for i in xrange(N)]
+    bonds=[Label('B%s'%i,qns=None,flow=None) for i in xrange(N+1)]
+    bonds[+0]=bonds[+0].replace(qns=SQNS(0.0),flow=+1)
+    bonds[-1]=bonds[-1].replace(qns=QuantumNumbers.mono(target),flow=-1)
     for cut in xrange(N+1):
         mps=MPS.from_state(state,sites,bonds,cut=cut)
         print 'mps.cut,mps.is_canonical,diff: %s, %s, %s.'%(mps.cut,mps.is_canonical(),norm(state-mps.state))
@@ -40,8 +42,9 @@ def test_mps_random():
     np.random.seed()
     sites=[SQNS(0.5) for i in xrange(N)]
     bonds=[SQN(0.0),SQN(0.0)]
-    mps=MPS.random(sites,bonds,cut=np.random.randint(0,N+1),nmax=10)
+    mps=MPS.random(sites,bonds,cut=np.random.randint(0,N+1),nmax=20)
     print 'mps.bonds:\n%s'%'\n'.join(repr(bond) for bond in mps.bonds)
+    print 'mps.cut, mps.is_canonical: %s, %s.'%(mps.cut,mps.is_canonical())
     print
 
 def test_mps_algebra():
