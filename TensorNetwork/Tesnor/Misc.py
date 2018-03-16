@@ -40,26 +40,24 @@ def random(labels,dtype=np.float64,mode='D'):
     if mode=='D':
         result=DTensor(np.zeros(tuple(label.dim for label in labels),dtype=dtype),labels=labels)
         if result.qnon:
-            paxes,plabels,maxes,mlabels=[],[],[],[]
-            for i,label in enumerate(labels):
-                (paxes if label.flow==1 else maxes).append(i)
-                (plabels if label.flow==1 else mlabels).append(label)
-            plabel,ppermutation=Label.union(plabels,'__TENSOR_RANDOM_+__',+1,mode=1)
-            mlabel,mpermutation=Label.union(mlabels,'__TENSOR_RANDOM_-__',-1,mode=1)
-            result=result.transpose(axes=paxes+maxes).merge((plabels,plabel,ppermutation),(mlabels,mlabel,mpermutation))
+            paxes,plbls,maxes,mlbls=[],[],[],[]
+            for axis,label in enumerate(labels):
+                (paxes if label.flow==1 else maxes).append(axis)
+                (plbls if label.flow==1 else mlbls).append(label)
+            plabel,ppermutation=Label.union(plbls,'__TENSOR_RANDOM_+__',+1,mode=1)
+            mlabel,mpermutation=Label.union(mlbls,'__TENSOR_RANDOM_-__',-1,mode=1)
+            result=result.transpose(axes=paxes+maxes).merge((plbls,plabel,ppermutation),(mlbls,mlabel,mpermutation))
             pod,mod=plabel.qns.to_ordereddict(),mlabel.qns.to_ordereddict()
             for qn in it.ifilter(pod.has_key,mod):
                 bshape=(pod[qn].stop-pod[qn].start,mod[qn].stop-mod[qn].start)
-                if dtype in (np.float32,np.float64):
-                    result.data[pod[qn],mod[qn]]=np.random.random(bshape)
-                else:
-                    result.data[pod[qn],mod[qn]]=np.random.random(bshape)+1j*np.random.random(bshape)
-            result=result.split((plabel,plabels,np.argsort(ppermutation)),(mlabel,mlabels,np.argsort(mpermutation)))
+                result.data[pod[qn],mod[qn]]=np.random.random(bshape)
+                if dtype in (np.complex64,np.complex128):
+                    result.data[pod[qn],mod[qn]]+=1j*np.random.random(bshape)
+            result=result.split((plabel,plbls,np.argsort(ppermutation)),(mlabel,mlbls,np.argsort(mpermutation)))
         else:
-            if dtype in (np.float32,np.float64):
-                result.data[...]=np.random.random(result.shape)
-            else:
-                result.data[...]=np.random.random(result.shape)+1j*np.random.random(result.shape)
+            result.data[...]=np.random.random(result.shape)
+            if dtype in (np.complex64,np.complex128):
+                result.data[...]+=1j*np.random.random(result.shape)
         return result
     else:
         pass
