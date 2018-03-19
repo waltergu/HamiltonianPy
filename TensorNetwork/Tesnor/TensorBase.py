@@ -318,6 +318,18 @@ class TensorBase(object):
         raise NotImplementedError('%s dagger error: not implemented.'%self.__class__.__name__)
 
     @abstractmethod
+    def dimcheck(self):
+        '''
+        Check whether or not the dimensions of the labels and the data match each other.
+
+        Returns
+        --------
+        logical
+            True for match and False for not.
+        '''
+        raise NotImplementedError('%s dimcheck error: not implemented.'%self.__class__.__name__)
+
+    @abstractmethod
     def toarray(self):
         '''
         Convert to ndarray.

@@ -136,6 +136,17 @@ class DTensor(TensorBase,Arithmetic):
         else:
             return self.data==other
 
+    def dimcheck(self):
+        '''
+        Check whether or not the dimensions of the labels and the data match each other.
+
+        Returns
+        --------
+        logical
+            True for match and False for not.
+        '''
+        return all(label.dim==dim for label,dim in zip(self.labels,self.data.shape))
+
     def toarray(self):
         '''
         Convert to ndarray.
@@ -318,17 +329,6 @@ class DTensor(TensorBase,Arithmetic):
         for axis,permutation in zip(axes,permutations):
             data=hm.reorder(data,axes=[axis],permutation=permutation)
         return DTensor(data.reshape(shape),labels=labels)
-
-    def dimcheck(self):
-        '''
-        Check whether or not the dimensions of the labels and the data match each other.
-
-        Returns
-        --------
-        logical
-            True for match and False for not.
-        '''
-        return all([label.dim==dim for label,dim in zip(self.labels,self.data.shape)])
 
     def qngenerate(self,flow,axes,qnses,flows,tol=None):
         '''
@@ -520,6 +520,18 @@ class STensor(TensorBase,Arithmetic):
             return self.data==other.data
         else:
             return {key:block==other for key,block in self.data.iteritems()}
+
+    def dimcheck(self):
+        '''
+        Check whether or not the dimensions of the labels and the data match each other.
+
+        Returns
+        --------
+        logical
+            True for match and False for not.
+        '''
+        ods=[label.qns.to_ordereddict(protocol=QuantumNumbers.COUNTS)]
+        return all(block.shape==tuple(od[qn] for od,qn in zip(ods,qns)) for qns,block in self.data.iteritems())
 
     def toarray(self):
         '''
@@ -875,8 +887,8 @@ def contract(a,b,engine=None):
             if l1.flow+l2.flow!=0: raise ValueError('tensor contraction error: not converged flow for %s and %s'%(repr(l1),repr(l2)))
         data={}
         ad,bd,axes=a.to_dict(AC),b.to_dict(BC),([a.axis(label) for label in common],[b.axis(label) for label in common]) if len(common)>0 else 0
-        for qn in it.ifilter(ad.has_key,bd):
-            for (qns1,block1),(qns2,block2) in it.product(ad[qn],bd[qn]):
+        for coqns in it.ifilter(ad.has_key,bd):
+            for (qns1,block1),(qns2,block2) in it.product(ad[coqns],bd[coqns]):
                 qns=tuple(it.chain(qns1,qns2))
                 if qns not in data: data[qns]=0
                 data[qns]+=np.tensordot(block1,block2,axes=axes)
