@@ -5,6 +5,7 @@ FLQT test.
 __all__=['test_flqt']
 
 from numpy import *
+from collections import OrderedDict
 from HamiltonianPy.Basics import *
 from HamiltonianPy.FreeSystem.TBA import TBAEB
 from HamiltonianPy.FreeSystem.FLQT import *
@@ -19,11 +20,13 @@ def test_flqt():
         config[pid]=Fermi(norbital=1,nspin=1,nnambu=2)
     a=FLQT(
         name=       'flqt',
+        parameters= OrderedDict([('t1',-1.0),('delta',0.5),('mu1',mu1),('mu2',mu2),('t',None)]),
+        map=        lambda parameters: {'mu': parameters['mu1'] if parameters['t']<0.5 else parameters['mu2']},
         lattice=    lattice,
         config=     config,
         terms=[     Hopping('t1',-1.0),
-                    Onsite('mu',0.0,modulate=lambda **karg: mu1 if karg.get('t',0.0)<0.5 else mu2),
-                    Pairing('delta',0.5,neighbour=1,amplitude=lambda bond: 1 if bond.rcoord[0]>0 else -1)
+                    Pairing('delta',0.5,neighbour=1,amplitude=lambda bond: 1 if bond.rcoord[0]>0 else -1),
+                    Onsite('mu',0.0,modulate=True),
                     ],
         mask=       []
         )

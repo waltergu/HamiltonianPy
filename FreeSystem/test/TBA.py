@@ -18,7 +18,7 @@ def test_tba():
     op.register(DOS(name='DOS',parameters={'mu':0.0},ne=400,eta=0.01,savedata=False,run=TBADOS))
     op.summary()
     print 'periodic boundary conditions'
-    print '------------------------'
+    print '----------------------------'
     pd=tbaconstruct(bc='pd')
     pd.register(EB(name='EB',parameters={'mu':0.2},path=KSpace(reciprocals=pd.lattice.reciprocals,nk=200),savedata=False,run=TBAEB))
     pd.register(DOS(name='DOS',parameters={'mu':0.0},BZ=KSpace(reciprocals=pd.lattice.reciprocals,nk=10000),eta=0.01,ne=400,savedata=False,run=TBADOS))
