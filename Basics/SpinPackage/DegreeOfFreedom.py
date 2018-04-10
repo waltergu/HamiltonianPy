@@ -11,11 +11,12 @@ Spin degree of freedom package, including:
 
 __all__=['DEFAULT_SPIN_PRIORITY','SID','Spin','SpinMatrix','SpinPack','Heisenberg','Ising','S']
 
-from ..Utilities import decimaltostr
+from ..Utilities import decimaltostr,RZERO
 from ..Geometry import PID
 from ..DegreeOfFreedom import *
-from numpy import *
 from collections import namedtuple
+import numpy as np
+import numpy.linalg as nl
 import copy
 
 DEFAULT_SPIN_PRIORITY=('scope','site','orbital','S')
@@ -26,9 +27,9 @@ class SID(namedtuple('SID',['orbital','S'])):
 
     Attributes
     ----------
-    orbital : integer
+    orbital : int
         The orbital index, start with 0, default value 0.
-    S : integer or half integer
+    S : int or half int
         The total spin, default value 0.5.
     '''
 
@@ -47,9 +48,9 @@ class Spin(Internal):
 
     Attributes
     ----------
-    norbital : integer
+    norbital : int
         The number of orbitals.
-    S : integer or half integer
+    S : int or half int
         The total spin.
     '''
 
@@ -59,9 +60,9 @@ class Spin(Internal):
 
         Parameters
         ----------
-        norbital : integer, optional
+        norbital : int, optional
             The number of orbitals.
-        S : integer or half integer, optional
+        S : int or half int, optional
             The total spin.
         '''
         if S is not None and abs(2*S-int(2*S))>10**-6:
@@ -89,7 +90,7 @@ class Spin(Internal):
         ----------
         pid : PID
             The extra spatial part of the indices.
-        mask : list of string, optional
+        mask : list of str, optional
             The attributes that will be masked to None.
 
         Returns
@@ -103,35 +104,35 @@ class Spin(Internal):
             result.append(Index(pid=pid,iid=SID(orbital=orbital,S=None if 'S' in mask else self.S)))
         return result
 
-class SpinMatrix(ndarray):
+class SpinMatrix(np.ndarray):
     '''
     The matrix representation of spin operators.
 
     Attributes
     ----------
-    S : integer or half integer
+    S : int or half int
         The total spin.
     tag : any hashable object
         The tag of the matrix.
     '''
 
-    def __new__(cls,S,tag,matrix=None,dtype=complex128,**kargs):
+    def __new__(cls,S,tag,matrix=None,dtype=np.complex128,**kargs):
         '''
         Constructor.
 
         Parameters
         ----------
-        S : integer or half integer
+        S : int or half int
             The total spin.
         tag : 'I','i','X','x','Y','y','Z','z','P','p','M','m', and any other hashable object
             The tag of the matrix.
         matrix : 2d ndarray, optional
             The matrix of the SpinMatrix beyond the predefined set, which will be omitted when ``tag`` is in ('I','i','X','x','Y','y','Z','z','P','p','M','m').
-        dtype : float64 or complex128, optional
+        dtype : np.float64 or np.complex128, optional
             The data type of the matrix.
         '''
         delta=lambda i,j: 1 if i==j else 0
-        result=zeros((int(S*2)+1,int(S*2)+1),dtype=dtype).view(cls)
+        result=np.zeros((int(S*2)+1,int(S*2)+1),dtype=dtype).view(cls)
         if tag in ('I','i','X','x','Y','y','Z','z','P','p','M','m'):
             tag=tag.lower()
             for i in xrange(int(S*2)+1):
@@ -141,15 +142,15 @@ class SpinMatrix(ndarray):
                     if tag=='i':
                         result[row,col]=delta(i,j)
                     elif tag=='x':
-                        result[row,col]=(delta(i+1,j)+delta(i,j+1))*sqrt(S*(S+1)-m*n)/2
+                        result[row,col]=(delta(i+1,j)+delta(i,j+1))*np.sqrt(S*(S+1)-m*n)/2
                     elif tag=='y':
-                        result[row,col]=(delta(i+1,j)-delta(i,j+1))*sqrt(S*(S+1)-m*n)/2j
+                        result[row,col]=(delta(i+1,j)-delta(i,j+1))*np.sqrt(S*(S+1)-m*n)/2j
                     elif tag=='z':
                         result[row,col]=delta(i,j)*m
                     elif tag=='p':
-                        result[row,col]=delta(i+1,j)*sqrt(S*(S+1)-m*n)
+                        result[row,col]=delta(i+1,j)*np.sqrt(S*(S+1)-m*n)
                     elif tag=='m':
-                        result[row,col]=delta(i,j+1)*sqrt(S*(S+1)-m*n)
+                        result[row,col]=delta(i,j+1)*np.sqrt(S*(S+1)-m*n)
         elif matrix is not None:
             assert matrix.shape==result.shape
             result[...]=matrix[...]
@@ -178,14 +179,15 @@ class SpinMatrix(ndarray):
         '''
         Set the state of the SpinMatrix for pickle and copy.
         '''
-        self.S,self.tag=state[-2:]
         super(SpinMatrix,self).__setstate__(state[0:-2])
+        self.S=state[-2]
+        self.tag=state[-1]
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
-        return "SpinMatrix(S=%s,tag=%s,\nmatrix=\n%s\n)"%(self.S,self.tag,super(SpinMatrix,self).__str__())
+        return "SpinMatrix(S=%s,tag=%s,matrix=\n%s\n)"%(self.S,self.tag,super(SpinMatrix,self).__str__())
 
     def __repr__(self):
         '''
@@ -199,47 +201,52 @@ class SpinPack(IndexPack):
 
     Attributes
     ----------
-    tags : tuple of characters
+    tags : tuple of str
         Each element is the tag of a SpinMatrix.
+    orbitals : tuple of int
+        The orbital indices for the spin term.
     matrices : tuple of 2d ndarray/None
         Each element is the matrix of a SpinMatrix, which should be None when the corresponding tag is in ('I','i','X','x','Y','y','Z','z','P','p','M','m').
-    orbitals : tuple of integers
-        The orbital indices for the spin term.
     '''
 
-    def __init__(self,value,tags,matrices=None,orbitals=None):
+    def __init__(self,value,tags,orbitals=None,matrices=None):
         '''
         Constructor.
 
         Parameters
         ----------
-        value : float64 or complex128
+        value : np.float64 or np.complex128
             The overall coefficient of the spin pack.
-        tags : tuple of characters
+        tags : tuple of str
             Each element is the tag of a SpinMatrix.
+        orbitals : tuple of int, optional
+            The orbital indices for the spin term.
         matrices : tuple of 2d ndarray/None, optional
             Each element is the matrix of a SpinMatrix, which should be None when the corresponding tag is in ('I','i','X','x','Y','y','Z','z','P','p','M','m').
-        orbitals : tuple of integers, optional
-            The orbital indices for the spin term.
+
         '''
         if matrices is not None: assert len(tags)==len(matrices)
         if orbitals is not None: assert len(tags)==len(orbitals)
         super(SpinPack,self).__init__(value)
         self.tags=tuple(tags)
-        self.matrices=(None,)*len(tags) if matrices is None else matrices
-        self.orbitals=(None,)*len(tags) if orbitals is None else orbitals
+        self.orbitals=(None,)*len(tags) if orbitals is None else tuple(orbitals)
+        self.matrices=(None,)*len(tags) if matrices is None else tuple(matrices)
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return '%s*%s'%(decimaltostr(self.value),''.join('%s%s'%('' if orbital is None else orbital,tag) for orbital,tag in zip(self.orbitals,self.tags)))
+        condition=isinstance(self.value,complex) and abs(self.value.real)>5*10**-6 and abs(self.value.imag)>5*10**-6
+        temp=['(%s)'%decimaltostr(self.value)] if condition else [decimaltostr(self.value)]
+        temp.append(('%s'%('%s'*len(self.tags)))%self.tags)
+        if self.orbitals!=(None,)*len(self.orbitals): temp.append(('ob%s'%('%s'*len(self.orbitals)))%self.orbitals)
+        return '*'.join(temp)
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
-        return ''.join(['SpinPack(','value=%s, ','tags=%s','matrices=%s','orbitals=%s',')'])%(self.value,self.tags,self.matrices,self.orbitals)
+        return 'SpinPack(value=%s, tags=%s, orbitals=%s, matrices=%s)'%(self.value,self.tags,self.orbitals,self.matrices)
 
     def __mul__(self,other):
         '''
@@ -248,6 +255,16 @@ class SpinPack(IndexPack):
         result=copy.copy(self)
         result.value*=other
         return result
+
+    def __eq__(self,other):
+        '''
+        Overloaded operator(==).
+        '''
+        return (    self.value==other.value and
+                    self.tags==other.tags and
+                    self.orbitals==other.orbitals and
+                    all(nl.norm(m1-m2)<RZERO if isinstance(m1,np.ndarray) and isinstance(m2,np.ndarray) else m1==m2 for m1,m2 in zip(self.matrices,other.matrices))
+                    )
 
 def Heisenberg(orbitals=None):
     '''
@@ -276,10 +293,10 @@ def S(tag,matrix=None,orbital=None):
     ----------
     tag : 'x','X','y','Y','z','Z', or any other hashable object.
         The tag of a SpinMatrix.
+    orbital : int, optional
+        The orbital index of the spin term.
     matrix : 2d ndarray, optional
         The matrix of a SpinMatrix, which should be None when `tag` is in ('x','X','y','Y','z','Z').
-    orbital : integer, optional
-        The orbital index of the spin term.
 
     Returns
     -------
@@ -287,5 +304,5 @@ def S(tag,matrix=None,orbital=None):
         The single spin pack.
     '''
     result=IndexPacks()
-    result.append(SpinPack(1.0,(tag,),matrices=None if matrix is None else (matrix,),orbitals=None if orbital is None else (orbital,)))
+    result.append(SpinPack(1.0,(tag,),orbitals=None if orbital is None else (orbital,),matrices=None if matrix is None else (matrix,)))
     return result

@@ -116,7 +116,6 @@ class Index(tuple):
         iid : namedtuple
             The internal index, i.e. the internal part in a point of the index.
         '''
-
         self=super(Index,cls).__new__(cls,pid+iid)
         self.names=pid._fields+iid._fields
         self.icls=iid.__class__
@@ -479,6 +478,9 @@ class IndexPacks(Arithmetic,list):
     '''
 
     def __init__(self,*arg):
+        '''
+        Constructor.
+        '''
         for obj in arg:
             if issubclass(obj.__class__,IndexPack):
                 self.append(obj)
@@ -490,6 +492,17 @@ class IndexPacks(Arithmetic,list):
         Convert an instance to string.
         '''
         return ''.join(['IndexPacks(',','.join([repr(obj) for obj in self]),')'])
+
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        result=[]
+        for i,obj in enumerate(self):
+            rep=repr(obj)
+            if i>0: result.append('' if rep[0]=='-' else '+')
+            result.append(rep)
+        return ''.join(result)
 
     def __iadd__(self,other):
         '''
@@ -532,3 +545,5 @@ class IndexPacks(Arithmetic,list):
         return result
 
     __imul__=__mul__
+
+    __eq__=list.__eq__

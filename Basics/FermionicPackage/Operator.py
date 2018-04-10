@@ -87,7 +87,7 @@ class FOperator(Operator):
         '''
         The unique id of this operator.
         '''
-        return self.indices if self.rcoord is None else self.indices+tuple(['%f'%f for f in self.rcoord])
+        return self.indices if self.rcoord is None else self.indices+tuple([round(f,6) for f in self.rcoord])
 
     @property
     def rank(self):
@@ -118,7 +118,7 @@ class FOperator(Operator):
 
         Parameters
         ----------
-        permutation : list of integer
+        permutation : list of int
             The permutation of the fermionic operator.
         reverse_coord : logical, optional
             True for reversing the rcoord and icoord of the operator and False for not.

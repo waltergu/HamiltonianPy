@@ -1,19 +1,30 @@
-from Test.Misc import *
-from Test.Basics import *
-from Test.TensorNetwork import *
-from Test.FreeSystem import *
-from Test.FBFM import *
-from Test.ED import*
-from Test.VCA import *
-from Test.DMRG import *
-import sys
-
-for arg in sys.argv:
-    test_misc(arg)
-    test_basics(arg)
-    test_tensornetwork(arg)
-    test_fre_sys(arg)
-    test_fbfm(arg)
-    test_ed(arg)
-    test_vca(arg)
-    test_dmrg(arg)
+if __name__=='__main__':
+    import sys
+    if 'clear' in sys.argv:
+        import platform,os
+        if platform.system()=='Windows':
+            os.system("powershell.exe rm -r *.png")
+            os.system("powershell.exe rm -r *.dat")
+        else:
+            os.system("rm -rf *.png")
+            os.system("rm -rf *.dat")
+    else:
+        from Test.test_Misc import *
+        from Test.test_Basics import *
+        # from Test.test_TensorNetwork import *
+        from Test.test_FreeSystem import *
+        from Test.test_FBFM import *
+        from Test.test_ED import*
+        from Test.test_VCA import *
+        # from Test.test_DMRG import *
+        from unittest import TestSuite,main
+        all=TestSuite()
+        all.addTest(misc)
+        all.addTest(basics)
+        #all.addTest(tensornetwork)
+        all.addTest(fresys)
+        all.addTest(fbfm)
+        all.addTest(ed)
+        all.addTest(vcaall)
+        #all.addTest(dmrg)
+        main(verbosity=2)

@@ -1,10 +1,10 @@
 '''
 1D fermionic exact diagonalization with translation symmetry, including:
-    * classes: TRBasis, TrFED, EB
+    * classes: TrBasis, TrFED, EB
     * functions: trfoptrep, TrFEDEB
 '''
 
-__all__=['TRBasis','trfoptrep','TrFED','EB','TrFEDEB']
+__all__=['TrBasis','trfoptrep','TrFED','EB','TrFEDEB']
 
 from fbasis import *
 from numba import jit
@@ -17,7 +17,7 @@ import HamiltonianPy.ED as ED
 import HamiltonianPy.Misc as HM
 import matplotlib.pyplot as plt
 
-class TRBasis(HP.FBasis):
+class TrBasis(HP.FBasis):
     '''
     1D translation invariant fermionic binary basis.
 
@@ -96,10 +96,10 @@ def trfoptrep(operator,k,basis,dtype=np.complex128):
     ----------
     operator : FOperator
     k : int
-    basis : TRBasis
+    basis : TrBasis
     dtype : np.float32, np.float64, np.complex64, or np.complex128, optional
     '''
-    assert operator.rank%2==0 and isinstance(basis,TRBasis) and 0<=k<basis.nk
+    assert operator.rank%2==0 and isinstance(basis,TrBasis) and 0<=k<basis.nk
     value,nambus,sequences=operator.value,(np.array([index.nambu for index in operator.indices])>0)[::-1],np.array(operator.seqs)[::-1]
     table,seqs,maps,translations,signs,masks,nk=basis.table,basis.seqs,basis.maps,basis.translations,basis.signs,basis.masks,basis.nk
     data,indices,indptr,dim=_trfoptrep_(k,value,nambus,sequences,table,seqs,maps,translations,signs,masks,nk,dtype)
@@ -145,7 +145,7 @@ class TrFED(ED.FED):
 
         Parameters
         ----------
-        basis : TRBasis
+        basis : TrBasis
         lattice : Lattice
         config : IDFConfig
         terms : list of Term, optional

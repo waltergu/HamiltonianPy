@@ -89,7 +89,7 @@ def PQNS(N):
 
     Parameters
     ----------
-    N: int
+    N : int
         The maximum number of the particle number.
 
     Returns

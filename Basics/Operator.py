@@ -105,6 +105,16 @@ class Operators(Arithmetic,dict):
             The corresponding operator.
     '''
 
+    @property
+    def dagger(self):
+        '''
+        The Hermitian conjugate of the operators.
+        '''
+        result=Operators()
+        for operator in self.values():
+            result+=operator.dagger
+        return result
+
     def __repr__(self):
         '''
         Convert an instance to string.
@@ -132,7 +142,7 @@ class Operators(Arithmetic,dict):
                 else:
                     del self[id]
             else:
-                self[id]=other
+                self[id]=copy(other)
         elif isinstance(other,Operators):
             for obj in other.values():
                 self.__iadd__(obj)
@@ -187,13 +197,3 @@ class Operators(Arithmetic,dict):
         else:
             assert norm(other)==0
         return self
-
-    @property
-    def dagger(self):
-        '''
-        The Hermitian conjugate of the operators.
-        '''
-        result=Operators()
-        for operator in self.values():
-            result+=operator.dagger
-        return result

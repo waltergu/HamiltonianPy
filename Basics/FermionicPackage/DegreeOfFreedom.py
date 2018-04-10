@@ -185,7 +185,8 @@ class FermiPack(IndexPack):
         '''
         assert form in ('repr','str')
         if form=='repr':
-            temp=[decimaltostr(self.value)]
+            condition=isinstance(self.value,complex) and abs(self.value.real)>5*10**-6 and abs(self.value.imag)>5*10**-6
+            temp=['(%s)'%decimaltostr(self.value)] if condition else [decimaltostr(self.value)]
             if hasattr(self,'atoms') and 'atoms' not in mask: temp.append('sl%s%s'%self.atoms)
             if hasattr(self,'orbitals') and 'orbitals' not in mask: temp.append('ob%s%s'%self.orbitals)
             if hasattr(self,'spins') and 'spins' not in mask: temp.append('sp%s%s'%self.spins)
@@ -239,6 +240,17 @@ class FermiPack(IndexPack):
         else:
             result=MUL(self,other)
         return result
+
+    def __eq__(self,other):
+        '''
+        Overloaded operator(==).
+        '''
+        return (    self.value==other.value and 
+                    getattr(self,'atoms',None)==getattr(other,'atoms',None) and 
+                    getattr(self,'orbitals',None)==getattr(other,'orbitals',None) and 
+                    getattr(self,'spins',None)==getattr(other,'spins',None) and 
+                    getattr(self,'nambus',None)==getattr(other,'nambus',None)
+                    )
 
     def expand(self,bond,sdgr,edgr):
         '''

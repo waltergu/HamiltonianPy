@@ -1,2 +1,2 @@
-from Tree import *
-from Linalg import *
+from test_Tree import *
+from test_Linalg import *

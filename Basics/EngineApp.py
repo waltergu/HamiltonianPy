@@ -183,7 +183,7 @@ class Engine(object):
         if clock:
             self.clock.add(name=app.name)
             with self.clock.get(app.name): _run_(self,app)
-            self.log<<'App %s(%s): time consumed %ss.\n\n'%(app.name,app.__class__.__name__,self.clock.time(app.name))
+            self.log<<'App %s(%s): time consumed %ss.\n'%(app.name,app.__class__.__name__,self.clock.time(app.name))
         else:
             _run_(self,app)
         self.log.close()
@@ -223,7 +223,7 @@ class Engine(object):
         Generate the app report.
         '''
         self.log.open()
-        self.log<<'Summary of %s(%s)\n'%(self.name,self.__class__.__name__)
+        self.log<<'\nSummary of %s(%s)\n'%(self.name,self.__class__.__name__)
         self.clock.record()
         self.log<<self.clock.tostr(form='s')<<'\n'
         self.log<<'\n'

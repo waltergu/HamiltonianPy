@@ -9,7 +9,7 @@ Spin operator representation, including:
 
 __all__=['soptrep']
 
-from numpy import *
+import numpy as np
 from ...Misc import kron
 
 def soptrep(operator,table,**options):
@@ -36,19 +36,19 @@ def soptrep(operator,table,**options):
         The matrix representation of the input operator.
     '''
     dtype=operator.spins[0].dtype
-    temp=[eye(int(index.S*2)+1 if hasattr(index,'S') else 2,dtype=dtype) for index in sorted(table.keys(),key=table.get)]
+    temp=[np.eye(int(index.S*2)+1 if hasattr(index,'S') else 2,dtype=dtype) for index in sorted(table.keys(),key=table.get)]
     for index,spin in zip(operator.indices,operator.spins):
-        temp[table[index]]=asarray(spin)
+        temp[table[index]]=np.asarray(spin)
     if options.get('cut',None) is None:
-        result=array(operator.value)
+        result=np.array(operator.value)
         for matrix in temp:
             result=kron(result,matrix)
     else:
         cut,permutations,rcs,timers=options.get('cut'),options.get('permutations'),options.get('rcs'),options.get('timers',None)
-        m1=array(operator.value)
+        m1=np.array(operator.value)
         for matrix in temp[:cut]:
             m1=kron(m1,matrix)
-        m2=ones_like(operator.value)
+        m2=np.ones_like(operator.value)
         for matrix in temp[cut:]:
             m2=kron(m2,matrix)
         m1=m1[permutations[0][:,None],permutations[0]]

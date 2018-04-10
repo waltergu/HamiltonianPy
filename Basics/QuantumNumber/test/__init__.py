@@ -1,1 +1,1 @@
-from QuantumNumber import *
+from test_QuantumNumber import *

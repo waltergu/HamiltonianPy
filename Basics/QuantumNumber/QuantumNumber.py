@@ -594,7 +594,7 @@ class QuantumNumbers(Arithmetic):
         '''
         Overloaded equivalent(==) operator.
         '''
-        return self.type is other.type and nl.norm(self.contents-other.contents)==0 and nl.norm(self.indptr-other.indptr)==0
+        return self is other or (self.type is other.type and nl.norm(self.contents-other.contents)==0 and nl.norm(self.indptr-other.indptr)==0)
 
     def sort(self,history=False):
         '''

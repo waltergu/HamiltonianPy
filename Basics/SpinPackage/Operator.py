@@ -9,7 +9,6 @@ Spin operator, including:
 
 __all__=['SOperator']
 
-from numpy import *
 from ..Operator import *
 import itertools as it
 
@@ -75,7 +74,7 @@ class SOperator(Operator):
         The unique id of this operator.
         '''
         if self.rcoord is not None:
-            return tuple(it.chain(self.indices,(spin.tag for spin in self.spins),('%f'%f for f in self.rcoord)))
+            return tuple(it.chain(self.indices,(spin.tag for spin in self.spins),(round(f,6) for f in self.rcoord)))
         else:
             return tuple(it.chain(self.indices,(spin.tag for spin in self.spins)))
 

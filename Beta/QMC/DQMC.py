@@ -1,17 +1,14 @@
 '''
+Determinant quantum Monte Carlo method.
 '''
 
 __all__=['B','Bs']
-
 
 import numpy as np
 from numpy.linalg import svd
 from copy import copy
 
 class B(object):
-    '''
-    '''
-    
     def __init__(self,U,S,V):
         self.U=U
         self.S=S
@@ -35,9 +32,6 @@ class B(object):
         return B(U,S,V)
 
 class Bs(list):
-    '''
-    '''
-
     def __init__(self,T,Vs,pos=0):
         if pos>len(Vs) or pos<0:
             raise ValueError('Bs __init__ error: pos(%s) should be in range(0,%s).'%(pos,len(Vs)))
@@ -95,5 +89,3 @@ class Bs(list):
             U,S,V=svd(BL.V.dot(BR.U).transpose().conjugate()+np.einsum('i,ij,jk,k->ik',BR.S,BR.V,BL.U,BL.S))
             U,V=BR.U.dot(U).transpose().conjugate(),V.dot(BL.V).transpose().conjugate()
             return np.einsum('ij,j,jk->ik',V,1.0/S,U)
-
-

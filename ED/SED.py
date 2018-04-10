@@ -81,8 +81,8 @@ class SED(ED):
             else:
                 assert sector is not None
                 cut,qnses=len(table)/2,[self.qnses[index] for index in sorted(table,key=table.get)]
-                lqns,lpermutation=HP.QuantumNumbers.kron(qnses[:cut]).sort(history=True)
-                rqns,rpermutation=HP.QuantumNumbers.kron(qnses[cut:]).sort(history=True)
+                lqns,lpermutation=HP.QuantumNumbers.kron(qnses[:cut]).sorted(history=True)
+                rqns,rpermutation=HP.QuantumNumbers.kron(qnses[cut:]).sorted(history=True)
                 subslice=HP.QuantumNumbers.kron([lqns,rqns]).subslice(targets=(sector,))
                 rcs=(np.divide(subslice,len(rqns)),np.mod(subslice,len(rqns)),np.zeros(len(lqns)*len(rqns),dtype=np.int64))
                 rcs[2][subslice]=xrange(len(subslice))

@@ -1,1 +1,1 @@
-from TrFED import *
+from test_TrFED import *
