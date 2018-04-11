@@ -156,7 +156,7 @@ class DegFreTree(Tree):
 
     def labels(self,mode,layer=0):
         '''
-        Return the inquired labels.
+        Return the inquired labels/identifiers.
 
         Parameters
         ----------
@@ -169,14 +169,14 @@ class DegFreTree(Tree):
 
         Returns
         -------
-        list of Label
-            The inquired labels.
+        list of Label/str
+            The inquired labels/identifiers.
         '''
         mode,layer=mode.upper(),self.layers[layer] if type(layer) in (int,long) else layer
         assert mode in ('B','S','O')
         if ('labels',mode,layer) not in self.cache:
             if mode in ('B','O'):
-                result=[Label('%s%s-%s'%(mode,self.layers.index(layer),i),None,None) for i in xrange(len(self.indices(layer))+1)]
+                result=['%s%s-%s'%(mode,self.layers.index(layer),i) for i in xrange(len(self.indices(layer))+1)]
             else:
                 result=[Label(index,self[index],None) for index in self.indices(layer)]
             self.cache[('labels',mode,layer)]=result

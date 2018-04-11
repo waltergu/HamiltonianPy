@@ -56,10 +56,7 @@ class Label(tuple):
         '''
         The prime of the label.
         '''
-        if self.qnon:
-            return self.replace(prime=not self.prime,flow=None if self.flow is None else -self.flow)
-        else:
-            return self.replace(prime=not self.prime)
+        return self.replace(prime=not self.prime,flow=None if self.flow is None else -self.flow)
 
     @property
     def inverse(self):
@@ -129,7 +126,7 @@ class Label(tuple):
                 return (result,record) if mode==2 else result
         else:
             result=Label(identifier,np.product([label.qns for label in labels]),flow=0,prime=prime)
-            return result
+            return (result,None) if mode in (1,2) else result
 
     def __str__(self):
         '''
@@ -277,24 +274,17 @@ class TensorBase(object):
         '''
         return self.labels.index(label)
 
-    def relabel(self,news,olds=None):
+    def reflow(self,axes=None):
         '''
-        Change the labels of the tensor.
+        Reverse the flows of some axes of the tensor.
 
         Parameters
         ----------
-        news : list of Label
-            The new labels of the tensor.
-        olds : list of Label/int, optional
-            The old labels/axes of the tensor.
+        axes : list of Label/int, optional
+            The labels/axes whose flows to be reversed.
         '''
-        if olds is None:
-            assert len(news)==self.ndim
-            self.labels=news
-        else:
-            assert len(news)==len(olds)
-            for old,new in zip(olds,news):
-                self.labels[self.axis(old) if isinstance(old,Label) else old]=new
+        axes=[self.axis(axis) if isinstance(axis,Label) else axis for axis in (xrange(self.ndim) if axes is None else axes)]
+        self.relabel(olds=axes,news=[self.labels[axis].inverse for axis in axes])
 
     @abstractproperty
     def dtype(self):
@@ -361,14 +351,16 @@ class TensorBase(object):
         raise NotImplementedError('%s dotarray error: not implemented.'%self.__class__.__name__)
 
     @abstractmethod
-    def reflow(self,axes=None):
+    def relabel(self,news,olds=None):
         '''
-        Reverse the flows of some axes of the tensor.
+        Change the labels of the tensor.
 
         Parameters
         ----------
-        axes : list of Label/int, optional
-            The labels/axes whose flows to be reversed.
+        news : list of Label
+            The new labels of the tensor.
+        olds : list of Label/int, optional
+            The old labels/axes of the tensor.
         '''
         raise NotImplementedError('%s reflow error: not implemented.'%self.__class__.__name__)
 

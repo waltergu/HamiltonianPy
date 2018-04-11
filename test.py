@@ -1,6 +1,6 @@
 if __name__=='__main__':
     import sys
-    if 'clear' in sys.argv:
+    if 'clean' in sys.argv:
         import platform,os
         if platform.system()=='Windows':
             os.system("powershell.exe rm -r *.png")
@@ -11,7 +11,7 @@ if __name__=='__main__':
     else:
         from Test.test_Misc import *
         from Test.test_Basics import *
-        # from Test.test_TensorNetwork import *
+        from Test.test_TensorNetwork import *
         from Test.test_FreeSystem import *
         from Test.test_FBFM import *
         from Test.test_ED import*
@@ -21,10 +21,10 @@ if __name__=='__main__':
         all=TestSuite()
         all.addTest(misc)
         all.addTest(basics)
-        #all.addTest(tensornetwork)
+        all.addTest(tensornetwork)
         all.addTest(fresys)
         all.addTest(fbfm)
         all.addTest(ed)
         all.addTest(vcaall)
-        #all.addTest(dmrg)
+        # all.addTest(dmrg)
         main(verbosity=2)

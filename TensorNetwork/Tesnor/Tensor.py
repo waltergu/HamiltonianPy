@@ -9,6 +9,7 @@ Dense and sparse labled multi-dimensional tensors, including:
 '''
 
 import numpy as np
+import numpy.linalg as nl
 import itertools as it
 import HamiltonianPy.Misc as hm
 from warnings import warn
@@ -176,18 +177,21 @@ class DTensor(TensorBase,Arithmetic):
         '''
         return self*array[[slice(None) if i==(self.axis(axis) if isinstance(axis,Label) else axis) else np.newaxis for i in xrange(self.ndim)]]
 
-    def reflow(self,axes=None):
+    def relabel(self,news,olds=None):
         '''
-        Reverse the flows of some axes of the tensor.
+        Change the labels of the tensor.
 
         Parameters
         ----------
-        axes : list of Label/int, optional
-            The labels/axes whose flows to be reversed.
+        news : list of Label
+            The new labels of the tensor.
+        olds : list of Label/int, optional
+            The old labels/axes of the tensor.
         '''
-        for axis in xrange(self.ndim) if axes is None else axes:
-            axis=self.axis(axis) if isinstance(axis,Label) else axis
-            self.labels[axis]=self.labels[axis].inverse
+        olds=range(self.ndim) if olds is None else [self.axis(old) if isinstance(old,Label) else old for old in olds]
+        assert len(news)==len(olds)
+        for old,new in zip(olds,news):
+            self.labels[old]=new
 
     def transpose(self,axes=None):
         '''
@@ -569,18 +573,34 @@ class STensor(TensorBase,Arithmetic):
         data={key:block*array[[od[key[axis]] if i==axis else np.newaxis for i in xrange(self.ndim)]] for key,block in self.data.iteritems()}
         return STensor(data,labels=self.labels)
 
-    def reflow(self,axes=None):
+    def relabel(self,news,olds=None):
         '''
-        Reverse the flows of some axes of the tensor.
+        Change the labels of the tensor.
 
         Parameters
         ----------
-        axes : list of Label/int, optional
-            The labels/axes whose flows to be reversed.
+        news : list of Label
+            The new labels of the tensor.
+        olds : list of Label/int, optional
+            The old labels/axes of the tensor.
         '''
-        axes={self.axis(axis) if isinstance(axis,Label) else axis for axis in (xrange(self.ndim) if axes is None else axes)}
-        self.labels=[label.inverse if i in axes else label for i,label in enumerate(self.labels)]
-        self.data={tuple(-qn if i in axes else qn for i,qn in enumerate(key)):block for key,block in self.data.iteritems()}
+        axes=range(self.ndim) if olds is None else [self.axis(old) if isinstance(old,Label) else old for old in olds]
+        olds,maps=[self.labels[axis] for axis in axes],{}
+        assert len(news)==len(olds)
+        for axis,old,new in zip(axes,olds,news):
+            if old.qns!=new.qns:
+                assert nl.norm(old.qns.indptr-new.qns.indptr)==0
+                for oldqn,newqn in zip(old.qns,new.qns):
+                    maps[(axis,oldqn)]=newqn
+            self.labels[axis]=new
+        if len(maps)>0:
+            data={}
+            flows=[label.flow for label in self.labels]
+            for qns,block in self.data.iteritems():
+                newqns=tuple(maps.get((axis,qn),qn) for axis,qn in enumerate(qns))
+                assert nl.norm(sum(qn*flow for qn,flow in zip(newqns,flows)))==0
+                data[newqns]=block
+            self.data=data
 
     def transpose(self,axes=None):
         '''
@@ -749,7 +769,7 @@ class STensor(TensorBase,Arithmetic):
 
     def to_dict(self,masks=()):
         '''
-        Convert the sparse tensor to dict.
+        Group the data blocks of the sparse tensor to dict according to the masked dimensions.
 
         Parameters
         ----------
@@ -823,14 +843,14 @@ def contract(a,b,engine=None):
             2) neither of their flows is `None`,
             3) the sum of their flows is zero.
     *   When `a` and `b` are dense:
-        *   When engine is 'ftensordot', Rule.2 and Rule.3 will be omitted, i.e. as long as Rule.1 is satisfied, the labels will be contracted.
-        *   When Rule.1 and Rule.2 is satisfied but Rule.3 is not, an exception will be raised except when engine is 'ftensordot'.
-        *   When Rule.1 is satisfied but Rule.2 is not, and when engine is NOT 'ftensordot', an elementwise multiplication will be performed along
-            the corresponding axis, and the label whose flow is not `None` will be kept for this axis, i.e. only multiplication yet no summation.
-        *   As to the efficiency, usually 'block'>'tensordot'>'einsum'. Therefore, `None` is recommeded and let the program choose the optimal.
+            *   When engine is 'ftensordot', Rule.2 and Rule.3 will be omitted, i.e. as long as Rule.1 is satisfied, the labels will be contracted.
+            *   When Rule.1 and Rule.2 is satisfied but Rule.3 is not, an exception will be raised except when engine is 'ftensordot'.
+            *   When Rule.1 is satisfied but Rule.2 is not, and when engine is NOT 'ftensordot', an elementwise multiplication will be performed along
+                the corresponding axis, and the label whose flow is not `None` will be kept for this axis, i.e. only multiplication yet no summation.
+            *   As to the efficiency, usually 'block'>'tensordot'>'einsum'. Therefore, `None` is recommeded and let the program choose the optimal.
     *   When `a` and `b` are sparse or one sparse and another 0d/1d dense:
-        *   The dimension of sparse tensors must be greater than 1 and no flows of sparse tensors are allowed to be `None`.
-        *   The contraction of an stensor with a 1d dtensor is to multiply the corresponding 1d array to the stensor along the corresponding axis.
+            *   The dimension of sparse tensors must be greater than 1 and no flows of sparse tensors are allowed to be `None`.
+            *   The contraction of an stensor with a 1d dtensor is to multiply the corresponding 1d array to the stensor along the corresponding axis.
     '''
     assert type(a) is type(b) or a.ndim<=1 or b.ndim<=1
     common=set(a.labels)&set(b.labels)

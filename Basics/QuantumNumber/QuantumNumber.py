@@ -596,6 +596,13 @@ class QuantumNumbers(Arithmetic):
         '''
         return self is other or (self.type is other.type and nl.norm(self.contents-other.contents)==0 and nl.norm(self.indptr-other.indptr)==0)
 
+    def __pow__(self,other):
+        '''
+        Overloaded power(**) operator.
+        '''
+        assert isinstance(other,int) or isinstance(other,long)
+        return QuantumNumbers.kron([self]*other,signs=[1]*other)
+
     def sort(self,history=False):
         '''
         Sort the contents of the collection and convert it to the canonical form.

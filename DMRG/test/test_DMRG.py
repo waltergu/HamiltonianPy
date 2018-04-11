@@ -16,7 +16,7 @@ def test_dmrg():
     print 'test_dmrg'
     mkl.set_num_threads(1)
     Engine.DEBUG=True
-    test_idmrg()
+    #test_idmrg()
     test_fdmrg()
 
 def test_idmrg():
@@ -30,9 +30,9 @@ def test_idmrg():
 def test_fdmrg():
     print 'test_fdmrg'
     dmrg_spin('fdmrg',spin=0.5,N=20,J=1.0,qnon=True,matvec='lo')
-    dmrg_spinless_fermion('fdmrg',N=20,t=-0.5,qnon=True,matvec='lo')
-    dmrg_spinful_fermion('fdmrg',N=20,t=-1.0,U=1.0,qnon=True,matvec='lo')
-    dmrg_honeycomb_heisenberg('fdmrg',N=10,J=1.0,qnon=True,matvec='lo')
+    #dmrg_spinless_fermion('fdmrg',N=20,t=-0.5,qnon=True,matvec='lo')
+    #dmrg_spinful_fermion('fdmrg',N=20,t=-1.0,U=1.0,qnon=True,matvec='lo')
+    #dmrg_honeycomb_heisenberg('fdmrg',N=10,J=1.0,qnon=True,matvec='lo')
     print
 
 def dmrg_spin(mode,spin,N,J,qnon=True,matvec='lo'):

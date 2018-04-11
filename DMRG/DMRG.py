@@ -23,6 +23,140 @@ from HamiltonianPy.TensorNetwork import *
 from copy import deepcopy
 from collections import OrderedDict
 
+class Block(object):
+    '''
+    A block of DMRG tensor network.
+
+    Attributes
+    ----------
+    mpo : MPO
+        The MPO of the block.
+    mps : MPS
+        The MPS of the block.
+    _Hs_ : dict
+        * entry 'L': list of 3d Tensor
+            The contraction of mpo and mps from the left.
+        * entry 'R': list of 3d Tensor
+            The contraction of mpo and mps from the right.
+    '''
+
+    def __init__(self,mpo,mps):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        mpo : MPO
+            The MPO of the block.
+        mps : MPS
+            The MPS of the block.
+        '''
+        self.mpo=mpo
+        self.mps=mps
+
+    def relabel(self,sites,obonds,sbonds):
+        '''
+
+        '''
+        pass
+
+
+    def set_HL_(self,pos,job='contract',tol=hm.TOL):
+        '''
+        Set a certain left contraction.
+
+        Parameters
+        ----------
+        pos : int
+            The position of the left block Hamiltonian.
+        job : 'contract' or 'relabel'
+            'contract' for a complete calculation from the contraction of `self.mpo` and `self.mps`;
+            'relabel' for a sole labels change according to `self.mpo` and `self.mps`.
+        tol : np.float64, optional
+            The tolerance of the non-zeros.
+        '''
+        assert job in ('contract','relabel')
+        if job=='contract':
+            if pos==-1:
+                self._Hs_['L'][0]=Tensor([[[1.0]]],labels=[self.mps[+0].labels[MPS.L].prime,self.mpo[+0].labels[MPO.L],self.mps[+0].labels[MPS.L]])
+            else:
+                u,m=self.mps[pos],self.mpo[pos]
+                L,S,R=u.labels
+                up=u.copy(copy_data=False).conjugate()
+                up.relabel(news=[L.prime,S.prime,R.prime])
+                temp=contract([self._Hs_['L'][pos],up,m,u],engine='tensordot')
+                temp[np.abs(temp)<tol]=0.0
+                self._Hs_['L'][pos+1]=temp
+        else:
+            if pos==-1:
+                self._Hs_['L'][0].relabel(news=[self.mps[+0].labels[MPS.L].prime,self.mpo[+0].labels[MPO.L],self.mps[+0].labels[MPS.L]])
+            else:
+                self._Hs_['L'][pos+1].relabel(news=[self.mps[pos].labels[MPS.R].prime,self.mpo[pos].labels[MPO.R],self.mps[pos].labels[MPS.R]])
+
+    def set_HR_(self,pos,job='contract',tol=hm.TOL):
+        '''
+        Set a certain right block Hamiltonian.
+
+        Parameters
+        ----------
+        pos : integer
+            The position of the right block Hamiltonian.
+        job : 'contract' or 'relabel'
+            'contract' for a complete calculation from the contraction of `self.mpo` and `self.mps`;
+            'relabel' for a sole labels change according to `self.mpo` and `self.mps`.
+        tol : np.float64, optional
+            The tolerance of the non-zeros.
+        '''
+        assert job in ('contract','relabel')
+        if job=='contract':
+            if pos==self.mps.nsite:
+                self._Hs_['R'][0]=Tensor([[[1.0]]],labels=[self.mps[-1].labels[MPS.R].prime,self.mpo[-1].labels[MPO.R],self.mps[-1].labels[MPS.R]])
+            else:
+                v,m=self.mps[pos],self.mpo[pos]
+                L,S,R=v.labels
+                vp=v.copy(copy_data=False).conjugate()
+                vp.relabel(news=[L.prime,S.prime,R.prime])
+                temp=contract([self._Hs_['R'][self.mps.nsite-pos-1],vp,m,v],engine='tensordot')
+                temp[np.abs(temp)<tol]=0.0
+                self._Hs_['R'][self.mps.nsite-pos]=temp
+        else:
+            if pos==self.mps.nsite:
+                self._Hs_['R'][0].relabel(news=[self.mps[-1].labels[MPS.R].prime,self.mpo[-1].labels[MPO.R],self.mps[-1].labels[MPS.R]])
+            else:
+                self._Hs_['R'][self.mps.nsite-pos].relabel(news=[self.mps[pos].labels[MPS.L].prime,self.mpo[pos].labels[MPO.L],self.mps[pos].labels[MPS.L]])
+
+    def set_Hs_(self,SL=None,EL=None,SR=None,ER=None,keep=False,tol=hm.TOL):
+        '''
+        Set the Hamiltonians of blocks.
+
+        Parameters
+        ----------
+        SL,EL : integer, optional
+            The start/end position of the left Hamiltonians to be set.
+        SR,ER : integer, optional
+            The start/end position of the right Hamiltonians to be set.
+        keep : logical, optional
+            True for keeping the old `_Hs_` and False for not.
+        tol : np.float64, optional
+            The tolerance of the zeros.
+        '''
+        SL=-1 if SL is None else SL
+        SR=self.mps.nsite if SR is None else SR
+        if keep:
+            for pos in xrange(-1,SL):
+                self.set_HL_(pos,job='relabel')
+            for pos in xrange(self.mps.nsite,SR,-1):
+                self.set_HR_(pos,job='relabel')
+        else:
+            self._Hs_={'L':[None]*(self.mps.nsite+1),'R':[None]*(self.mps.nsite+1)}
+        if self.mps.cut is not None:
+            EL=self.mps.cut-1 if EL is None else EL
+            ER=self.mps.cut if ER is None else ER
+            for pos in xrange(SL,EL+1):
+                self.set_HL_(pos,job='contract',tol=tol)
+            for pos in xrange(SR,ER-1,-1):
+                self.set_HR_(pos,job='contract',tol=tol)
+
 def pattern(name,parameters,target,nsite,mode='re'):
     '''
     Return the pattern of data files for match.
@@ -84,11 +218,7 @@ class DMRG(Engine):
         The operators of the Hamiltonian.
     mpo : MPO
         The MPO-formed Hamiltonian.
-    _Hs_ : dict
-        * entry 'L': list of 3d Tensor
-            The contraction of mpo and mps from the left.
-        * entry 'R': list of 3d Tensor
-            The contraction of mpo and mps from the right.
+
     timers : Timers
         The timers of the dmrg processes.
     info : Sheet
@@ -193,102 +323,6 @@ class DMRG(Engine):
         '''
         if len(self.operators)>0:
             self.mpo=OptMPO([OptStr.from_operator(operator,self.degfres) for operator in self.operators.itervalues()],self.degfres).to_mpo()
-
-    def set_HL_(self,pos,job='contract',tol=hm.TOL):
-        '''
-        Set a certain left block Hamiltonian.
-
-        Parameters
-        ----------
-        pos : integer
-            The position of the left block Hamiltonian.
-        job : 'contract' or 'relabel'
-            'contract' for a complete calculation from the contraction of `self.mpo` and `self.mps`;
-            'relabel' for a sole labels change according to `self.mpo` and `self.mps`.
-        tol : np.float64, optional
-            The tolerance of the non-zeros.
-        '''
-        assert job in ('contract','relabel')
-        if job=='contract':
-            if pos==-1:
-                self._Hs_['L'][0]=Tensor([[[1.0]]],labels=[self.mps[+0].labels[MPS.L].prime,self.mpo[+0].labels[MPO.L],self.mps[+0].labels[MPS.L]])
-            else:
-                u,m=self.mps[pos],self.mpo[pos]
-                L,S,R=u.labels
-                up=u.copy(copy_data=False).conjugate()
-                up.relabel(news=[L.prime,S.prime,R.prime])
-                temp=contract([self._Hs_['L'][pos],up,m,u],engine='tensordot')
-                temp[np.abs(temp)<tol]=0.0
-                self._Hs_['L'][pos+1]=temp
-        else:
-            if pos==-1:
-                self._Hs_['L'][0].relabel(news=[self.mps[+0].labels[MPS.L].prime,self.mpo[+0].labels[MPO.L],self.mps[+0].labels[MPS.L]])
-            else:
-                self._Hs_['L'][pos+1].relabel(news=[self.mps[pos].labels[MPS.R].prime,self.mpo[pos].labels[MPO.R],self.mps[pos].labels[MPS.R]])
-
-    def set_HR_(self,pos,job='contract',tol=hm.TOL):
-        '''
-        Set a certain right block Hamiltonian.
-
-        Parameters
-        ----------
-        pos : integer
-            The position of the right block Hamiltonian.
-        job : 'contract' or 'relabel'
-            'contract' for a complete calculation from the contraction of `self.mpo` and `self.mps`;
-            'relabel' for a sole labels change according to `self.mpo` and `self.mps`.
-        tol : np.float64, optional
-            The tolerance of the non-zeros.
-        '''
-        assert job in ('contract','relabel')
-        if job=='contract':
-            if pos==self.mps.nsite:
-                self._Hs_['R'][0]=Tensor([[[1.0]]],labels=[self.mps[-1].labels[MPS.R].prime,self.mpo[-1].labels[MPO.R],self.mps[-1].labels[MPS.R]])
-            else:
-                v,m=self.mps[pos],self.mpo[pos]
-                L,S,R=v.labels
-                vp=v.copy(copy_data=False).conjugate()
-                vp.relabel(news=[L.prime,S.prime,R.prime])
-                temp=contract([self._Hs_['R'][self.mps.nsite-pos-1],vp,m,v],engine='tensordot')
-                temp[np.abs(temp)<tol]=0.0
-                self._Hs_['R'][self.mps.nsite-pos]=temp
-        else:
-            if pos==self.mps.nsite:
-                self._Hs_['R'][0].relabel(news=[self.mps[-1].labels[MPS.R].prime,self.mpo[-1].labels[MPO.R],self.mps[-1].labels[MPS.R]])
-            else:
-                self._Hs_['R'][self.mps.nsite-pos].relabel(news=[self.mps[pos].labels[MPS.L].prime,self.mpo[pos].labels[MPO.L],self.mps[pos].labels[MPS.L]])
-
-    def set_Hs_(self,SL=None,EL=None,SR=None,ER=None,keep=False,tol=hm.TOL):
-        '''
-        Set the Hamiltonians of blocks.
-
-        Parameters
-        ----------
-        SL,EL : integer, optional
-            The start/end position of the left Hamiltonians to be set.
-        SR,ER : integer, optional
-            The start/end position of the right Hamiltonians to be set.
-        keep : logical, optional
-            True for keeping the old `_Hs_` and False for not.
-        tol : np.float64, optional
-            The tolerance of the zeros.
-        '''
-        SL=-1 if SL is None else SL
-        SR=self.mps.nsite if SR is None else SR
-        if keep:
-            for pos in xrange(-1,SL):
-                self.set_HL_(pos,job='relabel')
-            for pos in xrange(self.mps.nsite,SR,-1):
-                self.set_HR_(pos,job='relabel')
-        else:
-            self._Hs_={'L':[None]*(self.mps.nsite+1),'R':[None]*(self.mps.nsite+1)}
-        if self.mps.cut is not None:
-            EL=self.mps.cut-1 if EL is None else EL
-            ER=self.mps.cut if ER is None else ER
-            for pos in xrange(SL,EL+1):
-                self.set_HL_(pos,job='contract',tol=tol)
-            for pos in xrange(SR,ER-1,-1):
-                self.set_HR_(pos,job='contract',tol=tol)
 
     @property
     def nspb(self):
@@ -435,110 +469,6 @@ class DMRG(Engine):
         self.log<<'timers of the dmrg:\n%s\n'%self.timers.tostr(Timers.ALL)
         self.log<<'info of the dmrg:\n%s\n\n'%self.info
         if piechart: self.timers.graph(parents=Timers.ALL)
-
-    @staticmethod
-    def imps_predict(mps,sites,bonds,osvs,target=None,dtype=np.float64):
-        '''
-        Infinite DMRG state prediction.
-
-        Parameters
-        ----------
-        mps : MPS
-            The mps to be predicted.
-        sites,bonds : list of Label
-            The new site/bond labels of the mps.
-        osvs : 1d ndarray
-            The old singular values.
-        target : QuantumNumber, optional
-            The new target of the mps.
-        dtype : np.float64, np.complex128, etc, optional
-            The data type of the mps.
-
-        Returns
-        -------
-        nsvs : 1d ndarray
-            The updated singular values for the next imps prediction.
-        '''
-        if mps.cut is None: mps.cut=0
-        assert mps.cut==mps.nsite/2 and mps.nsite%2==0
-        obonds=mps.bonds
-        diff=0 if target is None else (target if mps.nsite==0 else target-next(iter(obonds[-1].qns)))
-        ob,nb=mps.nsite/2+1,(len(bonds)+1)/2
-        L,LS,RS,R=bonds[:ob],bonds[ob:nb],bonds[nb:-ob],bonds[-ob:]
-        if mps.cut==0:
-            L[+0]=L[+0].replace(qns=QuantumNumbers.mono(target.zero(),count=1) if mps.mode=='QN' else 1)
-            R[-1]=R[-1].replace(qns=QuantumNumbers.mono(target,count=1) if mps.mode=='QN' else 1)
-        for i,(bond,obond) in enumerate(zip(L,obonds[:ob])):
-            L[i]=bond.replace(qns=obond.qns)
-        for i,(bond,obond) in enumerate(zip(R,obonds[-ob:])):
-            R[i]=bond.replace(qns=obond.qns+diff)
-        if mps.nsite>0:
-            for i,(bond,obond) in enumerate(zip(LS,obonds[ob:nb])):
-                LS[i]=bond.replace(qns=obond.qns)
-            for i,(bond,obond) in enumerate(zip(RS,obonds[-nb+1:-ob])):
-                RS[i]=bond.replace(qns=obond.qns+diff)
-        else:
-            LS,RS=deepcopy(LS),deepcopy(RS)
-        nbonds=L+LS+RS+R
-        ns,nms,lms,rms=nb-ob,[],[],[]
-        if mps.nsite>0:
-            us,vs,nsvs=mps[mps.cut-ns:mps.cut],mps[mps.cut:mps.cut+ns],np.asarray(mps.Lambda)
-            for i,(L,S,R) in enumerate(zip(nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb])):
-                m=Tensor(np.asarray(vs[i].dotarray(axis=MPS.L,array=nsvs) if i==0 else vs[i]),labels=[L,S,R])
-                u,s,v=m.svd(row=[L,S],new=Label('__DMRG_INSERT_L_%i__'%i),col=[R],row_signs='++',col_signs='+')
-                if i<len(vs)-1:
-                    u.relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
-                    vs[i+1].relabel(olds=[MPS.L],news=[R.replace(qns=s.labels[0].qns)])
-                    vs[i+1]=contract([s,v,vs[i+1]],engine='einsum',reserve=s.labels)
-                    vs[i+1].relabel(olds=s.labels,news=[R.replace(qns=s.labels[0].qns)])
-                else:
-                    ml=v.dotarray(axis=0,array=np.asarray(s))
-                lms.append(u)
-            for i,(L,S,R) in enumerate(reversed(zip(nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]))):
-                m=Tensor(np.asarray(us[-1-i].dotarray(axis=MPS.R,array=nsvs) if i==0 else us[-1-i]),labels=[L,S,R])
-                u,s,v=m.svd(row=[L],new=Label('__DMRG_INSERT_R_%i__'%i),col=[S,R],row_signs='+',col_signs='-+')
-                if i<len(us)-1:
-                    v.relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
-                    us[-i-2].relabel(olds=[MPS.R],news=[L.replace(qns=s.labels[0].qns)])
-                    us[-i-2]=contract([us[-i-2],u,s],engine='einsum',reserve=s.labels)
-                    us[-i-2].relabel(olds=s.labels,news=[L.replace(qns=s.labels[0].qns)])
-                else:
-                    mr=u.dotarray(axis=1,array=np.asarray(s))
-                rms.insert(0,v)
-            u,s,v=contract([ml,Tensor(1.0/osvs,labels=[nbonds[nb-1]]),mr],engine='einsum').svd(row=[0],new=nbonds[nb-1],col=[1])
-            lms[-1]=contract([lms[-1],u],engine='tensordot')
-            rms[+0]=contract([v,rms[+0]],engine='tensordot')
-            nms=lms+rms
-            mps.Lambda=s
-        else:
-            for L,S,R in zip(nbonds[ob-1:nb-1],sites[ob-1:nb-1],nbonds[ob:nb]):
-                nms.append(Tensor(np.zeros((1,S.dim,1),dtype=dtype),labels=[L,S,R]))
-            for L,S,R in zip(nbonds[nb-1:2*nb-ob-1],sites[nb-1:2*nb-ob-1],nbonds[nb:2*nb-ob]):
-                nms.append(Tensor(np.zeros((1,S.dim,1),dtype=dtype),labels=[L,S,R]))
-            nsvs=np.array([1.0])
-        mps[mps.cut:mps.cut]=nms
-        mps.cut=mps.nsite/2
-        mps.relabel(sites=sites,bonds=nbonds)
-        return nsvs
-
-    @staticmethod
-    def impo_generate(mpo,sites,bonds):
-        '''
-        Infinite DMRG mpo generation.
-
-        Parameters
-        ----------
-        mpo : MPO
-            The mpo to be generated.
-        sites,bonds : list of Label
-            The site/bond labels of the mpo.
-        '''
-        ob,nb,obonds=mpo.nsite/2+1,(len(bonds)+1)/2,mpo.bonds
-        L=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds[:ob],obonds[:ob])]
-        C=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds[ob:-ob],obonds[ob:nb]*2)]
-        R=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds[-ob:],obonds[-ob:])]
-        mpo[mpo.nsite/2:mpo.nsite/2]=deepcopy(mpo[2*ob-nb-1:nb-1])
-        mpo.relabel(sites=sites,bonds=L+C+R)
 
     def insert(self,A,B,news=None,target=None):
         '''

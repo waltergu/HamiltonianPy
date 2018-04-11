@@ -230,7 +230,7 @@ class OptStr(Arithmetic,list):
             The corresponding OptStr.
         '''
         assert isinstance(operator,SOperator) or isinstance(operator,FOperator)
-        dtype,layer=np.array(operator.value).dtype,degfres.layers[layer] if type(layer) in (int,long) else layer
+        layer=degfres.layers[layer] if type(layer) in (int,long) else layer
         table,sites=degfres.table(degfres.layers[-1]),degfres.labels('S',degfres.layers[-1])
         operator=operator if isinstance(operator,SOperator) else JWBosonization(operator,table)
         opts=[]
@@ -351,15 +351,15 @@ class OptStr(Arithmetic,list):
         for pos in xrange(len(sites)):
             ndegfre=sites[pos].dim
             if degfres.mode=='QN':
-                L=bonds[pos].replace(qns=QuantumNumbers.mono(type.zero()) if pos==0 else ms[-1].labels[MPO.R].qns)
+                L=Label(bonds[pos],qns=QuantumNumbers.mono(type.zero()) if pos==0 else ms[-1].labels[MPO.R].qns,flow=None)
                 U=sites[pos].P
                 D=copy(sites[pos])
-                R=bonds[pos+1].replace(qns=1)
+                R=Label(bonds[pos+1],qns=1,flow=None)
             else:
-                L=bonds[pos].replace(qns=1,flow=0)
+                L=Label(bonds[pos],qns=1,flow=0)
                 U=sites[pos].P.replace(flow=0)
                 D=sites[pos].replace(flow=0)
-                R=bonds[pos+1].replace(qns=1,flow=0)
+                R=Label(bonds[pos+1],qns=1,flow=0)
             if pos in poses:
                 ms.append(DTensor(np.asarray(matrices[count],dtype=self.dtype).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
                 count+=1
@@ -417,10 +417,10 @@ class OptStr(Arithmetic,list):
                 else:
                     poses[ancestor]={index:pos}
             opts=[]
-            olayer,nlayer=degfres.layers[old],degfres.layers[new]
-            otable,ntable=degfres.table(olayer),degfres.table(nlayer)
-            sites=degfres.labels('S',nlayer)
-            for ancestor in sorted(poses.keys(),key=ntable.get):
+            layer=degfres.layers[new]
+            table=degfres.table(layer)
+            sites=degfres.labels('S',layer)
+            for ancestor in sorted(poses.keys(),key=table.get):
                 tag,m=[],1.0
                 for index in degfres.descendants(ancestor,old-new):
                     if index in poses[ancestor]:
@@ -430,7 +430,7 @@ class OptStr(Arithmetic,list):
                     else:
                         tag.append('i')
                         m=np.kron(m,np.identity(degfres.ndegfre(index)))
-                opts.append(Opt(sites[ntable[ancestor]],{'(%s)'%('|'.join(tag)):[1.0,m]}))
+                opts.append(Opt(sites[table[ancestor]],{'(%s)'%('|'.join(tag)):[1.0,m]}))
             return OptStr(opts,self.dtype)
 
 class OptMPO(list):
@@ -441,8 +441,8 @@ class OptMPO(list):
     ----------
     sites : list of Label
         The site labels of the mpo.
-    bonds : list of Label
-        The bond labels of the mpo.
+    bonds : list of str
+        The bond identifiers of the mpo.
     dtype : np.float64, np.complex128, etc
         The data type of the matrix product operator.
     '''
@@ -532,19 +532,13 @@ class OptMPO(list):
         type=self[0][0,0].site.qns.type if isinstance(self[0][0,0].site.qns,QuantumNumbers) else None
         for pos,m in enumerate(self):
             dim=self.sites[pos].dim
-            if type is None:
-                L=self.bonds[pos].replace(qns=m.shape[0],flow=0)
-                U=self.sites[pos].replace(prime=True,flow=0)
-                D=self.sites[pos].replace(flow=0)
-                R=self.bonds[pos+1].replace(qns=m.shape[1],flow=0)
-            else:
-                L=copy(self.bonds[pos])
-                U=self.sites[pos].P
-                D=self.sites[pos]
-                R=copy(self.bonds[pos+1])
-            Ms.append(DTensor(np.zeros((m.shape[0],dim,dim,m.shape[1]),dtype=dtype),labels=[L,U,D,R]))
+            L=Label(self.bonds[pos],qns=m.shape[0],flow=0)
+            U=self.sites[pos].replace(prime=True,qns=dim,flow=0)
+            D=self.sites[pos].replace(qns=dim,flow=0)
+            R=Label(self.bonds[pos+1],qns=m.shape[1],flow=0)
+            Ms.append(DTensor(np.zeros((m.shape[0],dim,dim,m.shape[1]),dtype=self.dtype),labels=[L,U,D,R]))
             for i,j in it.product(xrange(m.shape[0]),xrange(m.shape[1])):
-                Ms[-1][i,:,:,j]=m[i,j].matrix
+                Ms[-1].data[i,:,:,j]=m[i,j].matrix
         result=MPO(Ms)
         result.compress(**karg)
         if type is not None:
@@ -559,52 +553,18 @@ class MPO(Arithmetic,list):
     '''
     L,U,D,R=0,1,2,3
 
-    def __init__(self,ms,sites=None,bonds=None):
+    def __init__(self,ms=()):
         '''
         Constructor.
 
         Parameters
         ----------
-        ms : list of 4d ndarray/DTensor/STensor
+        ms : list of 4d DTensor/STensor, optional
             The matrices of the mpo.
-        sites : list of Label, optional
-            The site labels of the mpo.
-        bonds : list of Label, optional
-            The bond labels of the mpo.
         '''
-        assert (sites is None)==(bonds is None)
-        if sites is None:
-            for m in ms:
-                assert m.ndim==4 and m.labels[MPO.U]==m.labels[MPO.D].P
-                self.append(m)
-        else:
-            assert len(ms)==len(sites)==len(bonds)-1
-            qnon=sites[0].qnon
-            for i,m in enumerate(ms):
-                assert m.ndim==4
-                if qnon:
-                    L=bonds[i].replace(flow=+1)
-                    U=sites[i].replace(flow=+1)
-                    D=sites[i].replace(flow=-1)
-                    R=bonds[i+1].replace(flow=-1)
-                else:
-                    L=bonds[i].replace(qns=m.shape[0],flow=0)
-                    U=sites[i].replace(flow=0)
-                    D=sites[i].replace(flow=0)
-                    R=bonds[i+1].replace(qns=m.shape[3],flow=0)
-                self.append(DTensor(m,labels=[L,U,D,R]))
-
-    def __str__(self):
-        '''
-        Convert an instance to string.
-        '''
-        return '\n'.join('L: %s\nU: %s\nD: %s\nR: %s\ndata:\n%s'%(m.labels[MPO.L],m.labels[MPO.U],m.labels[MPO.D],m.labels[MPO.R],m.data) for m in self)
-
-    def __repr__(self):
-        '''
-        Convert an instance to string.
-        '''
-        return '\n'.join(str(m) for m in self)
+        for m in ms:
+            assert m.ndim==4 and m.labels[MPO.U]==m.labels[MPO.D].P
+            self.append(m)
 
     @property
     def nsite(self):
@@ -638,7 +598,7 @@ class MPO(Arithmetic,list):
         '''
         result=1.0
         ls,rs,L,R=[],[],1,1
-        for i,m in enumerate(self):
+        for m in self:
             ls.append(m.labels[MPO.U])
             rs.append(m.labels[MPO.D])
             L*=ls[-1].dim
@@ -646,21 +606,94 @@ class MPO(Arithmetic,list):
             result=result*m
         return result.transpose(axes=[self[0].labels[MPO.L]]+ls+rs+[self[-1].labels[MPO.R]]).data.reshape((L,R))
 
-    def relabel(self,sites,bonds):
+    @staticmethod
+    def compose(ms,sites,bonds):
         '''
-        Change the labels of the mpo.
+        Constructor.
 
         Parameters
         ----------
+        ms : list of 4d ndarray/dict
+            The matrices of the mpo.
         sites : list of Label
-            The new site labels of the mpo.
+            The site labels of the mpo.
         bonds : list of Label
-            The new bond labels of the mpo.
+            The bond labels of the mpo.
         '''
-        assert len(sites)==self.nsite==len(bonds)-1
-        fin,fout=(1,-1) if self[0].qnon else (0,0)
-        for m,L,S,R in zip(self,bonds[:-1],sites,bonds[1:]):
-            m.relabel(news=[L.replace(flow=fin),S.P.replace(flow=fin),S.replace(flow=fout),R.replace(flow=fout)])
+        assert len(ms)==len(sites)==len(bonds)-1
+        result=MPO()
+        qnon=sites[0].qnon
+        for m,L,S,R in zip(ms,bonds[:-1],sites,bonds[1:]):
+            assert m.ndim==4
+            L=L.replace(flow=+1) if qnon else L.replace(qns=m.shape[0],flow=0)
+            S=S.replace(flow=-1) if qnon else S.replace(qns=m.shape[1],flow=0)
+            R=R.replace(flow=-1) if qnon else R.replace(qns=m.shape[3],flow=0)
+            result.append(Tensor(m,labels=[L,S.P,S,R]))
+        return result
+
+    def __getslice__(self,i,j):
+        '''
+        Operator "[]" for slicing.
+        '''
+        result=list.__new__(MPO)
+        result.extend(self[pos] for pos in xrange(i,min(j,len(self))))
+        return result
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return '\n'.join('L: %s\nU: %s\nD: %s\nR: %s\ndata:\n%s'%(m.labels[MPO.L],m.labels[MPO.U],m.labels[MPO.D],m.labels[MPO.R],m.data) for m in self)
+
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return '\n'.join(str(m) for m in self)
+
+    def __add__(self,other):
+        '''
+        Overloaded addition(+) operator, which supports the addition of two mpos.
+        '''
+        if isinstance(other,MPO):
+            assert self.nsite==other.nsite
+            ms=[]
+            for i,(m1,m2) in enumerate(zip(self,other)):
+                assert m1.labels==m2.labels
+                labels=[label.replace(qns=None) for label in m1.labels]
+                axes=[MPO.L,MPO.U,MPO.D] if i==0 else ([MPO.U,MPO.D,MPO.R] if i==self.nsite-1 else [MPO.U,MPO.D])
+                ms.append(directsum([m1,m2],labels=labels,axes=axes))
+            return MPO(ms)
+        else:
+            assert abs(other)==0
+            return self
+
+    __iadd__=__add__
+
+    def __imul__(self,other):
+        '''
+        Overloaded self-multiplication(*=) operator, which supports the self-multiplication by a scalar or an instance of MPO/MPS.
+        '''
+        if isinstance(other,MPO):
+            return self._mul_mpo_(other)
+        elif isinstance(other,MPS):
+            return self._mul_mps_(other)
+        else:
+            self[0]*=other
+            return self
+
+    def __mul__(self,other):
+        '''
+        Overloaded multiplication(*) operator, which supports the left multiplication of an mpo by a scalar or an instance of MPO/MPS.
+        '''
+        if isinstance(other,MPO):
+            result=self._mul_mpo_(other)
+        elif isinstance(other,MPS):
+            result=self._mul_mps_(other)
+        else:
+            result=copy(self)
+            result[0]=result[0]*other
+        return result
 
     def _mul_mpo_(self,other):
         '''
@@ -678,7 +711,7 @@ class MPO(Arithmetic,list):
         '''
         assert self.nsite==other.nsite
         ms=[]
-        for i,(m1,m2) in enumerate(zip(self,other)):
+        for m1,m2 in zip(self,other):
             assert m1.labels==m2.labels
             m1,m2=copy(m1),copy(m2)
             L1,U1,D1,R1=m1.labels
@@ -710,7 +743,7 @@ class MPO(Arithmetic,list):
         assert self.nsite==other.nsite
         u,Lambda=other._merge_ABL_()
         ms=[]
-        for i,(m1,m2) in enumerate(zip(self,other)):
+        for m1,m2 in zip(self,other):
             L1,U1,D1,R1=m1.labels
             L2,S,R2=m2.labels
             assert S==D1
@@ -722,49 +755,24 @@ class MPO(Arithmetic,list):
         other._set_ABL_(u,Lambda)
         return MPS(mode=other.mode,ms=ms)
 
-    def __add__(self,other):
+    def relabel(self,sites,bonds):
         '''
-        Overloaded addition(+) operator, which supports the addition of two mpos.
-        '''
-        if isinstance(other,MPO):
-            assert self.nsite==other.nsite
-            ms=[]
-            for i,(m1,m2) in enumerate(zip(self,other)):
-                assert m1.labels==m2.labels
-                labels=[label.replace(qns=None) for label in m1.labels]
-                axes=[MPO.L,MPO.U,MPO.D] if i==0 else ([MPO.U,MPO.D,MPO.R] if i==self.nsite-1 else [MPO.U,MPO.D])
-                ms.append(directsum([m1,m2],labels=labels,axes=axes))
-            return MPO(ms)
-        else:
-            assert abs(other)==0
-            return self
+        Change the labels of the mpo.
 
-    __iadd__=__add__
-
-    def __imul__(self,other):
+        Parameters
+        ----------
+        sites : list of Label/str
+            The new site labels of the mpo.
+        bonds : list of Label/str
+            The new bond labels of the mpo.
         '''
-        Overloaded self-multiplication(*=) operator, which supports the self-multiplication by a scalar or an instance of MPO/MPS.
-        '''
-        if isinstance(other,MPO):
-            return self._mul_mpo_(other)
-        elif isinstance(other,MPS):
-            result=self._mul_mps_(other)
-        else:
-            self[0]*=other
-            return self
-
-    def __mul__(self,other):
-        '''
-        Overloaded multiplication(*) operator, which supports the left multiplication of an mpo by a scalar or an instance of MPO/MPS.
-        '''
-        if isinstance(other,MPO):
-            result=self._mul_mpo_(other)
-        elif isinstance(other,MPS):
-            result=self._mul_mps_(other)
-        else:
-            result=copy(self)
-            result[0]=result[0]*other
-        return result
+        assert len(sites)==self.nsite==len(bonds)-1
+        fin,fot=(1,-1) if self[0].qnon else (0,0)
+        for m,L,S,R in zip(self,bonds[:-1],sites,bonds[1:]):
+            nl=L.replace(flow=fin) if isinstance(L,Label) else m.labels[MPO.L].replace(identifier=L)
+            ns=S.replace(flow=fin) if isinstance(S,Label) else m.labels[MPO.D].replace(identifier=S)
+            nr=R.replace(flow=fot) if isinstance(R,Label) else m.labels[MPO.R].replace(identifier=R)
+            m.relabel(news=[nl,ns.P,ns,nr])
 
     def overlap(self,mps1,mps2):
         '''
@@ -831,7 +839,7 @@ class MPO(Arithmetic,list):
         options=options or {}
         if method=='svd':
             tol=options.get('tol',5*RZERO)
-            for sweep in xrange(nsweep):
+            for _ in xrange(nsweep):
                 for i,m in enumerate(self):
                     if i<self.nsite-1:
                         L,U,D,R=m.labels
@@ -852,7 +860,7 @@ class MPO(Arithmetic,list):
                     m[np.abs(m)<tol]=0.0
         else:
             zero,tol=options.get('zero',10**-8),options.get('tol',10**-6)
-            for sweep in xrange(nsweep):
+            for _ in xrange(nsweep):
                 for i,m in enumerate(reversed(self)):
                     if i<self.nsite-1:
                         L,U,D,R=m.labels
@@ -869,6 +877,54 @@ class MPO(Arithmetic,list):
                         self[i+1]=T*self[i+1]
                         self[i+0].relabel(olds=[MPO.R],news=[self[i+0].labels[MPO.R].replace(identifier=R.identifier)])
                         self[i+1].relabel(olds=[MPO.L],news=[self[i+1].labels[MPO.L].replace(identifier=R.identifier)])
+
+    def impoprediction(self,sites,bonds):
+        '''
+        Infinite mpo prediction.
+
+        Parameters
+        ----------
+        sites,bonds : list of Label/str
+            The site/bond labels/identifiers of the new mpo.
+
+        Returns
+        -------
+        MPO
+            The predicted mpo.
+        '''
+        assert self.nsite==len(sites)==len(bonds)-1 and self.nsite/2==0 
+        assert self[0].labels[MPO.L].qns==self[self.nsite/2].labels[MPO.L].qns==self[-1].labels[MPO.R].qns
+        ms=[]
+        for m,L,S,R in zip(self,bonds[:-1],sites,bonds[1:]):
+            L=m.labels[MPO.L].replace(identifier=L.identifier)
+            U=m.labels[MPO.U].replace(identifier=S.identifier)
+            D=m.labels[MPO.D].replace(identifier=S.identifier)
+            R=m.labels[MPO.R].replace(identifier=R.identifier)
+            ms.append(Tensor(m.data,labels=[L,U,D,R]))
+        return MPO(ms)
+
+    def impogrowth(self,sites,bonds):
+        '''
+        Infinite mpo growth.
+
+        Parameters
+        ----------
+        sites,bonds : list of Label/str
+            The site/bond labels/identifiers of the new mpo.
+
+        Returns
+        -------
+        MPO
+            The mpo after growth.
+        '''
+        assert self.nsite>0 and self.nsite/2==0 and len(sites)+1==len(bonds)
+        ob,nb=mpo.nsite/2+1,(len(bonds)+1)/2
+        cms=self[2*ob-nb-1:nb-1].impoprediction(sites[ob-1:-ob+1],bonds[ob-1:-ob+1])
+        lms=self[:ob-1]
+        rms=self[ob-1:]
+        lms.relabel(sites[:ob-1],bonds[:ob])
+        rms.relabel(sites[-ob+1:],bonds[-ob:])
+        return MPO(it.chain(lms,cms,rms))
 
     def relayer(self,degfres,layer,nmax=None,tol=None):
         '''
@@ -910,7 +966,7 @@ class MPO(Arithmetic,list):
                         dws.append(m.labels[MPO.D])
                     M=np.product(ms)
                     o1,o2=M.labels[0],M.labels[-1]
-                    n1,n2=bonds[i].replace(qns=o1.qns,flow=o1.flow),bonds[i+1].replace(qns=o2.qns,flow=o2.flow)
+                    n1,n2=o1.replace(identifier=bonds[i]),o2.replace(identifier=bonds[i+1])
                     M.relabel(olds=[o1,o2],news=[n1,n2])
                     Ms.append(M.transpose([n1]+ups+dws+[n2]).merge((ups,site.P),(dws,site)))
             else:
@@ -931,10 +987,10 @@ class MPO(Arithmetic,list):
                         qnses.append(qns)
                     S=Label('__MPO_RELAYER__',qns=(QuantumNumbers.kron if U.qnon else np.product)(qnses),flow=+1 if U.qnon else 0)
                     m=m.split((U,ups),(D,dws)).transpose([L]+orders+[R]).merge((orders,S))
-                    us,s,v=expanded_svd(m,L=[L],S=S,R=[R],E=labels,I=bonds[start+1:stop+1],cut=stop-start,nmax=nmax,tol=tol)
+                    us,s,v=expanded_svd(m,L=[L],S=S,R=[R],E=labels,I=[Label(bond,None,None) for bond in bonds[start+1:stop+1]],cut=stop-start,nmax=nmax,tol=tol)
                     for u,up,dw,label in zip(us,ups,dws,labels):
                         Ms.append(u.split((label,[up,dw])))
                 Ms[-1]=Ms[-1]*s*v
-                Ms[+0].relabel(olds=[MPO.L],news=[Ms[+0].labels[MPO.L].replace(identifier=bonds[+0].identifier)])
-                Ms[-1].relabel(olds=[MPO.R],news=[Ms[-1].labels[MPO.R].replace(identifier=bonds[-1].identifier)])
+                Ms[+0].relabel(olds=[MPO.L],news=[Ms[+0].labels[MPO.L].replace(identifier=bonds[+0])])
+                Ms[-1].relabel(olds=[MPO.R],news=[Ms[-1].labels[MPO.R].replace(identifier=bonds[-1])])
             return MPO(Ms)

@@ -2,18 +2,11 @@
 TensorNetwork test.
 '''
 
-__all__=['test_tensornetwork']
+from HamiltonianPy.TensorNetwork.test import *
+from unittest import TestSuite
 
-def test_tensornetwork(arg):
-    if arg in ('tensor','tensornetwork','all'):
-        from HamiltonianPy.TensorNetwork.test import test_tensor
-        test_tensor()
-    if arg in ('structure','tensornetwork','all'):
-        from HamiltonianPy.TensorNetwork.test import test_structure
-        test_structure()
-    if arg in ('mps','tensornetwork','all'):
-        from HamiltonianPy.TensorNetwork.test import test_mps
-        test_mps()
-    if arg in ('mpo','tensornetwork','all'):
-        from HamiltonianPy.TensorNetwork.test import test_mpo
-        test_mpo()
+tensornetwork=TestSuite()
+tensornetwork.addTest(tensor)
+tensornetwork.addTest(structure)
+tensornetwork.addTest(mps)
+tensornetwork.addTest(mpo)
