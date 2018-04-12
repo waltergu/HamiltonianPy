@@ -399,10 +399,11 @@ class DTensor(TensorBase,Arithmetic):
             The converted sparse tensor.
         '''
         assert all(label.qnon for label in self.labels) and self.ndim>1
-        ods=[label.to_ordereddict() for label in self.labels]
+        ods=[label.qns.to_ordereddict() for label in self.labels]
+        signs=[label.flow for label in self.labels]
         data={}
         for qns in it.product(*ods[:-1]):
-            key=tuple(it.chain(qns,[-sum(qns)]))
+            key=tuple(it.chain(qns,[(-signs[-1])*sum(qn*sign for qn,sign in zip(qns,signs[:-1]))]))
             if key[-1] in ods[-1]: data[key]=self.data[[od[qn] for od,qn in zip(ods,key)]]
         return STensor(data,labels=self.labels)
 
@@ -703,7 +704,7 @@ class STensor(TensorBase,Arithmetic):
             axes=np.array([self.axis(old) if isinstance(old,Label) else old for old in olds])
             if len(axes)!=max(axes)-min(axes)+1 or not all(axes[1:]>axes[:-1]):
                 raise ValueError('STensor merge error: the axes to be merged should be continuous and ascending, please call transpose first.')
-            signs.update({axis: +1 if new.flow==self.labels[axis] else -1 for axis in axes})
+            signs.update({axis: +1 if new.flow==self.labels[axis].flow else -1 for axis in axes})
             keep[axes[0]]=slice(axes[0],axes[-1]+1)
             records[axes[0]]=record
             labels[axes[0]]=new
@@ -716,7 +717,7 @@ class STensor(TensorBase,Arithmetic):
         for qns,block in self.data.iteritems():
             new=tuple(sum(qns[axis]*signs[axis] for axis in xrange(ax.start,ax.stop)) if isinstance(ax,slice) else qns[ax] for ax in keep.itervalues())
             shape=tuple(np.product(block.shape[ax]) if isinstance(ax,slice) else block.shape[ax] for ax in keep.itervalues())
-            slices=[record[qns[ax]] if isinstance(ax,slice) else slice(None) for ax,record in zip(keep.itervalues(),records.itervalues())]
+            slices=[record[new[pos]][qns[ax]] if isinstance(ax,slice) else slice(None) for pos,(ax,record) in enumerate(zip(keep.itervalues(),records.itervalues()))]
             if new not in data: data[new]=np.zeros(tuple(count[qn] for count,qn in zip(counts,new)),dtype=block.dtype)
             data[new][slices]=block.reshape(shape)
         return STensor(data,labels=labels.values())
@@ -783,7 +784,7 @@ class STensor(TensorBase,Arithmetic):
         '''
         result={}
         masks=[self.axis(label) if isinstance(label,Label) else label for label in masks]
-        keeps=[axis for axis in self.ndim if axis not in masks]
+        keeps=[axis for axis in xrange(self.ndim) if axis not in masks]
         for key,block in self.data.iteritems():
             mask,keep=tuple(key[axis] for axis in masks),tuple(key[axis] for axis in keeps)
             if mask not in result: result[mask]=[]

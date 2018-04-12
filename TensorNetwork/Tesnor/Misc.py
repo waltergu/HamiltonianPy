@@ -119,9 +119,9 @@ def directsum(tensors,labels,axes=()):
         for alter in alters: labels[alter].qns=(QuantumNumbers.union if TENSOR.qnon else np.sum)([tensor.labels[alter].qns for tensor in tensors])
     else:
         content={}
-        for qns,block in it.chain(*tuple(tensor.iteritems() for tensor in tensors)):
+        for qns,block in it.chain(*tuple(tensor.data.iteritems() for tensor in tensors)):
             if qns not in content: content[qns]=([0 if axis in alters else block.shape[axis] for axis in xrange(block.ndim)],[],[])
-            for alter in alters: content[qns][0]+=block.shape[alter]
+            for alter in alters: content[qns][0][alter]+=block.shape[alter]
             content[qns][1].append(block.dtype)
             content[qns][2].append(block)
         data={}
@@ -130,7 +130,7 @@ def directsum(tensors,labels,axes=()):
             slices=[slice(0,0,0) if axis in alters else slice(None,None,None) for axis in xrange(TENSOR.ndim)]
             for block in blocks:
                 for alter in alters: slices[alter]=slice(slices[alter].stop,slices[alter].stop+block.shape[alter])
-                data[tupe(slices)]=block
+                data[qns][tuple(slices)]=block
         for alter in alters: labels[alter].qns=QuantumNumbers.union([tensor.labels[alter].qns for tensor in tensors]).sorted(history=False)
     for axis in xrange(TENSOR.ndim): labels[axis].flow=TENSOR.labels[axis].flow
     for axis in axes: labels[axis].qns=tensor.labels[axis].qns
@@ -402,7 +402,7 @@ def expanded_svd(tensor,L,S,R,E,I,cut=0,nmax=None,tol=None):
 
     Parameters
     ----------
-    tensor : DTensor/STensor
+    tensor : DTensor
         The tensor to be expanded_svded.
     L,R : list of Label/int
         The labels or axes to be merged as the left/right dimension during the expanded svd.
@@ -422,9 +422,10 @@ def expanded_svd(tensor,L,S,R,E,I,cut=0,nmax=None,tol=None):
 
     Returns
     -------
-    list of DTensor/STensor
+    list of DTensor
         The results of the expanded svd.
     '''
+    assert isinstance(tensor,DTensor)
     assert len(L)+len(R)==tensor.ndim-1 and 0<=cut<=len(E)
     L=[l if isinstance(l,Label) else tensor.label(l) for l in L]
     S=S if isinstance(S,Label) else tensor.label(S)

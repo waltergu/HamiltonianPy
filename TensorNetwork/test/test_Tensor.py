@@ -1,5 +1,5 @@
 '''
-Tensor test.
+Tensor test (17 tests in total).
 '''
 
 __all__=['tensor']
@@ -103,7 +103,68 @@ class TestQNDTensor(TestDTensor):
 
 class TestSTensor(TestCase):
     def setUp(self):
-        pass
+        self.qns,self.l,self.s,self.r=SQNS(0.5),1,4,5
+        L=Label('l',qns=(self.qns**self.l).sorted(history=False),flow=+1)
+        S=Label('s',qns=(self.qns**self.s).sorted(history=False),flow=+1)
+        R=Label('r',qns=(self.qns**self.r).sorted(history=False),flow=-1)
+        self.stensor=random([L,S,R],mode='S')
+        self.dtensor=self.stensor.todtensor()
+
+    def test_merge_and_split(self):
+        sL,sS,sR=self.stensor.labels
+        sLS,slsrecord=Label.union([sL,sS],'LS',flow=+1,mode=2)
+        sSR,ssrrecord=Label.union([sS,sR],'SR',flow=-1,mode=2)
+        merge1=self.stensor.merge(([sL,sS],sLS,slsrecord))
+        merge2=self.stensor.merge(([sS,sR],sSR,ssrrecord))
+        dL,dS,dR=self.dtensor.labels
+        dLS,dlspermutation=Label.union([dL,dS],'LS',flow=+1,mode=1)
+        dSR,dsrpermutation=Label.union([dS,dR],'SR',flow=-1,mode=1)
+        r1=self.dtensor.merge(([dL,dS],dLS,dlspermutation)).tostensor()
+        r2=self.dtensor.merge(([dS,dR],dSR,dsrpermutation)).tostensor()
+        self.assertAlmostEqual((merge1-r1).norm,0.0)
+        self.assertAlmostEqual((merge2-r2).norm,0.0)
+        split1=merge1.split((sLS,[sL,sS],slsrecord))
+        split2=merge2.split((sSR,[sS,sR],ssrrecord))
+        self.assertAlmostEqual((split1-self.stensor).norm,0.0)
+        self.assertAlmostEqual((split2-self.stensor).norm,0.0)
+
+    def test_transpose(self):
+        axes=[1,2,0]
+        stranspose=self.stensor.transpose(axes)
+        dtranspose=self.dtensor.transpose(axes)
+        self.assertAlmostEqual((stranspose.todtensor()-dtranspose).norm,0.0)
+
+    def test_svd(self):
+        us1,ss1,vs1=svd(self.stensor,row=[0,1],new=Label('new',None,None),col=[2])
+        us2,ss2,vs2=svd(self.stensor,row=[0],new=Label('new',None,None),col=[1,2])
+        self.assertAlmostEqual((us1*ss1*vs1-self.stensor).norm,0.0)
+        self.assertAlmostEqual((us2*ss2*vs2-self.stensor).norm,0.0)
+        sd1=svd(self.dtensor,row=[0,1],new=Label('new',None,None),col=[2])[1]
+        sd2=svd(self.dtensor,row=[0],new=Label('new',None,None),col=[1,2])[1]
+        ss1.qnsort()
+        ss2.qnsort()
+        sd1.qnsort()
+        sd2.qnsort()
+        self.assertAlmostEqual((ss1-sd1).norm,0.0)
+        self.assertAlmostEqual((ss2-sd2).norm,0.0)
+
+    def test_directsum(self):
+        L,S,R=self.stensor.labels
+        sm1=directsum([self.stensor,self.stensor],[Label('l',None,None),Label('s',None,None),Label('r',None,None)],axes=[0])
+        sm2=directsum([self.stensor,self.stensor],[Label('l',None,None),Label('s',None,None),Label('r',None,None)],axes=[1])
+        sm3=directsum([self.stensor,self.stensor],[Label('l',None,None),Label('s',None,None),Label('r',None,None)],axes=[2])
+        self.assertEqual(sm1.shape,(L.dim,2*S.dim,2*R.dim))
+        self.assertEqual(sm2.shape,(2*L.dim,S.dim,2*R.dim))
+        self.assertEqual(sm3.shape,(2*L.dim,2*S.dim,R.dim))
+        dm1=directsum([self.dtensor,self.dtensor],[Label('l',None,None),Label('s',None,None),Label('r',None,None)],axes=[0])
+        dm2=directsum([self.dtensor,self.dtensor],[Label('l',None,None),Label('s',None,None),Label('r',None,None)],axes=[1])
+        dm3=directsum([self.dtensor,self.dtensor],[Label('l',None,None),Label('s',None,None),Label('r',None,None)],axes=[2])
+        dm1.qnsort()
+        dm2.qnsort()
+        dm3.qnsort()
+        self.assertAlmostEqual((dm1.tostensor()-sm1).norm,0.0)
+        self.assertAlmostEqual((dm2.tostensor()-sm2).norm,0.0)
+        self.assertAlmostEqual((dm3.tostensor()-sm3).norm,0.0)
 
 class Test_contract(TestCase):
     def test_contract(self):
@@ -111,20 +172,27 @@ class Test_contract(TestCase):
         N,nmax=50,400
         stime=time()
         mps=MPS.random(sites=[SPQNS(0.5)]*N,bonds=[SPQN((0.0,0.0)),SPQN((N,0.0))],cut=N/2,nmax=nmax)
+        m1,m2,m3=mps[N/2-1],mps[N/2],mps[N/2+1]
+        sm1,sm2,sm3=m1.tostensor(),m2.tostensor(),m3.tostensor()
         print 'prepare time: %ss'%(time()-stime)
-        print 'tensor shape: %s, %s, %s'%(mps[N/2-1].shape,mps[N/2].shape,mps[N/2+1].shape)
+        print 'tensor shape: %s, %s, %s'%(m1.shape,m2.shape,m3.shape)
         stime=time()
-        contraction1=mps[N/2-1]*(mps[N/2],'einsum')*(mps[N/2+1],'einsum')
+        contraction1=m1*(m2,'einsum')*(m3,'einsum')
         print 'einsum time: %ss'%(time()-stime)
         stime=time()
-        contraction2=mps[N/2-1]*(mps[N/2],'tensordot')*(mps[N/2+1],'tensordot')
+        contraction2=m1*(m2,'tensordot')*(m3,'tensordot')
         print 'tensordot time: %ss.'%(time()-stime)
         stime=time()
-        contraction3=mps[N/2-1]*(mps[N/2],'block')*(mps[N/2+1],'block')
+        contraction3=m1*(m2,'block')*(m3,'block')
         print 'block time: %ss.'%(time()-stime)
+        stime=time()
+        contraction4=sm1*sm2*sm3
+        print 'sparse time: %ss.'%(time()-stime)
+        contraction4=contraction4.todtensor()
         self.assertAlmostEqual((contraction1-contraction2).norm,0.0)
         self.assertAlmostEqual((contraction2-contraction3).norm,0.0)
-        self.assertAlmostEqual((contraction3-contraction1).norm,0.0)
+        self.assertAlmostEqual((contraction3-contraction4).norm,0.0)
+        self.assertAlmostEqual((contraction4-contraction1).norm,0.0)
 
 tensor=TestSuite([
             TestLoader().loadTestsFromTestCase(TestNBDTensor),

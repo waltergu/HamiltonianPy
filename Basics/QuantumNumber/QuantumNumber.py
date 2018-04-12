@@ -396,7 +396,7 @@ class QuantumNumbers(Arithmetic):
         assert all(arg.form in 'UC' for arg in args) and len(signs)==len(args) and all(sign in {+1,-1} for sign in signs)
         type=next(iter(args)).type
         result,record=OrderedDict(),{}
-        for qns,counts in zip(it.product(*args),it.product(*[arg.indptr[:-1]-arg.indptr[1:] for arg in args])):
+        for qns,counts in zip(it.product(*args),it.product(*[arg.indptr[1:]-arg.indptr[:-1] for arg in args])):
             qn,count=type(np.sum(np.asarray(qns)*np.asarray(signs)[:,np.newaxis],axis=0)),np.product(counts)
             result[qn]=result.get(qn,0)+count
             if history:
