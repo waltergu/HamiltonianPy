@@ -464,8 +464,10 @@ class OptMPO(list):
         optstrs.sort(key=lambda optstr: (len(optstr),table[optstr[0].site.identifier],tuple(repr(opt) for opt in optstr)))
         rows,cols=[],[]
         for i,site in enumerate(sites):
-            zero,identity=Opt.zero(site),Opt.identity(site)
-            self.append(np.array([[zero,identity]] if i==0 else ([[identity],[zero]] if i==len(sites)-1 else [[identity,zero],[zero,identity]])))
+            self.append(    np.array([[Opt.zero(site),Opt.identity(site)]]) if i==0 else 
+                            np.array([[Opt.identity(site)],[Opt.zero(site)]]) if i==len(sites)-1 else 
+                            np.array([[Opt.identity(site),Opt.zero(site)],[Opt.zero(site),Opt.identity(site)]])
+                            )
             rows.append(1 if i==0 else 2)
             cols.append(1 if i==len(sites)-1 else 2)
         for optstr in optstrs:
@@ -770,7 +772,7 @@ class MPO(Arithmetic,list):
         fin,fot=(1,-1) if self[0].qnon else (0,0)
         for m,L,S,R in zip(self,bonds[:-1],sites,bonds[1:]):
             nl=L.replace(flow=fin) if isinstance(L,Label) else m.labels[MPO.L].replace(identifier=L)
-            ns=S.replace(flow=fin) if isinstance(S,Label) else m.labels[MPO.D].replace(identifier=S)
+            ns=S.replace(flow=fot) if isinstance(S,Label) else m.labels[MPO.D].replace(identifier=S)
             nr=R.replace(flow=fot) if isinstance(R,Label) else m.labels[MPO.R].replace(identifier=R)
             m.relabel(news=[nl,ns.P,ns,nr])
 
@@ -892,14 +894,14 @@ class MPO(Arithmetic,list):
         MPO
             The predicted mpo.
         '''
-        assert self.nsite==len(sites)==len(bonds)-1 and self.nsite/2==0 
+        assert self.nsite==len(sites)==len(bonds)-1 and self.nsite%2==0 
         assert self[0].labels[MPO.L].qns==self[self.nsite/2].labels[MPO.L].qns==self[-1].labels[MPO.R].qns
         ms=[]
         for m,L,S,R in zip(self,bonds[:-1],sites,bonds[1:]):
-            L=m.labels[MPO.L].replace(identifier=L.identifier)
-            U=m.labels[MPO.U].replace(identifier=S.identifier)
-            D=m.labels[MPO.D].replace(identifier=S.identifier)
-            R=m.labels[MPO.R].replace(identifier=R.identifier)
+            L=m.labels[MPO.L].replace(identifier=L.identifier if isinstance(L,Label) else L)
+            U=m.labels[MPO.U].replace(identifier=S.identifier if isinstance(S,Label) else S)
+            D=m.labels[MPO.D].replace(identifier=S.identifier if isinstance(S,Label) else S)
+            R=m.labels[MPO.R].replace(identifier=R.identifier if isinstance(R,Label) else R)
             ms.append(Tensor(m.data,labels=[L,U,D,R]))
         return MPO(ms)
 
@@ -917,8 +919,8 @@ class MPO(Arithmetic,list):
         MPO
             The mpo after growth.
         '''
-        assert self.nsite>0 and self.nsite/2==0 and len(sites)+1==len(bonds)
-        ob,nb=mpo.nsite/2+1,(len(bonds)+1)/2
+        assert self.nsite>0 and self.nsite%2==0 and len(sites)+1==len(bonds)
+        ob,nb=self.nsite/2+1,(len(bonds)+1)/2
         cms=self[2*ob-nb-1:nb-1].impoprediction(sites[ob-1:-ob+1],bonds[ob-1:-ob+1])
         lms=self[:ob-1]
         rms=self[ob-1:]
@@ -970,9 +972,9 @@ class MPO(Arithmetic,list):
                     M.relabel(olds=[o1,o2],news=[n1,n2])
                     Ms.append(M.transpose([n1]+ups+dws+[n2]).merge((ups,site.P),(dws,site)))
             else:
-                table=degfres.table(nlayer)
+                table,s,v=degfres.table(nlayer),1.0,1.0
                 for i,m in enumerate(self):
-                    if i>0: m=s*v*m
+                    m=s*v*m
                     L,U,D,R=m.labels
                     indices=degfres.descendants(D.identifier,generation=new-old)
                     start,stop=table[indices[0]],table[indices[-1]]+1

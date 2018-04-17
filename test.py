@@ -16,7 +16,7 @@ if __name__=='__main__':
         from Test.test_FBFM import *
         from Test.test_ED import*
         from Test.test_VCA import *
-        # from Test.test_DMRG import *
+        from Test.test_DMRG import *
         from unittest import TestSuite,main
         all=TestSuite()
         all.addTest(misc)
@@ -26,5 +26,5 @@ if __name__=='__main__':
         all.addTest(fbfm)
         all.addTest(ed)
         all.addTest(vcaall)
-        # all.addTest(dmrg)
+        all.addTest(dmrg)
         main(verbosity=2)

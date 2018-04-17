@@ -313,14 +313,8 @@ class Timers(Tree):
             parents=[self.root]
         elif parents==Timers.ALL:
             parents=[parent for parent in self.expand(mode=Tree.WIDTH,return_form=Tree.NODE) if not self.is_leaf(parent)]
-        if hasattr(self,'piecharts'):
-            for parent in parents:
-                fractions=[self[child].records[-1]/(self[parent].records[-1]+RZERO) for child in self.children(parent)]
-                update(self.piecharts[(parent,'s')],fractions+[1.0-sum(fractions)])
-                if form=='c':
-                    fractions=[self.time(child)/(self.time(parent)+RZERO) for child in self.children(parent)]
-                    update(self.piecharts[(parent,'c')],fractions+[1.0-sum(fractions)])
-        else:
+        piecharts=getattr(self,'piecharts',None)
+        if piecharts is None:
             self.piecharts={}
             graph=plt.subplots(nrows=len(parents),ncols=2 if form=='c' else 1)
             axes=graph[1].reshape((len(parents),2 if form=='c' else 1)) if isinstance(graph[1],np.ndarray) else np.array([[graph[1]]])
@@ -335,6 +329,13 @@ class Timers(Tree):
                     axes[i,1].set_title('%s (%s)'%(parent,'Acc.'))
                     fractions=[self.time(child)/(self.time(parent)+RZERO) for child in labels]
                     self.piecharts[(parent,'c')]=axes[i,1].pie(fractions+[1.0-sum(fractions)],labels=labels+['others'],autopct='%1.1f%%')
+        else:
+            for parent in parents:
+                fractions=[self[child].records[-1]/(self[parent].records[-1]+RZERO) for child in self.children(parent)]
+                update(piecharts[(parent,'s')],fractions+[1.0-sum(fractions)])
+                if form=='c':
+                    fractions=[self.time(child)/(self.time(parent)+RZERO) for child in self.children(parent)]
+                    update(piecharts[(parent,'c')],fractions+[1.0-sum(fractions)])
         plt.pause(10**-6)
 
     def add(self,parent=None,name=None):
@@ -373,6 +374,8 @@ class Timers(Tree):
         '''
         Reset all the timers.
         '''
+        self.close()
+        self.cleancache()
         for timer in self.itervalues():
             timer.reset()
         self[self.root].proceed()

@@ -33,14 +33,19 @@ class Block(object):
         The MPO of the block.
     mps : MPS
         The MPS of the block.
-    _Hs_ : dict
-        * entry 'L': list of 3d Tensor
-            The contraction of mpo and mps from the left.
-        * entry 'R': list of 3d Tensor
-            The contraction of mpo and mps from the right.
+    target : QuantumNumber
+        The target of the block.
+    lcontracts : list of 3d DTensor/STensor
+        The contraction of mpo and mps from the left.
+    rcontracts : list of 3d DTensor/STensor
+        The contraction of mpo and mps from the right.
+    timers : Timers
+        The timers of the block.
+    info : Sheet
+        The info of the block.
     '''
 
-    def __init__(self,mpo,mps):
+    def __init__(self,mpo,mps,target=None,LEND=None,REND=None):
         '''
         Constructor.
 
@@ -50,112 +55,341 @@ class Block(object):
             The MPO of the block.
         mps : MPS
             The MPS of the block.
+        target : QuantumNumber, optional
+            The target of the block.
+        LEND/REND : 3d DTensor/STensor, optional
+            The leftmost/rightmost end of the contraction of mpo and mps.
         '''
+        self.reset(mpo,mps,target=target,LEND=LEND,REND=REND)
+        self.timers=Timers('Preparation','Diagonalization','Truncation')
+        self.timers.add('Diagonalization','matvec')
+        self.info=Sheet(('Etotal','Esite','nmatvec','nbasis','nslice','overlap','err'))
+
+    @property
+    def nsite(self):
+        '''
+        The number of sites in the block.
+        '''
+        return self.mps.nsite
+
+    @property
+    def cut(self):
+        '''
+        The cut of the block.
+        '''
+        return self.mps.cut
+
+    @property
+    def graph(self):
+        '''
+        The graph representation of the block.
+        '''
+        sites=' %s.-.%s'%('A-'*(self.mps.cut-1),'-B'*(self.nsite-self.mps.cut-1))
+        bonds=''.join(str(bond.dim)+('=' if i in (self.mps.cut-1,self.mps.cut) else ('-' if i<self.mps.nsite else '')) for i,bond in enumerate(self.mpo.bonds))
+        return '\n'.join([sites,bonds])
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return 'Block(%s,%s,%s)'%(self.target,self.nsite,self.cut)
+
+    __repr__=__str__
+
+    def __getstate__(self):
+        '''
+        Used for pickle.
+        '''
+        return {'mpo':self.mpo,'mps':self.mps,'target':self.target,'lcontracts':self.lcontracts,'rcontracts':self.rcontracts,'info':self.info}
+
+    def __setstate__(self,state):
+        '''
+        Used for pickle.
+        '''
+        for key,value in state.itervalues(): setattr(self,key,value)
+        self.timers=Timers('Preparation','Diagonalization','Truncation')
+        self.timers.add('Diagonalization','matvec')
+
+    def reset(self,mpo=None,mps=None,target=None,LEND=None,REND=None):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        mpo : MPO, optional
+            The MPO of the block.
+        mps : MPS, optional
+            The MPS of the block.
+        target : QuantumNumber, optional
+            The target of the block.
+        LEND/REND : 3d DTensor/STensor, optional
+            The leftmost/rightmost end of the contraction of mpo and mps.
+        '''
+        if mpo is None: mpo=self.mpo
+        if mps is None: mps=self.mps
+        assert len(mpo)==len(mps)
         self.mpo=mpo
         self.mps=mps
+        self.target=target
+        if self.nsite>0:
+            if LEND is None:
+                C=self.mpo[0].labels[MPO.L].inverse
+                D=self.mps[0].labels[MPS.L].inverse
+                assert C.dim==1==D.dim
+                LEND=Tensor([[[1.0]]],labels=[D.P,C,D])
+            if REND is None:
+                C=self.mpo[self.nsite-1].labels[MPO.R].inverse
+                D=self.mps[self.nsite-1].labels[MPS.R].inverse
+                assert C.dim==1==D.dim
+                REND=Tensor([[[1.0]]],labels=[D.P,C,D])
+            assert LEND.ndim==3==REND.ndim
+            self.set_contractions(LEND=LEND,REND=REND)
 
     def relabel(self,sites,obonds,sbonds):
         '''
+        Change the labels of the block.
 
+        Parameters
+        ----------
+        sites : list of str/Label
+            The new site identifiers/labels of the block.
+        obonds : list of str/Label
+            The new mpo bond identifiers/labels of the block.
+        sbonds : list of str/Label
+            The new mps bond identifiers/labels of the block.
         '''
-        pass
+        self.mpo.relabel(sites,obonds)
+        self.mps.relabel(sites,sbonds)
+        for pos in xrange(self.nsite+1):
+            self.set_lcontract(pos,job='relabel')
+            self.set_rcontract(pos,job='relabel')
 
-
-    def set_HL_(self,pos,job='contract',tol=hm.TOL):
+    def set_lcontract(self,pos,job='contract'):
         '''
         Set a certain left contraction.
 
         Parameters
         ----------
         pos : int
-            The position of the left block Hamiltonian.
+            The position of the left contraction.
         job : 'contract' or 'relabel'
             'contract' for a complete calculation from the contraction of `self.mpo` and `self.mps`;
             'relabel' for a sole labels change according to `self.mpo` and `self.mps`.
-        tol : np.float64, optional
-            The tolerance of the non-zeros.
         '''
-        assert job in ('contract','relabel')
+        if pos<0: pos+=self.nsite
+        assert job in ('contract','relabel') and 0<=pos<=self.nsite
         if job=='contract':
-            if pos==-1:
-                self._Hs_['L'][0]=Tensor([[[1.0]]],labels=[self.mps[+0].labels[MPS.L].prime,self.mpo[+0].labels[MPO.L],self.mps[+0].labels[MPS.L]])
-            else:
-                u,m=self.mps[pos],self.mpo[pos]
-                L,S,R=u.labels
-                up=u.copy(copy_data=False).conjugate()
-                up.relabel(news=[L.prime,S.prime,R.prime])
-                temp=contract([self._Hs_['L'][pos],up,m,u],engine='tensordot')
-                temp[np.abs(temp)<tol]=0.0
-                self._Hs_['L'][pos+1]=temp
+            assert pos>=1
+            self.lcontracts[pos]=self.lcontracts[pos-1]*self.mps[pos-1].dagger*self.mpo[pos-1]*self.mps[pos-1]
         else:
-            if pos==-1:
-                self._Hs_['L'][0].relabel(news=[self.mps[+0].labels[MPS.L].prime,self.mpo[+0].labels[MPO.L],self.mps[+0].labels[MPS.L]])
-            else:
-                self._Hs_['L'][pos+1].relabel(news=[self.mps[pos].labels[MPS.R].prime,self.mpo[pos].labels[MPO.R],self.mps[pos].labels[MPS.R]])
+            C=self.mpo[pos].labels[MPO.L].inverse if pos<self.nsite else self.mpo[self.nsite-1].labels[MPO.R]
+            D=self.mps[pos].labels[MPS.L].inverse if pos<self.nsite else self.mps[self.nsite-1].labels[MPS.R]
+            self.lcontracts[pos].relabel([D.P,C,D])
 
-    def set_HR_(self,pos,job='contract',tol=hm.TOL):
+    def set_rcontract(self,pos,job='contract'):
         '''
-        Set a certain right block Hamiltonian.
+        Set a certain right contraction.
 
         Parameters
         ----------
-        pos : integer
-            The position of the right block Hamiltonian.
+        pos : int
+            The position of the right contraction.
         job : 'contract' or 'relabel'
             'contract' for a complete calculation from the contraction of `self.mpo` and `self.mps`;
             'relabel' for a sole labels change according to `self.mpo` and `self.mps`.
-        tol : np.float64, optional
-            The tolerance of the non-zeros.
         '''
-        assert job in ('contract','relabel')
+        if pos<0: pos+=self.nsite
+        assert job in ('contract','relabel') and 0<=pos<=self.nsite
         if job=='contract':
-            if pos==self.mps.nsite:
-                self._Hs_['R'][0]=Tensor([[[1.0]]],labels=[self.mps[-1].labels[MPS.R].prime,self.mpo[-1].labels[MPO.R],self.mps[-1].labels[MPS.R]])
-            else:
-                v,m=self.mps[pos],self.mpo[pos]
-                L,S,R=v.labels
-                vp=v.copy(copy_data=False).conjugate()
-                vp.relabel(news=[L.prime,S.prime,R.prime])
-                temp=contract([self._Hs_['R'][self.mps.nsite-pos-1],vp,m,v],engine='tensordot')
-                temp[np.abs(temp)<tol]=0.0
-                self._Hs_['R'][self.mps.nsite-pos]=temp
+            assert pos<self.nsite
+            self.rcontracts[pos]=self.rcontracts[pos+1]*self.mps[pos].dagger*self.mpo[pos]*self.mps[pos]
         else:
-            if pos==self.mps.nsite:
-                self._Hs_['R'][0].relabel(news=[self.mps[-1].labels[MPS.R].prime,self.mpo[-1].labels[MPO.R],self.mps[-1].labels[MPS.R]])
-            else:
-                self._Hs_['R'][self.mps.nsite-pos].relabel(news=[self.mps[pos].labels[MPS.L].prime,self.mpo[pos].labels[MPO.L],self.mps[pos].labels[MPS.L]])
+            C=self.mpo[pos].labels[MPO.L] if pos<self.nsite else self.mpo[self.nsite-1].labels[MPO.R].inverse
+            D=self.mps[pos].labels[MPS.L] if pos<self.nsite else self.mps[self.nsite-1].labels[MPS.R].inverse
+            self.rcontracts[pos].relabel([D.P,C,D])
 
-    def set_Hs_(self,SL=None,EL=None,SR=None,ER=None,keep=False,tol=hm.TOL):
+    def set_contractions(self,LEND=None,REND=None,SL=None,EL=None,SR=None,ER=None):
         '''
         Set the Hamiltonians of blocks.
 
         Parameters
         ----------
-        SL,EL : integer, optional
-            The start/end position of the left Hamiltonians to be set.
-        SR,ER : integer, optional
-            The start/end position of the right Hamiltonians to be set.
-        keep : logical, optional
-            True for keeping the old `_Hs_` and False for not.
-        tol : np.float64, optional
-            The tolerance of the zeros.
+        LEND/REND : 3d DTensor/STensor, optional
+            The leftmost/rightmost end of the contraction of mpo and mps.
+        SL,EL : int, optional
+            The start/end position of the left contractions to be set.
+        SR,ER : int, optional
+            The start/end position of the right contractions to be set.
         '''
-        SL=-1 if SL is None else SL
-        SR=self.mps.nsite if SR is None else SR
-        if keep:
-            for pos in xrange(-1,SL):
-                self.set_HL_(pos,job='relabel')
-            for pos in xrange(self.mps.nsite,SR,-1):
-                self.set_HR_(pos,job='relabel')
+        SL=1 if SL is None else SL
+        SR=self.nsite-1 if SR is None else SR
+        if LEND is None:
+            for pos in xrange(SL):
+                self.set_lcontract(pos,job='relabel')
         else:
-            self._Hs_={'L':[None]*(self.mps.nsite+1),'R':[None]*(self.mps.nsite+1)}
-        if self.mps.cut is not None:
-            EL=self.mps.cut-1 if EL is None else EL
-            ER=self.mps.cut if ER is None else ER
+            self.lcontracts=[None]*(self.nsite+1)
+            self.lcontracts[0]=LEND
+        if REND is None:
+            for pos in xrange(self.nsite,SR,-1):
+                self.set_rcontract(pos,job='relabel')
+        else:
+            self.rcontracts=[None]*(self.nsite+1)
+            self.rcontracts[self.nsite]=REND
+        if self.cut is not None:
+            EL=self.cut if EL is None else EL
+            ER=self.cut if ER is None else ER
             for pos in xrange(SL,EL+1):
-                self.set_HL_(pos,job='contract',tol=tol)
+                self.set_lcontract(pos,job='contract')
             for pos in xrange(SR,ER-1,-1):
-                self.set_HR_(pos,job='contract',tol=tol)
+                self.set_rcontract(pos,job='contract')
+
+    def predict(self,sites,obonds,sbonds,osvs,qn=0):
+        '''
+        Infinite block prediction.
+
+        Parameters
+        ----------
+        sites : list of str/Label
+            The new site identifiers/labels of the block after prediction.
+        obonds : list of str/Label
+            The new mpo bond identifiers/labels of the block after prediction.
+        sbonds : list of str/Label
+            The new mps bond identifiers/labels of the block after prediction.
+        osvs : 1d ndarray
+            The old singular values.
+        qn : QuantumNumber, optional
+            The injected quantum number of the block.
+        '''
+        LEND=self.lcontracts[self.nsite/2]
+        REND=self.rcontracts[self.nsite/2]
+        self.mpo=self.mpo.impoprediction(sites,obonds)
+        self.mps=self.mps.impsprediction(sites,sbonds,osvs,qn)
+        self.target=qn+self.target if isinstance(qn,QuantumNumber) else None
+        self.lcontracts=[None]*(self.nsite+1)
+        self.rcontracts=[None]*(self.nsite+1)
+        self.lcontracts[+0]=LEND
+        self.rcontracts[-1]=REND
+        self.set_lcontract(+0,job='relabel')
+        self.set_rcontract(-1,job='relabel')
+
+    def grow(self,sites,obonds,sbonds,osvs,qn=0,dtype=np.float64):
+        '''
+        Infinite block growth.
+
+        Parameters
+        ----------
+        sites : list of str/Label
+            The new site identifiers/labels of the block after growth.
+        obonds : list of str/Label
+            The new mpo bond identifiers/labels of the block after growth.
+        sbonds : list of str/Label
+            The new mps bond identifiers/labels of the block after growth.
+        osvs : 1d ndarray
+            The old singular values.
+        qn : QuantumNumber, optional
+            The injected quantum number of the block.
+        dtype : np.float64, np.complex128, etc, optional
+            The data type of the block after growth.
+        '''
+        flag,onsite=self.nsite>0,self.nsite
+        if flag: oldlcontracts=self.lcontracts[0:onsite/2+1]
+        if flag: oldrcontracts=self.rcontracts[-onsite/2-1:]
+        self.mpo=self.mpo.impogrowth(sites,obonds)
+        self.mps=self.mps.impsgrowth(sites,sbonds,osvs,qn=qn,dtype=dtype)
+        self.target=qn+self.target if isinstance(qn,QuantumNumber) else None
+        self.lcontracts=[None]*(self.nsite+1)
+        self.rcontracts=[None]*(self.nsite+1)
+        if flag: self.lcontracts[0:onsite/2+1]=oldlcontracts
+        if flag: self.rcontracts[-onsite/2-1:]=oldrcontracts
+        self.set_contractions(SL=onsite/2+1,EL=self.nsite/2,SR=self.nsite-onsite/2-1,ER=self.nsite/2)
+
+    def iterate(self,log,info='',sp=True,nmax=200,tol=hm.TOL,piechart=True):
+        '''
+        The two site dmrg step.
+
+        Parameters
+        ----------
+        log : Log
+            The log file.
+        info : str, optional
+            The information string passed to self.log.
+        sp : logical, optional
+            True for state prediction False for not.
+        nmax : int, optional
+            The maximum singular values to be kept.
+        tol : np.float64, optional
+            The tolerance of the singular values.
+        piechart : logical, optional
+            True for showing the piechart of self.timers while False for not.
+        '''
+        log<<'%s\n%s\n'%(info,self.graph)
+        with self.timers.get('Preparation'):
+            Ha,Hasite=self.lcontracts[self.cut-1],self.mpo[self.cut-1]
+            Hb,Hbsite=self.rcontracts[self.cut+1],self.mpo[self.cut]
+            Oa,(La,Sa,Ra)=Hasite.labels[MPO.R],self.mps[self.cut-1].labels
+            Ob,(Lb,Sb,Rb)=Hbsite.labels[MPO.L],self.mps[self.cut].labels
+            assert Ra==Lb and Oa==Ob
+            Lsys,syspt=Label.union([La,Sa],'__DMRG_ITERATE_SYS__',flow=+1 if self.mps.mode=='QN' else 0,mode=+1)
+            Lenv,envpt=Label.union([Sb,Rb],'__DMRG_ITERATE_ENV__',flow=-1 if self.mps.mode=='QN' else 0,mode=+1)
+            if self.mps.mode=='QN':
+                zero=self.target.zero()
+                sysantipt,sysod=np.argsort(syspt),Lsys.qns.to_ordereddict()
+                envantipt,envod=np.argsort(envpt),Lenv.qns.to_ordereddict()
+                subslice=QuantumNumbers.kron([Lsys.qns,Lenv.qns],signs=[1,-1]).subslice(targets=(zero,))
+                qns=QuantumNumbers.mono(zero,count=len(subslice))
+                qnpairs=[[(sqn,sqn-oqn) for sqn in Lsys.qns if sqn in envod and sqn-oqn in sysod and sqn-oqn in envod] for oqn in Oa.qns]
+            else:
+                sysantipt,envantipt,subslice=None,None,slice(None)
+                qns=Lsys.qns*Lenv.qns
+            Hsys=(Ha*Hasite).transpose([Oa,La.P,Sa.P,La,Sa]).merge(([La.P,Sa.P],Lsys.P,syspt),([La,Sa],Lsys,syspt))
+            Henv=(Hbsite*Hb).transpose([Ob,Sb.P,Rb.P,Sb,Rb]).merge(([Sb.P,Rb.P],Lenv.P,envpt),([Sb,Rb],Lenv,envpt))
+            if self.mps.mode=='QN':
+                vecold=np.zeros(Hsys.shape[1]*Henv.shape[1],dtype=Hsys.dtype)
+                vecnew=np.zeros((Hsys.shape[1],Henv.shape[1]),dtype=Hsys.dtype)
+                def matvec(v):
+                    with self.timers.get('matvec'):
+                        vec,result=vecold,vecnew
+                        vec[subslice]=v
+                        result[...]=0.0
+                        vec=vec.reshape((Hsys.shape[1],Henv.shape[1]))
+                        for hsys,henv,pairs in zip(Hsys.data,Henv.data,qnpairs):
+                            for qn1,qn2 in pairs:
+                                result[sysod[qn1],envod[qn1]]+=hsys[sysod[qn1],sysod[qn2]].dot(vec[sysod[qn2],envod[qn2]]).dot(henv.T[envod[qn2],envod[qn1]])
+                    return result.reshape(-1)[subslice] 
+                matrix=hm.LinearOperator(shape=(len(subslice),len(subslice)),matvec=matvec,dtype=Hsys.dtype)
+            else:
+                def matvec(v):
+                    with self.timers.get('matvec'):
+                        v=v.reshape((Hsys.shape[1],Henv.shape[1]))
+                        result=np.zeros_like(v)
+                        for hsys,henv in zip(Hsys.data,Henv.data):
+                            result+=hsys.dot(v).dot(henv.T)
+                    return result.reshape(-1)
+                matrix=hm.LinearOperator(shape=(Hsys.shape[1]*Henv.shape[1],Hsys.shape[1]*Henv.shape[1]),matvec=matvec,dtype=Hsys.dtype)
+        with self.timers.get('Diagonalization'):
+            u,s,v=self.mps[self.cut-1],self.mps.Lambda,self.mps[self.cut]
+            v0=(u*s*v).merge(([La,Sa],Lsys,syspt),([Sb,Rb],Lenv,envpt)).toarray().reshape(-1)[subslice] if sp and s.norm>RZERO else None
+            es,vs=hm.eigsh(matrix,which='SA',v0=v0,k=1)
+            energy,Psi=es[0],vs[:,0]
+            self.info['Etotal']=energy,'%.6f'
+            self.info['Esite']=energy/self.nsite,'%.8f'
+            self.info['nmatvec']=matrix.count
+            self.info['overlap']=np.inf if v0 is None else np.abs(Psi.conjugate().dot(v0)/norm(v0)/norm(Psi)),'%.6f'
+        with self.timers.get('Truncation'):
+            Lgs,new=Label('__DMRG_ITERATE_GS__',qns=qns),Ra.replace(qns=None)
+            u,s,v,err=partitioned_svd(Tensor(Psi,labels=[Lgs]),Lsys,new,Lenv,nmax=nmax,tol=tol,return_truncation_err=True)
+            self.mps[self.cut-1]=u.split((Lsys,[La,Sa],sysantipt))
+            self.mps[self.cut]=v.split((Lenv,[Sb,Rb],envantipt))
+            self.mps.Lambda=s
+            self.set_lcontract(self.cut)
+            self.set_rcontract(self.cut)
+            self.info['nslice']=Lgs.dim
+            self.info['nbasis']=s.shape[0]
+            self.info['err']=err,'%.1e'
+        self.timers.record()
+        log<<'timers of the dmrg:\n%s\n'%self.timers.tostr(Timers.ALL)
+        log<<'info of the dmrg:\n%s\n\n'%self.info
+        if piechart: self.timers.graph(parents=Timers.ALL)
 
 def pattern(name,parameters,target,nsite,mode='re'):
     '''
@@ -194,9 +428,7 @@ class DMRG(Engine):
 
     Attributes
     ----------
-    mps : MPS
-        The matrix product state of the DMRG.
-    lattice : Cylinder, Lattice
+    lattice : Cylinder
         The lattice of the DMRG.
     terms : list of Term
         The terms of the DMRG.
@@ -204,38 +436,24 @@ class DMRG(Engine):
         The configuration of the internal degrees of freedom on the lattice.
     degfres : DegFreTree
         The physical degrees of freedom tree.
-    matvec : 'csr' or 'lo'
-        The matrix-vector multiplication method. 'csr' for csr-matrix and 'lo' for linear operator.
     mask : [] or ['nambu']
         [] for spin systems and ['nambu'] for fermionic systems.
-    target : QuantumNumber
-        The target space of the DMRG.
     dtype : np.float64, np.complex128
         The data type.
     generator : Generator
         The generator of the Hamiltonian.
-    operators : Operators
-        The operators of the Hamiltonian.
-    mpo : MPO
-        The MPO-formed Hamiltonian.
-
-    timers : Timers
-        The timers of the dmrg processes.
-    info : Sheet
-        The info of the dmrg processes.
+    block : Block
+        The block of the DMRG.
     cache : dict
-        * entry 'osvs': 1d ndarray
-            The old singular values of the DMRG.
+        The cache of the DMRG.
     '''
 
-    def __init__(self,mps,lattice,terms,config,degfres,matvec='lo',mask=(),target=None,dtype=np.complex128,**karg):
+    def __init__(self,lattice,terms,config,degfres,mask=(),dtype=np.complex128,target=0,**karg):
         '''
         Constructor.
 
         Parameters
         ----------
-        mps : MPS
-            The matrix product state of the DMRG.
         lattice : Cylinder
             The lattice of the DMRG.
         terms : list of Term
@@ -244,85 +462,25 @@ class DMRG(Engine):
             The configuration of the internal degrees of freedom on the lattice.
         degfres : DegFreTree
             The physical degrees of freedom tree.
-        matvec : 'csr' or 'lo'
-            The matrix-vector multiplication method. 'csr' for csr-matrix and 'lo' for linear operator.
         mask : [] or ['nambu']
             [] for spin systems and ['nambu'] for fermionic systems.
-        target : QuantumNumber
-            The target space of the DMRG.
         dtype : np.float64,np.complex128, optional
             The data type.
+        target : QuantumNumber, optional
+            The target of the block of the DMRG.
         '''
         assert config.priority==degfres.priority
-        assert matvec.lower() in ('csr','lo')
-        self.mps=mps
         self.lattice=lattice
         self.terms=terms
         self.config=config
         self.degfres=degfres
-        self.matvec=matvec.lower()
         self.mask=mask
-        self.target=target
         self.dtype=dtype
         self.generator=Generator(bonds=lattice.bonds,config=config,terms=terms,dtype=dtype,half=False)
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
-        self.set_operators()
-        self.set_mpo()
-        self.set_Hs_()
-        if self.matvec=='csr':
-            self.timers=Timers('Preparation','Hamiltonian','Diagonalization','Truncation')
-            self.timers.add(parent='Hamiltonian',name='kron')
-            self.timers.add(parent='Hamiltonian',name='sum')
-            if self.mps.mode=='QN':
-                self.timers.add(parent='kron',name='csr')
-                self.timers.add(parent='kron',name='fkron')
-            self.info=Sheet(('Etotal','Esite','dE/E','nmatvec','nbasis','nslice','nnz','nz','density','overlap','err'))
-        else:
-            self.timers=Timers('Preparation','Diagonalization','Truncation')
-            self.timers.add('Diagonalization','matvec')
-            self.info=Sheet(('Etotal','Esite','dE/E','nmatvec','nbasis','nslice','overlap','err'))
+        self.init_block(target=target)
         self.cache={}
         self.logging()
-
-    @property
-    def graph(self):
-        '''
-        The graph representation of the DMRG.
-        '''
-        sites=''.join([' ','A-'*(self.mps.cut-1),'.-.','-B'*(self.mps.nsite-self.mps.cut-1)])
-        bonds=''.join(str(bond.dim)+('=' if i in (self.mps.cut-1,self.mps.cut) else ('-' if i<self.mps.nsite else '')) for i,bond in enumerate(self.mpo.bonds))
-        return '\n'.join([sites,bonds])
-
-    @property
-    def state(self):
-        '''
-        The current state of the dmrg.
-        '''
-        return '%s(target=%s,nsite=%s,cut=%s)'%(self,self.target,self.mps.nsite,self.mps.cut)
-
-    def update(self,**karg):
-        '''
-        Update the DMRG with new parameters.
-        '''
-        if len(karg)>0:
-            super(DMRG,self).update(**karg)
-            self.generator.update(**self.data)
-            self.set_operators()
-            self.set_mpo()
-            self.set_Hs_()
-
-    def set_operators(self):
-        '''
-        Set the operators of the DMRG.
-        '''
-        self.operators=self.generator.operators
-
-    def set_mpo(self):
-        '''
-        Set the mpo of the DMRG.
-        '''
-        if len(self.operators)>0:
-            self.mpo=OptMPO([OptStr.from_operator(operator,self.degfres) for operator in self.operators.itervalues()],self.degfres).to_mpo()
 
     @property
     def nspb(self):
@@ -334,141 +492,50 @@ class DMRG(Engine):
         degfres.reset(leaves=config.table(mask=self.mask).keys())
         return len(degfres.indices())
 
-    def reset(self,lattice,mps):
+    def update(self,**karg):
         '''
-        Reset the core of the dmrg.
+        Update the DMRG with new parameters.
+        '''
+        if len(karg)>0:
+            super(DMRG,self).update(**karg)
+            self.generator.update(**self.data)
+            self.set_block(keep=True)
+
+    def init_block(self,target=None):
+        '''
+        Init the block of the DMRG.
 
         Parameters
         ----------
-        lattice : Lattice
-            The new lattice of the dmrg.
-        mps : MPS
-            The new mps of the dmrg.
+        target : QuantumNumber, optional
+            The target of the block of the DMRG.
         '''
-        self.lattice=lattice
-        self.config.reset(pids=self.lattice.pids)
-        self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
-        self.generator.reset(bonds=self.lattice.bonds,config=self.config)
-        self.set_operators()
-        self.set_mpo()
-        self.mps=mps
-        sites,bonds=self.degfres.labels('S'),self.degfres.labels('B')
-        self.mps.relabel(sites=sites,bonds=[bond.replace(qns=obond.qns) for bond,obond in zip(bonds,mps.bonds)])
-        self.target=next(iter(mps[-1].labels[MPS.R].qns)) if mps.mode=='QN' else None
-        self.set_Hs_()
-
-    def iterate(self,info='',sp=True,nmax=200,tol=hm.TOL,piechart=True):
-        '''
-        The two site dmrg step.
-
-        Parameters
-        ----------
-        info : str, optional
-            The information string passed to self.log.
-        sp : logical, optional
-            True for state prediction False for not.
-        nmax : integer, optional
-            The maximum singular values to be kept.
-        tol : np.float64, optional
-            The tolerance of the singular values.
-        piechart : logical, optional
-            True for showing the piechart of self.timers while False for not.
-        '''
-        self.log<<'%s%s\n%s\n'%(self.state,info,self.graph)
-        eold=self.info['Esite']
-        with self.timers.get('Preparation'):
-            Ha,Hb=self._Hs_['L'][self.mps.cut-1],self._Hs_['R'][self.mps.nsite-self.mps.cut-1]
-            Hasite,Hbsite=self.mpo[self.mps.cut-1],self.mpo[self.mps.cut]
-            La,Sa,Ra=self.mps[self.mps.cut-1].labels
-            Lb,Sb,Rb=self.mps[self.mps.cut].labels
-            Oa,Ob=Hasite.labels[MPO.R],Hbsite.labels[MPO.L]
-            assert Ra==Lb
-            if self.mps.mode=='QN':
-                sysqns,syspt=QuantumNumbers.kron([La.qns,Sa.qns],signs='++').sort(history=True)
-                envqns,envpt=QuantumNumbers.kron([Sb.qns,Rb.qns],signs='-+').sort(history=True)
-                sysantipt,envantipt=np.argsort(syspt),np.argsort(envpt)
-                subslice=QuantumNumbers.kron([sysqns,envqns],signs='+-').subslice(targets=(self.target.zero(),))
-                qns=QuantumNumbers.mono(self.target.zero(),count=len(subslice))
-                self.info['nslice']=len(subslice)
-            else:
-                sysqns,syspt,sysantipt=np.product([La.qns,Sa.qns]),None,None
-                envqns,envpt,envantipt=np.product([Sb.qns,Rb.qns]),None,None
-                subslice,qns=slice(None),sysqns*envqns
-                self.info['nslice']=qns
-            Lpa,Spa,Spb,Rpb=La.prime,Sa.prime,Sb.prime,Rb.prime
-            Lsys,Lenv,new=Label('__DMRG_TWO_SITE_STEP_SYS__',qns=sysqns),Label('__DMRG_TWO_SITE_STEP_ENV__',qns=envqns),Ra.replace(qns=None)
-            Lpsys,Lpenv=Lsys.prime,Lenv.prime
-            Hsys=contract([Ha,Hasite],engine='tensordot').transpose([Oa,Lpa,Spa,La,Sa]).merge(([Lpa,Spa],Lpsys,syspt),([La,Sa],Lsys,syspt))
-            Henv=contract([Hbsite,Hb],engine='tensordot').transpose([Ob,Spb,Rpb,Sb,Rb]).merge(([Spb,Rpb],Lpenv,envpt),([Sb,Rb],Lenv,envpt))
-        if self.matvec=='csr':
-            with self.timers.get('Hamiltonian'):
-                if isinstance(subslice,slice):
-                    rcs=None
-                else:
-                    rcs=(np.divide(subslice,Henv.shape[1]),np.mod(subslice,Henv.shape[1]),np.zeros(Hsys.shape[1]*Henv.shape[1],dtype=np.int64))
-                    rcs[2][subslice]=xrange(len(subslice))
-                matrix=0
-                for hsys,henv in zip(Hsys,Henv):
-                    with self.timers.get('kron'):
-                        temp=hm.kron(hsys,henv,rcs=rcs,timers=self.timers)
-                    with self.timers.get('sum'):
-                        matrix+=temp
-                self.info['nnz']=matrix.nnz
-                self.info['nz']=(len(np.argwhere(np.abs(matrix.data)<tol))*100.0/matrix.nnz) if matrix.nnz>0 else 0,'%1.1f%%'
-                self.info['density']=1.0*self.info['nnz']/self.info['nslice']**2,'%.1e'
-                matrix=hm.LinearOperator(shape=matrix.shape,matvec=matrix.dot,dtype=self.dtype)
+        if len(self.lattice)>0:
+            mpo=OptMPO([OptStr.from_operator(operator,self.degfres) for operator in self.generator.operators.itervalues()],self.degfres).to_mpo()
+            sites,bonds=self.degfres.labels('S'),self.degfres.labels('B')
+            if self.degfres.mode=='QN':
+                bonds[+0]=Label(bonds[+0],qns=QuantumNumbers.mono(target.zero()),flow=+1)
+                bonds[-1]=Label(bonds[-1],qns=QuantumNumbers.mono(target),flow=-1)
+            mps=MPS.random(sites,bonds,cut=len(sites)/2,nmax=10,dtype=self.dtype)
         else:
-            with self.timers.get('Preparation'):
-                if self.mps.mode=='QN':
-                    sysod,envod=sysqns.to_ordereddict(),envqns.to_ordereddict()
-                    qnpairs=[[(tuple(qn),tuple(qn-oqn)) for qn in sysqns if tuple(qn) in envod and tuple(qn-oqn) in sysod and tuple(qn-oqn) in envod] for oqn in Oa.qns]
-                    assert len(qnpairs)==len(Hsys)
-                    self.cache['vecold']=np.zeros(Hsys.shape[1]*Henv.shape[1],dtype=self.dtype)
-                    self.cache['vecnew']=np.zeros((Hsys.shape[1],Henv.shape[1]),dtype=self.dtype)
-                    def matvec(v):
-                        with self.timers.get('matvec'):
-                            vec,result=self.cache['vecold'],self.cache['vecnew']
-                            vec[subslice]=v;result[...]=0.0
-                            vec=vec.reshape((Hsys.shape[1],Henv.shape[1]))
-                            for hsys,henv,pairs in zip(Hsys,Henv,qnpairs):
-                                for qn1,qn2 in pairs:
-                                    result[sysod[qn1],envod[qn1]]+=hsys[sysod[qn1],sysod[qn2]].dot(vec[sysod[qn2],envod[qn2]]).dot(henv.T[envod[qn2],envod[qn1]])
-                        return result.reshape(-1)[subslice] 
-                    matrix=hm.LinearOperator(shape=(len(subslice),len(subslice)),matvec=matvec,dtype=self.dtype)
-                else:
-                    def matvec(v):
-                        v=v.reshape((Hsys.shape[1],Henv.shape[1]))
-                        result=np.zeros_like(v)
-                        for hsys,henv in zip(Hsys,Henv):
-                            result+=hsys.dot(v).dot(henv.T)
-                        return result.reshape(-1)
-                    matrix=hm.LinearOperator(shape=(Hsys.shape[1]*Henv.shape[1],Hsys.shape[1]*Henv.shape[1]),matvec=matvec,dtype=self.dtype)
-        with self.timers.get('Diagonalization'):
-            u,s,v=self.mps[self.mps.cut-1],self.mps.Lambda,self.mps[self.mps.cut]
-            if sp and norm(s)>RZERO:
-                v0=np.asarray(contract([u,s,v],engine='einsum').merge(([La,Sa],Lsys,syspt),([Sb,Rb],Lenv,envpt))).reshape(-1)[subslice]
-            else:
-                v0=None
-            es,vs=hm.eigsh(matrix,which='SA',v0=v0,k=1)
-            energy,Psi=es[0],vs[:,0]
-            self.info['Etotal']=energy,'%.6f'
-            self.info['Esite']=energy/self.mps.nsite,'%.8f'
-            self.info['dE/E']=None if eold is None else (norm(self.info['Esite']-eold)/norm(self.info['Esite']+eold),'%.1e')
-            self.info['nmatvec']=matrix.count
-            self.info['overlap']=np.inf if v0 is None else np.abs(Psi.conjugate().dot(v0)/norm(v0)/norm(Psi)),'%.6f'
-        with self.timers.get('Truncation'):
-            u,s,v,err=Tensor(Psi,labels=[Label('__DMRG_TWO_SITE_STEP__',qns=qns)]).partitioned_svd(Lsys,new,Lenv,nmax=nmax,tol=tol,return_truncation_err=True)
-            self.mps[self.mps.cut-1]=u.split((Lsys,[La,Sa],sysantipt))
-            self.mps[self.mps.cut]=v.split((Lenv,[Sb,Rb],envantipt))
-            self.mps.Lambda=s
-            self.set_HL_(self.mps.cut-1,tol=tol)
-            self.set_HR_(self.mps.cut,tol=tol)
-            self.info['nbasis']=len(s)
-            self.info['err']=err,'%.1e'
-        self.timers.record()
-        self.log<<'timers of the dmrg:\n%s\n'%self.timers.tostr(Timers.ALL)
-        self.log<<'info of the dmrg:\n%s\n\n'%self.info
-        if piechart: self.timers.graph(parents=Timers.ALL)
+            mpo=MPO()
+            mps=MPS(mode=self.degfres.mode)
+        self.block=Block(mpo,mps,target=target)            
+
+    def reset_block(self,target=None):
+        '''
+        Set the block of the DMRG.
+
+        Parameters
+        ----------
+        target : QuantumNumber, optional
+            The target of the block of the DMRG.
+        '''
+        self.block.reset(
+            mpo=    OptMPO([OptStr.from_operator(operator,self.degfres) for operator in self.generator.operators.itervalues()],self.degfres).to_mpo(),
+            mps=    self.block.mps,
+            target= target
+            )
 
     def insert(self,A,B,news=None,target=None):
         '''
@@ -487,26 +554,20 @@ class DMRG(Engine):
         self.config.reset(pids=self.lattice.pids)
         self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
         self.generator.reset(bonds=self.lattice.bonds,config=self.config)
-        self.set_operators()
-        sites,mpsbonds,mpobonds=self.degfres.labels('S'),self.degfres.labels('B'),self.degfres.labels('O')
-        niter,ob,nb=len(self.lattice)/len(self.lattice.block)/2,self.mps.nsite/2+1,(len(mpsbonds)+1)/2
+        niter=len(self.lattice)/len(self.lattice.block)/2
+        sites,obonds,sbonds=self.degfres.labels('S'),self.degfres.labels('O'),self.degfres.labels('B')
+        qn=target-self.block.target if isinstance(target,QuantumNumber) else 0
         if niter>self.lattice.nneighbour+2:
-            DMRG.impo_generate(self.mpo,sites,mpobonds)
+            osvs=self.cache['osvs']
+            self.cache['osvs']=self.block.mps.Lambda.data
+            self.block.grow(sites,obonds,sbonds,osvs,qn,dtype=self.dtype)
         else:
-            self.set_mpo()
-        if niter>1 or nb-ob==1:
-            self.cache['osvs']=DMRG.imps_predict(self.mps,sites,mpsbonds,self.cache.get('osvs',np.array([1.0])),target=target,dtype=self.dtype)
-            self._Hs_['L'].extend([None]*((nb-ob)*2))
-            self._Hs_['R'].extend([None]*((nb-ob)*2))
-            SL,SR,keep=(ob-1,self.mps.nsite-ob,True) if niter>self.lattice.nneighbour+2 else (None,None,False)
-            self.set_Hs_(SL=SL,EL=nb-3,SR=SR,ER=nb,keep=keep)
-        else:
-            assert self.mps.nsite==0
-            mpsbonds[+0]=mpsbonds[+0].replace(qns=QuantumNumbers.mono(target.zero()) if isinstance(target,QuantumNumber) else 1)
-            mpsbonds[-1]=mpsbonds[-1].replace(qns=QuantumNumbers.mono(target) if isinstance(target,QuantumNumber) else 1)
-            self.mps=MPS.random(sites=sites,bonds=mpsbonds,cut=len(sites)/2,nmax=20,dtype=self.dtype)
-            self.set_Hs_(EL=self.mps.cut-2,ER=self.mps.cut+1)
-        self.target=target
+            mpo=OptMPO([OptStr.from_operator(operator,self.degfres) for operator in self.generator.operators.itervalues()],self.degfres).to_mpo()
+            ob,nb=self.block.nsite/2+1,(len(sbonds)+1)/2
+            osvs=self.cache.get('osvs',np.array([1.0]))
+            if niter>1 or nb-ob==1:self.cache['osvs']=self.block.mps.Lambda.data if self.block.nsite>0 else np.array([1.0])
+            mps=self.block.mps.impsgrowth(sites,sbonds,osvs,qn,dtype=self.dtype)
+            self.block.reset(mpo=mpo,mps=mps,target=target)
 
     def sweep(self,info='',path=None,**karg):
         '''
@@ -518,42 +579,35 @@ class DMRG(Engine):
             The info passed to self.log.
         path : list of str, optional
             The path along which the sweep is performed.
-        karg : 'nmax','tol','piechart'
-            See DMRG.iterate for details.
         '''
-        for move in it.chain(['<<']*(self.mps.cut-1),['>>']*(self.mps.nsite-2),['<<']*(self.mps.nsite-self.mps.cut-1)) if path is None else path:
-            self.mps<<=1 if '<<' in move else -1
-            self.iterate(info='%s(%s)'%(info,move),sp=True,**karg)
+        for move in it.chain(['<<']*(self.block.cut-1),['>>']*(self.block.nsite-2),['<<']*(self.block.nsite-self.block.cut-1)) if path is None else path:
+            self.block.mps<<=1 if '<<' in move else -1
+            self.block.iterate(self.log,info='%s_%s %s(%s)'%(self,self.block,info,move),sp=True,**karg)
 
-    def coredump(self):
+    def dump(self):
         '''
         Use pickle to dump the core of the dmrg.
         '''
-        with open('%s/%s_%s.dat'%(self.din,pattern(self.name,self.parameters,self.target,self.mps.nsite,mode='py'),self.mps.nmax),'wb') as fout:
+        with open('%s/%s_%s.dat'%(self.din,pattern(self.name,self.parameters,self.block.target,self.block.nsite,mode='py'),self.block.mps.nmax),'wb') as fout:
             core=   {
-                        'lattice':      self.lattice,
-                        'target':       self.target,
-                        'operators':    self.operators,
-                        'mpo':          self.mpo,
-                        'mps':          self.mps,
-                        '_Hs_':         self._Hs_,
-                        'info':         self.info,
-                        'cache':        self.cache
+                        'lattice':  self.lattice,
+                        'block':    self.block,
+                        'cache':    self.cache
                         }
             pk.dump(core,fout,2)
 
     @staticmethod
-    def coreload(din,pattern,nmax):
+    def load(din,pattern,nmax):
         '''
         Use pickle to load the core of the dmrg from existing data files.
 
         Parameters
         ----------
-        din : string
+        din : str
             The directory where the data files are searched.
-        pattern : string
+        pattern : str
             The matching pattern of the data files.
-        nmax : integer
+        nmax : int
             The maximum number of singular values kept in the mps.
 
         Returns
@@ -582,13 +636,13 @@ class TSG(App):
     ----------
     targets : sequence of QuantumNumber
         The target space at each growth of the DMRG.
-    nmax : integer
+    nmax : int
         The maximum singular values to be kept.
-    npresweep : integer
+    npresweep : int
         The number of presweeps to make a random mps converged to the target state.
-    nsweep : integer
+    nsweep : int
         The number of sweeps to make the predicted mps converged to the target state.
-    tol : float64
+    tol : np.float64
         The tolerance of the target state energy.
     '''
 
@@ -600,13 +654,13 @@ class TSG(App):
         ----------
         targets : sequence of QuantumNumber
             The target space at each growth of the DMRG.
-        nmax : integer
+        nmax : int
             The maximum number of singular values to be kept.
-        npresweep : integer, optional
+        npresweep : int, optional
             The number of presweeps to make a random mps converged to the target state.
-        nsweep : integer, optional
+        nsweep : int, optional
             The number of sweeps to make the predicted mps converged to the target state.
-        tol : float64, optional
+        tol : np.float64, optional
             The tolerance of the target state energy.
         '''
         self.targets=targets
@@ -626,14 +680,13 @@ class TSG(App):
 
         Returns
         -------
-        integer
+        int
             The recover code.
         '''
         for i,target in enumerate(reversed(self.targets)):
-            core=DMRG.coreload(din=engine.din,pattern=pattern(engine.name,engine.parameters,target,(len(self.targets)-i)*engine.nspb*2,mode='re'),nmax=self.nmax)
+            core=DMRG.load(din=engine.din,pattern=pattern(engine.name,engine.parameters,target,(len(self.targets)-i)*engine.nspb*2,mode='re'),nmax=self.nmax)
             if core:
-                for key,value in core.iteritems():
-                    setattr(engine,key,value)
+                for key,value in core.iteritems(): setattr(engine,key,value)
                 engine.config.reset(pids=engine.lattice.pids)
                 engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
                 engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
@@ -651,25 +704,25 @@ def DMRGTSG(engine,app):
     num=app.recover(engine)
     scopes,nspb=range(len(app.targets)*2),engine.nspb
     def TSGSWEEP(nsweep):
-        assert engine.mps.cut==engine.mps.nsite/2
-        nold,nnew=engine.mps.nsite-2*nspb,engine.mps.nsite
+        assert engine.block.cut==engine.block.nsite/2
+        nold,nnew=engine.block.nsite-2*nspb,engine.block.nsite
         path=list(it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2)))
         for sweep in xrange(nsweep):
-            seold=engine.info['Esite']
-            engine.sweep(info=' No.%s'%(sweep+1),path=path,nmax=app.nmax,piechart=app.plot)
-            senew=engine.info['Esite']
+            seold=engine.block.info['Esite']
+            engine.sweep(info='No.%s'%(sweep+1),path=path,nmax=app.nmax,piechart=app.plot)
+            senew=engine.block.info['Esite']
             if norm(seold-senew)/norm(seold+senew)<app.tol: break
     for i,target in enumerate(app.targets[num+1:]):
         pos=i+num+1
         engine.insert(scopes[pos],scopes[-pos-1],news=scopes[:pos]+scopes[-pos:] if pos>0 else None,target=target)
-        engine.iterate(info='(++)',sp=True if pos>0 else False,nmax=app.nmax,piechart=app.plot)
+        engine.block.iterate(engine.log,info='%s_%s(++)'%(engine,engine.block),sp=True if pos>0 else False,nmax=app.nmax,piechart=app.plot)
         TSGSWEEP(app.npresweep if pos==0 else app.nsweep)
-        if nspb>1 and len(app.targets)>1 and pos==0 and app.savedata: engine.coredump()
-    if num==len(app.targets)-1 and app.nmax>engine.mps.nmax: TSGSWEEP(app.nsweep)
+        if nspb>1 and len(app.targets)>1 and pos==0 and app.savedata: engine.dump()
+    if num==len(app.targets)-1 and app.nmax>engine.block.mps.nmax: TSGSWEEP(app.nsweep)
     if app.plot and app.savefig:
-        plt.savefig('%s/%s_%s.png'%(engine.log.dir,engine,repr(engine.target)))
+        plt.savefig('%s/%s_%s_%s.png'%(engine.log.dir,engine,repr(engine.block.target),app.name))
         plt.close()
-    if app.savedata: engine.coredump()
+    if app.savedata: engine.dump()
     engine.log.close()
 
 class TSS(App):
@@ -680,9 +733,9 @@ class TSS(App):
     ----------
     target : QuantumNumber
         The target of the DMRG's mps.
-    nsite : integer
+    nsite : int
         The length of the DMRG's mps.
-    nmaxs : list of integer
+    nmaxs : list of int
         The maximum numbers of singular values to be kept for the sweeps.
     BS : BaseSpace
         The basespace of the DMRG's parameters for the sweeps.
@@ -701,9 +754,9 @@ class TSS(App):
         ----------
         target : QuantumNumber
             The target of the DMRG's mps.
-        nsite : integer
+        nsite : int
             The length of the DMRG's mps.
-        nmaxs : list of integer
+        nmaxs : list of int
             The maximum numbers of singular values to be kept for each sweep.
         BS : list of dict, optional
             The parameters of the DMRG for each sweep.
@@ -732,22 +785,21 @@ class TSS(App):
 
         Returns
         -------
-        integer
+        int
             The recover code.
         '''
         parameters=deepcopy(engine.parameters)
         for i,(nmax,paras) in enumerate(reversed(zip(self.nmaxs,self.BS))):
             parameters.update(paras)
-            core=DMRG.coreload(din=engine.din,pattern=pattern(self.name,parameters,self.target,self.nsite,mode='re'),nmax=nmax)
+            core=DMRG.load(din=engine.din,pattern=pattern(self.name,parameters,self.target,self.nsite,mode='re'),nmax=nmax)
             if core:
-                for key,value in core.iteritems():
-                    setattr(engine,key,value)
+                for key,value in core.iteritems(): setattr(engine,key,value)
                 engine.parameters=parameters
                 engine.config.reset(pids=engine.lattice.pids)
                 engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
-                engine.mps>>=1 if engine.mps.cut==0 else (-1 if engine.mps.cut==engine.mps.nsite else 0)
+                engine.block.mps>>=1 if engine.block.cut==0 else -1 if engine.block.cut==engine.block.nsite else 0
                 code=len(self.nmaxs)-1-i
-                if self.force_sweep or engine.mps.nmax<nmax: code-=1
+                if self.force_sweep or engine.block.mps.nmax<nmax: code-=1
                 break
         else:
             code=None
@@ -765,9 +817,9 @@ def DMRGTSS(engine,app):
     for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs[num+1:],app.BS[num+1:],app.paths[num+1:])):
         app.parameters.update(parameters)
         if not (app.parameters.match(engine.parameters)): engine.update(**parameters)
-        engine.sweep(info=' No.%s'%(i+1),path=path,nmax=nmax,piechart=app.plot)
-        if app.savedata: engine.coredump()
+        engine.sweep(info='No.%s'%(i+1),path=path,nmax=nmax,piechart=app.plot)
+        if app.savedata: engine.dump()
     if app.plot and app.savefig:
-        plt.savefig('%s/%s_%s.png'%(engine.log.dir,engine,repr(engine.target)))
+        plt.savefig('%s/%s_%s_%s.png'%(engine.log.dir,engine,repr(engine.block.target),app.name))
         plt.close()
     engine.log.close()

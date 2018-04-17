@@ -803,7 +803,7 @@ class MPS(Arithmetic,list):
         assert self.cut==self.nsite/2 and self.nsite%2==0 and len(sites)==len(bonds)-1==self.nsite
         lsms,rsms,us,vs=[],[],self.As,self.Bs
         for i,(L,S,R) in enumerate(zip(bonds[:self.cut],sites[:self.cut],bonds[1:self.cut+1])):
-            u,s,v=svd(vs[i]*self.Lambda if i==0 else vs[i],row=[MPS.L,MPS.S],new=Label('__IMPSPREDICTION_L_%i__'%i),col=[MPS.R])
+            u,s,v=svd(vs[i]*self.Lambda if i==0 else vs[i],row=[MPS.L,MPS.S],new=Label('__IMPSPREDICTION_L_%i__'%i,None),col=[MPS.R])
             L=u.labels[MPS.L].replace(identifier=L.identifier if isinstance(L,Label) else L)
             S=u.labels[MPS.S].replace(identifier=S.identifier if isinstance(S,Label) else S)
             R=u.labels[MPS.R].replace(identifier=R.identifier if isinstance(R,Label) else R)
@@ -813,23 +813,25 @@ class MPS(Arithmetic,list):
                 vs[i+1]=s*v*vs[i+1]
             else:
                 ml=s*v
-                ml.relabel(news=[R,ml.labels[1].replace(identifier='__IMPSPREDICTION_C0__')])
+                ml.relabel([R.inverse.replace(identifier='__IMPSPREDICTION_ML_0__'),ml.labels[1].replace(identifier='__IMPSPREDICTION_C0__')])
         for i,(L,S,R) in enumerate(reversed(zip(bonds[self.cut:],sites[self.cut:],bonds[self.cut+1:]))):
-            u,s,v=svd(us[-1-i]*self.Lambda if i==0 else us[-1-i],row=[MPS.L],new=Label('__IMPSPREDICTION_R_%i__'%i),col=[MPS.S,MPS.R])
+            u,s,v=svd(us[-1-i]*self.Lambda if i==0 else us[-1-i],row=[MPS.L],new=Label('__IMPSPREDICTION_R_%i__'%i,None),col=[MPS.S,MPS.R])
             L=v.labels[MPS.L].replace(identifier=L.identifier if isinstance(L,Label) else L,qns=v.labels[MPS.L].qns+qn)
             S=v.labels[MPS.S].replace(identifier=S.identifier if isinstance(S,Label) else S)
-            R=v.labels[MPS.R].replace(identifier=R.identifier if isinstance(R,Label) else R,qns=v.labels[MPS.R].qns+qn if i==0 else rsms[0].labels[MPS.L])
+            R=v.labels[MPS.R].replace(identifier=R.identifier if isinstance(R,Label) else R,qns=v.labels[MPS.R].qns+qn if i==0 else rsms[0].labels[MPS.L].qns)
             v.relabel(news=[L,S,R])
             rsms.insert(0,v)
             if i<len(us)-1:
                 us[-i-2]=us[-i-2]*u*s
             else:
                 mr=u*s
-                mr.relabel(news=[mr.labels[0].replace(identifier='__IMPSPREDICTION_C0__'),L])
-        u,s,v=svd(ml*Tensor(1.0/osvs,labels=[Label('__IMPSPREDICTION_C0__',flow=None)])*mr,row=[0],new='__IMPSPREDICTION_C1__',col=[1])
+                mr.relabel([mr.labels[0].replace(identifier='__IMPSPREDICTION_C0__',qns=mr.labels[0].qns+qn),L.inverse.replace(identifier='__IMPSPREDICTION_MR_1__')])
+        u,s,v=svd(ml*Tensor(1.0/osvs,labels=[Label('__IMPSPREDICTION_C0__',qns=len(osvs),flow=None)])*mr,row=[0],new=Label('__IMPSPREDICTION_C1__',None),col=[1])
+        identifier=bonds[self.cut].identifier if isinstance(bonds[self.cut],Label) else bonds[self.cut]
+        u.relabel(olds=[0],news=[u.labels[0].replace(identifier=identifier)])
+        v.relabel(olds=[1],news=[v.labels[1].replace(identifier=identifier)])
         lsms[-1]=lsms[-1]*u
         rsms[+0]=v*rsms[+0]
-        identifier=bonds[self.cut].identifier if isinstance(bonds[self.cut],Label) else bonds[self.cut]
         lsms[-1].relabel(olds=[MPS.R],news=[lsms[-1].labels[MPS.R].replace(identifier=identifier)])
         rsms[+0].relabel(olds=[MPS.L],news=[rsms[+0].labels[MPS.L].replace(identifier=identifier)])
         s.relabel(news=[s.labels[0].replace(identifier=identifier)])
@@ -859,7 +861,7 @@ class MPS(Arithmetic,list):
             assert self.cut==self.nsite/2 and self.nsite%2==0 and len(sites)+1==len(bonds)
             ob,nb=self.nsite/2+1,(len(bonds)+1)/2
             ns=nb-ob
-            cms=self[ob-ns:ob+ns].impsprediction(sites[ob-1:2*nb-ob-1],bonds[ob-1:2*nb-ob],osvs,qn=qn)
+            cms=self[ob-ns-1:ob+ns-1].impsprediction(sites[ob-1:2*nb-ob-1],bonds[ob-1:2*nb-ob],osvs,qn=qn)
             lms=MPS(self.mode,[copy(self[pos]) for pos in xrange(0,self.cut)])
             rms=MPS(self.mode,[copy(self[pos]) for pos in xrange(self.cut,self.nsite)])
             lms.relabel(sites[:ob-1],bonds[:ob])
@@ -868,7 +870,7 @@ class MPS(Arithmetic,list):
             result=MPS(self.mode,it.chain(lms,cms,rms),Lambda=cms.Lambda,cut=nb-1)
         else:
             bonds=copy(bonds)
-            iqns,oqns=(1,1) if self.mode=='NB' else (QuantumNumbers.mono(qn.zero()),QuantumNumbers.mono(qn))
+            iqns,oqns=(1,1) if self.mode=='NB' else (QNS.mono(qn.zero()),QNS.mono(qn))
             bonds[+0]=bonds[+0].replace(qns=iqns) if isinstance(bonds[+0],Label) else Label(bonds[+0],qns=iqns,flow=None)
             bonds[-1]=bonds[-1].replace(qns=oqns) if isinstance(bonds[-1],Label) else Label(bonds[-1],qns=oqns,flow=None)
             result=MPS.random(sites,bonds=bonds,cut=len(sites)/2,nmax=1,dtype=dtype)
@@ -915,9 +917,9 @@ class MPS(Arithmetic,list):
                     Ms.append(M.merge((M.labels[1:-1],site)))
                 Lambda,cut=None,None
             else:
-                table=degfres.table(nlayer)
+                table,s,v=degfres.table(nlayer),1.0,1.0
                 for i,m in enumerate(self):
-                    if i>0: m=s*v*m
+                    m=s*v*m
                     L,S,R=m.labels
                     indices=degfres.descendants(S.identifier,generation=new-old)
                     start,stop=table[indices[0]],table[indices[-1]]+1

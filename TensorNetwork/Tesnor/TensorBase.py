@@ -63,7 +63,7 @@ class Label(tuple):
         '''
         Return a new label with the flow of the quantum numbers inversed.
         '''
-        return self.replace(qns=-self.qns,flow=-self.flow) if isinstance(self.qns,QuantumNumbers) else copy(self)
+        return self.replace(flow=-self.flow)
 
     @property
     def dim(self):

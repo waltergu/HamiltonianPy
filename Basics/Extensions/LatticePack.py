@@ -263,7 +263,7 @@ class Cluster(object):
 
         Parameters
         ----------
-        dt : integer
+        dt : int
             The direction along which the cylinder extends.
         tbs : str, optional
             The translation and boundary conditions.
