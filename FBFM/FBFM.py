@@ -292,13 +292,15 @@ class FBFM(HP.Engine):
         '''
         return self.basis.nk*self.basis.nsp**2
 
-    def matrix(self,k=None,**karg):
+    def matrix(self,k=None,maskfree=False,**karg):
         '''
         The matrix representation of the spin excitations.
 
         Parameters
         ----------
         k : QuantumNumber, optional
+        maskfree : logical, optional
+            True for masking the free part of the Hamiltonian and False for not.
 
         Returns
         -------
@@ -307,7 +309,7 @@ class FBFM(HP.Engine):
         '''
         if len(karg)>0: self.update(**karg)
         result=0
-        for operator in it.chain([None],self.igenerator.operators.itervalues()):
+        for operator in it.chain([] if maskfree else [None],self.igenerator.operators.itervalues()):
             result+=optrep(operator,k,self.basis)
         return result
 
@@ -360,23 +362,28 @@ class EB(HP.EB):
     ----------
     ne : integer
         The number of energy spectrums.
+    maskfree : logical
+        True for masking the free part of the Hamiltonian and False for not.
     method : 'eigh','eigsh'
         The function used to calculate the spectrums. 'eigh' for `sl.eigh` and 'eigsh' for `HM.eigsh`.
     '''
 
-    def __init__(self,ne=6,method='eigh',**karg):
+    def __init__(self,ne=6,maskfree=False,method='eigh',**karg):
         '''
         Constructor.
 
         Parameters
         ----------
-        ne : integer, optional
+        ne : int, optional
             The number of energy spectrums.
+        maskfree : logical, optional
+            True for masking the free part of the Hamiltonian and False for not.
         method : 'eigh','eigsh'
             The function used to calculate the spectrums. 'eigh' for `sl.eigh` and 'eigsh' for `HM.eigsh`.
         '''
         super(EB,self).__init__(**karg)
         self.ne=ne
+        self.maskfree=maskfree
         self.method=method
 
 def FBFMEB(engine,app):
@@ -392,15 +399,16 @@ def FBFMEB(engine,app):
         engine.log<<'%s: '%len(parameters)
         for i,paras in enumerate(parameters):
             engine.log<<'%s%s'%(i,'..' if i<len(parameters)-1 else '')
-            m=engine.matrix(**paras)
+            m=engine.matrix(maskfree=app.maskfree,**paras)
             result[i,1:]=sl.eigh(m,eigvals_only=False)[0][:ne] if app.method=='eigh' else HM.eigsh(m,k=ne,return_eigenvectors=False)
         engine.log<<'\n'
     else:
         result=np.zeros((2,ne+1))
         result[:,0]=np.array(xrange(2))
-        result[0,1:]=sl.eigh(engine.matrix(),eigvals_only=True)[:ne] if app.method=='eigh' else HM.eigsh(engine.matrix(),k=ne,return_eigenvectors=False)
+        m=engine.matrix(maskfree=app.maskfree)
+        result[0,1:]=sl.eigh(m,eigvals_only=True)[:ne] if app.method=='eigh' else HM.eigsh(m,k=ne,return_eigenvectors=False)
         result[1,1:]=result[0,1:]
-    name='%s_%s'%(engine.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.name)
+    name='%s_%s%s'%(engine.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.name,'EFB' if app.maskfree else '')
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
     if app.returndata: return result
@@ -411,7 +419,7 @@ def FBFMPOS(engine,app):
     '''
     result=[]
     table=engine.config.table(mask=['spin','nambu'])
-    U1,U2,vs=engine.basis.U1,engine.basis.U2,sl.eigh(engine.matrix(k=app.k),eigvals_only=False)[1]
+    U2,vs=engine.basis.U2,sl.eigh(engine.matrix(k=app.k),eigvals_only=False)[1]
     for i,index in enumerate(sorted(table,key=table.get)):
         result.append([i])
         gs=np.vdot(U2[table[index],:,:].reshape(-1),U2[table[index],:,:].reshape(-1))*(1 if engine.basis.polarization=='up' else -1)
