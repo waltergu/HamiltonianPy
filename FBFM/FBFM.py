@@ -292,15 +292,15 @@ class FBFM(HP.Engine):
         '''
         return self.basis.nk*self.basis.nsp**2
 
-    def matrix(self,k=None,maskfree=False,**karg):
+    def matrix(self,k=None,maskfree=False,maskint=False,**karg):
         '''
         The matrix representation of the spin excitations.
 
         Parameters
         ----------
         k : QuantumNumber, optional
-        maskfree : logical, optional
-            True for masking the free part of the Hamiltonian and False for not.
+        maskfree/maskint : logical, optional
+            True for masking the free/interaction part of the Hamiltonian and False for not.
 
         Returns
         -------
@@ -309,7 +309,7 @@ class FBFM(HP.Engine):
         '''
         if len(karg)>0: self.update(**karg)
         result=0
-        for operator in it.chain([] if maskfree else [None],self.igenerator.operators.itervalues()):
+        for operator in it.chain([] if maskfree else [None],[] if maskint else self.igenerator.operators.itervalues()):
             result+=optrep(operator,k,self.basis)
         return result
 
@@ -344,7 +344,7 @@ class FBFM(HP.Engine):
             ks=self.basis.BZ.path(HP.KMap(self.basis.BZ.reciprocals,path),mode='I')
             e1=E1[ks,:]
             e2=E2[ks,:]
-        fig,ax=plt.subplots(nrows=1,ncols=2)
+        ax=plt.subplots(nrows=1,ncols=2)[1]
         plt.suptitle('%s'%self.tostr(mask=[term.id for term in self.interactions]))
         ax[0].plot(ks,e1)
         ax[1].plot(ks,e2)
@@ -364,11 +364,13 @@ class EB(HP.EB):
         The number of energy spectrums.
     maskfree : logical
         True for masking the free part of the Hamiltonian and False for not.
+    maskint : logical
+        True for masking the interaction part of the Hamiltonian and False for not.
     method : 'eigh','eigsh'
         The function used to calculate the spectrums. 'eigh' for `sl.eigh` and 'eigsh' for `HM.eigsh`.
     '''
 
-    def __init__(self,ne=6,maskfree=False,method='eigh',**karg):
+    def __init__(self,ne=6,maskfree=False,maskint=False,method='eigh',**karg):
         '''
         Constructor.
 
@@ -376,14 +378,15 @@ class EB(HP.EB):
         ----------
         ne : int, optional
             The number of energy spectrums.
-        maskfree : logical, optional
-            True for masking the free part of the Hamiltonian and False for not.
+        maskfree/maskint : logical, optional
+            True for masking the free/interaction part of the Hamiltonian and False for not.
         method : 'eigh','eigsh'
             The function used to calculate the spectrums. 'eigh' for `sl.eigh` and 'eigsh' for `HM.eigsh`.
         '''
         super(EB,self).__init__(**karg)
         self.ne=ne
         self.maskfree=maskfree
+        self.maskint=maskint
         self.method=method
 
 def FBFMEB(engine,app):
@@ -399,16 +402,16 @@ def FBFMEB(engine,app):
         engine.log<<'%s: '%len(parameters)
         for i,paras in enumerate(parameters):
             engine.log<<'%s%s'%(i,'..' if i<len(parameters)-1 else '')
-            m=engine.matrix(maskfree=app.maskfree,**paras)
-            result[i,1:]=sl.eigh(m,eigvals_only=False)[0][:ne] if app.method=='eigh' else HM.eigsh(m,k=ne,return_eigenvectors=False)
+            m=engine.matrix(maskfree=app.maskfree,maskint=app.maskint,**paras)
+            result[i,1:]=sl.eigh(m,eigvals_only=True)[:ne] if app.method=='eigh' else HM.eigsh(m,k=ne,return_eigenvectors=False)
         engine.log<<'\n'
     else:
         result=np.zeros((2,ne+1))
         result[:,0]=np.array(xrange(2))
-        m=engine.matrix(maskfree=app.maskfree)
+        m=engine.matrix(maskfree=app.maskfree,maskint=app.maskint)
         result[0,1:]=sl.eigh(m,eigvals_only=True)[:ne] if app.method=='eigh' else HM.eigsh(m,k=ne,return_eigenvectors=False)
         result[1,1:]=result[0,1:]
-    name='%s_%s%s'%(engine.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.name,'EFB' if app.maskfree else '')
+    name='%s_%s%s%s'%(engine.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.name,'EFB' if app.maskfree else '','STC' if app.maskint else '')
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
     if app.returndata: return result
