@@ -21,7 +21,7 @@ class TestTrFBasis(TestCase):
         etime=time.time()
         print 'NRM basis: %ss.'%(etime-stime)
         stime=time.time()
-        TrBasis(nmbasis,dk=4,nk=8)
+        TrFBasis(nmbasis,dk=4,nk=8)
         etime=time.time()
         print 'TRI basis: %ss'%(etime-stime)
 
@@ -33,7 +33,7 @@ class TestTrFED(TestCase):
         basis=FBasis(m*2,m,0.0)
         ed=FED(name='OneD_%s_%s'%(lattice.name,basis.rep),sectors=[basis],lattice=lattice,config=config,terms=[Hopping('t1',t1),Hubbard('U',U)],dtype=np.complex128)
         eigvals0=eigh(ed.matrix(basis.rep).todense(),eigvals_only=True)
-        basis=TrBasis(FBasis(m*2,m,0.0),dk=2,nk=m)
+        basis=TrFBasis(FBasis(m*2,m,0.0),dk=2,nk=m)
         ed=TrFED(name='OneD_%s_%s'%(lattice.name,basis.rep),basis=basis,lattice=lattice,config=config,terms=[Hopping('t1',t1),Hubbard('U',U)],dtype=np.complex128)
         eigvals1=[]
         for k in xrange(m): eigvals1.append(eigh(ed.matrix(sector=k).todense(),eigvals_only=True))
