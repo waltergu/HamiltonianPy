@@ -34,9 +34,16 @@ class SubVCA(ED.FED):
         The generator of the original/Weiss/bath part of the subsystem.
     '''
 
-    def __init__(self,sectors,lattice,config,terms=(),weiss=(),baths=(),dtype=np.complex128,**karg):
+    def __init__(self,sectors,lattice,config,terms=(),weiss=(),baths=(),dtype=np.complex128,log=None,**karg):
         '''
-        Constructor. See ED.FED.__init__ for details.
+        Constructor.
+
+        Parameters
+        ----------
+        sectors,lattice,config,terms,weiss,baths,dtype:
+            See ED.FED.__init__ for details.
+        log : Log, optional
+            The log of the subsystem.
         '''
         self.sectors={sector.rep:sector for sector in sectors}
         self.lattice=lattice
@@ -73,7 +80,10 @@ class SubVCA(ED.FED):
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in it.chain(terms,weiss,baths)))
         self.operators=self.hgenerator.operators+self.wgenerator.operators+self.bgenerator.operators
         self.cache={}
-        self.logging()
+        if log is None:
+            self.logging()
+        else:
+            self.log=log
 
     def matrix(self,sector,reset=True):
         '''
@@ -157,6 +167,8 @@ class VCACCT(VCA):
         self.baths=baths
         self.mask=mask
         self.dtype=dtype
+        if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in it.chain(terms,weiss,baths)))
+        self.logging()
         self.groups=[subsystem.get('group',subsystem['lattice'].name) for subsystem in subsystems]
         self.subsystems={}
         extras={key:value for key,value in karg.iteritems() if key!='name'}
@@ -175,6 +187,7 @@ class VCACCT(VCA):
                     weiss=          weiss,
                     baths=          baths,
                     dtype=          dtype,
+                    log=            self.log,
                     **extras
                     )
             self.subsystems[group].add(VGF(
@@ -184,7 +197,6 @@ class VCACCT(VCA):
                     run=            ED.EDGF,
                     **attrs
                     ))
-        if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in it.chain(terms,weiss,baths)))
         self.pthgenerator=HP.Generator(
             bonds=      [bond for bond in lattice.bonds if 'BATH' not in bond.spoint.pid.scope and 'BATH' not in bond.epoint.pid.scope
                                                         and (not bond.isintracell() or bond.spoint.pid.scope!=bond.epoint.pid.scope)],
@@ -211,13 +223,11 @@ class VCACCT(VCA):
             dtype=      dtype,
             half=       True
             )
-        if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in it.chain(terms,weiss,baths)))
         self.pthoperators=self.pthgenerator.operators
         self.ptwoperators=self.ptwgenerator.operators
         self.ptboperators=self.ptbgenerator.operators
         self.periodize()
         self.cache={}
-        self.logging()
 
     def update(self,**karg):
         '''
