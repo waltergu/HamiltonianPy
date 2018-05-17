@@ -21,18 +21,20 @@ import numpy as np
 
 class Quadratic(Term):
     '''
-    This class provides a complete and unified description for fermionic quadratic terms, e.g. hopping terms, onsite terms and pairing terms.
+    This class provides a complete and unified description for fermionic/bosonic quadratic terms, e.g. hopping terms, onsite terms and pairing terms.
 
     Attributes
     ----------
+    statistics : 'f', 'b'
+        The statistics of the particles involved in the quadratic term, 'f' for fermionic and 'b' for bosonic.
     mode : 'hp','st','pr'
-        The type of the term.
-    neighbour : integer
+        The type of the term, 'hp' for hopping, 'st' for onsite and 'pr' for pairing.
+    neighbour : int
         The order of neighbour of this quadratic term.
-    indexpacks : IndexPacks or function which returns IndexPacks
+    indexpacks : IndexPacks or callable which returns IndexPacks
         The indexpacks of the quadratic term.
-        When it is a function, it returns bond dependent indexpacks as needed.
-    amplitude : function which returns float or complex
+        When it is callable, it returns bond dependent indexpacks as needed.
+    amplitude : callable which returns float or complex
         This function returns bond dependent coefficient as needed.
 
     Notes
@@ -40,21 +42,23 @@ class Quadratic(Term):
     The final coefficient comes from three parts, the value of itself, the value of the indexpack, and the value amplitude returns.
     '''
 
-    def __init__(self,id,mode,value=1.0,neighbour=0,atoms=None,orbitals=None,spins=None,nambus=None,indexpacks=None,amplitude=None,modulate=None):
+    def __init__(self,id,statistics,mode,value=1.0,neighbour=0,atoms=None,orbitals=None,spins=None,nambus=None,indexpacks=None,amplitude=None,modulate=None):
         '''
         Constructor.
 
         Parameters
         ----------
-        id : string
+        id : str
             The specific id of the term.
+        statistics : 'f', 'b'
+            The statistics of the particles involved in the quadratic term, 'f' for fermionic and 'b' for bosonic.
         mode : 'hp','st','pr'
-            The type of the term.
+            The type of the term, 'hp' for hopping, 'st' for onsite and 'pr' for pairing.
         value : float or complex
             The overall coefficient of the term.
-        neighbour : integer, optional
+        neighbour : int, optional
             The order of neighbour of the term.
-        atoms,orbitals,spins,nambus : 2-tuple of integer, optional
+        atoms,orbitals,spins,nambus : 2-tuple of int, optional
             The atom, orbital, spin and nambu indices complementary to the indexpacks specific by the parameter `indexpacks`.
         indexpacks : IndexPacks or callable, optional
             * IndexPacks:
@@ -66,11 +70,12 @@ class Quadratic(Term):
         modulate: callable in the form ``modulate(*arg,**karg)``, optional
             This function defines the way to change the overall coefficient of the term dynamically.
         '''
-        assert mode in ('hp','st','pr')
+        assert statistics in ('f','b') and mode in ('hp','st','pr')
         super(Quadratic,self).__init__(id=id,value=value,modulate=modulate)
+        self.statistics=statistics
         self.mode=mode
         self.neighbour=neighbour
-        fpack=FermiPack(1.0,atoms=atoms,orbitals=orbitals,spins=spins,nambus=nambus)
+        fpack=FockPack(1.0,atoms=atoms,orbitals=orbitals,spins=spins,nambus=nambus)
         if indexpacks is None:
             self.indexpacks=IndexPacks(fpack)
         elif isinstance(indexpacks,IndexPacks):
@@ -87,6 +92,7 @@ class Quadratic(Term):
         '''
         result=[]
         result.append('id=%s'%self.id)
+        result.append('statistics=%s'%self.statistics)
         result.append('mode=%s'%self.mode)
         result.append('value=%s'%self.value)
         result.append('neighbour=%s'%self.neighbour)
@@ -95,7 +101,7 @@ class Quadratic(Term):
             result.append('amplitude=%s'%self.amplitude)
         if self.modulate is not None:
             result.append('modulate=%s'%self.modulate)
-        return 'Quadratic('+', '.join(result)+')'
+        return 'Quadratic(%s)'%(', '.join(result))
 
     def operators(self,bond,config,table=None,half=True,dtype=np.complex128,**karg):
         '''
@@ -147,18 +153,19 @@ class Quadratic(Term):
                             if self.mode in ('hp','pr'):
                                 result[(dagger2,dagger1)]=np.conjugate(value*coeff)+result.get((dagger2,dagger1),0.0)
             return result
+        CONSTRUCTOR=FQuadratic if self.statistics=='f' else BQuadratic
         def operators(expansion,bond,table):
             result=Operators()
             for (eindex,sindex),value in expansion.iteritems():
                 if np.abs(value)>RZERO:
                     if table is None:
-                        result+=FQuadratic(value=dtype(value),indices=(eindex,sindex),seqs=None,rcoord=bond.rcoord,icoord=bond.icoord)
+                        result+=CONSTRUCTOR(value=dtype(value),indices=(eindex,sindex),seqs=None,rcoord=bond.rcoord,icoord=bond.icoord)
                     else:
                         masks=next(iter(table)).masks
                         etemp=eindex.replace(nambu=1-eindex.nambu).mask(*masks)
                         stemp=sindex.mask(*masks)
                         if stemp in table and etemp in table:
-                            result+=FQuadratic(value=dtype(value),indices=(eindex,sindex),seqs=(table[etemp],table[stemp]),rcoord=bond.rcoord,icoord=bond.icoord)
+                            result+=CONSTRUCTOR(value=dtype(value),indices=(eindex,sindex),seqs=(table[etemp],table[stemp]),rcoord=bond.rcoord,icoord=bond.icoord)
             return result
         result=operators(expansion(bond,config,half),bond,table)
         if self.mode=='pr':
@@ -195,26 +202,26 @@ class Quadratic(Term):
                 edgr,sdgr=config[bond.epoint.pid],config[bond.spoint.pid]
                 for fpack in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
                     if not hasattr(fpack,'atoms') or (edgr.atom,sdgr.atom)==fpack.atoms:
-                        result.append('%s:%s*%s'%(self.mode,decimaltostr(value,Term.NDECIMAL),fpack.tostr(mask=('atoms',),form='repr')))
+                        result.append('%s%s:%s*%s'%(self.statistics,self.mode,decimaltostr(value,Term.NDECIMAL),fpack.tostr(mask=('atoms',),form='repr')))
         return '\n'.join(result)
 
-def Hopping(id,value,neighbour=1,atoms=None,orbitals=None,spins=None,indexpacks=None,amplitude=None,modulate=None):
+def Hopping(id,value,neighbour=1,atoms=None,orbitals=None,spins=None,indexpacks=None,amplitude=None,modulate=None,statistics='f'):
     '''
     A specified function to construct a hopping term.
     '''
-    return Quadratic(id,'hp',value,neighbour,atoms,orbitals,spins,None,indexpacks,amplitude,modulate)
+    return Quadratic(id,statistics,'hp',value,neighbour,atoms,orbitals,spins,None,indexpacks,amplitude,modulate)
 
-def Onsite(id,value,atoms=None,orbitals=None,spins=None,indexpacks=None,amplitude=None,modulate=None):
+def Onsite(id,value,atoms=None,orbitals=None,spins=None,indexpacks=None,amplitude=None,modulate=None,statistics='f'):
     '''
     A specified function to construct an onsite term.
     '''
-    return Quadratic(id,'st',value,0,atoms,orbitals,spins,None,indexpacks,amplitude,modulate)
+    return Quadratic(id,statistics,'st',value,0,atoms,orbitals,spins,None,indexpacks,amplitude,modulate)
 
-def Pairing(id,value,neighbour=0,atoms=None,orbitals=None,spins=None,indexpacks=None,amplitude=None,modulate=None):
+def Pairing(id,value,neighbour=0,atoms=None,orbitals=None,spins=None,indexpacks=None,amplitude=None,modulate=None,statistics='f'):
     '''
     A specified function to construct an pairing term.
     '''
-    return Quadratic(id,'pr',value,neighbour,atoms,orbitals,spins,(ANNIHILATION,ANNIHILATION),indexpacks,amplitude,modulate)
+    return Quadratic(id,statistics,'pr',value,neighbour,atoms,orbitals,spins,(ANNIHILATION,ANNIHILATION),indexpacks,amplitude,modulate)
 
 class Hubbard(Term):
     '''
@@ -231,15 +238,19 @@ class Hubbard(Term):
                 * value[1]: inter-orbital interaction
                 * value[2]: spin-flip interaction
                 * value[3]: pair-hopping interaction
-    atom : integer
+    statistics : 'f', 'b'
+        The statistics of the particles involved in the Hubbard term, 'f' for fermionic and 'b' for bosonic.
+    atom : int
         The atom index of the point where the Hubbard interactions are defined.
     '''
 
-    def __init__(self,id,value=1.0,atom=None,modulate=None):
+    def __init__(self,id,value=1.0,atom=None,modulate=None,statistics='f'):
         '''
         Constructor.
         '''
+        assert statistics in ('f','b')
         super(Hubbard,self).__init__(id=id,value=value,modulate=modulate)
+        self.statistics=statistics
         self.atom=atom
 
     def __repr__(self):
@@ -248,9 +259,10 @@ class Hubbard(Term):
         '''
         result=[]
         result.append('id=%s'%self.id)
+        result.append('statistics=%s'%self.statistics)
         if self.atom is not None: result.append('atom=%s'%self.atom)
         result.append('value=%s'%self.value)
-        return 'Hubbard('+', '.join(result)+')'
+        return 'Hubbard(%s)'%(', '.join(result))
 
     def __len__(self):
         '''
@@ -332,10 +344,17 @@ class Hubbard(Term):
                         index3=Index(pid,FID(h,0,ANNIHILATION))
                         index4=Index(pid,FID(h,1,ANNIHILATION))
                         expansion.append((value,index1,index2,index3,index4))
+            CONSTRUCTOR=FHubbard if self.statistics=='f' else BHubbard
             for value,index1,index2,index3,index4 in expansion:
                 if np.abs(value)>RZERO:
                     if table is None:
-                        result+=FHubbard(value=dtype(value),indices=(index1,index2,index3,index4),seqs=None,rcoord=bond.epoint.rcoord,icoord=bond.epoint.icoord)
+                        result+=CONSTRUCTOR(
+                                value=      dtype(value),
+                                indices=    (index1,index2,index3,index4),
+                                seqs=       None,
+                                rcoord=     bond.epoint.rcoord,
+                                icoord=     bond.epoint.icoord
+                                )
                     else:
                         masks=next(iter(table)).masks
                         temp1=index1.replace(nambu=1-index1.nambu).mask(*masks)
@@ -343,7 +362,7 @@ class Hubbard(Term):
                         temp3=index3.mask(*masks)
                         temp4=index4.mask(*masks)
                         if temp1 in table and temp2 in table and temp3 in table and temp4 in table:
-                            result+=FHubbard(
+                            result+=CONSTRUCTOR(
                                 value=      dtype(value),
                                 indices=    (index1,index2,index3,index4),
                                 seqs=       (table[temp1],table[temp2],table[temp3],table[temp4]),
@@ -381,7 +400,7 @@ class Hubbard(Term):
             The string representation of the term on the bond.
         '''
         if bond.neighbour==0 and self.atom in (None,config[bond.epoint.pid].atom):
-            return 'hb:%s'%('_'.join(decimaltostr(value,Term.NDECIMAL) for value in (self.value if len(self)==4 else [self.value])))
+            return '%shb:%s'%(self.statistics,'_'.join(decimaltostr(value,Term.NDECIMAL) for value in (self.value if len(self)==4 else [self.value])))
         else:
             return ''
 
@@ -391,7 +410,9 @@ class Coulomb(Term):
 
     Attributes
     ----------
-    neighbour : integer
+    statistics : 'f', 'b'
+        The statistics of the particles involved in the Coulomb term, 'f' for fermionic and 'b' for bosonic.
+    neighbour : int
         The order of neighbour of this Coulomb term.
     indexpacks : 2-tuple of IndexPacks or function which returns a 2-tuple of IndexPacks
         * 2-tuple of IndexPacks
@@ -402,7 +423,7 @@ class Coulomb(Term):
         This function returns bond dependent coefficient as needed.
     '''
 
-    def __init__(self,id,value=1.0,neighbour=0,indexpacks=None,amplitude=None,modulate=None):
+    def __init__(self,id,value=1.0,neighbour=0,indexpacks=None,amplitude=None,modulate=None,statistics='f'):
         '''
         Constructor.
 
@@ -423,8 +444,12 @@ class Coulomb(Term):
             It returns the bond-dependent amplitude of the Coulomb term.
         modulate: callable in the form ``modulate(*arg,**karg)``, optional
             This function defines the way to change the overall coefficient of the term dynamically.
+        statistics : 'f', 'b', optional
+            The statistics of the particles involved in the Coulomb term, 'f' for fermionic and 'b' for bosonic.
         '''
+        assert statistics in ('f','b')
         super(Coulomb,self).__init__(id=id,value=value,modulate=modulate)
+        self.statistics=statistics
         self.neighbour=neighbour
         if indexpacks is None:
             self.indexpacks=(IndexPacks(FermiPack(value=1.0)),IndexPacks(FermiPack(value=1.0)))
@@ -442,13 +467,14 @@ class Coulomb(Term):
         result=[]
         result.append('id=%s'%self.id)
         result.append('value=%s'%self.value)
+        result.append('statistics=%s'%self.statistics)
         result.append('neighbour=%s'%self.neighbour)
         result.append('indexpacks=%s'%(self.indexpacks if callable(self.indexpacks) else (self.indexpacks,)))
         if self.amplitude is not None:
             result.append('amplitude=%s'%self.amplitude)
         if self.modulate is not None:
             result.append('modulate=%s'%self.modulate)
-        return 'Coulomb('+', '.join(result)+')'
+        return 'Coulomb(%s)'%(', '.join(result))
 
     def operators(self,bond,config,table=None,half=True,dtype=np.complex128,**karg):
         '''
@@ -493,10 +519,17 @@ class Coulomb(Term):
                                 if not half:
                                     key=(dagger4,dagger3,dagger2,dagger1) if self.neighbour==0 else (dagger2,dagger1,dagger4,dagger3)
                                     expansion[key]=np.conjugate(coeff)+expansion.get(key,0.0)
+            CONSTRUCTOR=FCoulomb if self.statistics=='f' else BCoulomb
             for (index1,index2,index3,index4),value in expansion.iteritems():
                 if np.abs(value)>RZERO:
                     if table is None:
-                        result+=FCoulomb(value=dtype(value),indices=(index1,index2,index3,index4),seqs=None,rcoord=bond.rcoord,icoord=bond.icoord)
+                        result+=CONSTRUCTOR(
+                                value=      dtype(value),
+                                indices=    (index1,index2,index3,index4),
+                                seqs=       None,
+                                rcoord=     bond.rcoord,
+                                icoord=     bond.icoord
+                                )
                     else:
                         masks=next(iter(table)).masks
                         temp1=index1.replace(nambu=1-index1.nambu).mask(*masks)
@@ -504,7 +537,7 @@ class Coulomb(Term):
                         temp3=index3.mask(*masks)
                         temp4=index4.mask(*masks)
                         if temp1 in table and temp2 in table and temp3 in table and temp4 in table:
-                            result+=FCoulomb(
+                            result+=CONSTRUCTOR(
                                 value=      dtype(value),
                                 indices=    (index1,index2,index3,index4),
                                 seqs=       (table[temp1],table[temp2],table[temp3],table[temp4]),
@@ -551,5 +584,5 @@ class Coulomb(Term):
                     if not hasattr(spack,'atoms') or (sdgr.atom,sdgr.atom)==spack.atoms:
                         spacks.append(spack.tostr(mask=('atoms',),form='repr'))
                 spacks='%s%s%s'%('(' if len(spacks)>1 else '','+'.join(spacks),')' if len(spacks)>1 else '')
-                result='cl:%s*%s*%s'%(decimaltostr(value,Term.NDECIMAL),epacks,spacks)
+                result='%scl:%s*%s*%s'%(self.statistics,decimaltostr(value,Term.NDECIMAL),epacks,spacks)
         return result

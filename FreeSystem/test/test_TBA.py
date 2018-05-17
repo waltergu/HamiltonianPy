@@ -16,7 +16,7 @@ class TestTBA(TestCase):
             lattice=Lattice(name='WG',rcoords=tiling(cluster=[p1,p2],vectors=[v],translations=xrange(20)))
         else:
             lattice=Lattice(name='WG',rcoords=[p1,p2],vectors=[v])
-        config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fermi(norbital=1,nspin=1,nnambu=2))
+        config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fock(norbital=1,nspin=1,nnambu=2))
         result=TBA(
             name=       'WG(%s)'%bc,
             lattice=    lattice,

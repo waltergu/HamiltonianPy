@@ -9,7 +9,7 @@ Operator pack, including:
 
 __all__=['fspoperators','JWBosonization']
 
-from ..FermionicPackage import FLinear,CREATION
+from ..FockPackage import FLinear,CREATION
 from ..SpinPackage import SOperator,SpinMatrix
 from ..Utilities import parity
 from collections import OrderedDict

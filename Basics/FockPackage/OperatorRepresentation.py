@@ -4,10 +4,10 @@ Fermionic operator representation
 ---------------------------------
 
 Fermionic operator representation, including:
-    * functions: foptrep
+    * functions: foptrep,boptrep
 '''
 
-__all__=['foptrep']
+__all__=['foptrep','boptrep']
 
 import numpy as np
 from Basis import *
@@ -91,3 +91,6 @@ def foptrep_odd(value,nambus,seqs,table1,table2,nbasis,dtype):
             ndata+=1
     indptr[-1]=ndata
     return data,indices,indptr
+
+def boptrep():
+    pass

@@ -29,7 +29,7 @@ class TestTrFED(TestCase):
     def test_trfed(self):
         t1,U,m=1.0,4.0,4
         lattice=Square('S1')('%sP-1O'%m)
-        config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fermi(norbital=1,nspin=2,nnambu=1))
+        config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fock(norbital=1,nspin=2,nnambu=1))
         basis=FBasis(m*2,m,0.0)
         ed=FED(name='OneD_%s_%s'%(lattice.name,basis.rep),sectors=[basis],lattice=lattice,config=config,terms=[Hopping('t1',t1),Hubbard('U',U)],dtype=np.complex128)
         eigvals0=eigh(ed.matrix(basis.rep).todense(),eigvals_only=True)

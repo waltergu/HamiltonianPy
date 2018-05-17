@@ -2,12 +2,12 @@
 FOperator test (4 tests in total).
 '''
 
-__all__=['foperator']
+__all__=['fockoperator']
 
 from HamiltonianPy.Basics.Geometry import *
 from HamiltonianPy.Basics.DegreeOfFreedom import *
 from HamiltonianPy.Basics.Operator import *
-from HamiltonianPy.Basics.FermionicPackage import *
+from HamiltonianPy.Basics.FockPackage import *
 from unittest import TestCase,TestLoader,TestSuite
 
 class TestOperator(TestCase):
@@ -72,7 +72,7 @@ class TestOperators(TestCase):
         self.assertEqual(len(result),2)
         self.assertEqual(result[self.b.id],self.b*2)
 
-foperator=TestSuite([
+fockoperator=TestSuite([
                     TestLoader().loadTestsFromTestCase(TestOperator),
                     TestLoader().loadTestsFromTestCase(TestOperators),
                     ])

@@ -16,7 +16,7 @@ class TestFLQT(TestCase):
         print
         N,mu1,mu2=50,0.0,3.0
         lattice=Lattice(name='flqt',rcoords=tiling([np.array([0.0])],vectors=[np.array([1.0])],translations=xrange(N)))
-        config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fermi(norbital=1,nspin=1,nnambu=2))
+        config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fock(norbital=1,nspin=1,nnambu=2))
         flqt=FLQT(
             name=       'flqt',
             parameters= OrderedDict([('t1',-1.0),('delta',0.5),('mu1',mu1),('mu2',mu2),('t',None)]),

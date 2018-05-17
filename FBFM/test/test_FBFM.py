@@ -17,7 +17,7 @@ class TestFBFM(TestCase):
             name=           'fbfm_%s'%lattice.name,
             basis=          basis,
             lattice=        lattice,
-            config=         IDFConfig(priority=FB.FBFM_PRIORITY,pids=lattice.pids,map=lambda pid: Fermi(atom=(pid.site+1)%2,norbital=1,nspin=2,nnambu=1)),
+            config=         IDFConfig(priority=FB.FBFM_PRIORITY,pids=lattice.pids,map=lambda pid: Fock(atom=(pid.site+1)%2,norbital=1,nspin=2,nnambu=1)),
             terms=[         Hopping('t',t,neighbour=2,atoms=[0,0]),
                             Hopping('sd',sd,neighbour=1,modulate=True),
                             Onsite('dt',dt,atoms=[1,1],modulate=True)

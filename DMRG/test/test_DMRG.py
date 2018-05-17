@@ -53,7 +53,7 @@ class TestSpinlessFermion(TestCase):
                 name=       'fermion-spinless(%s)'%mode,
                 lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
                 terms=      [Hopping('t',t,neighbour=1)],
-                config=     IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=1,nnambu=1)),
+                config=     IDFConfig(priority=priority,map=lambda pid: Fock(atom=0,norbital=1,nspin=1,nnambu=1)),
                 degfres=    DegFreTree(mode=mode,layers=layers,priority=priority,map=lambda index: PQNS(1) if qnon else 2),
                 mask=       ['nambu'],
                 dtype=      np.float64
@@ -82,7 +82,7 @@ class TestSpinfulFermion(TestCase):
                 name=       'fermion-spinful(%s)'%mode,
                 lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
                 terms=      [Hopping('t',t,neighbour=1),Hubbard('U',U)],
-                config=     IDFConfig(priority=priority,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1)),
+                config=     IDFConfig(priority=priority,map=lambda pid: Fock(atom=0,norbital=1,nspin=2,nnambu=1)),
                 degfres=    DegFreTree(mode=mode,layers=layers,priority=priority,map=lambda index: SzPQNS(index.spin-0.5) if qnon else 2),
                 mask=       ['nambu'],
                 dtype=      np.float64

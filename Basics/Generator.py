@@ -99,7 +99,7 @@ class Generator(object):
 
     def set_terms(self,terms):
         '''
-        Set the terms and _operators_ of the generator.
+        Set the terms of the generator.
         '''
         self.terms={'const':[],'alter':[]}
         if terms is not None:

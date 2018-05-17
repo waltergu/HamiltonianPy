@@ -1,15 +1,18 @@
 '''
-----------------------------
-Fermionic degrees of freedom
-----------------------------
+----------------------------------------
+Fermionic and bosonic degrees of freedom
+----------------------------------------
 
-Fermionic degree of freedom package, including:
-    * constants: ANNIHILATION, CREATION, DEFAULT_FERMIONIC_PRIORITY
-    * classes: FID, Fermi, FermiPack
+Fermionic and bosonic degree of freedom package, including:
+    * constants: ANNIHILATION, CREATION, DEFAULT_FOCK_PRIORITY, DEFAULT_FERMIONIC_PRIORITY, DEFAULT_BOSONIC_PRIORITY
+    * classes: FID, Fock, FockPack
     * functions: sigma0, sigmax, sigmay, sigmaz, sigmap,sigmam
 '''
 
-__all__=['ANNIHILATION','CREATION','DEFAULT_FERMIONIC_PRIORITY','FID','Fermi','FermiPack','sigma0','sigmax','sigmay','sigmaz','sigmap','sigmam']
+__all__=[   'ANNIHILATION','CREATION','DEFAULT_FOCK_PRIORITY','DEFAULT_FERMIONIC_PRIORITY','DEFAULT_BOSONIC_PRIORITY',
+            'FID','Fock','FockPack',
+            'sigma0','sigmax','sigmay','sigmaz','sigmap','sigmam'
+            ]
 
 from numpy.linalg import norm
 from ..Utilities import RZERO,decimaltostr
@@ -19,46 +22,46 @@ from copy import copy
 from collections import namedtuple
 
 ANNIHILATION,CREATION=0,1
+DEFAULT_FOCK_PRIORITY=('scope','nambu','site','orbital','spin')
 DEFAULT_FERMIONIC_PRIORITY=('scope','nambu','site','orbital','spin')
-DEGFRE_FERMIONIC_PRIORITY=('scope','site','orbital','spin','nambu')
-DEGFRE_FERMIONIC_LAYERS=[('scope','site','orbital'),('spin',)]
+DEFAULT_BOSONIC_PRIORITY=('scope','nambu','site','orbital','spin')
 
 class FID(namedtuple('FID',['orbital','spin','nambu'])):
     '''
-    Internal fermionic ID.
+    Fock space ID of fermionic/bosonic single particle Hilbert space.
 
     Attributes
     ----------
-    orbital : integer
+    orbital : int
         The orbital index, start with 0, default value 0. 
-    spin : integer
+    spin : int
         The spin index, start with 0, default value 0.
-    nambu : integer
+    nambu : int
         '0' for ANNIHILATION and '1' for CREATION, default value ANNIHILATION.
     '''
 
     @property
     def dagger(self):
         '''
-        The dagger of the fermionic ID, i.e. sets nambu from CREATION to ANNIHILATION or vice versa while keeps others unchanged.
+        The dagger of the fid.
         '''
         return self._replace(nambu=1-self.nambu)
 
 FID.__new__.__defaults__=(0,0,ANNIHILATION)
 
-class Fermi(Internal):
+class Fock(Internal):
     '''
-    This class defines the internal fermionic degrees of freedom in a single point.
+    This class defines the internal fermionic/bosonic degrees of freedom in a single point.
 
     Attributes
     ----------
-    atom : integer, default value 0
+    atom : int, default value 0
         The atom species on this point.
-    norbital : integer, default value 1
+    norbital : int, default value 1
         Number of orbitals.
-    nspin : integer, default value 2
+    nspin : int, default value 2
         Number of spins.
-    nnambu : integer, default value 1.
+    nnambu : int, default value 1.
         An integer to indicate whether or not using the Nambu space.
         1 means no and 2 means yes.
     '''
@@ -69,13 +72,13 @@ class Fermi(Internal):
 
         Parameters
         ----------
-        atom : integer, optional
+        atom : int, optional
             The atom species.
-        norbital : integer, optional
+        norbital : int, optional
             Number of orbitals.
-        nspin : integer, optional
+        nspin : int, optional
             Number of spins.
-        nnambu : integer, optional.
+        nnambu : int, optional.
             A number to indicate whether or not the Nambu space is used.
             1 means no and 2 means yes.
         '''
@@ -88,7 +91,7 @@ class Fermi(Internal):
         '''
         Convert an instance to string.
         '''
-        return 'Fermi(Atom=%s, norbital=%s, nspin=%s, nnambu=%s)'%(self.atom,self.norbital,self.nspin,self.nnambu)
+        return 'Fock(atom=%s, norbital=%s, nspin=%s, nnambu=%s)'%(self.atom,self.norbital,self.nspin,self.nnambu)
 
     def __eq__(self,other):
         '''
@@ -104,7 +107,7 @@ class Fermi(Internal):
         ----------
         pid : PID
             The extra spatial part of the indices.
-        mask : list of string, optional
+        mask : list of str, optional
             The attributes that will be masked to None.
 
         Returns
@@ -120,19 +123,19 @@ class Fermi(Internal):
                     result.append(Index(pid=pid,iid=FID(orbital=orbital,spin=spin,nambu=nambu)))
         return result
 
-class FermiPack(IndexPack):
+class FockPack(IndexPack):
     '''
-    This class is a part of a systematic description of a general fermionic quadratic term.
+    This class is a part of a systematic description of a general fermionic/bosonic quadratic term.
 
     Attributes
     ----------
-    atoms : 2-tuple of integer, optional
+    atoms : 2-tuple of int, optional
         The atom indices of a quadratic term.
-    orbitals : 2-tuple of integer, optional
+    orbitals : 2-tuple of int, optional
         The orbital indices of a quadratic term.
-    spins : 2-tuple of integer, optional
+    spins : 2-tuple of int, optional
         The spin indices of a quadratic term.
-    nambus : 2-tuple of integer, optional
+    nambus : 2-tuple of int, optional
         The nambu indices of a quadratic term.
     '''
 
@@ -143,17 +146,17 @@ class FermiPack(IndexPack):
         Parameters
         ----------
         value : float or complex, optional
-            The overall coefficient of the Fermi pack
-        atoms : 2-tuple of integer, optional
+            The overall coefficient of the Fock pack
+        atoms : 2-tuple of int, optional
             The atom indices.
-        orbitals : 2-tuple of integer, optional
+        orbitals : 2-tuple of int, optional
             The orbital indices.
-        spins : 2-tuple of integer, optional
+        spins : 2-tuple of int, optional
             The spin indices.
-        nambus : 2-tuple of integer, optional
+        nambus : 2-tuple of int, optional
             The nambu indices.
         '''
-        super(FermiPack,self).__init__(value)
+        super(FockPack,self).__init__(value)
         if atoms is not None:
             assert len(atoms)==2
             self.atoms=tuple(atoms)
@@ -174,14 +177,14 @@ class FermiPack(IndexPack):
         Parameters
         ----------
         mask : tuple with elements from ('atoms','orbitals','spins','nambus'), optional
-            The mask for the attributes of the fermi pack.
-        form : 'repr' or 'str'
+            The mask for the attributes of the Fock pack.
+        form : 'repr' or 'str', optional
             The form of the string representation.
 
         Returns
         -------
         str
-            The string representation of the fermi pack.
+            The string representation of the Fock pack.
         '''
         assert form in ('repr','str')
         if form=='repr':
@@ -198,7 +201,7 @@ class FermiPack(IndexPack):
             if hasattr(self,'orbitals') and 'orbitals' not in mask: temp.append('orbitals='+str(self.orbitals))
             if hasattr(self,'spins') and 'spins' not in mask: temp.append('spins='+str(self.spins))
             if hasattr(self,'nambus') and 'nambus' not in mask: temp.append('nambus='+str(self.nambus))
-            return ''.join(['FermiPack(',', '.join(temp),')'])
+            return ''.join(['FockPack(',', '.join(temp),')'])
 
     def __repr__(self):
         '''
@@ -214,12 +217,12 @@ class FermiPack(IndexPack):
 
     def __mul__(self,other):
         '''
-        Overloaded operator(*), which supports the multiplication of an FermiPack instance with an FermiPack/IndexPacks instance or a scalar.
+        Overloaded operator(*), which supports the multiplication of an instance of FockPack with an instance of FockPack/IndexPacks or a scalar.
         '''
         def MUL(self,other):
-            if isinstance(other,FermiPack):
+            if isinstance(other,FockPack):
                 delta=lambda i,j: 1.0 if i==j else 0.0
-                result=FermiPack(self.value*other.value)
+                result=FockPack(self.value*other.value)
                 for attr in ('atoms','orbitals','spins','nambus'):
                     if hasattr(self,attr) and hasattr(other,attr):
                         setattr(result,attr,(getattr(self,attr)[0],getattr(other,attr)[1]))
@@ -254,13 +257,13 @@ class FermiPack(IndexPack):
 
     def expand(self,bond,sdgr,edgr):
         '''
-        Expand the quadratics of the Fermi pack on a bond.
+        Expand the quadratics of the Fock pack on a bond.
 
         Parameters
         ----------
         bond : Bond
             The bond on which the expansion is performed.
-        sdgr,edgr : Fermi
+        sdgr,edgr : Fock
             The internal degrees of freedom of the start point and end point of the bond.
 
         Returns
@@ -308,17 +311,17 @@ def sigma0(mode):
     '''
     result=IndexPacks()
     if mode.lower()=='sp':
-        result.append(FermiPack(1.0,spins=(0,0)))
-        result.append(FermiPack(1.0,spins=(1,1)))
+        result.append(FockPack(1.0,spins=(0,0)))
+        result.append(FockPack(1.0,spins=(1,1)))
     elif mode.lower()=='ob':
-        result.append(FermiPack(1.0,orbitals=(0,0)))
-        result.append(FermiPack(1.0,orbitals=(1,1)))
+        result.append(FockPack(1.0,orbitals=(0,0)))
+        result.append(FockPack(1.0,orbitals=(1,1)))
     elif mode.lower()=='sl':
-        result.append(FermiPack(1.0,atoms=(0,0)))
-        result.append(FermiPack(1.0,atoms=(1,1)))
+        result.append(FockPack(1.0,atoms=(0,0)))
+        result.append(FockPack(1.0,atoms=(1,1)))
     elif mode.lower()=='ph':
-        result.append(FermiPack(1.0,nambus=(ANNIHILATION,CREATION)))
-        result.append(FermiPack(1.0,nambus=(CREATION,ANNIHILATION)))
+        result.append(FockPack(1.0,nambus=(ANNIHILATION,CREATION)))
+        result.append(FockPack(1.0,nambus=(CREATION,ANNIHILATION)))
     else:
         raise ValueError("sigma0 error: mode '%s' not supported, which must be 'sp', 'ob', 'sl' or 'ph'."%mode)
     return result
@@ -329,17 +332,17 @@ def sigmax(mode):
     '''
     result=IndexPacks()
     if mode.lower()=='sp':
-        result.append(FermiPack(1.0,spins=(0,1)))
-        result.append(FermiPack(1.0,spins=(1,0)))
+        result.append(FockPack(1.0,spins=(0,1)))
+        result.append(FockPack(1.0,spins=(1,0)))
     elif mode.lower()=='ob':
-        result.append(FermiPack(1.0,orbitals=(0,1)))
-        result.append(FermiPack(1.0,orbitals=(1,0)))
+        result.append(FockPack(1.0,orbitals=(0,1)))
+        result.append(FockPack(1.0,orbitals=(1,0)))
     elif mode.lower()=='sl':
-        result.append(FermiPack(1.0,atoms=(0,1)))
-        result.append(FermiPack(1.0,atoms=(1,0)))
+        result.append(FockPack(1.0,atoms=(0,1)))
+        result.append(FockPack(1.0,atoms=(1,0)))
     elif mode.lower()=='ph':
-        result.append(FermiPack(1.0,nambus=(ANNIHILATION,ANNIHILATION)))
-        result.append(FermiPack(1.0,nambus=(CREATION,CREATION)))
+        result.append(FockPack(1.0,nambus=(ANNIHILATION,ANNIHILATION)))
+        result.append(FockPack(1.0,nambus=(CREATION,CREATION)))
     else:
         raise ValueError("sigmax error: mode '%s' not supported, which must be 'sp', 'ob', 'sl' or 'ph'."%mode)
     return result
@@ -350,17 +353,17 @@ def sigmay(mode):
     '''
     result=IndexPacks()
     if mode.lower()=='sp':
-        result.append(FermiPack(1.0j,spins=(0,1)))
-        result.append(FermiPack(-1.0j,spins=(1,0)))
+        result.append(FockPack(1.0j,spins=(0,1)))
+        result.append(FockPack(-1.0j,spins=(1,0)))
     elif mode.lower()=='ob':
-        result.append(FermiPack(1.0j,orbitals=(0,1)))
-        result.append(FermiPack(-1.0j,orbitals=(1,0)))
+        result.append(FockPack(1.0j,orbitals=(0,1)))
+        result.append(FockPack(-1.0j,orbitals=(1,0)))
     elif mode.lower()=='sl':
-        result.append(FermiPack(1.0j,atoms=(0,1)))
-        result.append(FermiPack(-1.0j,atoms=(1,0)))
+        result.append(FockPack(1.0j,atoms=(0,1)))
+        result.append(FockPack(-1.0j,atoms=(1,0)))
     elif mode.lower()=='ph':
-        result.append(FermiPack(1.0j,nambus=(ANNIHILATION,ANNIHILATION)))
-        result.append(FermiPack(-1.0j,nambus=(CREATION,CREATION)))
+        result.append(FockPack(1.0j,nambus=(ANNIHILATION,ANNIHILATION)))
+        result.append(FockPack(-1.0j,nambus=(CREATION,CREATION)))
     else:
         raise ValueError("sigmay error: mode '%s' not supported, which must be 'sp', 'ob', 'sl' or 'ph'."%mode)
     return result
@@ -371,17 +374,17 @@ def sigmaz(mode):
     '''
     result=IndexPacks()
     if mode.lower()=='sp':
-        result.append(FermiPack(-1.0,spins=(0,0)))
-        result.append(FermiPack(1.0,spins=(1,1)))
+        result.append(FockPack(-1.0,spins=(0,0)))
+        result.append(FockPack(1.0,spins=(1,1)))
     elif mode.lower()=='ob':
-        result.append(FermiPack(-1.0,orbitals=(0,0)))
-        result.append(FermiPack(1.0,orbitals=(1,1)))
+        result.append(FockPack(-1.0,orbitals=(0,0)))
+        result.append(FockPack(1.0,orbitals=(1,1)))
     elif mode.lower()=='sl':
-        result.append(FermiPack(-1.0,atoms=(0,0)))
-        result.append(FermiPack(1.0,atoms=(1,1)))
+        result.append(FockPack(-1.0,atoms=(0,0)))
+        result.append(FockPack(1.0,atoms=(1,1)))
     elif mode.lower()=='ph':
-        result.append(FermiPack(-1.0,nambus=(ANNIHILATION,CREATION)))
-        result.append(FermiPack(1.0,nambus=(CREATION,ANNIHILATION)))
+        result.append(FockPack(-1.0,nambus=(ANNIHILATION,CREATION)))
+        result.append(FockPack(1.0,nambus=(CREATION,ANNIHILATION)))
     else:
         raise ValueError("sigmaz error: mode '%s' not supported, which must be 'sp', 'ob', 'sl' or 'ph'."%mode)
     return result
@@ -392,13 +395,13 @@ def sigmap(mode):
     '''
     result=IndexPacks()
     if mode.lower()=='sp':
-        result.append(FermiPack(1.0,spins=(1,0)))
+        result.append(FockPack(1.0,spins=(1,0)))
     elif mode.lower()=='ob':
-        result.append(FermiPack(1.0,orbitals=(1,0)))
+        result.append(FockPack(1.0,orbitals=(1,0)))
     elif mode.lower()=='sl':
-        result.append(FermiPack(1.0,atoms=(1,0)))
+        result.append(FockPack(1.0,atoms=(1,0)))
     elif mode.lower()=='ph':
-        result.append(FermiPack(1.0,nambus=(CREATION,CREATION)))
+        result.append(FockPack(1.0,nambus=(CREATION,CREATION)))
     else:
         raise ValueError("sigmap error: mode '%s' not supported, which must be 'sp', 'ob', 'sl' or 'ph'."%mode)
     return result
@@ -409,13 +412,13 @@ def sigmam(mode):
     '''
     result=IndexPacks()
     if mode.lower()=='sp':
-        result.append(FermiPack(1.0,spins=(0,1)))
+        result.append(FockPack(1.0,spins=(0,1)))
     elif mode.lower()=='ob':
-        result.append(FermiPack(1.0,orbitals=(0,1)))
+        result.append(FockPack(1.0,orbitals=(0,1)))
     elif mode.lower()=='sl':
-        result.append(FermiPack(1.0,atoms=(0,1)))
+        result.append(FockPack(1.0,atoms=(0,1)))
     elif mode.lower()=='ph':
-        result.append(FermiPack(1.0,nambus=(ANNIHILATION,ANNIHILATION)))
+        result.append(FockPack(1.0,nambus=(ANNIHILATION,ANNIHILATION)))
     else:
         raise ValueError("sigmam error: mode '%s' not supported, which must be 'sp', 'ob', 'sl' or 'ph'."%mode)
     return result

@@ -9,7 +9,7 @@ This subpackage is the basic for all Hamiltonian-based algorithms. Generally, to
 #. Describe the internal degrees of freedom on the lattice;
 #. Provide the terms of the Hamiltonian;
 #. Select an algorithm as the engine;
-#. Assign the tasks and conduct them by registering apps on the engine.
+#. Assign the tasks and run them by registering apps on the engine.
 #. Analyze the results.
 
 The modules in this subpackage deals with Proc.1~3 and help the algorithms implemented in other packages with Proc.4~5.
@@ -36,7 +36,7 @@ Concretely, the roles they play are
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
 |   `BaseSpace`         |   Define a unified way to describe parameter spaces (e.g. k-space, etc).                                  |
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
-|   `FermionicPackage`  |   An extension to deal with fermionic systems.                                                            |
+|   `FockPackage`       |   An extension to deal with fermionic and bosonic systems.                                                |
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
 |   `SpinPackage`       |   An extension to deal with spin systems.                                                                 |
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
@@ -54,7 +54,7 @@ from Operator import *
 from Term import *
 from EngineApp import *
 from Generator import *
-from FermionicPackage import *
+from FockPackage import *
 from SpinPackage import *
 from QuantumNumber import *
 from Extensions import *

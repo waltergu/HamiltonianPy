@@ -15,7 +15,7 @@ class TestFED(TestCase):
         t,U,m,n=-1.0,8.0,2,5
         basis=FBasis(2*m*n,m*n,0.0)
         lattice=Square('S1')('%sO-%sO'%(m,n))
-        config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fermi(atom=0,norbital=1,nspin=2,nnambu=1))
+        config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fock(atom=0,norbital=1,nspin=2,nnambu=1))
         fed=FED(
                 name=       'WG-%s-%s'%(lattice.name,basis.rep),
                 sectors=    [basis],

@@ -4,7 +4,7 @@ Basics test.
 
 from HamiltonianPy.Basics.test import *
 from HamiltonianPy.Basics.QuantumNumber.test import *
-from HamiltonianPy.Basics.FermionicPackage.test import *
+from HamiltonianPy.Basics.FockPackage.test import *
 from HamiltonianPy.Basics.SpinPackage.test import *
 from HamiltonianPy.Basics.Extensions.test import *
 from unittest import TestSuite
@@ -16,6 +16,6 @@ basics.addTest(geometry)
 basics.addTest(degreeoffreedom)
 basics.addTest(engineapp)
 basics.addTest(quantumnumber)
-basics.addTest(fermionic)
+basics.addTest(fock)
 basics.addTest(spin)
 basics.addTest(extensions)

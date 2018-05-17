@@ -1,28 +1,33 @@
 '''
-------------------
-Fermionic operator
-------------------
+--------------------------
+Fermionic/bosonic operator
+--------------------------
 
-Fermionic operator, including:
-    * classes: FOperator, FLinear, FQuadratic, FHubbard, FCoulomb
+Fermionic/bosonic operator, including:
+    * classes: FockOperator, FockLinear, FockQuadratic, FockHubbard, FockCoulomb,
+               FOperator, FLinear, FQuadratic, FHubbard, FCoulomb, 
+               BOperator, BLinear, BQuadratic, BHubbard, BCoulomb
 '''
 
-__all__=['FOperator','FLinear','FQuadratic','FHubbard','FCoulomb']
+__all__=[   'FockOperator','FockLinear','FockQuadratic','FockHubbard','FockCoulomb',
+            'FOperator','FLinear','FQuadratic','FHubbard','FCoulomb',
+            'BOperator','BLinear','BQuadratic','BHubbard','BCoulomb'
+            ]
 
 from ..Operator import *
 from ..Utilities import parity
 from DegreeOfFreedom import ANNIHILATION,CREATION
 import numpy as np
 
-class FOperator(Operator):
+class FockOperator(Operator):
     '''
-    This class gives a unified description of fermionic operators with different ranks.
+    This class gives a unified description of fermionic/bosonic operators with different ranks.
 
     Attributes
     ----------
     indices : tuple of Index
         The associated indices of the operator, whose length should be equal to the operator's rank.
-    seqs : tuple of integer
+    seqs : tuple of int
         The associated sequences of the operator, whose length should be equal to the operator's rank.
     rcoord : 1d ndarray
         The associated real coordinates of the operator.
@@ -40,14 +45,14 @@ class FOperator(Operator):
             The coefficient of the operator.
         indices : tuple of Index
             The associated indices of the operator.
-        seqs : tuple of integer, optional
+        seqs : tuple of int, optional
              The associated sequences of the operator.
         rcoord : 1d ndarray, optional
             The real coordinates of the operator.
         icoord : 1d ndarray, optional
             The lattice coordinates of the operator.
         '''
-        super(FOperator,self).__init__(value)
+        super(FockOperator,self).__init__(value)
         self.indices=tuple(indices)
         self.seqs=None if seqs is None else tuple(seqs)
         if self.seqs is not None: assert len(self.seqs)==len(self.indices)
@@ -114,32 +119,25 @@ class FOperator(Operator):
 
     def reorder(self,permutation,reverse_coord=False):
         '''
-        Return the reordered fermionic operator according to the permutation information.
+        Return the reordered fock operator according to the permutation information.
 
         Parameters
         ----------
         permutation : list of int
-            The permutation of the fermionic operator.
+            The permutation of the fock operator.
         reverse_coord : logical, optional
             True for reversing the rcoord and icoord of the operator and False for not.
 
         Returns
         -------
-        FOperator
+        FockOperator
             The reordered operator.
         '''
-        assert len(permutation)==self.rank
-        result=FOperator.__new__(self.__class__)
-        super(FOperator,result).__init__(self.value)
-        result.indices=tuple(self.indices[i] for i in permutation)
-        result.seqs=None if self.seqs is None else tuple(self.seqs[i] for i in permutation)
-        result.rcoord=None if self.rcoord is None else (-1)**reverse_coord*self.rcoord
-        result.icoord=None if self.icoord is None else (-1)**reverse_coord*self.icoord
-        return result
+        raise NotImplementedError('%s reorder error: not implemented.'%self.__class__.__name__)
 
-class FLinear(FOperator):
+class FockLinear(FockOperator):
     '''
-    Linear fermionic operator.
+    Linear Fock operator.
     '''
 
     def __init__(self,value,index,seq=None,rcoord=None,icoord=None):
@@ -152,14 +150,14 @@ class FLinear(FOperator):
             The coefficient of the linear operator.
         index : Index
             The index of the linear operator.
-        seq : integer, optional
+        seq : int, optional
             The associated sequence of the linear operator.
         rcoord : 1d ndarray, optional
             The real coordinates of the operator.
         icoord : 1d ndarray, optional
             The lattice coordinates of the operator.
         '''
-        super(FLinear,self).__init__(value,indices=(index,),seqs=None if seq is None else (seq,),rcoord=rcoord,icoord=icoord)
+        super(FockLinear,self).__init__(value,indices=(index,),seqs=None if seq is None else (seq,),rcoord=rcoord,icoord=icoord)
 
     @property
     def index(self):
@@ -180,7 +178,7 @@ class FLinear(FOperator):
         '''
         The Hermitian conjugate of the linear operator.
         '''
-        return FLinear(
+        return type(self)(
                 value=      np.conjugate(self.value),
                 index=      self.index.replace(nambu=1-self.index.nambu),
                 seq=        self.seq,
@@ -188,24 +186,24 @@ class FLinear(FOperator):
                 icoord=     self.icoord
                 )
 
-class FQuadratic(FOperator):
+class FockQuadratic(FockOperator):
     '''
-    Quadratic fermionic operator.
+    Quadratic Fock operator.
     '''
 
     def __init__(self,value,indices,seqs=None,rcoord=None,icoord=None):
         '''
-        Constructor. See FOperator.__init__ for details.
+        Constructor. See FockOperator.__init__ for details.
         '''
         assert len(indices)==2
-        super(FQuadratic,self).__init__(value,indices,seqs=seqs,rcoord=rcoord,icoord=icoord)
+        super(FockQuadratic,self).__init__(value,indices,seqs=seqs,rcoord=rcoord,icoord=icoord)
 
     @property
     def dagger(self):
         '''
         The Hermitian conjugate of the quadratic operator.
         '''
-        return FQuadratic(
+        return type(self)(
                 value=      np.conjugate(self.value),
                 indices=    [index.replace(nambu=1-index.nambu) for index in reversed(self.indices)],
                 seqs=       None if self.seqs is None else reversed(self.seqs),
@@ -213,24 +211,24 @@ class FQuadratic(FOperator):
                 icoord=     None if self.icoord is None else -self.icoord
                 )
 
-class FHubbard(FOperator):
+class FockHubbard(FockOperator):
     '''
-    Fermionic Hubbard operator.
+    Fock Hubbard operator.
     '''
 
     def __init__(self,value,indices,seqs=None,rcoord=None,icoord=None):
         '''
-        Constructor. See FOperator.__init__ for details.
+        Constructor. See FockOperator.__init__ for details.
         '''
         assert len(indices)==4
-        super(FHubbard,self).__init__(value,indices,seqs=seqs,rcoord=rcoord,icoord=icoord)
+        super(FockHubbard,self).__init__(value,indices,seqs=seqs,rcoord=rcoord,icoord=icoord)
 
     @property
     def dagger(self):
         '''
         The Hermitian conjugate of the Hubbard operator.
         '''
-        return FHubbard(
+        return type(self)(
                 value=      np.conjugate(self.value),
                 indices=    [index.replace(nambu=1-index.nambu) for index in reversed(self.indices)],
                 seqs=       None if self.seqs is None else reversed(self.seqs),
@@ -238,27 +236,135 @@ class FHubbard(FOperator):
                 icoord=     self.icoord
                 )
 
-class FCoulomb(FOperator):
+class FockCoulomb(FockOperator):
     '''
-    Fermionic density-density interaction operator.
+    Fock density-density interaction operator.
     '''
 
     def __init__(self,value,indices,seqs=None,rcoord=None,icoord=None):
         '''
-        Constructor. See FOperator.__init__ for details.
+        Constructor. See FockOperator.__init__ for details.
         '''
         assert len(indices)==4
-        super(FCoulomb,self).__init__(value,indices,seqs=seqs,rcoord=rcoord,icoord=icoord)
+        super(FockCoulomb,self).__init__(value,indices,seqs=seqs,rcoord=rcoord,icoord=icoord)
 
     @property
     def dagger(self):
         '''
         The Hermitian conjugate of the density-density interaction operator.
         '''
-        return FCoulomb(
+        return type(self)(
                 value=      np.conjugate(self.value),
                 indices=    [index.replace(nambu=1-index.nambu) for index in reversed(self.indices)],
                 seqs=       None if self.seqs is None else reversed(self.seqs),
                 rcoord=     None if self.rcoord is None else -self.rcoord,
                 icoord=     None if self.icoord is None else -self.icoord
         )
+
+class FOperator(FockOperator):
+    '''
+    Fermionic operator.
+    '''
+
+    def reorder(self,permutation,reverse_coord=False):
+        '''
+        Return the reordered fermionic operator according to the permutation information.
+
+        Parameters
+        ----------
+        permutation : list of int
+            The permutation of the fermionic operator.
+        reverse_coord : logical, optional
+            True for reversing the rcoord and icoord of the operator and False for not.
+
+        Returns
+        -------
+        FOperator
+            The reordered operator.
+        '''
+        assert len(permutation)==self.rank
+        result=FockOperator.__new__(self.__class__)
+        super(FockOperator,result).__init__(self.value*parity(permutation))
+        result.indices=tuple(self.indices[i] for i in permutation)
+        result.seqs=None if self.seqs is None else tuple(self.seqs[i] for i in permutation)
+        result.rcoord=None if self.rcoord is None else (-1)**reverse_coord*self.rcoord
+        result.icoord=None if self.icoord is None else (-1)**reverse_coord*self.icoord
+        return result
+
+class FLinear(FockLinear,FOperator):
+    '''
+    Fermionic linear operator.
+    '''
+    pass
+
+class FQuadratic(FockQuadratic,FOperator):
+    '''
+    Fermionic quadratic operator.
+    '''
+    pass
+
+class FHubbard(FockHubbard,FOperator):
+    '''
+    Fermionic Hubbard operator.
+    '''
+    pass
+
+class FCoulomb(FockCoulomb,FOperator):
+    '''
+    Fermionic density-density interaction operator.
+    '''
+    pass
+
+class BOperator(FockOperator):
+    '''
+    Bosonic operator.
+    '''
+
+    def reorder(self,permutation,reverse_coord=False):
+        '''
+        Return the reordered bosonic operator according to the permutation information.
+
+        Parameters
+        ----------
+        permutation : list of int
+            The permutation of the bosonic operator.
+        reverse_coord : logical, optional
+            True for reversing the rcoord and icoord of the operator and False for not.
+
+        Returns
+        -------
+        BOperator
+            The reordered operator.
+        '''
+        assert len(permutation)==self.rank
+        result=FockOperator.__new__(self.__class__)
+        super(FockOperator,result).__init__(self.value)
+        result.indices=tuple(self.indices[i] for i in permutation)
+        result.seqs=None if self.seqs is None else tuple(self.seqs[i] for i in permutation)
+        result.rcoord=None if self.rcoord is None else (-1)**reverse_coord*self.rcoord
+        result.icoord=None if self.icoord is None else (-1)**reverse_coord*self.icoord
+        return result
+
+class BLinear(FockLinear,BOperator):
+    '''
+    Bosonic linear operator.
+    '''
+    pass
+
+class BQuadratic(FockQuadratic,BOperator):
+    '''
+    Bosonic quadratic operator.
+    '''
+    pass
+
+class BHubbard(FockHubbard,BOperator):
+    '''
+    Bosonic Hubbard operator.
+    '''
+    pass
+
+class BCoulomb(FockCoulomb,BOperator):
+    '''
+    Bosonic density-density interaction operator.
+    '''
+    pass

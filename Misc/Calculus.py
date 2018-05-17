@@ -146,7 +146,7 @@ def quadapprox(fun,x0,args=(),eps=1.49e-06):
         for j in xrange(i):
             xs.append(x0+eps[i]*es[i]+eps[j]*es[j])
             diffs.append(eps[i]*es[i]+eps[j]*es[j])
-    f0,nfev=fun(x0,*args),len(xs)+1
+    f0=fun(x0,*args)
     a,b=np.zeros((N*(N+3)/2,N*(N+3)/2)),np.zeros(N*(N+3)/2)
     for n,(x,diff) in enumerate(zip(xs,diffs)):
         count=0

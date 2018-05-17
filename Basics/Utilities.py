@@ -9,7 +9,10 @@ The utilities of the subpackage, including:
     * functions: parity, berry_curvature, berry_phase, decimaltostr, ordinal, mpirun
 '''
 
-__all__=['RZERO','Arithmetic','Timer','Timers','Sheet','Log','parity','berry_curvature','berry_phase','decimaltostr','ordinal','mpirun']
+__all__=[   'RZERO',
+            'Arithmetic','Timer','Timers','Sheet','Log',
+            'parity','berry_curvature','berry_phase','decimaltostr','ordinal','mpirun'
+            ]
 
 from copy import copy
 from mpi4py import MPI

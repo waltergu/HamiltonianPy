@@ -14,7 +14,7 @@ Basics
    Generator
    EngineApp
    BaseSpace
-   FermionicPackage/index
+   FockPackage/index
    SpinPackage/index
    QuantumNumber/index
    Extensions/index

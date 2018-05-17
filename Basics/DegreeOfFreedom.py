@@ -439,7 +439,7 @@ class QNSConfig(dict):
 
 class IndexPack(Arithmetic):
     '''
-    This class packs several degrees of freedom as a whole for convenience.
+    This class packs several internal degrees of freedom as a whole for convenience.
 
     Attributes
     ----------

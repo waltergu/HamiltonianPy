@@ -96,7 +96,7 @@ class FermiBase(object):
         priority,layers=['scope','site','orbital','spin','nambu'],[('scope',),('site','orbital','spin')]
         self.lattice=Cylinder(name='WG',block=[np.array([0.0,0.0]),np.array([0.0,1.0])],translation=np.array([1.0,0.0]))([0,1])
         self.terms=[Hopping('t',1.0,neighbour=1)]
-        self.config=IDFConfig(priority=priority,pids=self.lattice.pids,map=lambda pid: Fermi(norbital=1,nspin=1,nnambu=1))
+        self.config=IDFConfig(priority=priority,pids=self.lattice.pids,map=lambda pid: Fock(norbital=1,nspin=1,nnambu=1))
         self.degfres=DegFreTree(mode='QN',layers=layers,priority=priority,leaves=self.config.table(mask=['nambu']).keys(),map=lambda index:PQNS(1))
         self.generator=Generator(self.lattice.bonds,self.config,terms=self.terms,dtype=np.complex128)
         self.mopts=[soptrep(JWBosonization(opt,self.config.table(mask=['nambu'])),self.config.table(mask=['nambu'])) for opt in self.generator.operators.itervalues()]

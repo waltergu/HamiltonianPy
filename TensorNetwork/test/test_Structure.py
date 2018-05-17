@@ -12,7 +12,7 @@ class TestDegFreTree(TestCase):
     def setUp(self):
         self.fpriority=DEGFRE_FERMIONIC_PRIORITY
         self.flayers=DEGFRE_FERMIONIC_LAYERS
-        fmap=lambda pid: Fermi(norbital=1,nspin=2,nnambu=1)
+        fmap=lambda pid: Fock(norbital=1,nspin=2,nnambu=1)
         self.fconfig=IDFConfig(self.fpriority,pids=[PID(scope,site) for site in (0,1) for scope in (0,1)],map=fmap)
         self.spriority=DEGFRE_SPIN_PRIORITY
         self.slayers=DEGFRE_SPIN_LAYERS

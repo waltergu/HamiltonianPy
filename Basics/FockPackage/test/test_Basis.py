@@ -1,9 +1,9 @@
 '''
 FBasis test (2 tests in total).
 '''
-__all__=['fbasis']
+__all__=['fockbasis']
 
-from HamiltonianPy.Basics.FermionicPackage.Basis import *
+from HamiltonianPy.Basics.FockPackage.Basis import *
 from unittest import TestCase,TestLoader,TestSuite
 
 class TestFBasis(TestCase):
@@ -29,6 +29,6 @@ class TestFBasis(TestCase):
         for basis in FBases(mode='FG',nstate=self.nstate):
             print '%s\n%s\n'%(basis.rep,basis)
 
-fbasis=TestSuite([
+fockbasis=TestSuite([
             TestLoader().loadTestsFromTestCase(TestFBasis),
             ])

@@ -3,7 +3,7 @@
 Occupation number basis
 -----------------------
 
-The basis of fermionic systems in the occupation number representation, including:
+The basis of fermionic/hard-core-bosonic systems in the occupation number representation, including:
     * classes: FBasis
     * function: sequence, FBases
 '''
@@ -17,7 +17,8 @@ from numba import jit
 
 class FBasis(object):
     '''
-    Basis of fermionic systems in the occupation number representation.
+    Basis of fermionic/hard-core-bosonic systems in the occupation number representation.
+    Here, the first letter 'F' is short for 'Fock'.
 
     Attributes
     ----------
@@ -137,14 +138,14 @@ def sequence(rep,table):
 
     Parameters
     ----------
-    rep : integer
+    rep : int
         The binary representation of a basis.
-    table : 1d ndarray of integers
+    table : 1d ndarray of int
         The basis table.
 
     Returns
     -------
-    integer
+    int
         The corresponding sequence of the basis.
     '''
     if len(table)==0:

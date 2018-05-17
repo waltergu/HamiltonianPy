@@ -92,7 +92,7 @@ from config import *
 __all__=['tbaconstruct']
 
 def tbaconstruct(parameters,lattice,terms,**karg):
-    config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=idfmap)
+    config=IDFConfig(priority=DEFAULT_FOCK_PRIORITY,pids=lattice.pids,map=idfmap)
     tba=TBA.TBA(
         dlog=       'log',
         din=        'data',
