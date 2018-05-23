@@ -9,31 +9,34 @@ Operator pack, including:
 
 __all__=['fspoperators','JWBosonization']
 
-from ..FockPackage import FLinear,CREATION
+from ..FockPackage import FLinear,BLinear,CREATION
 from ..SpinPackage import SOperator,SpinMatrix
 from ..Utilities import parity
 from collections import OrderedDict
 import numpy as np
 
-def fspoperators(table,lattice):
+def fspoperators(table,lattice,statistics='f'):
     '''
-    Generate the fermionic single particle operators corresponding to a table.
+    Generate single particle operators on the Fock space corresponding to a table.
 
     Parameters
     ----------
     table : Table
-        The index-sequence table of the fermionic single particle operators.
+        The index-sequence table of the single particle operators.
     lattice : Lattice
-        The lattice on which the fermionic single particle operators are defined.
+        The lattice on which the single particle operators are defined.
+    statistics : 'f','b'
+        'f' for fermionic and 'b' for bosonic.
 
     Returns
     -------
-    list of FOperator
-        The fermionic single particle operators corresponding to the table.
+    list of FOperator/BOperator
+        The single particle operators on the Fock space corresponding to the table.
     '''
-    result=[]
+    assert statistics in ('f','b')
+    result,CONSTRUCTOR=[],FLinear if statistics=='f' else BLinear
     for ndx in sorted(table,key=table.get):
-        result.append(FLinear(1,index=ndx,seq=table[ndx],rcoord=lattice.rcoord(ndx.pid),icoord=lattice.icoord(ndx.pid)))
+        result.append(CONSTRUCTOR(1,index=ndx,seq=table[ndx],rcoord=lattice.rcoord(ndx.pid),icoord=lattice.icoord(ndx.pid)))
     return result
 
 def JWBosonization(operator,table):

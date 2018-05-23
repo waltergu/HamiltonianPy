@@ -452,7 +452,7 @@ class Coulomb(Term):
         self.statistics=statistics
         self.neighbour=neighbour
         if indexpacks is None:
-            self.indexpacks=(IndexPacks(FermiPack(value=1.0)),IndexPacks(FermiPack(value=1.0)))
+            self.indexpacks=(IndexPacks(FockPack(value=1.0)),IndexPacks(FockPack(value=1.0)))
         elif callable(indexpacks):
             self.indexpacks=indexpacks
         else:

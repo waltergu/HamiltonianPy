@@ -1,9 +1,9 @@
 '''
-===============================
-Fermionic exact diagonalization
-===============================
+=================================================
+Fermionic/Hard-core-bosonic exact diagonalization
+=================================================
 
-Exact diagonalization for fermionic systems, including:
+Exact diagonalization for fermionic/hard-core-bosonic systems, including:
     * classes: FED
     * functions: fedspgen, fedspcom, FGF
 '''
@@ -20,7 +20,7 @@ import numpy as np
 
 class FED(ED):
     '''
-    Exact diagonalization for a fermionic system.
+    Exact diagonalization for a fermionic/hard-core-bosonic system.
     '''
 
     def __init__(self,sectors,lattice,config,terms=(),dtype=np.complex128,**karg):
@@ -40,6 +40,7 @@ class FED(ED):
         dtype : np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
         '''
+        if len(terms)>0: assert len({term.statistics for term in terms})==1
         self.sectors={sector.rep:sector for sector in sectors}
         self.lattice=lattice
         self.config=config
@@ -50,6 +51,13 @@ class FED(ED):
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
         self.operators=self.generator.operators
         self.logging()
+
+    @property
+    def statistics(self):
+        '''
+        The statistics of the system, 'f' for fermionic and 'b' for bosonic.
+        '''
+        return next(iter(self.terms)).statistics
 
     def matrix(self,sector,reset=True):
         '''
@@ -130,12 +138,12 @@ class FED(ED):
 
 def fedspgen(fed,operators,method='S'):
     '''
-    This function generates the blocks of the zero-temperature single-particle Green's function of a fermionic system.
+    This function generates the blocks of the zero-temperature single-particle Green's function of a fermionic/hard-core-bosonic system.
 
     Parameters
     ----------
     fed : FED
-        The fermionic system.
+        The fermionic/hard-core-bosonic system.
     operators : list of Operator
         The input Operators.
     method : 'S', 'B', or 'NB'
@@ -174,7 +182,7 @@ def fedspgen(fed,operators,method='S'):
 
 def fedspcom(blocks,omega):
     '''
-    This function composes the zero-temperature single-particle Green's function of a fermionic system from its blocks.
+    This function composes the zero-temperature single-particle Green's function of a fermionic/hard-core-bosonic system from its blocks.
 
     Parameters
     ----------
