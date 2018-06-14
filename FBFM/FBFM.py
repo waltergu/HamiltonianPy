@@ -292,15 +292,16 @@ class FBFM(HP.Engine):
         '''
         return self.basis.nk*self.basis.nsp**2
 
-    def matrix(self,k=None,maskfree=False,maskint=False,**karg):
+    def matrix(self,k=None,scalefree=1.0,scaleint=1.0,**karg):
         '''
         The matrix representation of the spin excitations.
 
         Parameters
         ----------
         k : QuantumNumber, optional
-        maskfree/maskint : logical, optional
-            True for masking the free/interaction part of the Hamiltonian and False for not.
+            The k point in FBZ.
+        scalefree/scaleint : float, optional
+            The scaling parameter for the free/interaction part of the Hamiltonian.
 
         Returns
         -------
@@ -309,8 +310,11 @@ class FBFM(HP.Engine):
         '''
         if len(karg)>0: self.update(**karg)
         result=0
-        for operator in it.chain([] if maskfree else [None],[] if maskint else self.igenerator.operators.itervalues()):
-            result+=optrep(operator,k,self.basis)
+        if scalefree:
+            result+=optrep(None,k,self.basis)*scalefree
+        if scaleint:
+            for operator in self.igenerator.operators.itervalues():
+                result+=optrep(operator*scaleint,k,self.basis)
         return result
 
     def view(self,mode='P',path=None,show=True,suspend=False,close=True):
@@ -360,17 +364,17 @@ class EB(HP.EB):
 
     Attributes
     ----------
-    ne : integer
+    ne : int
         The number of energy spectrums.
-    maskfree : logical
-        True for masking the free part of the Hamiltonian and False for not.
-    maskint : logical
-        True for masking the interaction part of the Hamiltonian and False for not.
+    scalefree : float
+        The scaling parameter for the free part of the Hamiltonian.
+    scaleint : float
+        The scaling parameter for the interaction part of the Hamiltonian.
     method : 'eigvalsh','eigsh'
         The function used to calculate the spectrums. 'eigvalsh' for `nl.eigvalsh` and 'eigsh' for `HM.eigsh`.
     '''
 
-    def __init__(self,ne=6,maskfree=False,maskint=False,method='eigvalsh',**karg):
+    def __init__(self,ne=6,scalefree=1.0,scaleint=1.0,method='eigvalsh',**karg):
         '''
         Constructor.
 
@@ -378,16 +382,23 @@ class EB(HP.EB):
         ----------
         ne : int, optional
             The number of energy spectrums.
-        maskfree/maskint : logical, optional
-            True for masking the free/interaction part of the Hamiltonian and False for not.
+        scalefree/scaleint : float, optional
+            The scaling parameter for the free/interaction part of the Hamiltonian.
         method : 'eigvalsh','eigsh'
             The function used to calculate the spectrums. 'eigvalsh' for `nl.eigvalsh` and 'eigsh' for `HM.eigsh`.
         '''
         super(EB,self).__init__(**karg)
         self.ne=ne
-        self.maskfree=maskfree
-        self.maskint=maskint
+        self.scalefree=scalefree
+        self.scaleint=scaleint
         self.method=method
+
+    @property
+    def suffix(self):
+        '''
+        The suffix of the app.
+        '''
+        return '' if self.scalefree==1.0 and self.scaleint==1.0 else '(%s,%s)'%(HP.decimaltostr(self.scalefree),HP.decimaltostr(self.scaleint))
 
 def FBFMEB(engine,app):
     '''
@@ -402,16 +413,16 @@ def FBFMEB(engine,app):
         engine.log<<'%s: '%len(parameters)
         for i,paras in enumerate(parameters):
             engine.log<<'%s%s'%(i,'..' if i<len(parameters)-1 else '')
-            m=engine.matrix(maskfree=app.maskfree,maskint=app.maskint,**paras)
+            m=engine.matrix(scalefree=app.scalefree,scaleint=app.scaleint,**paras)
             result[i,1:]=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,return_eigenvectors=False)
         engine.log<<'\n'
     else:
         result=np.zeros((2,ne+1))
         result[:,0]=np.array(xrange(2))
-        m=engine.matrix(maskfree=app.maskfree,maskint=app.maskint)
+        m=engine.matrix(scalefree=app.scalefree,scaleint=app.scaleint)
         result[0,1:]=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,return_eigenvectors=False)
         result[1,1:]=result[0,1:]
-    name='%s_%s%s%s'%(engine.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.name,'EFB' if app.maskfree else '','STC' if app.maskint else '')
+    name='%s_%s%s'%(engine.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.name,app.suffix)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
     if app.returndata: return result

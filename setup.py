@@ -13,10 +13,8 @@ def configuration(parent_package='',top_path=None):
     config.add_subpackage('Management')
     config.add_subpackage('Test')
     config.add_subpackage('Beta')
-    if system()=='Windows':
-        config.add_scripts('Hamiltonian.bat')
-    else:
-        config.add_scripts('Hamiltonian')
+    config.add_scripts('Hamiltonian')
+    if system()=='Windows': config.add_scripts('Hamiltonian.bat')
     config.make_config_py()
     return config
 

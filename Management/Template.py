@@ -27,6 +27,9 @@ log/
 # pycharm
 .idea/
 
+# vscode
+.vscode/
+
 # tex
 *.aux
 *.bak

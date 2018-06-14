@@ -276,10 +276,15 @@ class FBZ(QuantumNumbers,BaseSpace):
                         isegments[i].append(pos)
                         dsegments[i].append(nl.norm(rcoord-start))
         points,indices=[],[]
-        for psegment,isegment,dsegment in zip(psegments,isegments,dsegments):
+        for i,(psegment,isegment,dsegment) in enumerate(zip(psegments,isegments,dsegments)):
             permutation=np.argsort(np.array(dsegment))
-            points.append(np.array(psegment)[permutation,:])
-            indices.append(np.array(isegment)[permutation])
+            psegment=np.array(psegment)[permutation,:]
+            isegment=np.array(isegment)[permutation]
+            if i>0 and isegment[0]==indices[-1][-1]:
+                psegment=psegment[1:,:]
+                isegment=isegment[1:]
+            points.append(psegment)
+            indices.append(isegment)
         if mode=='P':
             return BaseSpace(('k',np.concatenate(points)))
         if mode=='I':
