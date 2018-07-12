@@ -58,6 +58,15 @@ class Engine(object):
         The parameters of the engine.
     map : callable
         This function maps a set of parameters to another.
+    boundaries : 4-tuple in the form (names,values,vectors,function)
+        * names : tuple of str
+            The variable names of the boundary phases.
+        * values : tuple of number
+            The variable values of the boundary phases.
+        * vectors : 2d ndarray like
+            The translation vectors of the lattice.
+        * function : callable
+            The function used to transform the boundary operators.
     preloads : list of str
         The names of the preloaded apps of the engine.
     apps : dict of App
@@ -84,6 +93,7 @@ class Engine(object):
         result.name=karg.get('name','')
         result.parameters=Parameters(karg.get('parameters',()))
         result.map=karg.get('map',None)
+        result.boundaries=karg.get('boundaries',None)
         result.clock=Timers()
         result.preloads=[]
         result.apps={}

@@ -47,7 +47,7 @@ class FED(ED):
         self.terms=terms
         self.dtype=dtype
         self.sector=None
-        self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,dtype=dtype,half=True)
+        self.generator=HP.Generator(bonds=lattice.bonds,config=config,table=config.table(mask=['nambu']),terms=terms,boundaries=self.boundaries,dtype=dtype,half=True)
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
         self.operators=self.generator.operators
         self.logging()

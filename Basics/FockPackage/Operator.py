@@ -117,24 +117,6 @@ class FockOperator(Operator):
         '''
         return self==self.dagger
 
-    def reorder(self,permutation,reverse_coord=False):
-        '''
-        Return the reordered fock operator according to the permutation information.
-
-        Parameters
-        ----------
-        permutation : list of int
-            The permutation of the fock operator.
-        reverse_coord : logical, optional
-            True for reversing the rcoord and icoord of the operator and False for not.
-
-        Returns
-        -------
-        FockOperator
-            The reordered operator.
-        '''
-        raise NotImplementedError('%s reorder error: not implemented.'%self.__class__.__name__)
-
 class FockLinear(FockOperator):
     '''
     Linear Fock operator.
@@ -265,31 +247,7 @@ class FOperator(FockOperator):
     '''
     Fermionic operator.
     '''
-
-    def reorder(self,permutation,reverse_coord=False):
-        '''
-        Return the reordered fermionic operator according to the permutation information.
-
-        Parameters
-        ----------
-        permutation : list of int
-            The permutation of the fermionic operator.
-        reverse_coord : logical, optional
-            True for reversing the rcoord and icoord of the operator and False for not.
-
-        Returns
-        -------
-        FOperator
-            The reordered operator.
-        '''
-        assert len(permutation)==self.rank
-        result=FockOperator.__new__(self.__class__)
-        super(FockOperator,result).__init__(self.value*parity(permutation))
-        result.indices=tuple(self.indices[i] for i in permutation)
-        result.seqs=None if self.seqs is None else tuple(self.seqs[i] for i in permutation)
-        result.rcoord=None if self.rcoord is None else (-1)**reverse_coord*self.rcoord
-        result.icoord=None if self.icoord is None else (-1)**reverse_coord*self.icoord
-        return result
+    pass
 
 class FLinear(FockLinear,FOperator):
     '''
@@ -307,7 +265,29 @@ class FHubbard(FockHubbard,FOperator):
     '''
     Fermionic Hubbard operator.
     '''
-    pass
+
+    def reorder(self,permutation):
+        '''
+        Return the reordered fermionic Hubbard operator according to the permutation information.
+
+        Parameters
+        ----------
+        permutation : list of int
+            The permutation of the fermionic operator.
+
+        Returns
+        -------
+        FHubbard
+            The reordered operator.
+        '''
+        assert len(permutation)==self.rank
+        result=FockOperator.__new__(self.__class__)
+        super(FockOperator,result).__init__(self.value*parity(permutation))
+        result.indices=tuple(self.indices[i] for i in permutation)
+        result.seqs=None if self.seqs is None else tuple(self.seqs[i] for i in permutation)
+        result.rcoord=self.rcoord
+        result.icoord=self.icoord
+        return result
 
 class FCoulomb(FockCoulomb,FOperator):
     '''
@@ -319,31 +299,7 @@ class BOperator(FockOperator):
     '''
     Bosonic operator.
     '''
-
-    def reorder(self,permutation,reverse_coord=False):
-        '''
-        Return the reordered bosonic operator according to the permutation information.
-
-        Parameters
-        ----------
-        permutation : list of int
-            The permutation of the bosonic operator.
-        reverse_coord : logical, optional
-            True for reversing the rcoord and icoord of the operator and False for not.
-
-        Returns
-        -------
-        BOperator
-            The reordered operator.
-        '''
-        assert len(permutation)==self.rank
-        result=FockOperator.__new__(self.__class__)
-        super(FockOperator,result).__init__(self.value)
-        result.indices=tuple(self.indices[i] for i in permutation)
-        result.seqs=None if self.seqs is None else tuple(self.seqs[i] for i in permutation)
-        result.rcoord=None if self.rcoord is None else (-1)**reverse_coord*self.rcoord
-        result.icoord=None if self.icoord is None else (-1)**reverse_coord*self.icoord
-        return result
+    pass
 
 class BLinear(FockLinear,BOperator):
     '''
@@ -361,7 +317,29 @@ class BHubbard(FockHubbard,BOperator):
     '''
     Bosonic Hubbard operator.
     '''
-    pass
+
+    def reorder(self,permutation):
+        '''
+        Return the reordered bosonic Hubbard operator according to the permutation information.
+
+        Parameters
+        ----------
+        permutation : list of int
+            The permutation of the bosonic operator.
+
+        Returns
+        -------
+        BHubbard
+            The reordered operator.
+        '''
+        assert len(permutation)==self.rank
+        result=FockOperator.__new__(self.__class__)
+        super(FockOperator,result).__init__(self.value)
+        result.indices=tuple(self.indices[i] for i in permutation)
+        result.seqs=None if self.seqs is None else tuple(self.seqs[i] for i in permutation)
+        result.rcoord=self.rcoord
+        result.icoord=self.icoord
+        return result
 
 class BCoulomb(FockCoulomb,BOperator):
     '''

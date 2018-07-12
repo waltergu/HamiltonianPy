@@ -7,11 +7,11 @@ Operator pack, including:
     * functions: fspoperators, JWBosonization
 '''
 
-__all__=['fspoperators','JWBosonization']
+__all__=['fspoperators','JWBosonization','twisttransformation']
 
-from ..FockPackage import FLinear,BLinear,CREATION
+from ..FockPackage import FockOperator,FLinear,BLinear,CREATION,ANNIHILATION
 from ..SpinPackage import SOperator,SpinMatrix
-from ..Utilities import parity
+from ..Utilities import parity,RZERO
 from collections import OrderedDict
 import numpy as np
 
@@ -94,3 +94,46 @@ def JWBosonization(operator,table):
             indices.append(TABLE[leaf].replace(nambu=None))
             sms.append(SpinMatrix(0.5,'s',matrix=sign,dtype=dtype))
     return SOperator(value=operator.value*parity(permutation),indices=indices,spins=sms)
+
+def twisttransformation(operator,vectors,thetas):
+    '''
+    Apply twisted boundary conditions to an operator.
+
+    Parameters
+    ----------
+    operator : FockOperator
+        The original Fock operator.
+    vectors : 2d ndarray-like
+        The translation vectors of the lattice.
+    thetas : 1d ndarray-like
+        The twisted angles.
+
+    Returns
+    -------
+    FockOperator
+        The new operator.
+    '''
+    assert isinstance(operator,FockOperator)
+    icoord=np.linalg.inv(np.asarray(vectors).T).dot(operator.icoord)
+    assert np.max(np.abs(icoord-np.around(icoord)))<RZERO
+    phase,value=np.exp(2.0j*np.pi*icoord.dot(thetas)),operator.value
+    if operator.rank in {1,2}:
+        if operator.indices[0].nambu==CREATION:
+            value*=np.conjugate(phase)
+        else:
+            value*=phase
+    elif operator.rank==4:
+        index1,index2=operator.indices[0:2]
+        if index1.nambu==CREATION and index2.nambu==CREATION:
+            value*=np.conjugate(phase)**2
+        elif index1.nambu==ANNIHILATION and index2.nambu==ANNIHILATION:
+            value*=phase**2
+    else:
+        raise ValueError('twisttransformation error: not supported rank(%s).'%operator.rank)
+    result=FockOperator.__new__(operator.__class__)
+    super(FockOperator,result).__init__(value)
+    result.indices=operator.indices
+    result.seqs=operator.seqs
+    result.rcoord=operator.rcoord
+    result.icoord=operator.icoord
+    return result

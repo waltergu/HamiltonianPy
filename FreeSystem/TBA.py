@@ -66,7 +66,7 @@ class TBA(Engine):
         self.terms=terms
         self.mask=mask
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
-        self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms,half=True)
+        self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms,boundaries=self.boundaries,half=True)
         self.logging()
 
     def update(self,**karg):

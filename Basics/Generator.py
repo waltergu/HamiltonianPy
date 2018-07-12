@@ -31,6 +31,15 @@ class Generator(object):
         The index-sequence table of the system
     terms : dict
         It contains all terms contained in the model, divided into two groups, the constant ones and the alterable ones.
+    boundaries : 4-tuple in the form (names,values,vectors,function)
+        * names : tuple of str
+            The variable names of the boundary phases.
+        * values : tuple of number
+            The variable values of the boundary phases.
+        * vectors : 2d ndarray like
+            The translation vectors of the lattice.
+        * function : callable
+            The function used to transform the boundary operators.
     _operators_ : dict
         The cache to handle the generation and update of the operators.
     _matrix_ : dict
@@ -41,7 +50,7 @@ class Generator(object):
         The extra key word arguments for Term.operators.
     '''
 
-    def __init__(self,bonds,config,table=None,terms=None,dtype=np.complex128,**options):
+    def __init__(self,bonds,config,table=None,terms=None,boundaries=None,dtype=np.complex128,**options):
         '''
         Constructor.
 
@@ -55,6 +64,15 @@ class Generator(object):
             The index-sequence table.
         terms : list of Term, optional
             The terms whose operators are to be generated and updated.
+        boundaries : 4-tuple in the form (names,values,vectors,function)
+            * names : tuple of str
+                The variable names of the boundary phases.
+            * values : tuple of number
+                The variable values of the boundary phases.
+            * vectors : 2d ndarray like
+                The translation vectors of the lattice.
+            * function : callable
+                The function used to transform the boundary operators.
         dtype : numpy.float64, numpy.complex128, optional
             The data type of the coefficients of the generated operators.
         options : dict, optional
@@ -63,35 +81,26 @@ class Generator(object):
         self.bonds=bonds
         self.config=config
         self.table=table
+        self.boundaries=boundaries
         self.dtype=dtype
         self.options=options
         self.set_terms(terms)
         self.set_operators()
         self._matrix_={}
 
-    def reset(self,bonds=None,config=None,table=None,terms=None,dtype=None,**options):
+    def reset(self,bonds=None,config=None,table=None,terms=None,boundaries=None,dtype=None,**options):
         '''
         Refresh the generator.
 
         Parameters
         ----------
-        bonds : list of Bond, optional
-            The new bonds.
-        config : IDFConfig, optional
-            The new configuration of the internal degrees of freedom.
-        table : Table, optional
-            The new index-sequence table.
-        terms : list of Term, optional
-            The new terms whose operators are to be generated and updated.
-        dtype : numpy.float64, numpy.complex128, optional
-            The new data type of the coefficients of the generated operators.
-        options : dict, optional
-            The extra key word arguments for Term.operators.
+        bonds,config,table,terms,boundaries,dtype,options : see Generator.__init__ for details.
         '''
         if bonds is not None: self.bonds=bonds
         if config is not None: self.config=config
         if table is not None: self.table=table
         if dtype is not None: self.dtype=dtype
+        if boundaries is not None: self.boundaries=boundaries
         if len(options)>0: self.options=options
         if terms is not None: self.set_terms(terms)
         self.set_operators()
@@ -113,14 +122,26 @@ class Generator(object):
         '''
         Set the cache of the operators.
         '''
-        self._operators_={'const':Operators(),'alter':[]}
+        self._operators_={'const':Operators(),'alter':[],'bound':Operators()}
         for term in self.terms['const']:
             for bond in self.bonds:
-                self._operators_['const']+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+                opts=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+                if self.boundaries is None or bond.isintracell():
+                    self._operators_['const']+=opts
+                else:
+                    values,vectors,function=self.boundaries[1:]
+                    for opt in opts.itervalues():
+                        self._operators_['bound']+=function(opt,vectors,values)
         for term in self.terms['alter']:
             operators=Operators()
             for bond in self.bonds:
-                operators+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+                opts=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+                if self.boundaries is None or bond.isintracell():
+                    operators+=opts
+                else:
+                    values,vectors,function=self.boundaries[1:]
+                    for opt in opts.itervalues():
+                        self._operators_['bound']+=function(opt,vectors,values)
             self._operators_['alter'].append(operators)
 
     def set_matrix(self,sector,optrep,*args,**kargs):
@@ -136,7 +157,7 @@ class Generator(object):
         args,kargs : optional
             The extra arguments of the function `optrep`.
         '''
-        self._matrix_[sector]={'const':0,'alter':[]}
+        self._matrix_[sector]={'const':0,'alter':[],'bound':[optrep,args,kargs]}
         for operator in self._operators_['const'].itervalues():
             self._matrix_[sector]['const']+=optrep(operator,*args,**kargs)
         for term in self.terms['alter']:
@@ -166,6 +187,7 @@ class Generator(object):
         result.update(self._operators_['const'])
         for opts in self._operators_['alter']:
             result+=opts
+        result+=self._operators_['bound']
         return result
 
     def matrix(self,sector):
@@ -186,19 +208,36 @@ class Generator(object):
         result+=self._matrix_[sector]['const']
         for term,matrix in zip(self.terms['alter'],self._matrix_[sector]['alter']):
             result+=matrix*term.value
+        for opt in self._operators_['bound'].itervalues():
+            optrep,args,kargs=self._matrix_[sector]['bound']
+            result+=optrep(opt,*args,**kargs)
         return result
 
     def update(self,**karg):
         '''
         This method updates the alterable operators by keyword arguments.
         '''
+        if self.boundaries is not None:
+            self._operators_['bound']=Operators()
+            names,values,vectors,function=self.boundaries
+            thetas=[karg.get(name,value) for name,value in zip(names,values)]
+            for term in self.terms['const']:
+                for bond in self.bonds:
+                    if not bond.isintracell():
+                        opts=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+                        for opt in opts.itervalues(): self._operators_['bound']+=function(opt,vectors,thetas)
+            self.boundaries=(names,thetas,vectors,function)
         for pos,term in enumerate(self.terms['alter']):
             nv=term.modulate(**karg)
             if nv is not None and nl.norm(np.array(nv)-np.array(term.value))>RZERO:
                 term.value=nv
                 self._operators_['alter'][pos]=Operators()
                 for bond in self.bonds:
-                    self._operators_['alter'][pos]+=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+                    opts=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
+                    if self.boundaries is None or bond.isintracell():
+                        self._operators_['alter'][pos]+=opts
+                    else:
+                        for opt in opts.itervalues(): self._operators_['bound']+=function(opt,vectors,thetas)
 
     def view(self,bondselect=None,termselect=None,pidon=True,bonddr='+',show=True,suspend=False,close=True):
         '''
