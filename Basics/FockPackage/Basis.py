@@ -51,7 +51,6 @@ class FBasis(object):
         spinz : half integer, optional
             The z component of the total spin of the basis.
         '''
-        assert nstate%2==0
         if nparticle is None:
             assert spinz is None
             self.mode='FG'
@@ -62,6 +61,7 @@ class FBasis(object):
             self.table=table_ep(nstate,nparticle,dtype=np.int64)
             self.nbasis=len(self.table)
         else:
+            assert nstate%2==0
             self.mode='FS'
             self.table=table_es(nstate,nparticle,spinz,dtype=np.int64)
             self.nbasis=len(self.table)
