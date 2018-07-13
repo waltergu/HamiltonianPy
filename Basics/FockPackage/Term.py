@@ -370,7 +370,7 @@ class Hubbard(Term):
                                 icoord=     bond.epoint.icoord
                                 )
             if not half: result+=result.dagger
-            if order=='density': result=Operators((opt.id,opt) for opt in [opt.reorder([0,3,1,2],reverse_coord=False) for opt in result.itervalues()])
+            if order=='density': result=Operators((opt.id,opt) for opt in [opt.reorder([0,3,1,2]) for opt in result.itervalues()])
         return result
 
     @property

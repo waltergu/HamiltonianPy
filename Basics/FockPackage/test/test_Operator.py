@@ -40,7 +40,6 @@ class TestOperator(TestCase):
 
     def test_is_normal_ordered(self):
         self.assertTrue(self.operator.is_normal_ordered())
-        self.assertFalse(self.operator.reorder([1,0]).is_normal_ordered())
 
 class TestOperators(TestCase):
     def setUp(self):
