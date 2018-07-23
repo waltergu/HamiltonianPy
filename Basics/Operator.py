@@ -197,3 +197,5 @@ class Operators(Arithmetic,dict):
         else:
             assert norm(other)==0
         return self
+
+    __iter__=dict.itervalues

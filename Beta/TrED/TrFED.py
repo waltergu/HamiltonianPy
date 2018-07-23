@@ -207,7 +207,7 @@ def TrFEDEB(engine,app):
     result=np.zeros((engine.basis.nk+(1 if app.kend else 0),app.ns+1))
     for i in xrange(engine.basis.nk):
         result[i,0]=i
-        result[i,1:]=engine.eigs(sector=i,k=app.ns,return_eigenvectors=False,reset_timers=True if i==0 else False,show_evs=False)[1]
+        result[i,1:]=engine.eigs(sector=i,k=app.ns,evon=False,resettimers=True if i==0 else False,showes=False)[1]
         engine.log<<'\n'
     if app.kend:
         result[-1,0]=engine.basis.nk

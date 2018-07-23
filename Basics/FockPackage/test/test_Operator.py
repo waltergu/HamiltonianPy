@@ -34,12 +34,12 @@ class TestOperator(TestCase):
                     )
         self.assertEqual(self.operator.dagger,result)
 
-    def test_is_Hermitian(self):
-        self.assertFalse(self.operator.is_Hermitian())
-        self.assertTrue((self.operator*1.0j).is_Hermitian())
+    def test_isHermitian(self):
+        self.assertFalse(self.operator.isHermitian())
+        self.assertTrue((self.operator*1.0j).isHermitian())
 
-    def test_is_normal_ordered(self):
-        self.assertTrue(self.operator.is_normal_ordered())
+    def test_isnormalordered(self):
+        self.assertTrue(self.operator.isnormalordered())
 
 class TestOperators(TestCase):
     def setUp(self):

@@ -76,7 +76,7 @@ class Manager(object):
         '''
         subcommand=self.add_subcommand('add',add)
         subcommand.add_argument('engine',help='The engine to be added to the project.',choices=['tba','ed','vca','dmrg','fbfm'])
-        subcommand.add_argument('-s','--system',help="'spin' for spin systems and 'fermi' for fermionic systems.",default='fermi',choices=['spin','fermi'])
+        subcommand.add_argument('-s','--system',help="'spin' for spin systems and 'fock' for fock systems.",default='fock',choices=['spin','fock'])
         subcommand.add_argument('-c','--cluster',help="'single' for single cluster and 'multi' for multicluster.",default='single',choices=['single','multi'])
 
     def execute(self):

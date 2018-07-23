@@ -10,18 +10,18 @@ from unittest import TestCase,TestLoader,TestSuite
 class TestTree(TestCase):
     def setUp(self):
         self.tree=Tree('L0-0',1.0)
-        self.tree.add_leaf('L0-0','L1-0',2.0)
-        self.tree.add_leaf('L1-0','L2-0',3.0)
-        self.tree.add_leaf('L1-0','L2-1',4.0)
-        self.tree.add_leaf('L0-0','L1-1',5.0)
-        self.tree.add_leaf('L1-1','L2-2',6.0)
-        self.tree.add_leaf('L1-1','L2-3',7.0)
+        self.tree.addleaf('L0-0','L1-0',2.0)
+        self.tree.addleaf('L1-0','L2-0',3.0)
+        self.tree.addleaf('L1-0','L2-1',4.0)
+        self.tree.addleaf('L0-0','L1-1',5.0)
+        self.tree.addleaf('L1-1','L2-2',6.0)
+        self.tree.addleaf('L1-1','L2-3',7.0)
 
     def test_expand(self):
         depth=[('L0-0',1.0),('L1-0',2.0),('L2-0',3.0),('L2-1',4.0),('L1-1',5.0),('L2-2',6.0),('L2-3',7.0)]
         width=[('L0-0',1.0),('L1-0',2.0),('L1-1',5.0),('L2-0',3.0),('L2-1',4.0),('L2-2',6.0),('L2-3',7.0)]
-        self.assertEqual(list(self.tree.expand(mode=Tree.DEPTH,return_form=Tree.PAIR)),depth)
-        self.assertEqual(list(self.tree.expand(mode=Tree.WIDTH,return_form=Tree.PAIR)),width)
+        self.assertEqual(list(self.tree.expand(mode=Tree.DEPTH,returnform=Tree.PAIR)),depth)
+        self.assertEqual(list(self.tree.expand(mode=Tree.WIDTH,returnform=Tree.PAIR)),width)
 
     def test_parent(self):
         self.assertEqual(self.tree.parent('L1-0'),'L0-0')
@@ -42,20 +42,20 @@ class TestTree(TestCase):
 
     def test_subtree(self):
         pairs=[('L1-0',2.0),('L2-0',3.0),('L2-1',4.0)]
-        self.assertEqual(list(self.tree.subtree(node='L1-0').expand(mode=Tree.WIDTH,return_form=Tree.PAIR)),pairs)
+        self.assertEqual(list(self.tree.subtree(node='L1-0').expand(mode=Tree.WIDTH,returnform=Tree.PAIR)),pairs)
 
-    def test_add_subtree(self):
+    def test_addsubtree(self):
         subtree=Tree('L1-2',8.0)
-        subtree.add_leaf('L1-2','L2-4',9.0)
-        subtree.add_leaf('L1-2','L2-5',10.0)
-        self.tree.add_subtree(subtree,parent='L0-0')
+        subtree.addleaf('L1-2','L2-4',9.0)
+        subtree.addleaf('L1-2','L2-5',10.0)
+        self.tree.addsubtree(subtree,parent='L0-0')
         pairs=[('L0-0',1.0),('L1-0',2.0),('L2-0',3.0),('L2-1',4.0),('L1-1',5.0),('L2-2',6.0),('L2-3',7.0),('L1-2',8.0),('L2-4',9.0),('L2-5',10.0)]
-        self.assertEqual(list(self.tree.expand(mode=Tree.DEPTH,return_form=Tree.PAIR)),pairs)
+        self.assertEqual(list(self.tree.expand(mode=Tree.DEPTH,returnform=Tree.PAIR)),pairs)
 
-    def test_remove_subtree(self):
+    def test_removesubtree(self):
         pairs=[('L0-0',1.0),('L1-1',5.0),('L2-2',6.0),('L2-3',7.0)]
-        self.tree.remove_subtree('L1-0')
-        self.assertEqual(list(self.tree.expand(mode=Tree.WIDTH,return_form=Tree.PAIR)),pairs)
+        self.tree.removesubtree('L1-0')
+        self.assertEqual(list(self.tree.expand(mode=Tree.WIDTH,returnform=Tree.PAIR)),pairs)
 
 tree=TestSuite([
             TestLoader().loadTestsFromTestCase(TestTree),

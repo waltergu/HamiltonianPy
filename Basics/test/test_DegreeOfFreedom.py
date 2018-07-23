@@ -17,12 +17,12 @@ class TestTable(TestCase):
         result=Table(['i1','i2','i3','i4'])
         self.assertEqual(union,result)
 
-    def test_reverse_table(self):
-        reversed_table=self.table.reversed_table
+    def test_reversal(self):
+        reversal=self.table.reversal
         result=Table()
         result[0]='i1'
         result[1]='i2'
-        self.assertEqual(reversed_table,result)
+        self.assertEqual(reversal,result)
 
     def test_subset(self):
         subset=self.table.subset(select=lambda key: True if key!='i1' else False)

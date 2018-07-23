@@ -66,7 +66,7 @@ class TBA(Engine):
         self.terms=terms
         self.mask=mask
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
-        self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms,boundaries=self.boundaries,half=True)
+        self.generator=Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=terms,boundary=self.boundary,half=True)
         self.logging()
 
     def update(self,**karg):
@@ -90,7 +90,7 @@ class TBA(Engine):
 
         Parameters
         ----------
-        k : 1D array-like, optional
+        k : 1d array-like, optional
             The coords of a point in K-space.
         karg : dict, optional
             Other parameters.
@@ -103,7 +103,7 @@ class TBA(Engine):
         self.update(**karg)
         nmatrix=self.nmatrix
         result=zeros((nmatrix,nmatrix),dtype=complex128)
-        for opt in self.generator.operators.values():
+        for opt in self.generator.operators:
             phase=1 if len(k)==0 else exp(-1j*inner(k,opt.rcoord))
             result[opt.seqs]+=opt.value*phase
             if len(self.mask)==0:
@@ -120,7 +120,7 @@ class TBA(Engine):
         ----------
         basespace : BaseSpace, optional
             The base space on which the Hamiltonian is defined.
-        mode : string, optional
+        mode : str, optional
             The mode to iterate over the base space.
 
         Yields
@@ -141,7 +141,7 @@ class TBA(Engine):
         ----------
         basespace : BaseSpace, optional
             The base space on which the Hamiltonian is defined.
-        mode : string,optional
+        mode : str, optional
             The mode to iterate over the base space.
 
         Returns
@@ -244,7 +244,7 @@ def TBAGSE(engine,app):
     '''
     gse=engine.gse(filling=app.filling,kspace=app.kspace)
     engine.log<<engine<<'\n'
-    engine.log<<Sheet.from_ordereddict({'Total':gse,'Site':gse/len(engine.lattice)/(1 if app.kspace is None else app.kspace.rank('k'))})<<'\n'
+    engine.log<<Sheet.fromordereddict({'Total':gse,'Site':gse/len(engine.lattice)/(1 if app.kspace is None else app.kspace.rank('k'))})<<'\n'
     if app.returndata: return gse
 
 def TBAEB(engine,app):
@@ -253,6 +253,7 @@ def TBAEB(engine,app):
     '''
     nmatrix=engine.nmatrix
     if app.path is not None:
+        if isinstance(app.path,str): app.path=HP.KPath(HP.KMap(engine.lattice.reciprocals,path),nk=100)
         assert len(app.path.tags)==1
         result=zeros((app.path.rank(0),nmatrix+1))
         if app.path.mesh(0).ndim==1:

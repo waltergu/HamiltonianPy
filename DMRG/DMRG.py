@@ -315,7 +315,7 @@ class Block(object):
             True for state prediction False for not.
         nmax : int, optional
             The maximum singular values to be kept.
-        tol : np.float64, optional
+        tol : float, optional
             The tolerance of the singular values.
         piechart : logical, optional
             True for showing the piechart of self.timers while False for not.
@@ -331,8 +331,8 @@ class Block(object):
             Lenv,envpt=Label.union([Sb,Rb],'__DMRG_ITERATE_ENV__',flow=-1 if self.mps.mode=='QN' else 0,mode=+1)
             if self.mps.mode=='QN':
                 zero=self.target.zero()
-                sysantipt,sysod=np.argsort(syspt),Lsys.qns.to_ordereddict()
-                envantipt,envod=np.argsort(envpt),Lenv.qns.to_ordereddict()
+                sysantipt,sysod=np.argsort(syspt),Lsys.qns.toordereddict()
+                envantipt,envod=np.argsort(envpt),Lenv.qns.toordereddict()
                 subslice=QuantumNumbers.kron([Lsys.qns,Lenv.qns],signs=[1,-1]).subslice(targets=(zero,))
                 qns=QuantumNumbers.mono(zero,count=len(subslice))
                 qnpairs=[[(sqn,sqn-oqn) for sqn in Lsys.qns if sqn in envod and sqn-oqn in sysod and sqn-oqn in envod] for oqn in Oa.qns]
@@ -375,7 +375,7 @@ class Block(object):
             self.info['overlap']=np.inf if v0 is None else np.abs(Psi.conjugate().dot(v0)/norm(v0)/norm(Psi)),'%.6f'
         with self.timers.get('Truncation'):
             Lgs,new=Label('__DMRG_ITERATE_GS__',qns=qns),Ra.replace(qns=None)
-            u,s,v,err=partitioned_svd(Tensor(Psi,labels=[Lgs]),Lsys,new,Lenv,nmax=nmax,tol=tol,return_truncation_err=True)
+            u,s,v,err=partitionedsvd(Tensor(Psi,labels=[Lgs]),Lsys,new,Lenv,nmax=nmax,tol=tol,returnerr=True)
             self.mps[self.cut-1]=u.split((Lsys,[La,Sa],sysantipt))
             self.mps[self.cut]=v.split((Lenv,[Sb,Rb],envantipt))
             self.mps.Lambda=s
@@ -401,7 +401,7 @@ def pattern(name,parameters,target,nsite,mode='re'):
         The parameters of the DMRG.
     target : QuantumNumber
         The target of the DMRG.
-    nsite : integer
+    nsite : int
         The number of sites of the DMRG.
     mode : 're','py'
         're' for regular and 'py' for python.
@@ -476,7 +476,7 @@ class DMRG(Engine):
         self.dtype=dtype
         self.generator=Generator(bonds=lattice.bonds,config=config,terms=terms,dtype=dtype,half=False)
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
-        self.init_block(target=target)
+        self.initblock(target=target)
         self.cache={}
         self.logging()
 
@@ -499,7 +499,7 @@ class DMRG(Engine):
             self.generator.update(**self.data)
             self.set_block(keep=True)
 
-    def init_block(self,target=None):
+    def initblock(self,target=None):
         '''
         Init the block of the DMRG.
 
@@ -509,7 +509,7 @@ class DMRG(Engine):
             The target of the block of the DMRG.
         '''
         if len(self.lattice)>0:
-            mpo=OptMPO([OptStr.from_operator(operator,self.degfres) for operator in self.generator.operators.itervalues()],self.degfres).to_mpo()
+            mpo=OptMPO([OptStr.fromoperator(operator,self.degfres) for operator in self.generator.operators.itervalues()],self.degfres).tompo()
             sites,bonds=self.degfres.labels('S'),self.degfres.labels('B')
             if self.degfres.mode=='QN':
                 bonds[+0]=Label(bonds[+0],qns=QuantumNumbers.mono(target.zero()),flow=+1)
@@ -520,7 +520,7 @@ class DMRG(Engine):
             mps=MPS(mode=self.degfres.mode)
         self.block=Block(mpo,mps,target=target)            
 
-    def reset_block(self,target=None):
+    def resetblock(self,target=None):
         '''
         Set the block of the DMRG.
 
@@ -530,7 +530,7 @@ class DMRG(Engine):
             The target of the block of the DMRG.
         '''
         self.block.reset(
-            mpo=    OptMPO([OptStr.from_operator(operator,self.degfres) for operator in self.generator.operators.itervalues()],self.degfres).to_mpo(),
+            mpo=    OptMPO([OptStr.fromoperator(operator,self.degfres) for operator in self.generator.operators.itervalues()],self.degfres).tompo(),
             mps=    self.block.mps,
             target= target
             )
@@ -608,7 +608,7 @@ class TSG(App):
         The number of presweeps to make a random mps converged to the target state.
     nsweep : int
         The number of sweeps to make the predicted mps converged to the target state.
-    tol : np.float64
+    tol : float
         The tolerance of the target state energy.
     '''
 
@@ -626,7 +626,7 @@ class TSG(App):
             The number of presweeps to make a random mps converged to the target state.
         nsweep : int, optional
             The number of sweeps to make the predicted mps converged to the target state.
-        tol : np.float64, optional
+        tol : float, optional
             The tolerance of the target state energy.
         '''
         self.targets=targets
@@ -678,12 +678,12 @@ class TSS(App):
         The basespace of the DMRG's parameters for the sweeps.
     paths : list of list of '<<' or '>>'
         The paths along which the sweeps are performed.
-    force_sweep : logical
+    forcesweep : logical
         When True, the sweep will be taken at least once even if the mps are recovered from existing data files perfectly.
         When False, no real sweep will be taken if the mps can be perfectly recovered from existing data files.
     '''
 
-    def __init__(self,target,nsite,nmaxs,BS=None,paths=None,force_sweep=False,**karg):
+    def __init__(self,target,nsite,nmaxs,BS=None,paths=None,forcesweep=False,**karg):
         '''
         Constructor.
 
@@ -699,7 +699,7 @@ class TSS(App):
             The parameters of the DMRG for each sweep.
         paths : list of list of '<<' or '>>', optional
             The paths along which the sweeps are performed.
-        force_sweep : logical, optional
+        forcesweep : logical, optional
             When True, the sweep will be taken at least once even if the mps are recovered from existing data files perfectly.
             When False, no real sweep will be taken if the mps can be perfectly recovered from existing data files.
         '''
@@ -709,7 +709,7 @@ class TSS(App):
         self.BS=[{}]*len(nmaxs) if BS is None else BS
         self.paths=[None]*len(nmaxs) if paths is None else paths
         assert len(nmaxs)==len(self.BS) and len(nmaxs)==len(self.paths)
-        self.force_sweep=force_sweep
+        self.forcesweep=forcesweep
 
     def recover(self,engine):
         '''
@@ -736,7 +736,7 @@ class TSS(App):
                 engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
                 engine.block.mps>>=1 if engine.block.cut==0 else -1 if engine.block.cut==engine.block.nsite else 0
                 code=len(self.nmaxs)-1-i
-                if self.force_sweep or engine.block.mps.nmax<nmax: code-=1
+                if self.forcesweep or engine.block.mps.nmax<nmax: code-=1
                 break
         else:
             code=None

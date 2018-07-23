@@ -22,7 +22,7 @@ class SOperator(Operator):
         The associated indices of the operator, whose length should be equal to the operator's rank.
     spins : list of SpinMatrix
         The associated spin matrix of the operator, whose length should be equal to the operator's rank.
-    seqs : tuple of integer
+    seqs : tuple of int
         The associated sequences of the operator, whose length should be equal to the operator's rank.
     rcoord : 1d ndarray
         The associated real coordinates of the operator.

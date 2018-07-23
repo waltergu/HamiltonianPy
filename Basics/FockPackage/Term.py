@@ -429,11 +429,11 @@ class Coulomb(Term):
 
         Parameters
         ----------
-        id : string
+        id : str
             The specific id of the term.
         value : float or complex
             The overall coefficient of the term.
-        neighbour : integer, optional
+        neighbour : int, optional
             The order of neighbour of the term.
         indexpacks : 2-tuple of IndexPacks or callable which returns a 2-tuple of IndexPacks, optional
             * 2-tuple of IndexPacks

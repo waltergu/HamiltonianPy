@@ -94,7 +94,7 @@ from config import *
 
 __all__=['tbaconstruct']
 
-def tbaconstruct(parameters,lattice,terms,**karg):
+def tbaconstruct(name,parameters,lattice,terms,boundary=None,statistics='f',**karg):
     config=IDFConfig(priority=DEFAULT_FOCK_PRIORITY,pids=lattice.pids,map=idfmap)
     tba=TBA.TBA(
         dlog=       'log',
@@ -105,7 +105,8 @@ def tbaconstruct(parameters,lattice,terms,**karg):
         map=        parametermap,
         lattice=    lattice,
         config=     config,
-        terms=      [term(**parameters) for term in terms],
+        terms=      [term(statistics,**parameters) for term in terms],
+        boundary=   boundary,
         dtype=      np.complex128
         )
     return tba
@@ -147,7 +148,7 @@ from config import *
 
 __all__=['edconstruct']
 
-def edconstruct(parameters,sectors,lattice,terms,**karg):
+def edconstruct(name,parameters,sectors,lattice,terms,boundary=None,statistics='f',**karg):
     config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=idfmap)
     ed=ED.FED(
         dlog=       'log',
@@ -159,7 +160,8 @@ def edconstruct(parameters,sectors,lattice,terms,**karg):
         sectors=    sectors,
         lattice=    lattice,
         config=     config,
-        terms=      [term(**parameters) for term in terms],
+        terms=      [term(statistics,**parameters) for term in terms],
+        boundary=   boundary,
         dtype=      np.complex128
         )
     return ed
@@ -300,5 +302,5 @@ def config(): return config_template
 def tba(**karg): return tba_template
 def ed(**karg): return sed_template if karg['system']=='spin' else fed_template
 def vca(**karg): return vca_template if karg['cluster']=='single' else vcacct_template
-def dmrg(**karg): return dmrg_template.format(system='SPIN' if karg['system']=='spin' else 'FERMIONIC',mask='' if karg['system']=='spin' else 'nambu')
+def dmrg(**karg): return dmrg_template.format(system='SPIN' if karg['system']=='spin' else 'FOCK',mask='' if karg['system']=='spin' else 'nambu')
 def fbfm(**karg): return fbfm_template

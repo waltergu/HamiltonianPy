@@ -203,7 +203,7 @@ class MPS(Arithmetic,list):
         return result
 
     @staticmethod
-    def from_state(state,sites,bonds,cut=0,nmax=None,tol=None):
+    def fromstate(state,sites,bonds,cut=0,nmax=None,tol=None):
         '''
         Convert the normal representation of a state to the matrix product representation.
 
@@ -219,7 +219,7 @@ class MPS(Arithmetic,list):
             The index of the connecting link.
         nmax : int, optional
             The maximum number of singular values to be kept.
-        tol : np.float64, optional
+        tol : float, optional
             The tolerance of the singular values.
 
         Returns
@@ -234,15 +234,15 @@ class MPS(Arithmetic,list):
         R=Label('__MPS_from_state_R__',bonds[-1].qns,flow=-1 if qnon else 0)
         m=DTensor(state.reshape((1,-1,1)),labels=[L,S,R])
         if cut==0:
-            u,s,ms=expanded_svd(m,L=[L],S=S,R=[R],E=sites,I=bonds[:-1],nmax=nmax,tol=tol,cut=0)
+            u,s,ms=expandedsvd(m,L=[L],S=S,R=[R],E=sites,I=bonds[:-1],nmax=nmax,tol=tol,cut=0)
             Lambda=DTensor((u*(s,'ftensordot')).data.reshape((-1,)),labels=[bonds[0].replace(flow=None)])
             ms[-1].relabel(olds=[R],news=[bonds[-1].replace(flow=-1 if qnon else 0)])
         elif cut==len(sites):
-            ms,s,v=expanded_svd(m,L=[L],S=S,R=[R],E=sites,I=bonds[1:],nmax=nmax,tol=tol,cut=len(sites))
+            ms,s,v=expandedsvd(m,L=[L],S=S,R=[R],E=sites,I=bonds[1:],nmax=nmax,tol=tol,cut=len(sites))
             Lambda=DTensor(((s,'ftensordot')*v).data.reshape((-1,)),labels=[bonds[-1].replace(flow=None)])
             ms[0].relabel(olds=[L],news=[bonds[0].replace(flow=+1 if qnon else 0)])
         else:
-            ms,Lambda=expanded_svd(m,L=[L],S=S,R=[R],E=sites,I=bonds[1:-1],nmax=nmax,tol=tol,cut=cut)
+            ms,Lambda=expandedsvd(m,L=[L],S=S,R=[R],E=sites,I=bonds[1:-1],nmax=nmax,tol=tol,cut=cut)
             ms[+0].relabel(olds=[L],news=[bonds[+0].replace(flow=+1 if qnon else 0)])
             ms[-1].relabel(olds=[R],news=[bonds[-1].replace(flow=-1 if qnon else 0)])
         return MPS(mode='QN' if qnon else 'NB',ms=ms,Lambda=Lambda,cut=cut)
@@ -450,7 +450,7 @@ class MPS(Arithmetic,list):
                     The number of times that ``self.cut`` will be moved leftward.
                 * nmax: int
                     The maximum number of singular values to be kept.
-                * tol: np.float64
+                * tol: float
                     The truncation tolerance.
         '''
 
@@ -488,7 +488,7 @@ class MPS(Arithmetic,list):
                     The number of times that ``self.cut`` will be moved rightward.
                 * nmax: int
                     The maximum number of singular values to be kept.
-                * tol: np.float64
+                * tol: float
                     The truncation tolerance.
         '''
         return self.__ilshift__((-other[0],other[1],other[2]) if isinstance(other,tuple) else -other)
@@ -593,7 +593,7 @@ class MPS(Arithmetic,list):
         if self.Lambda is not None:
             self.Lambda.relabel([self.Lambda.labels[0].replace(qns=self.Lambda.labels[0].qns+qn)])
 
-    def is_canonical(self):
+    def iscanonical(self):
         '''
         Judge whether each site of the MPS is in the canonical form.
         '''
@@ -619,7 +619,7 @@ class MPS(Arithmetic,list):
             The position of the connecting bond after the canonicalization.
         nmax : int, optional
             The maximum number of singular values to be kept.
-        tol : np.float64, optional
+        tol : float, optional
             The tolerance of the singular values.
         '''
         if cut<=self.nsite/2:
@@ -643,7 +643,7 @@ class MPS(Arithmetic,list):
             The position of the connecting bond after the compression.
         nmax : int, optional
             The maximum number of singular values to be kept.
-        tol : np.float64, optional
+        tol : float, optional
             The tolerance of the singular values.
         '''
         for _ in xrange(nsweep): self.canonicalize(cut=cut,nmax=nmax,tol=tol)
@@ -736,12 +736,12 @@ class MPS(Arithmetic,list):
             The tensor used to set the B matrix.
         nmax : int, optional
             The maximum number of singular values to be kept. 
-        tol : np.float64, optional
+        tol : float, optional
             The truncation tolerance.
         '''
         if self.cut==0: raise ValueError('MPS _set_B_and_lmove_ error: the cut is already zero.')
         L,S,R=M.labels[MPS.L],M.labels[MPS.S],M.labels[MPS.R]
-        u,s,v=svd(M,row=[L],new=Label('__MPS_set_B_and_lmove__',None,None),col=[S,R],nmax=nmax,tol=tol,return_truncation_err=False)
+        u,s,v=svd(M,row=[L],new=Label('__MPS_set_B_and_lmove__',None,None),col=[S,R],nmax=nmax,tol=tol,returnerr=False)
         v.relabel(olds=[0],news=[v.labels[0].replace(identifier=L.identifier)])
         self[self.cut-1]=v
         if self.cut==1:
@@ -764,12 +764,12 @@ class MPS(Arithmetic,list):
             The tensor used to set the A matrix.
         nmax : int, optional
             The maximum number of singular values to be kept. 
-        tol : np.float64, optional
+        tol : float, optional
             The truncation tolerance.
         '''
         if self.cut==self.nsite: raise ValueError('MPS _set_A_and_rmove_ error: the cut is already maximum.')
         L,S,R=M.labels[MPS.L],M.labels[MPS.S],M.labels[MPS.R]
-        u,s,v=svd(M,row=[L,S],new=Label('__MPS_set_A_and_rmove__',None,None),col=[R],nmax=nmax,tol=tol,return_truncation_err=False)
+        u,s,v=svd(M,row=[L,S],new=Label('__MPS_set_A_and_rmove__',None,None),col=[R],nmax=nmax,tol=tol,returnerr=False)
         u.relabel(olds=[2],news=[u.labels[2].replace(identifier=R.identifier)])
         self[self.cut]=u
         if self.cut==self.nsite-1:
@@ -889,7 +889,7 @@ class MPS(Arithmetic,list):
             The layer where the physical indices are confined.
         nmax : int, optional
             The maximum number of singular values to be kept.
-        tol : np.float64, optional
+        tol : float, optional
             The tolerance of the singular values.
 
         Returns
@@ -923,7 +923,7 @@ class MPS(Arithmetic,list):
                     L,S,R=m.labels
                     indices=degfres.descendants(S.identifier,generation=new-old)
                     start,stop=table[indices[0]],table[indices[-1]]+1
-                    us,s,v=expanded_svd(m,L=[L],S=S,R=[R],E=sites[start:stop],I=[Label(bond,None,None) for bond in bonds[start+1:stop+1]],cut=stop-start,nmax=nmax,tol=tol)
+                    us,s,v=expandedsvd(m,L=[L],S=S,R=[R],E=sites[start:stop],I=[Label(bond,None,None) for bond in bonds[start+1:stop+1]],cut=stop-start,nmax=nmax,tol=tol)
                     Ms.extend(us)
                 Lambda,cut=(s,'ftensordot')*v,len(Ms)
                 Ms[0].relabel(olds=[MPS.L],news=[Ms[0].labels[MPS.L].replace(identifier=bonds[0])])

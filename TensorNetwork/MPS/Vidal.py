@@ -108,13 +108,13 @@ class Vidal(object):
                 result=result*self.Lambdas[i-1]*Gamma
         return result.data.reshape((-1,))
 
-    def to_mixed(self,cut):
+    def tomixed(self,cut):
         '''
         Convert to the mixed MPS representation.
 
         Parameters
         ----------
-        cut : integer
+        cut : int
             The index of the connecting link.
 
         Returns

@@ -15,7 +15,7 @@ class TestOptStr(TestCase):
     def setUp(self):
         self.init()
         self.overlaps=[hm.overlap(self.mps1.state,mopt,self.mps2.state) for mopt in self.mopts]
-        self.optstrs=[OptStr.from_operator(opt,self.degfres,self.degfres.layers[-1]) for opt in self.generator.operators.itervalues()]
+        self.optstrs=[OptStr.fromoperator(opt,self.degfres,self.degfres.layers[-1]) for opt in self.generator.operators.itervalues()]
 
     def init(self):
         raise NotImplementedError()
@@ -41,8 +41,8 @@ class TestMPO(TestCase):
         self.init()
         self.mopt=sum(self.mopts)
         self.overlap=hm.overlap(self.mps1.state,self.mopt,self.mps2.state)
-        optstrs=[OptStr.from_operator(opt,self.degfres,self.degfres.layers[-1]) for opt in self.generator.operators.itervalues()]
-        self.mpo=OptMPO(optstrs,self.degfres).to_mpo()
+        optstrs=[OptStr.fromoperator(opt,self.degfres,self.degfres.layers[-1]) for opt in self.generator.operators.itervalues()]
+        self.mpo=OptMPO(optstrs,self.degfres).tompo()
 
     def init(self):
         raise NotImplementedError()

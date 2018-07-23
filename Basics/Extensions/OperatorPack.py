@@ -83,7 +83,7 @@ def JWBosonization(operator,table):
             tags.append(tag)
             inds.append(operator.indices[k].replace(nambu=None))
     indices,sms,keys=[],[],ms.keys()
-    TABLE,sign=table.reversed_table,np.array([[1.0,0.0],[0.0,-1.0]],dtype=dtype)
+    TABLE,sign=table.reversal,np.array([[1.0,0.0],[0.0,-1.0]],dtype=dtype)
     for leaf in xrange(keys[0],keys[-1]+1):
         if leaf in ms:
             assert counts[0] in (1,2)

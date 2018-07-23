@@ -46,7 +46,7 @@ class Test_soptrep(TestCase):
 
     def test_soptrep(self):
         matrix=0.0
-        for opt in self.opts.itervalues():
+        for opt in self.opts:
             matrix+=SOPTREP(opt,self.table)
         result=np.array([
                     [ 0.25, 0.0 , 0.0 , 0.0 ],

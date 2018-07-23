@@ -55,13 +55,13 @@ class Fock(Internal):
 
     Attributes
     ----------
-    atom : int, default value 0
+    atom : int
         The atom species on this point.
-    norbital : int, default value 1
+    norbital : int
         Number of orbitals.
-    nspin : int, default value 2
+    nspin : int
         Number of spins.
-    nnambu : int, default value 1.
+    nnambu : 1/2
         An integer to indicate whether or not using the Nambu space.
         1 means no and 2 means yes.
     '''
@@ -78,7 +78,7 @@ class Fock(Internal):
             Number of orbitals.
         nspin : int, optional
             Number of spins.
-        nnambu : int, optional.
+        nnambu : 1/2, optional.
             A number to indicate whether or not the Nambu space is used.
             1 means no and 2 means yes.
         '''

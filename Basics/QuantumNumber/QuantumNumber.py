@@ -24,7 +24,7 @@ class QuantumNumber(Arithmetic,tuple):
 
     Attributes
     ----------
-    names : tuple of string
+    names : tuple of str
         The names of the quantum number.
     periods : tuple of int
         The periods of the quantum number.
@@ -215,7 +215,7 @@ class QuantumNumbers(Arithmetic):
         The class of the quantum numbers contained in the collection.
     contents : 2d ndarray
         The ndarray representation of the collection with the rows representing the set of its quantum numbers.
-    indptr : 1d ndarray of integers
+    indptr : 1d ndarray of int
         The index pointer array of the set of the quantum numbers.
     '''
     COUNTS,INDPTR=0,1
@@ -223,38 +223,23 @@ class QuantumNumbers(Arithmetic):
     def __init__(self,form,data,protocol=COUNTS):
         '''
         Constructor, supporting the following usages:
-            * ``QuantumNumbers(form,(qns,counts),QuantumNumbers.COUNTS)``, with
-                form: 'G'/'g', 'U'/'u' or 'C'/'c'
-                    'G'/'g' for general form, 'U'/'u' for unitary form and 'C'/'c' for canonical form.
-                qns: list of QuantumNumber
-                    The quantum numbers contained in the collection.
-                counts: list of int
-                    The counts of the duplicates of the quantum numbers.
-            * ``QuantumNumbers(form,(qns,indptr),QuantumNumbers.INDPTR)``, with
-                form: 'G'/'g', 'U'/'u' or 'C'/'c'
-                    'G'/'g' for general form, 'U'/'u' for unitary form and 'C'/'c' for canonical form.
-                qns: list of QuantumNumber
-                    The quantum numbers contained in the collection.
-                indptr: list of int
-                    The indptr of the collection.
-            * ``QuantumNumbers(form,(type,contents,counts),QuantumNumbers.COUNTS)``, with
-                form: 'G'/'g', 'U'/'u' or 'C'/'c'
-                    'G'/'g' for general form, 'U'/'u' for unitary form and 'C'/'c' for canonical form.
-                type: class
-                    The class of the quantum numbers contained in the collection.
-                contents: 2d ndarray
-                    The contents of the collection.
-                counts: list of int
-                    The counts of the duplicates of the quantum numbers.
-            * ``QuantumNumbers(form,(type,contents,indptr),QuantumNumbers.INDPTR)``, with
-                form: 'G'/'g', 'U'/'u' or 'C'/'c'
-                    'G'/'g' for general form, 'U'/'u' for unitary form and 'C'/'c' for canonical form.
-                type: class
-                    The class of the quantum numbers contained in the collection.
-                contents: 2d ndarray
-                    The contents of the collection.
-                indptr: list of int
-                    The indptr of the collection.
+            * ``QuantumNumbers(form,(qns,counts),QuantumNumbers.COUNTS)``
+            * ``QuantumNumbers(form,(qns,indptr),QuantumNumbers.INDPTR)``
+            * ``QuantumNumbers(form,(type,contents,counts),QuantumNumbers.COUNTS)``
+            * ``QuantumNumbers(form,(type,contents,indptr),QuantumNumbers.INDPTR)``
+        with the parameters
+            * form : 'G'/'g', 'U'/'u' or 'C'/'c'
+                'G'/'g' for general form, 'U'/'u' for unitary form and 'C'/'c' for canonical form.
+            * qns : list of QuantumNumber
+                The quantum numbers contained in the collection.
+            * counts : list of int
+                The counts of the duplicates of the quantum numbers.
+            * indptr : list of int
+                The indptr of the collection.
+            * type : class
+                The class of the quantum numbers contained in the collection.
+            * contents: 2d ndarray
+                The contents of the collection.
         '''
         assert form in ('G','g','U','u','C','c') and len(data) in (2,3) and protocol in (QuantumNumbers.COUNTS,QuantumNumbers.INDPTR)
         self.form=form.upper()
@@ -408,7 +393,7 @@ class QuantumNumbers(Arithmetic):
         return (result,record) if history else result
 
     @staticmethod
-    def from_ordereddict(ordereddict,type=None,protocol=INDPTR):
+    def fromordereddict(ordereddict,type=None,protocol=INDPTR):
         '''
         Convert an ordered dict to a quantum number collection.
 
@@ -660,7 +645,7 @@ class QuantumNumbers(Arithmetic):
 
         Returns
         -------
-        1d ndarray of integers
+        1d ndarray of int
             The corresponding indices of the quantum number.
         '''
         if self.form=='C':
@@ -738,7 +723,7 @@ class QuantumNumbers(Arithmetic):
             indices=np.concatenate([self.indices(target) for target in targets])
             return np.repeat(self.contents[indices],self.indptr[indices+1]-self.indptr[indices],axis=0)
 
-    def to_ordereddict(self,protocol=INDPTR):
+    def toordereddict(self,protocol=INDPTR):
         '''
         Convert a canonical collection of quantum numbers to an OrderedDict.
 

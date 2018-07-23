@@ -6,12 +6,12 @@ Utilities
 The utilities of the subpackage, including:
     * constants: RZERO
     * classes: Arithmetic, Timer, Timers, Sheet, Log
-    * functions: parity, berry_curvature, berry_phase, decimaltostr, ordinal, mpirun
+    * functions: parity, berrycurvature, berryphase, decimaltostr, ordinal, mpirun
 '''
 
 __all__=[   'RZERO',
             'Arithmetic','Timer','Timers','Sheet','Log',
-            'parity','berry_curvature','berry_phase','decimaltostr','ordinal','mpirun'
+            'parity','berrycurvature','berryphase','decimaltostr','ordinal','mpirun'
             ]
 
 from copy import copy
@@ -230,9 +230,9 @@ class Timer(object):
 class Timers(Tree):
     '''
     Timers for code executing. For each of its (key,value) pairs,
-        * key: str
+        * key : str
             The name of the timer.
-        * value: Timer
+        * value : Timer
             The corresponding timer.
     '''
     ALL=0
@@ -247,7 +247,7 @@ class Timers(Tree):
             The names of the timers.
         '''
         super(Timers,self).__init__(root=karg.get('root','Total'),data=Timer())
-        for key in keys: self.add_leaf(self.root,key,Timer())
+        for key in keys: self.addleaf(self.root,key,Timer())
         self[self.root].proceed()
 
     def __str__(self):
@@ -269,7 +269,7 @@ class Timers(Tree):
             * When 'c', the cumulative time will also be included in the representation.
         '''
         if keys==Timers.ALL:
-            keys=list(self.expand(mode=Tree.DEPTH,return_form=Tree.NODE))
+            keys=list(self.expand(mode=Tree.DEPTH,returnform=Tree.NODE))
         elif keys is None:
             keys=[self.root]+self.children(self.root)
         lens=[max(12,len(str(key))+2) for key in keys]
@@ -315,10 +315,10 @@ class Timers(Tree):
         if parents is None:
             parents=[self.root]
         elif parents==Timers.ALL:
-            parents=[parent for parent in self.expand(mode=Tree.WIDTH,return_form=Tree.NODE) if not self.is_leaf(parent)]
+            parents=[parent for parent in self.expand(mode=Tree.WIDTH,returnform=Tree.NODE) if not self.isleaf(parent)]
         piecharts=getattr(self,'piecharts',None)
         if piecharts is None:
-            self.piecharts={}
+            piecharts={}
             graph=plt.subplots(nrows=len(parents),ncols=2 if form=='c' else 1)
             axes=graph[1].reshape((len(parents),2 if form=='c' else 1)) if isinstance(graph[1],np.ndarray) else np.array([[graph[1]]])
             for i,parent in enumerate(parents):
@@ -326,12 +326,13 @@ class Timers(Tree):
                 axes[i,0].set_title(parent)
                 labels=self.children(parent)
                 fractions=[self[child].records[-1]/(self[parent].records[-1]+RZERO) for child in labels]
-                self.piecharts[(parent,'s')]=axes[i,0].pie(fractions+[1.0-sum(fractions)],labels=labels+['others'],autopct='%1.1f%%')
+                piecharts[(parent,'s')]=axes[i,0].pie(fractions+[1.0-sum(fractions)],labels=labels+['others'],autopct='%1.1f%%')
                 if form=='c':
                     axes[i,1].axis('equal')
                     axes[i,1].set_title('%s (%s)'%(parent,'Acc.'))
                     fractions=[self.time(child)/(self.time(parent)+RZERO) for child in labels]
-                    self.piecharts[(parent,'c')]=axes[i,1].pie(fractions+[1.0-sum(fractions)],labels=labels+['others'],autopct='%1.1f%%')
+                    piecharts[(parent,'c')]=axes[i,1].pie(fractions+[1.0-sum(fractions)],labels=labels+['others'],autopct='%1.1f%%')
+            self.piecharts=piecharts
         else:
             for parent in parents:
                 fractions=[self[child].records[-1]/(self[parent].records[-1]+RZERO) for child in self.children(parent)]
@@ -353,7 +354,7 @@ class Timers(Tree):
             The name of the added timer.
         '''
         parent=self.root if parent is None else parent
-        self.add_leaf(parent,name,Timer())
+        self.addleaf(parent,name,Timer())
 
     def remove(self,timer):
         '''
@@ -364,7 +365,7 @@ class Timers(Tree):
         timer : str
             The timer to be removed.
         '''
-        self.remove_subtree(timer)
+        self.removesubtree(timer)
 
     def record(self):
         '''
@@ -698,7 +699,7 @@ class Sheet(object):
         return self.sheet[index].center(self.widths[index[1]+1]+2)
 
     @staticmethod
-    def from_ordereddict(od,mode='C'):
+    def fromordereddict(od,mode='C'):
         '''
         Convert an OrderedDict to Sheet.
 
@@ -791,7 +792,7 @@ class Log(object):
 
         Parameters
         ----------
-        info : str
+        info : object
             The information to be written.
         '''
         if Log.ON:
@@ -806,7 +807,7 @@ def parity(permutation):
 
     Parameters
     ----------
-    permutation : list of integer
+    permutation : list of int
         A permutation of integers from 0 to N-1.
 
     Returns
@@ -824,7 +825,7 @@ def parity(permutation):
             permutation[i],permutation[pos]=permutation[pos],permutation[i]
     return result
 
-def berry_curvature(H,kx,ky,mu,d=10**-6):
+def berrycurvature(H,kx,ky,mu,d=10**-6):
     '''
     Calculate the Berry curvature of the occupied bands for a Hamiltonian with the given chemical potential using the Kubo formula.
 
@@ -855,7 +856,7 @@ def berry_curvature(H,kx,ky,mu,d=10**-6):
                 result-=2*(np.vdot(np.dot(Vx,Evs[:,n]),Evs[:,m])*np.vdot(Evs[:,m],np.dot(Vy,Evs[:,n]))/(Es[n]-Es[m])**2).imag
     return result
 
-def berry_phase(H,path,ns):
+def berryphase(H,path,ns):
     '''
     Calculate the Berry phase of some bands of a Hamiltonian along a certain path.
 
@@ -863,7 +864,7 @@ def berry_phase(H,path,ns):
     ----------
     H : callable
         Input function which returns the Hamiltonian as a 2D array.
-    path : iterable
+    path : iterable of dict
         The path along which to calculate the Berry phase.
     ns : iterable of int
         The sequences of bands whose Berry phases are wanted.
@@ -878,11 +879,11 @@ def berry_phase(H,path,ns):
         new=eigh(H(**parameters))[1][:,ns]
         if i==0:
             result=np.ones(len(ns),new.dtype)
-            evs=new
+            evs,old=new,new
         else:
             for j in xrange(len(ns)):
                 result[j]*=np.vdot(old[:,j],new[:,j])
-        old=new
+            old=new
     else:
         for j in xrange(len(ns)):
             result[j]*=np.vdot(old[:,j],evs[:,j])

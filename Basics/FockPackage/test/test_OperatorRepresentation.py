@@ -22,12 +22,13 @@ class Test_foptrep(TestCase):
 
     def test_time(self):
         print
-        operator=self.generator.operators.values()[0]
-        for basis in self.bases:
-            stime=time.time()
-            matrix=foptrep(operator,basis,transpose=False)
-            etime=time.time()
-            print '%s mode: shape=%s, nnz=%s, time=%ss.'%(basis.mode,matrix.shape,matrix.nnz,etime-stime)
+        for operator in self.generator.operators:
+            for basis in self.bases:
+                stime=time.time()
+                matrix=foptrep(operator,basis,transpose=False)
+                etime=time.time()
+                print '%s mode: shape=%s, nnz=%s, time=%ss.'%(basis.mode,matrix.shape,matrix.nnz,etime-stime)
+            print
 
 fockoptrep=TestSuite([
             TestLoader().loadTestsFromTestCase(Test_foptrep),

@@ -215,7 +215,7 @@ class SpinPack(IndexPack):
 
         Parameters
         ----------
-        value : np.float64 or np.complex128
+        value : float or complex
             The overall coefficient of the spin pack.
         tags : tuple of str
             Each element is the tag of a SpinMatrix.

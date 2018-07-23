@@ -21,8 +21,8 @@ class Tree(dict):
     '''
 
     ROOT=None
-    (DEPTH,WIDTH)=list(range(2))
-    (NODE,DATA,PAIR)=list(range(3))
+    (DEPTH,WIDTH)=range(2)
+    (NODE,DATA,PAIR)=range(3)
 
     def __init__(self,root=None,data=None):
         '''
@@ -39,9 +39,9 @@ class Tree(dict):
         self._parent_={}
         self._children_={}
         if root is not None:
-            self.add_leaf(None,root,data)
+            self.addleaf(None,root,data)
 
-    def add_leaf(self,parent,leaf,data=None):
+    def addleaf(self,parent,leaf,data=None):
         '''
         Add a leaf for the tree.
 
@@ -58,16 +58,16 @@ class Tree(dict):
             if parent is None:
                 self.root=leaf
             else:
-                raise ValueError('Tree add_leaf error: the parent for the first leaf of the tree must be None.')
+                raise ValueError('Tree addleaf error: the parent for the first leaf of the tree must be None.')
         elif parent in self:
             self._children_[parent].append(leaf)
         else:
-            raise ValueError('Tree add_leaf error: the parent of the leaf does not exist.')
+            raise ValueError('Tree addleaf error: the parent of the leaf does not exist.')
         self._parent_[leaf]=parent
         super(Tree,self).__setitem__(leaf,data)
         self._children_[leaf]=[]
 
-    def add_subtree(self,subtree,parent=None):
+    def addsubtree(self,subtree,parent=None):
         '''
         Add a subtree.
 
@@ -92,13 +92,13 @@ class Tree(dict):
                     self._parent_[subtree.root]=parent
                     self._children_[parent].append(subtree.root)
                 else:
-                    raise ValueError('Tree add_subtree error: the subtree to be added cannot share any same node with the parent tree.')
+                    raise ValueError('Tree addsubtree error: the subtree to be added cannot share any same node with the parent tree.')
             else:
-                raise ValueError('Tree add_subtree error: the parent of the subtree does not exist.')
+                raise ValueError('Tree addsubtree error: the parent of the subtree does not exist.')
         else:
-            raise ValueError('Tree add_subtree error: the first parameter must be an instance of Tree.')
+            raise ValueError('Tree addsubtree error: the first parameter must be an instance of Tree.')
 
-    def remove_subtree(self,node):
+    def removesubtree(self,node):
         '''
         Remove a subtree.
 
@@ -117,13 +117,13 @@ class Tree(dict):
             self._children_[self._parent_[node]].remove(node)
             del self._parent_[node]
             temp=[]
-            for key in self.expand(node=node,mode=Tree.DEPTH,return_form=Tree.NODE):
+            for key in self.expand(node=node,mode=Tree.DEPTH,returnform=Tree.NODE):
                 temp.append(key)
             for key in temp:
                 self.pop(key,None)
                 self._children_.pop(key,None)
 
-    def move_subtree(self,node,parent):
+    def movesubtree(self,node,parent):
         '''
         Move a subtree to a child of a new parent.
 
@@ -156,7 +156,7 @@ class Tree(dict):
         '''
         assert generation>0
         result=node
-        for i in xrange(generation):
+        for _ in xrange(generation):
             result=self.parent(result)
         return result
 
@@ -210,7 +210,7 @@ class Tree(dict):
         '''
         assert generation>0
         result=[node]
-        for i in xrange(generation):
+        for _ in xrange(generation):
             result=[node for mediate in result[:] for node in self.children(mediate)]
         return result
 
@@ -249,13 +249,13 @@ class Tree(dict):
         '''
         result=Tree()
         result.root=node
-        for node,data in self.expand(node=node,return_form=Tree.PAIR):
+        for node,data in self.expand(node=node,returnform=Tree.PAIR):
             super(Tree,result).__setitem__(node,data)
             result._parent_[node]=self._parent_[node]
             result._children_[node]=self._children_[node]
         return result
 
-    def is_leaf(self,node):
+    def isleaf(self,node):
         '''
         Judge whether a node is a leaf (a node without children) or not.
 
@@ -276,9 +276,9 @@ class Tree(dict):
         '''
         Return all the leaves contained in this tree.
         '''
-        return [node for node in self if self.is_leaf(node)]
+        return [node for node in self if self.isleaf(node)]
 
-    def expand(self,node=None,mode=DEPTH,return_form=PAIR):
+    def expand(self,node=None,mode=DEPTH,returnform=PAIR):
         '''
         Expand the Tree.
 
@@ -289,23 +289,23 @@ class Tree(dict):
             If it is None, the expansion begins with the root by default.
         mode : Tree.DEPTH/Tree.WIDTH, optional
             The flag to choose depth-first expansion or width-first expansion.
-        return_form: Tree.PAIR/Tree.NODE/Tree.DATA, optional
+        returnform: Tree.PAIR/Tree.NODE/Tree.DATA, optional
             The flag to set the form of the returned iterator.
 
         Yields
         ------
         iterator
-            * if return_form==Tree.PAIR, the returned iterator runs over tuples in the form (node,data);
-            * if return_form==Tree.DATA, the returned iterator runs over the data of the node in the tree;
-            * if return_form==Tree.NODE, the returned iterator runs over the nodes in the tree.
+            * if returnform==Tree.PAIR, the returned iterator runs over tuples in the form (node,data);
+            * if returnform==Tree.DATA, the returned iterator runs over the data of the node in the tree;
+            * if returnform==Tree.NODE, the returned iterator runs over the nodes in the tree.
         '''
         assert self.root is not None
         node=self.root if (node is None) else node
         queue=[(node,self[node])]
         while queue:
-            if return_form==self.NODE:
+            if returnform==self.NODE:
                 yield queue[0][0]
-            elif return_form==self.DATA:
+            elif returnform==self.DATA:
                 yield queue[0][1]
             else:
                 yield queue[0]

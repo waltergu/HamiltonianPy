@@ -55,11 +55,11 @@ class SCMF(TBA):
 
     Attributes
     ----------
-    filling : float64
+    filling : float
         The filling factor of the system.
-    mu : float64
+    mu : float
         The chemical potential of the system.
-    temperature : float64
+    temperature : float
         The temperature of the system.
     orders : list of Term
         The terms representing the order parameters of the system.
@@ -80,7 +80,7 @@ class SCMF(TBA):
         ----------
         filling : float, optional
             The filling factor of the system.
-        temperature : float64, optional
+        temperature : float, optional
             The temperature of the system.
         lattice : Lattice, optional
             The lattice of the system.
@@ -107,14 +107,14 @@ class SCMF(TBA):
         self.ops=OrderedDict()
         for order in self.orders:
             m=zeros((self.nmatrix,self.nmatrix),dtype=complex128)
-            for opt in Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=[order.unit],half=True).operators.values():
+            for opt in Generator(bonds=lattice.bonds,config=config,table=config.table(mask=mask),terms=[order.unit],half=True).operators:
                 m[opt.seqs]+=opt.value
             m+=conjugate(m.T)
             self.ops[order.id]=OP(order.value,m)
         self.timers=Timers('Iteration')
         self.logging()
 
-    def update_ops(self,kspace=None):
+    def opsupdate(self,kspace=None):
         '''
         Update the order parameters of the system.
 
@@ -144,18 +144,18 @@ class SCMF(TBA):
         ----------
         kspace : BaseSpace, optional
             The Brillouin zone of the system.
-        tol : float64, optional
+        tol : float, optional
             The tolerance of the order parameter.
-        maxiter : integer, optional
+        maxiter : int, optional
             The maximum times of the iteration.
         '''
         def gx(values):
             for op,value in zip(self.ops.values(),values):
                 op.value=value
-            self.update_ops(kspace)
+            self.opsupdate(kspace)
             return array([self.ops[key].value for key in self.ops.keys()])-values
         with self.timers.get('Iteration'):
             x0=array([self.ops[key].value for key in self.ops.keys()])
             ops=broyden2(gx,x0,verbose=True,reduction_method='svd',maxiter=maxiter,x_tol=tol)
-        self.log<<'Order parameters:\n%s\n'%Sheet.from_ordereddict(OrderedDict([(name,op) for name,op in zip(self.ops.keys(),ops)]))
+        self.log<<'Order parameters:\n%s\n'%Sheet.fromordereddict(OrderedDict([(name,op) for name,op in zip(self.ops.keys(),ops)]))
         self.log<<'Iterate: time consumed %ss.\n\n'%self.timers.time('Iteration')

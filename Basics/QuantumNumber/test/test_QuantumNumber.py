@@ -52,19 +52,19 @@ class TestQuantumNumbers(TestCase):
         r2=QuantumNumbers('C',([SQN(-1.0),SQN(1.0),SQN(0.0)],[1,1,2]),protocol=QuantumNumbers.COUNTS)
         self.assertEqual(qns.reorder(p2,protocol="CONTENTS"),r2)
 
-    def test_to_ordereddict(self):
+    def test_toordereddict(self):
         qns=SQNS(1.0)
         r1=OrderedDict([(SQN(-1.0),slice(0,1)),(SQN(0.0),slice(1,2)),(SQN(1.0),slice(2,3))])
-        self.assertEqual(qns.to_ordereddict(QuantumNumbers.INDPTR),r1)
+        self.assertEqual(qns.toordereddict(QuantumNumbers.INDPTR),r1)
         r2=OrderedDict([(SQN(-1.0),1),(SQN(0.0),1),(SQN(1.0),1)])
-        self.assertEqual(qns.to_ordereddict(QuantumNumbers.COUNTS),r2)
+        self.assertEqual(qns.toordereddict(QuantumNumbers.COUNTS),r2)
 
-    def test_from_ordereddict(self):
+    def test_fromordereddict(self):
         od1=OrderedDict([(SQN(-1.0),slice(0,1)),(SQN(0.0),slice(1,2)),(SQN(1.0),slice(2,3))])
         od2=OrderedDict([(SQN(-1.0),1),(SQN(0.0),1),(SQN(1.0),1)])
         result=QuantumNumbers('U',([SQN(-1.0),SQN(0.0),SQN(1.0)],[1,1,1]),protocol=QuantumNumbers.COUNTS)
-        self.assertEqual(QuantumNumbers.from_ordereddict(od1,protocol=QuantumNumbers.INDPTR),result)
-        self.assertEqual(QuantumNumbers.from_ordereddict(od2,protocol=QuantumNumbers.COUNTS),result)
+        self.assertEqual(QuantumNumbers.fromordereddict(od1,protocol=QuantumNumbers.INDPTR),result)
+        self.assertEqual(QuantumNumbers.fromordereddict(od2,protocol=QuantumNumbers.COUNTS),result)
 
     def test_time(self):
         print

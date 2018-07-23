@@ -348,7 +348,7 @@ class DTensor(TensorBase,Arithmetic):
             The quantum number collections of the known axes.
         flows : tuple of int
             The flows of the quantum numbers of the known axes.
-        tol : float64, optional
+        tol : float, optional
             The tolerance of the non-zeros.
         '''
         axes=[self.axis(axis) if isinstance(axis,Label) else axis for axis in axes]
@@ -399,7 +399,7 @@ class DTensor(TensorBase,Arithmetic):
             The converted sparse tensor.
         '''
         assert all(label.qnon for label in self.labels) and self.ndim>1
-        ods=[label.qns.to_ordereddict() for label in self.labels]
+        ods=[label.qns.toordereddict() for label in self.labels]
         signs=[label.flow for label in self.labels]
         data={}
         for qns in it.product(*ods[:-1]):
@@ -535,7 +535,7 @@ class STensor(TensorBase,Arithmetic):
         logical
             True for match and False for not.
         '''
-        ods=[label.qns.to_ordereddict(protocol=QuantumNumbers.COUNTS)]
+        ods=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS)]
         return all(block.shape==tuple(od[qn] for od,qn in zip(ods,qns)) for qns,block in self.data.iteritems())
 
     def toarray(self):
@@ -548,7 +548,7 @@ class STensor(TensorBase,Arithmetic):
             The ndarray representation of the tensor.
         '''
         result=np.zeros(self.shape,dtype=self.dtype)
-        ods=[label.qns.to_ordereddict() for label in self.labels]
+        ods=[label.qns.toordereddict() for label in self.labels]
         for key,block in self.data.iteritems():
             result[[ods[i][qn] for i,qn in enumerate(key)]]=block
         return result
@@ -570,7 +570,7 @@ class STensor(TensorBase,Arithmetic):
             The new tensor.
         '''
         if isinstance(axis,Label): axis=self.axis(axis)
-        od=self.labels[axis].qns.to_ordereddict()
+        od=self.labels[axis].qns.toordereddict()
         data={key:block*array[[od[key[axis]] if i==axis else np.newaxis for i in xrange(self.ndim)]] for key,block in self.data.iteritems()}
         return STensor(data,labels=self.labels)
 
@@ -640,7 +640,7 @@ class STensor(TensorBase,Arithmetic):
         '''
         if isinstance(axis,Label): axis=self.axis(axis)
         qn=self.labels[axis].qns[index]
-        index=index-self.labels[axis].qns.to_ordereddict()[qn].start
+        index=index-self.labels[axis].qns.toordereddict()[qn].start
         data={tuple(key[i] for i in xrange(self.ndim) if i!=axis): block.take(index,axis) for key,block in self.data.iteritems() if key[axis]==qn}
         return STensor(data,labels=[label for i,label in enumerate(self.labels) if i!=axis])
 
@@ -713,7 +713,7 @@ class STensor(TensorBase,Arithmetic):
                 records.pop(axis)
                 labels.pop(axis)
         data={}
-        counts=[label.qns.to_ordereddict(protocol=QuantumNumbers.COUNTS) for label in labels.itervalues()]
+        counts=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS) for label in labels.itervalues()]
         for qns,block in self.data.iteritems():
             new=tuple(sum(qns[axis]*signs[axis] for axis in xrange(ax.start,ax.stop)) if isinstance(ax,slice) else qns[ax] for ax in keep.itervalues())
             shape=tuple(np.product(block.shape[ax]) if isinstance(ax,slice) else block.shape[ax] for ax in keep.itervalues())
@@ -747,7 +747,7 @@ class STensor(TensorBase,Arithmetic):
         records=[arg[2] for arg in args]
         table={axis:seq for seq,axis in enumerate(axes)}
         labels=list(it.chain(*[args[table[axis]][1] if axis in table else [label] for axis,label in enumerate(self.labels)]))
-        counts=[label.qns.to_ordereddict(protocol=QuantumNumbers.COUNTS) for label in labels]
+        counts=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS) for label in labels]
         data={}
         for qns,block in self.data.iteritems():
             for content in it.product(*[record[qns[axis]].iteritems() for axis,record in zip(axes,records)]):
@@ -768,7 +768,7 @@ class STensor(TensorBase,Arithmetic):
         '''
         return DTensor(self.toarray(),labels=self.labels)
 
-    def to_dict(self,masks=()):
+    def todict(self,masks=()):
         '''
         Group the data blocks of the sparse tensor to dict according to the masked dimensions.
 
@@ -890,7 +890,7 @@ def contract(a,b,engine=None):
             c,apermutation=Label.union(AC,None,-1,mode=1)
             c,bpermutation=Label.union(BC,None,+1,mode=1)
             r,rpermutation=Label.union(BL,None,-1,mode=1)
-            lod,cod,rod=l.qns.to_ordereddict(),c.qns.to_ordereddict(),r.qns.to_ordereddict()
+            lod,cod,rod=l.qns.toordereddict(),c.qns.toordereddict(),r.qns.toordereddict()
             result=np.zeros((A.shape[0],B.shape[1]),dtype=np.find_common_type([A.dtype,B.dtype],[]))
             for qn in it.ifilter(lambda qn:True if lod.has_key(qn) and rod.has_key(qn) else False,cod):
                 linds=lpermutation[lod[qn]]
@@ -907,7 +907,7 @@ def contract(a,b,engine=None):
         for l1,l2 in zip(AC,BC):
             if l1.flow+l2.flow!=0: raise ValueError('tensor contraction error: not converged flow for %s and %s'%(repr(l1),repr(l2)))
         data={}
-        ad,bd,axes=a.to_dict(AC),b.to_dict(BC),([a.axis(label) for label in common],[b.axis(label) for label in common]) if len(common)>0 else 0
+        ad,bd,axes=a.todict(AC),b.todict(BC),([a.axis(label) for label in common],[b.axis(label) for label in common]) if len(common)>0 else 0
         for coqns in it.ifilter(ad.has_key,bd):
             for (qns1,block1),(qns2,block2) in it.product(ad[coqns],bd[coqns]):
                 qns=tuple(it.chain(qns1,qns2))

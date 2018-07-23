@@ -10,10 +10,10 @@ MODULES       DESCRIPTION
 ==========    ===================
 `Tree`        Tree data structure
 `Linalg`      Linear algebras
-`Calculus`    Calculus related
+`Optimize`    Optimize related
 ==========    ===================
 '''
 
 from Tree import *
 from Linalg import *
-from Calculus import *
+from Optimize import *

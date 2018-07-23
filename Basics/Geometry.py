@@ -113,7 +113,7 @@ def isonline(p0,p1,p2,ends=(True,True),rtol=RZERO):
         The coordinates of the ends of the line segment.
     ends : 2-tuple of logical, optional
         Define whether the line segment contains its ends. True for YES and False for NO.
-    rtol : np.float64, optional
+    rtol : float, optional
         The relative tolerance of the error.
 
     Returns
@@ -328,10 +328,9 @@ class PID(namedtuple('PID',['scope','site'])):
 
     Attributes
     ----------
-    scope : string
-        The scope in which the point lives.
-        Usually, it is same to the name of the cluster/sublattice/lattice the point belongs to.
-    site : integer
+    scope : str
+        The scope to which the point belongs.
+    site : int
         The site index of the point.
     '''
 
@@ -375,13 +374,17 @@ class Point(object):
         '''
         return 'Point(pid=%s, rcoord=%s, icoord=%s)'%(self.pid,self.rcoord,self.icoord)
 
-    __repr__=__str__
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return 'Point(%s, %s, %s)'%(repr(self.pid),self.rcoord,self.icoord)
 
     def __eq__(self,other):
         '''
         Overloaded operator(==).
         '''
-        return self.pid==other.pid and nl.norm(self.rcoord-other.rcoord)<RZERO and nl.norm(self.icoord-other.icoord)<RZERO
+        return self.pid==other.pid and np.allclose(self.rcoord,other.rcoord) and np.allclose(self.icoord,other.icoord)
     
     def __ne__(self,other):
         '''
@@ -395,7 +398,7 @@ class Bond(object):
 
     Attributes
     ----------
-    neighbour : integer
+    neighbour : int
         The rank of the neighbour of the bond.
     spoint : Point
         The start point of the bond.
@@ -409,7 +412,7 @@ class Bond(object):
 
         Parameters
         ----------
-        neighbour : integer
+        neighbour : int
             The rank of the neighbour of the bond.
         spoint : Point
             The start point of the bond.
@@ -444,7 +447,7 @@ class Bond(object):
         '''
         Judge whether a bond is intra the unit cell or not. 
         '''
-        if nl.norm(self.icoord)< RZERO:
+        if np.allclose(self.icoord,0.0):
             return True
         else:
             return False
@@ -464,9 +467,9 @@ class Link(object):
     ----------
     neighbour : int
         The rank of the neighbour of the link.
-    sindex : integer
+    sindex : int
         The start index of the link in the lattice.
-    eindex : integer
+    eindex : int
         The end index of the link in the lattice.
     disp : 1d ndarray
         The displacement of the link.
@@ -478,11 +481,11 @@ class Link(object):
 
         Parameters
         ----------
-        neighbour : integer
+        neighbour : int
             The rank of the neighbour of the link.
-        sindex : integer
+        sindex : int
             The start index of the link in the lattice.
-        eindex : integer
+        eindex : int
             The end index of the link in the lattice.
         disp : 1d ndarray
             The displacement of the link.
@@ -498,7 +501,7 @@ class Link(object):
         '''
         return 'Link(%s, %s, %s, %s)'%(self.neighbour,self.sindex,self.eindex,self.disp)
 
-def minimumlengths(cluster,vectors=(),nneighbour=1,max_coordinate_number=8):
+def minimumlengths(cluster,vectors=(),nneighbour=1,zmax=8):
     '''
     This function searches the minimum bond lengths of a cluster.
 
@@ -510,7 +513,7 @@ def minimumlengths(cluster,vectors=(),nneighbour=1,max_coordinate_number=8):
         The translation vectors of the cluster.
     nneighbour : int, optional
         The order of the minimum bond lengths.
-    max_coordinate_number : int, optional
+    zmax : int, optional
         The max coordinate number for every order of neighbour.
 
     Returns
@@ -526,7 +529,7 @@ def minimumlengths(cluster,vectors=(),nneighbour=1,max_coordinate_number=8):
             if any(translation): translations.remove(tuple([-i for i in translation]))
         translations=sorted(translations,key=nl.norm)
         supercluster=tiling(cluster,vectors=vectors,translations=translations)
-        for length in cKDTree(supercluster).query(cluster,k=nneighbour*max_coordinate_number if nneighbour>0 else 1)[0].flatten():
+        for length in cKDTree(supercluster).query(cluster,k=nneighbour*zmax if nneighbour>0 else 1)[0].flatten():
             for i,minlength in enumerate(result):
                 if abs(length-minlength)<RZERO:
                     break
@@ -535,10 +538,10 @@ def minimumlengths(cluster,vectors=(),nneighbour=1,max_coordinate_number=8):
                     result[i]=length
                     break
         if np.any(result==np.inf):
-            warnings.warn('minimumlengths warning: np.inf remained in the result. Larger(>%s) max_coordinate_number may be needed.'%max_coordinate_number)
+            warnings.warn('minimumlengths warning: np.inf remained in the result. Larger(>%s) zmax may be needed.'%zmax)
     return result
 
-def intralinks(cluster,vectors=(),max_translations=None,neighbours=None):
+def intralinks(cluster,vectors=(),maxtranslations=None,neighbours=None):
     '''
     This function searches a certain set of neighbours intra a cluster.
 
@@ -548,7 +551,7 @@ def intralinks(cluster,vectors=(),max_translations=None,neighbours=None):
         The coordinates of the cluster.
     vectors : list of 1d ndarray, optional
         The translation vectors of the cluster.
-    max_translations: tuple of int, optional
+    maxtranslations : tuple of int, optional
         The maximum translations of the original cluster.
     neighbours : dict, optional
         The neighbour-length map of the bonds to be searched.
@@ -564,10 +567,10 @@ def intralinks(cluster,vectors=(),max_translations=None,neighbours=None):
     '''
     result=[]
     if len(cluster)>0:
-        if max_translations is None: max_translations=[len(neighbours)-1]*len(vectors)
+        if maxtranslations is None: maxtranslations=[len(neighbours)-1]*len(vectors)
         if neighbours is None: neighbours={0:0.0}
-        assert len(max_translations)==len(vectors)
-        translations=list(it.product(*[xrange(-nnb,nnb+1) for nnb in max_translations]))
+        assert len(maxtranslations)==len(vectors)
+        translations=list(it.product(*[xrange(-nnb,nnb+1) for nnb in maxtranslations]))
         for translation in translations:
             if any(translation): translations.remove(tuple([-i for i in translation]))
         translations=sorted(translations,key=nl.norm)
@@ -588,7 +591,7 @@ def interlinks(cluster1,cluster2,neighbours=None):
 
     Parameters
     ----------
-    cluster1, cluster2 : list of 1d ndarray
+    cluster1,cluster2 : list of 1d ndarray
         The coordinates of the clusters.
     neighbours : dict, optional
         The neighbour-length map of the links to be searched.
@@ -615,7 +618,7 @@ class Lattice(object):
 
     Attributes
     ----------
-    name : string
+    name : str
         The lattice's name.
     pids : list of PID
         The pids of the lattice.
@@ -648,8 +651,9 @@ class Lattice(object):
             The icoords of the lattice.
         vectors : list of 1d ndarray, optional
             The translation vectors of the lattice.
-        neighbours : dict, optional
-            The neighbour-length map of the lattice.
+        neighbours : int/dict, optional
+            * When int, the order of neighbours of the lattice.
+            * When dict, the neighbour-length map of the lattice.
         '''
         rcoords=np.asarray(rcoords)
         if pids is None: pids=[PID(scope=name,site=i) for i in xrange(len(rcoords))]
@@ -676,8 +680,9 @@ class Lattice(object):
             The lattice points.
         vectors : list of 1d ndarray, optional
             The translation vectors of the lattice.
-        neighbours : dict, optional
-            The neighbour-length map of the lattice.
+        neighbours : int/dict, optional
+            * When int, the order of neighbours of the lattice.
+            * When dict, the neighbour-length map of the lattice.
 
         Returns
         -------
@@ -841,12 +846,18 @@ class Lattice(object):
 
         Parameters
         ----------
-        point : Point or 2-tuple
+        point : Point or 2/3-tuple
             The inserted point.
         '''
-        pid,rcoord=(point.pid,point.rcoord) if isinstance(point,Point) else point
+        if isinstance(point,Point):
+            pid,rcoord,icoord=point.pid,point.rcoord,point.icoord
+        elif len(point)==3:
+            pid,rcoord,icoord=point
+        else:
+            pid,rcoord,icoord=point[0],point[1],np.zeros_like(point[1])
         self.pids.append(pid)
         self.rcoords=np.append(self.rcoords,[rcoord],axis=0)
+        self.icoords=np.append(self.icoords,[icoord],axis=0)
 
     def insert(self,position,point):
         '''
@@ -860,9 +871,15 @@ class Lattice(object):
             The inserted point.
         '''
         if isinstance(position,PID): position=self.pids.index(position)
-        pid,rcoord=(point.pid,point.rcoord) if isinstance(point,Point) else point
+        if isinstance(point,Point):
+            pid,rcoord,icoord=point.pid,point.rcoord,point.icoord
+        elif len(point)==3:
+            pid,rcoord,icoord=point
+        else:
+            pid,rcoord,icoord=point[0],point[1],np.zeros_like(point[1])
         self.pids.insert(position,pid)
         self.rcoords=np.insert(self.rcoords,position,rcoord,axis=0)
+        self.rcoords=np.insert(self.icoords,position,icoord,axis=0)
 
     def plot(self,show=True,suspend=False,save=True,close=True,pidon=False):
         '''
@@ -908,8 +925,9 @@ class SuperLattice(Lattice):
             The sublattices of the superlattice.
         vectors : list of 1d ndarray, optional
             The translation vectors of the superlattice.
-        neighbours : dict, optional
-            The neighbour-length map of the lattice.
+        neighbours : int/dict, optional
+            * When int, the order of neighbours of the lattice.
+            * When dict, the neighbour-length map of the lattice.
         '''
         self.name=name
         self.sublattices=sublattices

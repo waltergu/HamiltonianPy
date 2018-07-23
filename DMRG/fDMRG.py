@@ -48,7 +48,7 @@ class fDMRG(DMRG):
             self.cache['osvs']=self.block.mps.Lambda.data
             self.block.grow(sites,obonds,sbonds,osvs,qn,dtype=self.dtype)
         else:
-            mpo=OptMPO([OptStr.from_operator(operator,self.degfres) for operator in self.generator.operators.itervalues()],self.degfres).to_mpo()
+            mpo=OptMPO([OptStr.fromoperator(operator,self.degfres) for operator in self.generator.operators.itervalues()],self.degfres).tompo()
             ob,nb=self.block.nsite/2+1,(len(sbonds)+1)/2
             osvs=self.cache.get('osvs',np.array([1.0]))
             if niter>1 or nb-ob==1:self.cache['osvs']=self.block.mps.Lambda.data if self.block.nsite>0 else np.array([1.0])

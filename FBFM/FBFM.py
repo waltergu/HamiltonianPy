@@ -269,7 +269,7 @@ class FBFM(HP.Engine):
             The single particle matrix.
         '''
         result=np.zeros((len(self.generator.table),len(self.generator.table)),dtype=self.dtype)
-        for opt in self.generator.operators.values():
+        for opt in self.generator.operators:
             result[opt.seqs]+=opt.value*(1 if len(k)==0 else np.exp(-1j*np.inner(k,opt.icoord)))
         result+=result.T.conjugate()
         return result
@@ -298,7 +298,7 @@ class FBFM(HP.Engine):
 
         Parameters
         ----------
-        k : QuantumNumber, optional
+        k : QuantumNumber/tuple, optional
             The k point in FBZ.
         scalefree/scaleint : float, optional
             The scaling parameter for the free/interaction part of the Hamiltonian.
@@ -308,12 +308,13 @@ class FBFM(HP.Engine):
         2d ndarray
             The matrix representation of the spin excitations.
         '''
+        if not (self.basis.BZ is None or isinstance(k,HP.QuantumNumber)): k=self.basis.BZ.type(k)
         if len(karg)>0: self.update(**karg)
         result=0
         if scalefree:
             result+=optrep(None,k,self.basis)*scalefree
         if scaleint:
-            for operator in self.igenerator.operators.itervalues():
+            for operator in self.igenerator.operators:
                 result+=optrep(operator*scaleint,k,self.basis)
         return result
 
@@ -407,22 +408,22 @@ def FBFMEB(engine,app):
     path,ne=app.path,min(app.ne or engine.nmatrix,engine.nmatrix)
     if path is not None:
         bz,reciprocals=engine.basis.BZ,engine.lattice.reciprocals
-        parameters=list(path('+')) if isinstance(path,HP.BaseSpace) else [{'k':bz[pos]} for pos in bz.path(HP.KMap(reciprocals,path) if isinstance(path,str) else path,mode='I')]
-        result=np.zeros((len(parameters),ne+1))
-        result[:,0]=path.mesh(0) if isinstance(path,HP.BaseSpace) and path.mesh(0).ndim==1 else np.array(xrange(len(parameters)))
-        engine.log<<'%s: '%len(parameters)
-        for i,paras in enumerate(parameters):
-            engine.log<<'%s%s'%(i,'..' if i<len(parameters)-1 else '')
+        if not isinstance(path,HP.BaseSpace): path=bz.path(HP.KMap(reciprocals,path) if isinstance(path,str) else path,mode='Q')
+        result=np.zeros((path.rank(0),ne+1))
+        result[:,0]=path.mesh(0) if path.mesh(0).ndim==1 else np.array(xrange(path.rank(0)))
+        engine.log<<'%s: '%path.rank(0)
+        for i,paras in enumerate(path('+')):
+            engine.log<<'%s%s'%(i,'..' if i<path.rank(0)-1 else '')
             m=engine.matrix(scalefree=app.scalefree,scaleint=app.scaleint,**paras)
-            result[i,1:]=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,return_eigenvectors=False)
+            result[i,1:]=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,evon=False)
         engine.log<<'\n'
     else:
         result=np.zeros((2,ne+1))
         result[:,0]=np.array(xrange(2))
         m=engine.matrix(scalefree=app.scalefree,scaleint=app.scaleint)
-        result[0,1:]=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,return_eigenvectors=False)
+        result[0,1:]=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,evon=False)
         result[1,1:]=result[0,1:]
-    name='%s_%s%s'%(engine.tostr(mask=path.tags if isinstance(path,HP.BaseSpace) else ()),app.name,app.suffix)
+    name='%s_%s%s'%(engine.tostr(mask=path.tags),app.name,app.suffix)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
     if app.returndata: return result
@@ -453,8 +454,8 @@ def FBFMBP(engine,app):
     '''
     This method calculates the Berry phases of spin-1-excitation bands along a certain path.
     '''
-    path,bz,reciprocals=app.path,engine.basis.BZ,engine.lattice.reciprocals
-    parameters=list(path('+')) if isinstance(path,HP.BaseSpace) else [{'k':bz[pos]} for pos in bz.path(HP.KMap(reciprocals,path) if isinstance(path,str) else path,mode='I')]
-    bps=app.set(engine.matrix,parameters)
+    bz,reciprocals=engine.basis.BZ,engine.lattice.reciprocals
+    if not isinstance(app.path,HP.BaseSpace): app.path=bz.path(HP.KMap(reciprocals,app.path) if isinstance(app.path,str) else app.path,mode='Q')
+    bps=app.set(engine.matrix)
     engine.log<<'Berry phases: %s\n'%(', '.join('%s(%s)'%(HP.decimaltostr(bp),n) for bp,n in zip(bps,app.ns)))
     if app.returndata: return bps

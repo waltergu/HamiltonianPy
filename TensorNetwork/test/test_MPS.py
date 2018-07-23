@@ -23,12 +23,12 @@ class TestMPS(TestCase):
         bonds[+0]=bonds[+0].replace(qns=SQNS(0.0),flow=+1)
         bonds[-1]=bonds[-1].replace(qns=QuantumNumbers.mono(target),flow=-1)
         for cut in xrange(N+1):
-            mps=MPS.from_state(state,sites,bonds,cut=cut)
-            self.assertTrue(all(mps.is_canonical()))
+            mps=MPS.fromstate(state,sites,bonds,cut=cut)
+            self.assertTrue(all(mps.iscanonical()))
             self.assertAlmostEqual(norm(state-mps.state),0.0)
         for cut in xrange(N+1):
             mps.canonicalize(cut)
-            self.assertTrue(all(mps.is_canonical()))
+            self.assertTrue(all(mps.iscanonical()))
 
     def test_random(self):
         N=20
@@ -36,7 +36,7 @@ class TestMPS(TestCase):
         sites=[SQNS(0.5) for _ in xrange(N)]
         bonds=[SQN(0.0),SQN(0.0)]
         mps=MPS.random(sites,bonds,cut=np.random.randint(0,N+1),nmax=20)
-        self.assertTrue(all(mps.is_canonical()))
+        self.assertTrue(all(mps.iscanonical()))
 
     def test_algebra(self):
         N=8

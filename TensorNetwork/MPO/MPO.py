@@ -211,7 +211,7 @@ class OptStr(Arithmetic,list):
         self.dtype=dtype
 
     @staticmethod
-    def from_operator(operator,degfres,layer=0):
+    def fromoperator(operator,degfres,layer=0):
         '''
         Constructor, which converts an operator to an optstr.
 
@@ -329,7 +329,7 @@ class OptStr(Arithmetic,list):
         assert result.ndim==0
         return result.data
 
-    def to_mpo(self,degfres):
+    def tompo(self,degfres):
         '''
         Convert an optstr to the full-formatted mpo.
 
@@ -516,7 +516,7 @@ class OptMPO(list):
         np.set_printoptions()
         return '\n'.join(result)
 
-    def to_mpo(self,**karg):
+    def tompo(self,**karg):
         '''
         Convert to the tensor-formatted mpo.
 
@@ -827,7 +827,7 @@ class MPO(Arithmetic,list):
         ----------
         nsweep : int, optional
             The number of sweeps to compress the mpo.
-        method : 'svd', 'dpl'
+        method : 'svd'/'dpl', optional
             The method used to compress the mpo.
         options : dict, optional
             The options used to compress the mpo.
@@ -989,7 +989,7 @@ class MPO(Arithmetic,list):
                         qnses.append(qns)
                     S=Label('__MPO_RELAYER__',qns=(QuantumNumbers.kron if U.qnon else np.product)(qnses),flow=+1 if U.qnon else 0)
                     m=m.split((U,ups),(D,dws)).transpose([L]+orders+[R]).merge((orders,S))
-                    us,s,v=expanded_svd(m,L=[L],S=S,R=[R],E=labels,I=[Label(bond,None,None) for bond in bonds[start+1:stop+1]],cut=stop-start,nmax=nmax,tol=tol)
+                    us,s,v=expandedsvd(m,L=[L],S=S,R=[R],E=labels,I=[Label(bond,None,None) for bond in bonds[start+1:stop+1]],cut=stop-start,nmax=nmax,tol=tol)
                     for u,up,dw,label in zip(us,ups,dws,labels):
                         Ms.append(u.split((label,[up,dw])))
                 Ms[-1]=Ms[-1]*s*v

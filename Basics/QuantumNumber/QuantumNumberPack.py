@@ -5,14 +5,14 @@ Common classes and functions
 
 Quantum number pack, including:
     * classes: SQN, PQN, SPQN, Z2QN
-    * functions: NewQuantumNumber, SQNS, PQNS, SzPQNS, SPQNS, Z2QNS, TQNS
+    * functions: NewQuantumNumber, SQNS, PQNS, SzPQNS, SPQNS, Z2QNS
 '''
 
 import numpy as np
 import itertools as it
 from QuantumNumber import *
 
-__all__=['NewQuantumNumber','SQN','SQNS','PQN','PQNS','SPQN','SzPQNS','SPQNS','Z2QN','Z2QNS','TQNS']
+__all__=['NewQuantumNumber','SQN','SQNS','PQN','PQNS','SPQN','SzPQNS','SPQNS','Z2QN','Z2QNS']
 
 template="""\
 class {typename}(QuantumNumber):
@@ -146,19 +146,3 @@ def Z2QNS():
         As above.
     '''
     return QuantumNumbers('C',([Z2QN(0.0),Z2QN(1.0)],range(3)),protocol=QuantumNumbers.INDPTR)
-
-def TQNS(n):
-    '''
-    Trivial quantum numbers.
-
-    Parameters
-    ----------
-    n : int
-        The dimension of the trivial quantum numbers.
-
-    Returns
-    -------
-    QuantumNumbers
-        As above.
-    '''
-    return QuantumNumbers.mono(PQN(0),n)

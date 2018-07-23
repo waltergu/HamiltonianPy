@@ -30,7 +30,7 @@ class Table(dict):
         ----------
         indices : list of any hashable object
             The indices that need to be mapped to sequences.
-        key : function, optional
+        key : callabel, optional
             The function used to sort the indices.
 
         Notes
@@ -79,7 +79,7 @@ class Table(dict):
         return Table(sorted([key for key in self if select(key)],key=self.get))
 
     @property
-    def reversed_table(self):
+    def reversal(self):
         '''
         This function returns the sequence-index table for a reversed lookup.
 
@@ -142,6 +142,18 @@ class Index(tuple):
         except ValueError:
             raise AttributeError("'Index' has no attribute %s."%key)
 
+    def __repr__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return (':'.join(['%s']*len(self)))%self
+
+    def __str__(self):
+        '''
+        Convert an instance to string.
+        '''
+        return ''.join(['Index(','=%r, '.join(self.names),'=%r)'])%self
+
     @property
     def pid(self):
         '''
@@ -163,18 +175,6 @@ class Index(tuple):
         '''
         return tuple(name for name in self.names if getattr(self,name) is None)
 
-    def __repr__(self):
-        '''
-        Convert an instance to string.
-        '''
-        return (':'.join(['%s']*len(self)))%self
-
-    def __str__(self):
-        '''
-        Convert an instance to string.
-        '''
-        return ''.join(['Index(','=%r, '.join(self.names),'=%r)'])%self
-
     def replace(self,**karg):
         '''
         Return a new Index object with specified fields replaced with new values.
@@ -191,7 +191,7 @@ class Index(tuple):
 
         Parameters
         ----------
-        arg : list of string
+        arg : list of str
             The attributes to be masked.
 
         Returns
@@ -207,7 +207,7 @@ class Index(tuple):
 
         Parameters
         ----------
-        arg : list of string
+        arg : list of str
             The attributes to be selected.
 
         Returns
@@ -217,13 +217,13 @@ class Index(tuple):
         '''
         return self.mask(*[key for key in self.names if key not in arg])
 
-    def to_tuple(self,priority):
+    def totuple(self,priority):
         '''
         Convert an instance to tuple according to the parameter priority.
 
         Parameters
         ----------
-        priority : list of string
+        priority : list of str
             Every element of this list should correspond to a name of an attribute of self.
             The elements should have no duplicates and its length should be equal to the number of self's attributes.
 
@@ -234,9 +234,9 @@ class Index(tuple):
             Their orders are determined by the orders they appear in priority.
         '''
         if len(set(priority))<len(priority):
-            raise ValueError('Index to_tuple error: the priority has duplicates.')
+            raise ValueError('Index totuple error: the priority has duplicates.')
         if len(priority)!=len(self.names):
-            raise ValueError("Index to_tuple error: the priority doesn't cover all the attributes.")
+            raise ValueError("Index totuple error: the priority doesn't cover all the attributes.")
         return tuple([getattr(self,name) for name in priority])
 
 class Internal(object):
@@ -252,7 +252,7 @@ class Internal(object):
         ----------
         pid : PID
             The extra spatial part of the indices.
-        mask : list of string, optional
+        mask : list of str, optional
             The attributes that will be masked to None.
 
         Returns
@@ -272,9 +272,9 @@ class IDFConfig(dict):
 
     Attributes
     ----------
-    priority : list of string
+    priority : list of str
         The sequence priority of the allowed indices that can be defined on a lattice.
-    map : function
+    map : callable
         This function maps the pid of a lattice point to the internal degrees of freedom on it.
     '''
 
@@ -284,11 +284,11 @@ class IDFConfig(dict):
 
         Parameters
         ----------
-        priority : list of string
+        priority : list of str
             The sequence priority of the allowed indices that can be defined on the lattice.
         pids : list of PID, optional
             The pids of the lattice points where the internal degrees of freedom live.
-        map : function, optional
+        map : callable, optional
             This function maps the pid of a lattice point to the internal degrees of freedom on it.
         '''
         self.reset(priority=priority,pids=pids,map=map)
@@ -301,9 +301,9 @@ class IDFConfig(dict):
         ----------
         pids : list of PID, optional
             The pids of the lattice points where the internal degrees of freedom live.
-        map : function, optional
+        map : callable, optional
             This function maps the pid of a lattice point to the internal degrees of freedom on it.
-        priority : list of string, optional
+        priority : list of str, optional
             The sequence priority of the allowed indices that can be defined on the lattice.
         '''
         self.clear()
@@ -351,7 +351,7 @@ class IDFConfig(dict):
         '''
         Return a Table instance that contains all the allowed indices which can be defined on a lattice.
         '''
-        return Table([index for key,value in self.items() for index in value.indices(key,mask)],key=lambda index: index.to_tuple(priority=self.priority))
+        return Table([index for key,value in self.items() for index in value.indices(key,mask)],key=lambda index: index.totuple(priority=self.priority))
 
 class QNSConfig(dict):
     '''
@@ -363,9 +363,9 @@ class QNSConfig(dict):
 
     Attributes
     ----------
-    priority : list of string
+    priority : list of str
         The sequence priority of the allowed indices.
-    map : function
+    map : callable
         This function maps a index of the QNSConfig to its corresponding quantum numbers.
     '''
 
@@ -375,11 +375,11 @@ class QNSConfig(dict):
 
         Parameters
         ----------
-        priority : list of string
+        priority : list of str
             The sequence priority of the allowed indices.
         indices : list of Index, optional
             The indices of the QNSConfig.
-        map : function, optional
+        map : callable, optional
             This function maps a index of the QNSConfig to its corresponding quantum numbers.
         '''
         self.reset(priority=priority,indices=indices,map=map)
@@ -390,11 +390,11 @@ class QNSConfig(dict):
 
         Parameters
         ----------
-        priority : list of string
+        priority : list of str
             The sequence priority of the allowed indices.
         indices : list of Index, optional
             The indices of the QNSConfig.
-        map : function, optional
+        map : callable, optional
             This function maps a index of the QNSConfig to its corresponding quantum numbers.
         '''
         self.clear()
@@ -443,7 +443,7 @@ class IndexPack(Arithmetic):
 
     Attributes
     ----------
-    value : float64 or complex128
+    value : float or complex
         The overall coefficient of the IndexPack.
     '''
 
@@ -453,7 +453,7 @@ class IndexPack(Arithmetic):
 
         Parameters
         ----------
-        value: float64/complex128
+        value: float/complex
             The overall coefficient of the IndexPack.
         '''
         self.value=value

@@ -90,7 +90,7 @@ class ED(HP.Engine):
         '''
         raise NotImplementedError("%s matrix err: not implemented."%self.__class__.__name__)
 
-    def eigs(self,sector,v0=None,k=1,return_eigenvectors=False,reset_matrix=True,reset_timers=True,show_evs=True):
+    def eigs(self,sector,v0=None,k=1,evon=False,resetmatrix=True,resettimers=True,showes=True):
         '''
         Lowest k eigenvalues and optionally, the corresponding eigenvectors.
 
@@ -100,15 +100,15 @@ class ED(HP.Engine):
             The sector of the eigensystem.
         v0 : 1d ndarray, optional
             The starting vector.
-        k : integer, optional
+        k : int, optional
             The number of eigenvalues to be computed.
-        return_eigenvectors : logical, optional
+        evon : logical, optional
             True for returning the eigenvectors and False for not.
-        reset_matrix : logical, optional
+        resetmatrix : logical, optional
             True for resetting the matrix cache and False for not.
-        reset_timers : logical, optional
+        resettimers : logical, optional
             True for resetting the timers and False for not.
-        show_evs : logical, optional
+        showes : logical, optional
             True for showing the calculated eigenvalues and False for not.
 
         Returns
@@ -121,21 +121,21 @@ class ED(HP.Engine):
             List of k eigenvectors.
         '''
         self.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value,n=10)) for key,value in self.parameters.iteritems()))
-        if reset_timers: self.timers.reset()
+        if resettimers: self.timers.reset()
         if sector is None and len(self.sectors)>1:
-            cols=['nopt','dim','nnz','Mt(s)','Et(s)']+(['E%s'%i for i in xrange(k-1,-1,-1)] if show_evs else [])
-            widths=[14,4,8,10,10,10]+([13]*k if show_evs else [])
+            cols=['nopt','dim','nnz','Mt(s)','Et(s)']+(['E%s'%i for i in xrange(k-1,-1,-1)] if showes else [])
+            widths=[14,4,8,10,10,10]+([13]*k if showes else [])
             info=HP.Sheet(corner='sector',rows=self.sectors,cols=cols,widths=widths)
             self.log<<'%s\n%s\n%s\n'%(info.frame(),info.coltagstostr(corneron=True),info.division())
             sectors,es,vs=[],[],[]
             for i,sector in enumerate(self.sectors):
-                with self.timers.get('Matrix'): matrix=self.matrix(sector,reset=reset_matrix)
+                with self.timers.get('Matrix'): matrix=self.matrix(sector,reset=resetmatrix)
                 V0=None if v0 is None or matrix.shape[0]!=v0.shape[0] else v0
-                with self.timers.get('ES'): eigs=HM.eigsh(matrix,v0=V0,k=min(k,matrix.shape[0]),which='SA',return_eigenvectors=return_eigenvectors)
+                with self.timers.get('ES'): eigs=HM.eigsh(matrix,v0=V0,k=min(k,matrix.shape[0]),which='SA',evon=evon)
                 self.timers.record()
                 sectors.extend([sector]*min(k,matrix.shape[0]))
-                es.extend(eigs[0] if return_eigenvectors else eigs)
-                if return_eigenvectors: vs.extend(eigs[1].T)
+                es.extend(eigs[0] if evon else eigs)
+                if evon: vs.extend(eigs[1].T)
                 info[(sector,'nopt')]=len(self.operators)
                 info[(sector,'dim')]=matrix.shape[0]
                 info[(sector,'nnz')]=matrix.nnz
@@ -146,24 +146,21 @@ class ED(HP.Engine):
             indices=np.argsort(es)[:k]
             sectors=[sectors[index] for index in indices]
             es=np.asarray(es)[indices]
-            if return_eigenvectors: vs=[vs[index] for index in indices]
+            if evon: vs=[vs[index] for index in indices]
             self.log<<'%s\n'%info.frame()
         else:
             if sector is None: sector=next(iter(self.sectors))
-            with self.timers.get('Matrix'): matrix=self.matrix(sector,reset=reset_matrix)
+            with self.timers.get('Matrix'): matrix=self.matrix(sector,reset=resetmatrix)
             self.log<<'::<Information>:: sector=%s, nopt=%s, dim=%s, nnz=%s, '%(sector,len(self.operators),matrix.shape[0],matrix.nnz)
             V0=None if v0 is None or matrix.shape[0]!=v0.shape[0] else v0
-            with self.timers.get('ES'): eigs=HM.eigsh(matrix,v0=V0,k=k,which='SA',return_eigenvectors=return_eigenvectors)
+            with self.timers.get('ES'): eigs=HM.eigsh(matrix,v0=V0,k=k,which='SA',evon=evon)
             self.timers.record()
             sectors=[sector]*k
-            es=eigs[0] if return_eigenvectors else eigs
-            if return_eigenvectors: vs=list(eigs[1].T)
+            es=eigs[0] if evon else eigs
+            if evon: vs=list(eigs[1].T)
             self.log<<'Mt=%.4es, Et=%.4es'%(self.timers['Matrix'].records[-1],self.timers['ES'].records[-1])
-            self.log<<(', evs=%s\n'%(' '.join('%.8f'%e for e in es)) if show_evs else '\n')
-        if return_eigenvectors:
-            return sectors,es,vs
-        else:
-            return sectors,es
+            self.log<<(', evs=%s\n'%(' '.join('%.8f'%e for e in es)) if showes else '\n')
+        return (sectors,es,vs) if evon else (sectors,es)
 
 class EIGS(HP.App):
     '''
@@ -173,7 +170,7 @@ class EIGS(HP.App):
     ----------
     sector : any hashable object
         The sector of the eigensystem.
-    ne : integer
+    ne : int
         The number of lowest eigen values to compute.
     evon : logical
         True for calculating the eigenvectors and False for not.
@@ -187,7 +184,7 @@ class EIGS(HP.App):
         ----------
         sector : any hashable object, optional
             The sector of the eigensystem.
-        ne : integer, optional
+        ne : int, optional
             The number of lowest eigen values to compute.
         evon : logical, optional
             True for calculating the eigenvectors and False for not.
@@ -201,7 +198,7 @@ def EDEIGS(engine,app):
     '''
     This method calculates the lowest eigenvalues and optionally the corresponding eigenvectors of the engine.
     '''
-    eigs=engine.eigs(sector=app.sector,k=app.ne,return_eigenvectors=app.evon,reset_matrix=True,reset_timers=True)
+    eigs=engine.eigs(sector=app.sector,k=app.ne,evon=app.evon,resetmatrix=True,resettimers=True)
     engine.log<<'::<Time>:: matrix=%.4es, gse=%.4es\n'%(engine.timers.time('Matrix'),engine.timers.time('ES'))
     engine.log<<HP.Sheet(
                     corner=     'Energy',
@@ -219,9 +216,9 @@ class EL(HP.EB):
     ----------
     sector : any hashable object
         The sector of the energy levels.
-    nder : integer
+    nder : int
         The order of derivatives to be computed.
-    ns : integer
+    ns : int
         The number of energy levels.
     '''
 
@@ -233,9 +230,9 @@ class EL(HP.EB):
         ----------
         sector : any hashable object, optional
             The sector of the energy levels.
-        nder : integer, optional
+        nder : int, optional
             The order of derivatives to be computed.
-        ns : integer, optional
+        ns : int, optional
             The number of energy levels.
         '''
         super(EL,self).__init__(**karg)
@@ -252,7 +249,7 @@ def EDEL(engine,app):
     result[:,0]=app.path.mesh(0) if len(app.path.tags)==1 and app.path.mesh(0).ndim==1 else np.array(xrange(app.path.rank(0)))
     for i,paras in enumerate(app.path('+')):
         engine.update(**paras)
-        result[i,1:app.ns+1]=engine.eigs(sector=app.sector,k=app.ns,return_eigenvectors=False,reset_matrix=True if i==0 else False,reset_timers=True if i==0 else False)[1]
+        result[i,1:app.ns+1]=engine.eigs(sector=app.sector,k=app.ns,evon=False,resetmatrix=True if i==0 else False,resettimers=True if i==0 else False)[1]
         engine.log<<'%s\n\n'%engine.timers.tostr(HP.Timers.ALL)
         if app.plot: engine.timers.graph(parents=HP.Timers.ALL)
     else:
@@ -497,7 +494,7 @@ def EDGFP(engine,app):
             app.gse=pk.load(fin)
             app.blocks=pk.load(fin)
         return
-    sectors,es,vs=engine.eigs(sector=None,v0=app.v0,k=1,return_eigenvectors=True,reset_matrix=True,reset_timers=True)
+    sectors,es,vs=engine.eigs(sector=None,v0=app.v0,k=1,evon=True,resetmatrix=True,resettimers=True)
     engine.sector,app.gse,app.v0=sectors[0],es[0],vs[0]
     if len(engine.sectors)>1: engine.log<<'::<Information>:: sector=%s, gse=%.8f.\n'%(engine.sector,app.gse)
     app.blocks,nb,blocks=[],next(iter(app.generate(engine,app.operators,'NB'))),app.generate(engine,app.operators,app.method)

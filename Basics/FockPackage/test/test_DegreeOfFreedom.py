@@ -26,9 +26,9 @@ class TestIndex(TestCase):
         result=Index(pid=PID(scope='WG',site=1),iid=FID(orbital=2,spin=3,nambu=CREATION))
         self.assertEqual(self.index.replace(nambu=CREATION),result)
 
-    def test_to_tuple(self):
+    def test_totuple(self):
         result=(1,2,3,0,'WG')
-        self.assertEqual(self.index.to_tuple(['site','orbital','spin','nambu','scope']),result)
+        self.assertEqual(self.index.totuple(['site','orbital','spin','nambu','scope']),result)
 
 class TestFock(TestCase):
     def setUp(self):

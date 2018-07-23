@@ -6,10 +6,10 @@ Linear algebras
 Linear algebras as a supplement to `numpy.linalg`, `scipy.linalg` and 'scipy.sparse.linalg', including
     * constants: TOL
     * classes: Lanczos, LinearOperator
-    * functions: kron, overlap, reorder, dagger, truncated_svd, eigsh, block_diag, solve, deparallelization
+    * functions: kron, overlap, reorder, dagger, truncatedsvd, eigsh, blockdiag, solve, deparallelization
 '''
 
-__all__=['TOL','Lanczos','LinearOperator','kron','overlap','reorder','dagger','truncated_svd','eigsh','block_diag','solve','deparallelization']
+__all__=['TOL','Lanczos','LinearOperator','kron','overlap','reorder','dagger','truncatedsvd','eigsh','blockdiag','solve','deparallelization']
 
 import numpy as np
 import numpy.linalg as nl
@@ -271,21 +271,21 @@ def overlap(*args):
 
 def reorder(array,axes=None,permutation=None):
     '''
-    Reorder the axes of an array from the ordinary numpy.kron order to the correct quantum number collection order.
+    Reorder the elements of an array along some axes accroding to the permutation.
 
     Parameters
     ----------
-    array : ndarray-like
-        The original array in the ordinary numpy.kron order.
-    axes : list of integer, optional
+    array : ndarray
+        The original array.
+    axes : list of int, optional
         The axes of the array to be reordered.
-    permutation : 1d ndarray of integers, optional
+    permutation : 1d ndarray of int, optional
         The permutation array applied to the required axes.
 
     Returns
     -------
-    ndarray-like
-        The axes-reordered array.
+    ndarray
+        The reordered array.
     '''
     result=array
     if permutation is not None:
@@ -306,19 +306,19 @@ def dagger(m):
     else:
         return m.T.conjugate()
 
-def truncated_svd(m,nmax=None,tol=None,return_truncation_err=False,**karg):
+def truncatedsvd(m,nmax=None,tol=None,returnerr=False,**karg):
     '''
     Perform the truncated svd.
 
     Parameters
     ----------
     m : 2d ndarray
-        The matrix to be truncated_svded.
-    nmax : integer, optional
+        The matrix to be truncated svded.
+    nmax : int, optional
         The maximum number of singular values to be kept. If it is None, it takes no effect.
-    tol : float64, optional
+    tol : float, optional
         The truncation tolerance. If it is None, it takes no effect.
-    return_truncation_err : logical, optional
+    returnerr : logical, optional
         If it is True, the truncation err will be returned.
     karg : dict
         Please see http://docs.scipy.org/doc/numpy/reference/generated/numpy.linalg.svd.html for details.
@@ -327,21 +327,21 @@ def truncated_svd(m,nmax=None,tol=None,return_truncation_err=False,**karg):
     -------
     u,s,v : ndarray
         The truncated result.
-    err : float64, optional
+    err : float, optional
         The truncation error.
     '''
     u,s,v=sl.svd(m,**karg)
     nmax=len(s) if nmax is None else min(nmax,len(s))
     tol=s[nmax-1] if tol is None else max(s[nmax-1],tol)
     indices=(s>=tol)
-    if return_truncation_err:
+    if returnerr:
         u,s,v,err=u[:,indices],s[indices],v[indices,:],(s[~indices]**2).sum()
         return u,s,v,err
     else:
         u,s,v=u[:,indices],s[indices],v[indices,:]
         return u,s,v
 
-def eigsh(A,max_try=6,return_eigenvectors=True,**karg):
+def eigsh(A,maxtry=6,evon=True,**karg):
     '''
     Find the eigenvalues and eigenvectors of the real symmetric square matrix or complex hermitian matrix A.
     This is a wrapper for scipy.sparse.linalg.eigsh to handle the exceptions it raises.
@@ -350,16 +350,16 @@ def eigsh(A,max_try=6,return_eigenvectors=True,**karg):
     ----------
     A : An NxN matrix, array, sparse matrix, or LinearOperator
         The matrix whose eigenvalues and eigenvectors is to be computed.
-    max_try : integer, optional
+    maxtry : integer, optional
         The maximum number of tries to do the computation when the computed eigenvalues/eigenvectors do not converge.
-    return_eigenvectors : logical, optional
+    evon : logical, optional
         True for returning the eigenvectors and False for not.
     karg : dict
         Please refer to https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.sparse.linalg.eigsh.html for details.
     '''
     if A.shape==(1,1):
         assert 'M' not in karg and 'sigma' not in karg and karg.get('k',1)==1
-        if return_eigenvectors:
+        if evon:
             return A.dot(np.ones(1)).reshape(-1).real,np.ones((1,1),dtype=A.dtype)
         else:
             return A.dot(np.ones(1)).reshape(-1).real
@@ -367,16 +367,16 @@ def eigsh(A,max_try=6,return_eigenvectors=True,**karg):
         ntry=1
         while True:
             try:
-                result=pl.eigsh(A,return_eigenvectors=return_eigenvectors,**karg)
+                result=pl.eigsh(A,return_eigenvectors=evon,**karg)
                 break
             except pl.ArpackNoConvergence as err:
-                if ntry<max_try:
+                if ntry<maxtry:
                     ntry+=1
                 else:
                     raise err
         return result
 
-def block_diag(*ms):
+def blockdiag(*ms):
     '''
     Create a block diagonal matrix from provided ones.
 
@@ -411,7 +411,7 @@ def solve(A,b,rtol=10**-8):
         The coefficient matrix.
     b : 1d ndarray
         The ordinate values.
-    rtol : np.float64
+    rtol : float
         The relative tolerance of the solution.
 
     Returns
@@ -442,7 +442,7 @@ def solve(A,b,rtol=10**-8):
         raise sl.LinAlgError('solve error: no solution.')
     return result
 
-def deparallelization(m,mode='R',zero=10**-8,tol=10**-6,return_indices=False):
+def deparallelization(m,mode='R',zero=10**-8,tol=10**-6,returnindices=False):
     '''
     Deparallelize the rows or columns of a matrix.
 
@@ -452,11 +452,11 @@ def deparallelization(m,mode='R',zero=10**-8,tol=10**-6,return_indices=False):
         The matrix to be deparallelized.
     mode : 'R' or 'C', optional
         'R' for deparallelization of rows and 'C' for decomposition of columns.
-    zero : np.float64, optional
+    zero : float, optional
         The absolute value to identity zero vectors.
-    tol : np.float64, optional
+    tol : float, optional
         The relative tolerance for rows or columns that can be considered as paralleled.
-    return_indices : logical, optional
+    returnindices : logical, optional
         When True, the indices of the kept rows or columns will be returned.
         Otherwise not.
 
@@ -466,7 +466,7 @@ def deparallelization(m,mode='R',zero=10**-8,tol=10**-6,return_indices=False):
         The deparallelized rows or columns.
     T : 2d ndarray
         The coefficient matrix that satisfies T*M==m('R') or M*T==m('C').
-    indices : 1d ndarray of integers, optional
+    indices : 1d ndarray of int, optional
         The indices of the kept rows or columns.
     '''
     assert mode in ('R','C') and m.ndim==2
@@ -494,10 +494,7 @@ def deparallelization(m,mode='R',zero=10**-8,tol=10**-6,return_indices=False):
                     indices.append(i)
         M=np.asarray(M)
         T=sp.coo_matrix((data,(rows,cols)),shape=(m.shape[0],M.shape[0])).toarray()
-        if return_indices:
-            return T,M,indices
-        else:
-            return T,M
+        return (T,M,indices) if returnindices else (T,M)
     else:
         for i,col in enumerate(m.T):
             inds=np.argwhere(np.abs(col)>zero)
@@ -521,7 +518,4 @@ def deparallelization(m,mode='R',zero=10**-8,tol=10**-6,return_indices=False):
                     indices.append(i)
         M=np.asarray(M).T
         T=sp.coo_matrix((data,(rows,cols)),shape=(M.shape[1],m.shape[1])).toarray()
-        if return_indices:
-            return M,T,indices
-        else:
-            return M,T
+        return (M,T,indices) if returnindices else (M,T)

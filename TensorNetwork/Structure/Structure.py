@@ -24,9 +24,9 @@ class DegFreTree(Tree):
     '''
     The tree of the layered degrees of freedom.
     For each (node,data) pair of the tree,
-        * node: Index
+        * node : Index
             The selected index which can represent a couple of indices.
-        * data: int or QuantumNumbers
+        * data : int or QuantumNumbers
             When an int, it is the number of degrees of freedom that the index represents;
             When a QuantumNumbers, it is the quantum number collection that the index is associated with.
 
@@ -84,14 +84,14 @@ class DegFreTree(Tree):
             temp=[key for layer in self.layers for key in layer]
             assert set(range(len(PID._fields)))==set([temp.index(key) for key in PID._fields])
             temp=set(temp)
-            self.add_leaf(parent=None,leaf=tuple([None]*len(leaves[0])),data=None)
+            self.addleaf(parent=None,leaf=tuple([None]*len(leaves[0])),data=None)
             for layer in self.layers:
                 temp-=set(layer)
                 indices=set([index.replace(**{key:None for key in temp}) for index in leaves])
-                self.cache[('indices',layer)]=sorted(indices,key=lambda index: index.to_tuple(priority=self.priority))
+                self.cache[('indices',layer)]=sorted(indices,key=lambda index: index.totuple(priority=self.priority))
                 self.cache[('table',layer)]=Table(self.indices(layer=layer))
                 for index in self.indices(layer=layer):
-                    self.add_leaf(parent=index.replace(**{key:None for key in layer}),leaf=index,data=None)
+                    self.addleaf(parent=index.replace(**{key:None for key in layer}),leaf=index,data=None)
             for i,layer in enumerate(reversed(self.layers)):
                 if i==0:
                     for index in self.indices(layer):

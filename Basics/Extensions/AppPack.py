@@ -11,7 +11,7 @@ __all__=['EB','POS','DOS','GF','FS','BC','BP','GP','CPFF']
 
 import numpy as np
 from ..EngineApp import App
-from ..Utilities import berry_curvature,berry_phase
+from ..Utilities import berrycurvature,berryphase
 
 class EB(App):
     '''
@@ -21,7 +21,7 @@ class EB(App):
     ----------
     path : BaseSpace
         The path in the basespace along which the energy spectrum is to be computed.
-    mu : np.float64
+    mu : float
         The base point to measure the energy, usually the chemical potential of the system.
     '''
 
@@ -33,7 +33,7 @@ class EB(App):
         ----------
         path : BaseSpace, optional
             The path in the basespace along which the energy spectrum is to be computed.
-        mu : np.float64, optional
+        mu : float, optional
             The base point to measure the energy, usually the chemical potential of the system.
         '''
         self.path=path
@@ -73,13 +73,13 @@ class DOS(App):
     ----------
     BZ: BaseSpace
         The Brillouin zone.
-    emin,emax : np.float64
+    emin,emax : float
         The lower/upper bound of the energy range.
-    mu : np.float64
+    mu : float
         The base point to measure the energy, usually the chemical potential of the system.
-    ne : integer
+    ne : int
         The number of sample points in the energy range.
-    eta : np.float64
+    eta : float
         The damping factor.
     '''
 
@@ -91,13 +91,13 @@ class DOS(App):
         ----------
         BZ : BaseSpace, optional
             The Brillouin zone.
-        emin,emax : np.float64, optional
+        emin,emax : float, optional
             The lower/upper bound of the energy range.
-        mu : np.float64, optional
+        mu : float, optional
             The base point to measure the energy, usually the chemical potential of the system.
-        ne : integer, optional
+        ne : int, optional
             The number of sample points in the energy range defined by emin and emax.
-        eta : np.float64, optional
+        eta : float, optional
             The damping factor.
         '''
         self.BZ=BZ
@@ -158,9 +158,9 @@ class FS(App):
     ----------
     BZ : BaseSpace
         The Brillouin zone.
-    mu : np.float64
+    mu : float
         The Fermi level.
-    eta : np.float64
+    eta : float
         The damping factor.
     '''
 
@@ -172,9 +172,9 @@ class FS(App):
         ----------
         BZ : BaseSpace
             The Brillouin zone.
-        mu : np.float64
+        mu : float
             The Fermi level.
-        eta : np.float64, optional
+        eta : float, optional
             The damping factor.
         '''
         self.BZ=BZ
@@ -189,11 +189,11 @@ class BC(App):
     ----------
     BZ : BaseSpace
         The Brillouin zone.
-    mu : np.float64
+    mu : float
         The Fermi level.
-    d : np.float64
+    d : float
         The step used to calculate the directives.
-    bcoff : logical, optional
+    bcoff : logical
         When True, only the Chern number will be included in the returned data.
         Otherwise, the Berry curvature will be included as well.
     '''
@@ -206,9 +206,9 @@ class BC(App):
         ----------
         BZ : BaseSpace
             The Brillouin zone.
-        mu : np.float64, optional
+        mu : float, optional
             The Fermi level.
-        d : np.float64, optional
+        d : float, optional
             The step used to calculate the derivatives.
         bcoff : logical, optional
             When True, only the Chern number will be included in the returned data.
@@ -232,13 +232,13 @@ class BC(App):
         -------
         bc : 1d ndarray
             The values of the Berry curvature.
-        cn : np.float64
+        cn : float
             The integration of the Berry curvature.
             When BZ is the first Brillouin zone, this number is the first Chern number.
         '''
         bc=np.zeros(self.BZ.rank('k'))
         for i,ks in enumerate(self.BZ()):
-            bc[i]=berry_curvature(H,ks['k'][0],ks['k'][1],self.mu,d=self.d)
+            bc[i]=berrycurvature(H,ks['k'][0],ks['k'][1],self.mu,d=self.d)
         cn=np.sum(bc)*self.BZ.volume('k')/len(bc)/2/np.pi
         return bc,cn
 
@@ -268,7 +268,7 @@ class BP(App):
         self.path=path
         self.ns=ns
 
-    def set(self,H,path):
+    def set(self,H):
         '''
         Set the Berry phases of the wanted bands for the input Hamiltonian.
 
@@ -276,15 +276,13 @@ class BP(App):
         ----------
         H : callable
             Input function which returns the Hamiltonian as a 2D ndarray.
-        path : list of dict
-            The path of parameters passed to `H`.
 
         Returns
         -------
-        1d ndarray of np.float64
+        1d ndarray of float
             The Berry phases of the bands.
         '''
-        return berry_phase(H,path,self.ns)
+        return berryphase(H,list(self.path('+')),self.ns)
 
 class GP(App):
     '''
@@ -294,7 +292,7 @@ class GP(App):
     ----------
     BZ : BaseSpace
         The Brillouin zone.
-    mu : np.float64
+    mu : float
         The Fermi level.
     '''
 
@@ -306,7 +304,7 @@ class GP(App):
         ----------
         BZ : BaseSpace, optional
             The Brillouin zone.
-        mu : np.float64, optional
+        mu : float, optional
             The Fermi level.
         '''
         self.BZ=BZ
@@ -322,7 +320,7 @@ class CPFF(App):
         'FF' for filling factor and 'CP' for chemical potential.
     BZ : BaseSpace
         The Brillouin zone.
-    cf : np.float64
+    cf : float
         * When `task` is 'FF': the chemical potential
         * When `task` is 'CP': the filling factor
     '''
@@ -337,7 +335,7 @@ class CPFF(App):
             'FF' for filling factor and 'CP' for chemical potential.
         BZ : BaseSpace, optional
             The Brillouin zone.
-        cf : np.float64, optional
+        cf : float, optional
             * When `task` is 'FF': the chemical potential
             * When `task` is 'CP': the filling factor
         '''

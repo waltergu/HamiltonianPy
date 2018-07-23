@@ -101,7 +101,7 @@ class FockOperator(Operator):
         '''
         return len(self.indices)
 
-    def is_normal_ordered(self):
+    def isnormalordered(self):
         '''
         Judge whether an operator is normal ordered.
         '''
@@ -111,7 +111,7 @@ class FockOperator(Operator):
             if not flag and index.nambu==CREATION: return False
         return True
 
-    def is_Hermitian(self):
+    def isHermitian(self):
         '''
         Judge whether an operator is Hermitian.
         '''

@@ -11,5 +11,5 @@ Misc
 .. automodule:: HamiltonianPy.Misc.Linalg
    :members:
 
-.. automodule:: HamiltonianPy.Misc.Calculus
+.. automodule:: HamiltonianPy.Misc.Optimize
    :members:

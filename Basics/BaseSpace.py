@@ -24,11 +24,11 @@ class BaseSpace(object):
 
     Attributes
     ----------
-    tags : list of string
+    tags : list of str
         The tags of the parameter spaces.
     meshes : list of ndarray
         The meshes of the parameter spaces.
-    volumes : list of float64
+    volumes : list of float
         The volumes of the parameter spaces.
     '''
 
@@ -39,11 +39,11 @@ class BaseSpace(object):
         Parameters
         ----------
         contents : list of 2/3-tuples
-            * tuple[0]: string
+            * tuple[0]: str
                 The tag of the parameter space.
             * tuple[1]: ndarray
                 The mesh of the parameter space.
-            * tuple[2]: float64, optional
+            * tuple[2]: float, optional
                 The volume of the parameter space..
         '''
         self.tags=[para[0] for para in contents]
@@ -62,15 +62,13 @@ class BaseSpace(object):
 
         Parameters
         ----------
-        mode : string,optional
-
-            A flag to indicate how to construct the generator.
-                * "+": direct sum
-                * "*": direct product
+        mode : '+'/'*', optional
+            * "+": use direct sum to construct the generator.
+            * "*": use direct product to construct the generator.
 
         Yields
         ------
-            A dict in the form {tag1:value1,tag2:value2,...}
+            An ordered dict in the form {tag1:value1,tag2:value2,...}
 
         Notes
         -----
@@ -128,7 +126,7 @@ def KSpace(reciprocals,nk=100,segments=None,end=False):
     ----------
     reciprocals : list of 1d ndarray
         The translation vectors of the reciprocal lattice.
-    nk : integer,optional
+    nk : int, optional
         The number of sample points along each translation vector.
     segments : list of 2-tuple, optional
         The relative start and stop positions along each translation vector.
@@ -157,7 +155,7 @@ def KPath(path,nk=100,ends=None,mode='R'):
         The number of k points for every or the shortest segment.
     ends : iterable of logical, optional
         True for including the stop point of the corresponding segment in the path and False for not.
-    mode : 'R', 'E', optional
+    mode : 'R'/'E', optional
         * When 'R', the number of k points for the shortest segment is `nk` and the numbers of others are determined by their length relative to the shortest one.
         * When 'E', the number of k points for every segment is 'nk'.
 
@@ -227,7 +225,7 @@ class FBZ(QuantumNumbers,BaseSpace):
 
         Parameters
         ----------
-        k : iterable of integers
+        k : iterable of int
             The quantum-number-formed k point.
 
         Returns
@@ -250,44 +248,49 @@ class FBZ(QuantumNumbers,BaseSpace):
                 The stop point in the k space.
         ends : iterable of logical, optional
             True for including the stop point of the corresponding segment in the path and False for not.
-        mode : 'P','I','B', optional
-            'P' for 'point', 'I' for 'index' and 'B' for both.
+        mode : 'P','Q','I', optional
+            'P' for 'point', 'Q' for 'quantum number' and 'I' for 'index'.
 
         Returns
         -------
         * When ``mode=='P'`` : BaseSpace
-            The selected path.
+            The selected path in coordinates.
+        * When ``mode=='Q'`` : BaseSpace
+            The selected path in quantum numbers.
         * When ``mode=='I'`` : 1d ndarray
             The indices of the selected path.
-        * When ``mode=='B'`` : 2-tuple
-            The selected path and its indices.
         '''
         mode,ends=mode.upper(),[False]*len(path) if ends is None else ends
-        assert mode in ('P','I','B') and len(ends)==len(path)
+        assert mode in ('P','Q','I') and len(ends)==len(path)
         maxp=max(self.type.periods)
         disps=[np.dot(self.reciprocals.T,disp) for disp in list(it.product(*([[0,-1]]*len(self.reciprocals))))]
-        psegments,isegments,dsegments=[[] for i in xrange(len(path))],[[] for i in xrange(len(path))],[[] for i in xrange(len(path))]
-        for pos,rcoord0 in enumerate(self.mesh('k')):
+        psegments,qsegments=[[] for i in xrange(len(path))],[[] for i in xrange(len(path))]
+        isegments,dsegments=[[] for i in xrange(len(path))],[[] for i in xrange(len(path))]
+        for pos,(qn,rcoord0) in enumerate(zip(self.contents,self.mesh('k'))):
             for disp in disps:
                 rcoord=rcoord0+disp
                 for i,((start,stop),end) in enumerate(zip(path,ends)):
                     if isonline(rcoord,start,stop,ends=(True,end),rtol=10**-3/maxp):
                         psegments[i].append(rcoord)
+                        qsegments[i].append(qn)
                         isegments[i].append(pos)
                         dsegments[i].append(nl.norm(rcoord-start))
-        points,indices=[],[]
-        for i,(psegment,isegment,dsegment) in enumerate(zip(psegments,isegments,dsegments)):
+        points,qns,indices=[],[],[]
+        for i,(psegment,qsegment,isegment,dsegment) in enumerate(zip(psegments,qsegments,isegments,dsegments)):
             permutation=np.argsort(np.array(dsegment))
             psegment=np.array(psegment)[permutation,:]
+            qsegment=np.array(qsegment)[permutation,:]
             isegment=np.array(isegment)[permutation]
             if i>0 and isegment[0]==indices[-1][-1]:
                 psegment=psegment[1:,:]
+                qsegment=qsegment[1:,:]
                 isegment=isegment[1:]
             points.append(psegment)
+            qns.append(qsegment)
             indices.append(isegment)
         if mode=='P':
             return BaseSpace(('k',np.concatenate(points)))
+        if mode=='Q':
+            return BaseSpace(('k',np.concatenate(qns)))
         if mode=='I':
             return np.concatenate(indices)
-        if mode=='B':
-            return BaseSpace(('k',np.concatenate(points))),np.concatenate(indices)

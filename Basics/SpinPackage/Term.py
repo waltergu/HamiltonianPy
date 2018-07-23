@@ -23,7 +23,7 @@ class SpinTerm(Term):
 
     Attributes
     ----------
-    neighbour : integer
+    neighbour : int
         The order of neighbour of this spin term.
     indexpacks : IndexPacks or function which returns IndexPacks
         The indexpacks of the spin term.
@@ -38,11 +38,11 @@ class SpinTerm(Term):
 
         Parameters
         ----------
-        id : string
+        id : str
             The specific id of the term.
         value : float or complex
             The overall coefficient of the term.
-        neighbour : integer
+        neighbour : int
             The order of neighbour of the term.
         indexpacks : IndexPacks or callable
             * IndexPacks:

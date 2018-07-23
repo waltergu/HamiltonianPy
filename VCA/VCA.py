@@ -386,7 +386,7 @@ class VCA(ED.FED):
 
         Parameters
         ----------
-        omega : np.complex128/np.complex64, optional
+        omega : complex/float, optional
             The frequency of the cluster Green's function.
 
         Returns
@@ -418,15 +418,15 @@ class VCA(ED.FED):
             The matrix form of the perturbations.
         '''
         result=np.zeros((self.ncopt,self.ncopt),dtype=np.complex128)
-        for opt in self.pthoperators.itervalues():
+        for opt in self.pthoperators:
             result[opt.seqs]+=opt.value*(1 if len(k)==0 else np.exp(-1j*np.inner(k,opt.icoord)))
-        for opt in self.ptwoperators.itervalues():
+        for opt in self.ptwoperators:
             result[opt.seqs]-=opt.value
-        for opt in self.ptboperators.itervalues():
+        for opt in self.ptboperators:
             result[opt.seqs]-=opt.value
         return result+result.T.conjugate()
 
-    def pt_kmesh(self,kmesh):
+    def ptmesh(self,kmesh):
         '''
         Returns the mesh of the inter-cluster perturbations.
 
@@ -441,13 +441,13 @@ class VCA(ED.FED):
         3d ndarray
             The pt mesh.
         '''
-        if 'pt_kmesh' in self.cache:
-            return self.cache['pt_kmesh']
+        if 'ptmesh' in self.cache:
+            return self.cache['ptmesh']
         else:
             result=np.zeros((kmesh.shape[0],self.ncopt,self.ncopt),dtype=np.complex128)
             for i,k in enumerate(kmesh):
                 result[i,:,:]=self.pt(k)
-            self.cache['pt_kmesh']=result
+            self.cache['ptmesh']=result
             return result
 
     def mgf(self,omega=None,k=()):
@@ -456,7 +456,7 @@ class VCA(ED.FED):
 
         Parameters
         ----------
-        omega : np.complex128/np.complex64, optional
+        omega : complex/float, optional
             The frequency of the mixed Green's function.
         k : 1d ndarray like, optional
             The momentum of the mixed Green's function.
@@ -472,13 +472,13 @@ class VCA(ED.FED):
         else:
             return inv(ginv[self.CGF.lindices,:][:,self.CGF.lindices])
 
-    def mgf_kmesh(self,omega,kmesh):
+    def mgfmesh(self,omega,kmesh):
         '''
         Returns the mesh of the Green's functions in the mixed representation with respect to momentums.
 
         Parameters
         ----------
-        omega : np.complex128/np.complex64
+        omega : complex/float
             The frequency of the mixed Green's functions.
         kmesh : (n+1)d ndarray like
             The kmesh of the mixed Green's functions.
@@ -489,7 +489,7 @@ class VCA(ED.FED):
         3d ndarray
             The mesh of the mixed Green's functions.
         '''
-        ginv=inv(self.cgf(omega))-self.pt_kmesh(kmesh)
+        ginv=inv(self.cgf(omega))-self.ptmesh(kmesh)
         if self.ncbopt==0:
             return inv(ginv)
         else:
@@ -501,7 +501,7 @@ class VCA(ED.FED):
 
         Parameters
         ----------
-        omega : np.complex128/np.complex64, optional
+        omega : complex/float, optional
             The frequency of the VCA Green's function.
         k : 1d ndarray like, optional
             The momentum of the VCA Green's function.
@@ -513,13 +513,13 @@ class VCA(ED.FED):
         '''
         return _gf_contract_(k,self.mgf(omega,k),self.periodization['seqs'],self.periodization['coords'])/(self.nclopt/self.nopt)
 
-    def gf_kmesh(self,omega,kmesh):
+    def gfmesh(self,omega,kmesh):
         '''
         Returns the mesh of the VCA Green's functions with respect to momentums.
 
         Parameters
         ----------
-        omega : np.complex128/np.complex64
+        omega : complex/float
             The frequency of the VCA Green's functions.
         kmesh : (n+1)d ndarray like
             The kmesh of the VCA Green's functions.
@@ -530,10 +530,10 @@ class VCA(ED.FED):
         3d ndarray
             The mesh of the VCA Green's functions.
         '''
-        mgf_kmesh=self.mgf_kmesh(omega,kmesh)
+        mgfmesh=self.mgfmesh(omega,kmesh)
         result=np.zeros((kmesh.shape[0],self.nopt,self.nopt),dtype=np.complex128)
         for n,k in enumerate(kmesh):
-            result[n,:,:]=_gf_contract_(k,mgf_kmesh[n,:,:],self.periodization['seqs'],self.periodization['coords'])
+            result[n,:,:]=_gf_contract_(k,mgfmesh[n,:,:],self.periodization['seqs'],self.periodization['coords'])
         return result/(self.nclopt/self.nopt)
 
     def totba(self,weisson=False):
@@ -570,11 +570,11 @@ class EB(HP.EB):
 
     Attributes
     ----------
-    emin,emax : np.float64
+    emin,emax : float
         The energy range of the single particle spectrum.
-    ne : integer
+    ne : int
         The number of sample points in the energy range.
-    eta : np.float64
+    eta : float
         The damping factor.
     '''
 
@@ -584,11 +584,11 @@ class EB(HP.EB):
 
         Parameters
         ----------
-        emin,emax : np.float64
+        emin,emax : float
             The energy range of the single particle spectrum.
-        ne : integer
+        ne : int
             The number of sample points in the energy range.
-        eta : np.float64
+        eta : float
             The damping factor.
         '''
         super(EB,self).__init__(**karg)
@@ -602,13 +602,14 @@ def VCAEB(engine,app):
     This method calculates the single particle spectrum along a path in the Brillouin zone.
     '''
     engine.rundependences(app.name)
-    engine.cache.pop('pt_kmesh',None)
+    engine.cache.pop('ptmesh',None)
+    if isinstance(app.path,str): app.path=HP.KPath(HP.KMap(engine.lattice.reciprocals,path),nk=100)
     erange,kmesh,nk=np.linspace(app.emin,app.emax,app.ne),app.path.mesh('k'),app.path.rank('k')
     result=np.zeros((nk,app.ne,3))
     result[:,:,0]=np.tensordot(np.array(xrange(nk)),np.ones(app.ne),axes=0)
     result[:,:,1]=np.tensordot(np.ones(nk),erange,axes=0)
     for i,omega in enumerate(erange):
-        result[:,i,2]=-(np.trace(engine.gf_kmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2)).imag/engine.nopt/np.pi
+        result[:,i,2]=-(np.trace(engine.gfmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2)).imag/engine.nopt/np.pi
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result.reshape((nk*app.ne,3)))
     if app.plot: app.figure('P',result,'%s/%s'%(engine.dout,name))
@@ -619,12 +620,12 @@ def VCADOS(engine,app):
     This method calculates the density of the single particle states.
     '''
     engine.rundependences(app.name)
-    engine.cache.pop('pt_kmesh',None)
+    engine.cache.pop('ptmesh',None)
     erange,kmesh,nk=np.linspace(app.emin,app.emax,app.ne),app.BZ.mesh('k'),app.BZ.rank('k')
     result=np.zeros((app.ne,2))
     for i,omega in enumerate(erange):
         result[i,0]=omega
-        result[i,1]=-np.trace(engine.mgf_kmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).sum().imag/engine.nclopt/nk/np.pi
+        result[i,1]=-np.trace(engine.mgfmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).sum().imag/engine.nclopt/nk/np.pi
     engine.log<<'Sum of DOS: %s\n'%(sum(result[:,1])*(app.emax-app.emin)/app.ne)
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
@@ -636,11 +637,11 @@ def VCAFS(engine,app):
     This method calculates the single particle spectrum at the Fermi surface.
     '''
     engine.rundependences(app.name)
-    engine.cache.pop('pt_kmesh',None)
+    engine.cache.pop('ptmesh',None)
     kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
     result=np.zeros((nk,3))
     result[:,0:2]=kmesh
-    result[:,2]=-np.trace(engine.gf_kmesh(app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).imag/engine.nclopt/np.pi
+    result[:,2]=-np.trace(engine.gfmesh(app.mu+app.eta*1j,kmesh),axis1=1,axis2=2).imag/engine.nclopt/np.pi
     name='%s_%s'%(engine,app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('P',result.reshape((int(np.sqrt(nk)),int(np.sqrt(nk)),3)),'%s/%s'%(engine.dout,name),axis='equal')
@@ -669,6 +670,7 @@ def VCATEB(engine,app):
     '''
     This method calculates the topological Hamiltonian's spectrum.
     '''
+    if isinstance(app.path,str): app.path=HP.KPath(HP.KMap(engine.lattice.reciprocals,path),nk=100)
     engine.rundependences(app.name)
     engine.gf(omega=app.mu)
     H=lambda kx,ky: -inv(engine.gf(k=[kx,ky]))
@@ -686,13 +688,13 @@ def VCAGP(engine,app):
     This method calculates the grand potential.
     '''
     engine.rundependences(app.name)
-    engine.cache.pop('pt_kmesh',None)
+    engine.cache.pop('ptmesh',None)
     stime=time.time()
-    cgf,pt_kmesh,nk=engine.CGF,engine.pt_kmesh(app.BZ.mesh('k')),app.BZ.rank('k')
-    fx=lambda omega: np.log(np.abs(det(np.eye(engine.ncopt)-np.tensordot(pt_kmesh,engine.cgf(omega=omega*1j+app.mu),axes=(2,0))))).sum()
+    cgf,ptmesh,nk=engine.CGF,engine.ptmesh(app.BZ.mesh('k')),app.BZ.rank('k')
+    fx=lambda omega: np.log(np.abs(det(np.eye(engine.ncopt)-np.tensordot(ptmesh,engine.cgf(omega=omega*1j+app.mu),axes=(2,0))))).sum()
     rquad=quad(fx,0,np.float(np.inf),full_output=2,epsrel=1.49e-12)
     part1=-rquad[0]/np.pi
-    part2=np.trace(pt_kmesh,axis1=1,axis2=2).sum().real/2
+    part2=np.trace(ptmesh,axis1=1,axis2=2).sum().real/2
     gp=(cgf.gse+(part1+part2)/nk)/(engine.nclopt/engine.nopt)/len(engine.cell)
     etime=time.time()
     engine.log<<'gp(mu=%s,err=%.2e,neval=%s,time=%.2es): %s\n\n'%(HP.decimaltostr(app.mu),rquad[1],rquad[2]['neval'],etime-stime,gp)
@@ -738,7 +740,7 @@ def VCAGPM(engine,app):
     records={}
     def gp(values,keys):
         if tuple(values) not in records:
-            engine.cache.pop('pt_kmesh',None)
+            engine.cache.pop('ptmesh',None)
             engine.update(**{key:value for key,value in zip(keys,values)})
             engine.rundependences(app.name)
             records[tuple(values)]=engine.records[app.dependences[0]]
@@ -771,7 +773,7 @@ class CPFF(HP.CPFF):
 
     Attributes
     ----------
-    p : np.float64
+    p : float
         A tunable parameter used in the calculation. Refer arXiv:0806.2690 for details.
     options : dict
         Extra options.
@@ -783,7 +785,7 @@ class CPFF(HP.CPFF):
 
         Parameters
         -----------
-        p : np.float64, optional
+        p : float, optional
             A tunable parameter used in the calculation.
         options : dict, optional
             Extra options.
@@ -797,9 +799,9 @@ def VCACPFF(engine,app):
     This method calculates the chemical potential or filling factor.
     '''
     engine.rundependences(app.name)
-    engine.cache.pop('pt_kmesh',None)
+    engine.cache.pop('ptmesh',None)
     kmesh,nk=app.BZ.mesh('k'),app.BZ.rank('k')
-    fx=lambda omega,mu: (np.trace(engine.mgf_kmesh(omega=mu+1j*omega,kmesh=kmesh),axis1=1,axis2=2)-engine.nclopt/(1j*omega-app.p)).sum().real
+    fx=lambda omega,mu: (np.trace(engine.mgfmesh(omega=mu+1j*omega,kmesh=kmesh),axis1=1,axis2=2)-engine.nclopt/(1j*omega-app.p)).sum().real
     if app.task=='CP':
         gx=lambda mu: quad(fx,0,np.float(np.inf),args=mu)[0]/nk/engine.nclopt/np.pi-app.cf
         mu=broyden2(gx,app.options.pop('x0',0.0),**app.options)
@@ -821,9 +823,9 @@ class OP(HP.App):
         The terms representing the orders.
     BZ : BaseSpace
         The first Brillouin zone.
-    mu : np.float64
+    mu : float
         The Fermi level.
-    p : np.float64
+    p : float
         A tunable parameter used in the calculation. Refer arXiv:0806.2690 for details.
     dtypes : list of np.float32/np.float64/np.complex64/np.complex128
         The data types of the order parameters.
@@ -839,7 +841,7 @@ class OP(HP.App):
             The terms representing the orders.
         BZ : BaseSpace, optional
             The first Brillouin zone.
-        mu : np.float64, optional
+        mu : float, optional
             The Fermi level.
         p : float, optional
             A tunable parameter used in the calculation.
@@ -858,7 +860,7 @@ def VCAOP(engine,app):
     This method calculates the order parameters.
     '''
     engine.rundependences(app.name)
-    engine.cache.pop('pt_kmesh',None)
+    engine.cache.pop('ptmesh',None)
     cgf,kmesh,nk=engine.CGF,app.BZ.mesh('k'),app.BZ.rank('k')
     ops,ms={},np.zeros((len(app.terms),engine.nclopt,engine.nclopt),dtype=np.complex128)
     table=HP.Table([operator.index for operator in cgf.loperators])
@@ -868,7 +870,7 @@ def VCAOP(engine,app):
         for opt in HP.Generator(engine.lattice.bonds,engine.config,table=table,terms=[order],half=True).operators.itervalues():
             ms[i,opt.seqs[0],opt.seqs[1]]+=opt.value
         ms[i,:,:]+=ms[i,:,:].T.conjugate()
-    fx=lambda omega,m: (np.trace(np.tensordot(engine.mgf_kmesh(omega=app.mu+1j*omega,kmesh=kmesh),m,axes=(2,0)),axis1=1,axis2=2)-np.trace(m)/(1j*omega-app.p)).sum().real
+    fx=lambda omega,m: (np.trace(np.tensordot(engine.mgfmesh(omega=app.mu+1j*omega,kmesh=kmesh),m,axes=(2,0)),axis1=1,axis2=2)-np.trace(m)/(1j*omega-app.p)).sum().real
     for term,m,dtype in zip(app.terms,ms,app.dtypes):
         ops[term.id]=quad(fx,0,np.float(np.inf),args=m)[0]/nk/engine.nclopt*2/np.pi
         if dtype in (np.float32,np.float64): ops[term.id]=ops[term.id].real
@@ -883,9 +885,9 @@ class DTBT(HP.App):
     ----------
     path : BaseSpace
         The path in the Brillouin zone.
-    mu : np.float64
+    mu : float
         The Fermi level.
-    p : np.float64
+    p : float
         A tunable parameter used in the calculation.
     '''
 
@@ -897,9 +899,9 @@ class DTBT(HP.App):
         ----------
         path : BaseSpace
             The path in the Brillouin zone.
-        mu : np.float64
+        mu : float
             The Fermi level.
-        p : np.float64, optional
+        p : float, optional
             A tunable parameter used in the calculation.
         '''
         self.path=path

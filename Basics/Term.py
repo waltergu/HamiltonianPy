@@ -20,9 +20,9 @@ class Term(Arithmetic):
 
     Attributes
     ----------
-    id : string
+    id : str
         The specific id of the term.
-    value : scalar of 1d array-like of float/complex
+    value : scalar or 1d array-like of float/complex
         The overall coefficient(s) of the term.
     modulate : callable
         A function used to alter the value of the term.
@@ -39,8 +39,9 @@ class Term(Arithmetic):
             The specific id of the term.
         value : scalar of 1D array-like of float, complex, optional
             The overall coefficient(s) of the term.
-        modulate : callable, optional
-            A function used to alter the value of the term.
+        modulate : callable/True, optional
+            * When callable, the function used to alter the value of the term.
+            * When True, an automatic function to alter the value of the term will be generatred.
         '''
         self.id=id
         self.value=value

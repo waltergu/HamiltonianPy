@@ -1,13 +1,13 @@
 '''
 ========
-Calculus
+Optimize
 ========
 
-Calculus related functions, including
-    * functions: bisect, derivatives, fpapprox, quadapprox, line_search_stable, newton, fstable
+Optimization related functions, including
+    * functions: bisect, derivatives, fpapprox, quadapprox, searchstable, newton, fstable
 '''
 
-__all__=['bisect','derivatives','fpapprox','quadapprox','line_search_stable','newton','fstable']
+__all__=['bisect','derivatives','fpapprox','quadapprox','linesearchstable','newton','fstable']
 
 import numpy as np
 import numpy.linalg as nl
@@ -65,7 +65,7 @@ def derivatives(xs,ys,ders=(1,)):
         The sample points of the argument.
     ys: 1d ndarray
         The corresponding sample points of the function.
-    ders : tuple of integer
+    ders : tuple of int
         The derivatives to calculate.
 
     Returns
@@ -167,7 +167,7 @@ def quadapprox(fun,x0,args=(),eps=1.49e-06):
             count+=1
     return f0,fp1,fp2
 
-def line_search_stable(fun,x0,dx,fp1,fp2,args=(),eps=1.49e-06,fpmode=0,c1=1e-4):
+def linesearchstable(fun,x0,dx,fp1,fp2,args=(),eps=1.49e-06,fpmode=0,c1=1e-4):
     '''
     Use the Armijo condition to search the stationary point of a function along a direction.
 
@@ -211,12 +211,12 @@ def line_search_stable(fun,x0,dx,fp1,fp2,args=(),eps=1.49e-06,fpmode=0,c1=1e-4):
         return fap(alpha)**2
     alpha=op.linesearch.scalar_search_armijo(phi,(fp1.dot(dx))**2,fp1.dot(fp2.dot(fp1)),c1=c1,amin=10*eps)[0]
     if alpha is None:
-        warnings.warn('line_search_stable warning: not converged, last value used as the final alpha.')
+        warnings.warn('linesearchstable warning: not converged, last value used as the final alpha.')
         alpha=record[-1]
     fop,fp1op=fa(alpha),fap(alpha)
     return alpha,fop,fp1op
 
-def newton(fun,x0,args=(),tol=10**-4,callback=None,disp=False,eps=1.49e-06,fpmode=0,hesmode='quadapprox',return_all=False,maxiter=50):
+def newton(fun,x0,args=(),tol=10**-4,callback=None,disp=False,eps=1.49e-06,fpmode=0,hesmode='quadapprox',maxiter=50):
     '''
     Find the stable point of a function.
 
@@ -242,8 +242,6 @@ def newton(fun,x0,args=(),tol=10**-4,callback=None,disp=False,eps=1.49e-06,fpmod
     hesmode : 'quadapprox' or 'BFGS', optional
         * 'quadapprox' use ``quadapprox`` to approximate the Hessian matrix at each iteration;
         * 'BFGS' use ``quadapprox`` to approximate the Hessian matrix at the beginning and update it by the BFGS formula.
-    return_all : logical, optional
-        True for returning all the convergence information.
     maxiter : int, optional
         The maximum number of iterations.
 
@@ -277,7 +275,7 @@ def newton(fun,x0,args=(),tol=10**-4,callback=None,disp=False,eps=1.49e-06,fpmod
             x+=diff
             if callable(callback): callback(x)
             break
-        alpha=line_search_stable(fx,x,diff,fp1,fp2,eps=eps,fpmode=fpmode)[0]
+        alpha=linesearchstable(fx,x,diff,fp1,fp2,eps=eps,fpmode=fpmode)[0]
         print '\nalpha: %s\n'%alpha
         err*=np.abs(alpha)
         x+=alpha*diff

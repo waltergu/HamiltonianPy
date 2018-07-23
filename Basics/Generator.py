@@ -28,18 +28,11 @@ class Generator(object):
     config : IDFConfig
         The configuration of the internal degrees of freedom.
     table : Table
-        The index-sequence table of the system
+        The index-sequence table of the system.
     terms : dict
         It contains all terms contained in the model, divided into two groups, the constant ones and the alterable ones.
-    boundaries : 4-tuple in the form (names,values,vectors,function)
-        * names : tuple of str
-            The variable names of the boundary phases.
-        * values : tuple of number
-            The variable values of the boundary phases.
-        * vectors : 2d ndarray like
-            The translation vectors of the lattice.
-        * function : callable
-            The function used to transform the boundary operators.
+    boundary : Boundary
+        The boundary conditions.
     _operators_ : dict
         The cache to handle the generation and update of the operators.
     _matrix_ : dict
@@ -50,7 +43,7 @@ class Generator(object):
         The extra key word arguments for Term.operators.
     '''
 
-    def __init__(self,bonds,config,table=None,terms=None,boundaries=None,dtype=np.complex128,**options):
+    def __init__(self,bonds,config,table=None,terms=None,boundary=None,dtype=np.complex128,**options):
         '''
         Constructor.
 
@@ -64,15 +57,8 @@ class Generator(object):
             The index-sequence table.
         terms : list of Term, optional
             The terms whose operators are to be generated and updated.
-        boundaries : 4-tuple in the form (names,values,vectors,function)
-            * names : tuple of str
-                The variable names of the boundary phases.
-            * values : tuple of number
-                The variable values of the boundary phases.
-            * vectors : 2d ndarray like
-                The translation vectors of the lattice.
-            * function : callable
-                The function used to transform the boundary operators.
+        boundary : Boundary, optional
+            The boundary conditions.
         dtype : numpy.float64, numpy.complex128, optional
             The data type of the coefficients of the generated operators.
         options : dict, optional
@@ -81,26 +67,26 @@ class Generator(object):
         self.bonds=bonds
         self.config=config
         self.table=table
-        self.boundaries=boundaries
+        self.boundary=boundary
         self.dtype=dtype
         self.options=options
         self.set_terms(terms)
         self.set_operators()
         self._matrix_={}
 
-    def reset(self,bonds=None,config=None,table=None,terms=None,boundaries=None,dtype=None,**options):
+    def reset(self,bonds=None,config=None,table=None,terms=None,boundary=None,dtype=None,**options):
         '''
         Refresh the generator.
 
         Parameters
         ----------
-        bonds,config,table,terms,boundaries,dtype,options : see Generator.__init__ for details.
+        bonds,config,table,terms,boundary,dtype,options : see Generator.__init__ for details.
         '''
         if bonds is not None: self.bonds=bonds
         if config is not None: self.config=config
         if table is not None: self.table=table
         if dtype is not None: self.dtype=dtype
-        if boundaries is not None: self.boundaries=boundaries
+        if boundary is not None: self.boundary=boundary
         if len(options)>0: self.options=options
         if terms is not None: self.set_terms(terms)
         self.set_operators()
@@ -126,22 +112,18 @@ class Generator(object):
         for term in self.terms['const']:
             for bond in self.bonds:
                 opts=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
-                if self.boundaries is None or bond.isintracell():
+                if self.boundary is None or bond.isintracell():
                     self._operators_['const']+=opts
                 else:
-                    values,vectors,function=self.boundaries[1:]
-                    for opt in opts.itervalues():
-                        self._operators_['bound']+=function(opt,vectors,values)
+                    for opt in opts: self._operators_['bound']+=self.boundary(opt)
         for term in self.terms['alter']:
             operators=Operators()
             for bond in self.bonds:
                 opts=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
-                if self.boundaries is None or bond.isintracell():
+                if self.boundary is None or bond.isintracell():
                     operators+=opts
                 else:
-                    values,vectors,function=self.boundaries[1:]
-                    for opt in opts.itervalues():
-                        self._operators_['bound']+=function(opt,vectors,values)
+                    for opt in opts: self._operators_['bound']+=self.boundary(opt)
             self._operators_['alter'].append(operators)
 
     def set_matrix(self,sector,optrep,*args,**kargs):
@@ -158,12 +140,12 @@ class Generator(object):
             The extra arguments of the function `optrep`.
         '''
         self._matrix_[sector]={'const':0,'alter':[],'bound':[optrep,args,kargs]}
-        for operator in self._operators_['const'].itervalues():
+        for operator in self._operators_['const']:
             self._matrix_[sector]['const']+=optrep(operator,*args,**kargs)
         for term in self.terms['alter']:
             term,matrix=term.unit,0
             for bond in self.bonds:
-                for operator in term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options).itervalues():
+                for operator in term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options):
                     matrix+=optrep(operator,*args,**kargs)
             self._matrix_[sector]['alter'].append(matrix)
 
@@ -208,7 +190,7 @@ class Generator(object):
         result+=self._matrix_[sector]['const']
         for term,matrix in zip(self.terms['alter'],self._matrix_[sector]['alter']):
             result+=matrix*term.value
-        for opt in self._operators_['bound'].itervalues():
+        for opt in self._operators_['bound']:
             optrep,args,kargs=self._matrix_[sector]['bound']
             result+=optrep(opt,*args,**kargs)
         return result
@@ -217,16 +199,15 @@ class Generator(object):
         '''
         This method updates the alterable operators by keyword arguments.
         '''
-        if self.boundaries is not None:
+        if self.boundary is not None:
             self._operators_['bound']=Operators()
-            names,values,vectors,function=self.boundaries
-            thetas=[karg.get(name,value) for name,value in zip(names,values)]
+            self.boundary.update(**karg)
+            print self.boundary.values
             for term in self.terms['const']:
                 for bond in self.bonds:
                     if not bond.isintracell():
                         opts=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
-                        for opt in opts.itervalues(): self._operators_['bound']+=function(opt,vectors,thetas)
-            self.boundaries=(names,thetas,vectors,function)
+                        for opt in opts: self._operators_['bound']+=self.boundary(opt)
         for pos,term in enumerate(self.terms['alter']):
             nv=term.modulate(**karg)
             if nv is not None and nl.norm(np.array(nv)-np.array(term.value))>RZERO:
@@ -234,10 +215,10 @@ class Generator(object):
                 self._operators_['alter'][pos]=Operators()
                 for bond in self.bonds:
                     opts=term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options)
-                    if self.boundaries is None or bond.isintracell():
+                    if self.boundary is None or bond.isintracell():
                         self._operators_['alter'][pos]+=opts
                     else:
-                        for opt in opts.itervalues(): self._operators_['bound']+=function(opt,vectors,thetas)
+                        for opt in opts: self._operators_['bound']+=self.boundary(opt)
 
     def view(self,bondselect=None,termselect=None,pidon=True,bonddr='+',show=True,suspend=False,close=True):
         '''

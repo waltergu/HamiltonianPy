@@ -26,7 +26,7 @@ class TestSpinTerm(TestCase):
     def test_term(self):
         generator=Generator(self.lattice.bonds,self.config,terms=self.terms,dtype=np.float64)
         matrix=0
-        for opt in generator.operators.values():
+        for opt in generator.operators:
             matrix+=soptrep(opt,self.config.table())
         result=np.array([
                     [-4.75, 0.0 , 0.0 , 0.0 ],

@@ -4,10 +4,10 @@ Miscellaneous functions
 =======================
 
 Miscellaneous functions (mainly for tensor decomposition), including:
-    * functions: random, directsum, eigh, partitioned_svd, svd, expanded_svd, deparallelization
+    * functions: random, directsum, eigh, partitionedsvd, svd, expandedsvd, deparallelization
 '''
 
-__all__=['random','directsum','eigh','partitioned_svd','svd','expanded_svd','deparallelization']
+__all__=['random','directsum','eigh','partitionedsvd','svd','expandedsvd','deparallelization']
 
 import numpy as np
 import itertools as it
@@ -47,7 +47,7 @@ def random(labels,mode='D',dtype=np.float64):
             plabel,ppermutation=Label.union(plbls,'__TENSOR_RANDOM_D_+__',+1,mode=1)
             mlabel,mpermutation=Label.union(mlbls,'__TENSOR_RANDOM_D_-__',-1,mode=1)
             data=np.zeros((plabel.dim,mlabel.dim),dtype=dtype)
-            pod,mod=plabel.qns.to_ordereddict(),mlabel.qns.to_ordereddict()
+            pod,mod=plabel.qns.toordereddict(),mlabel.qns.toordereddict()
             for qn in it.ifilter(pod.has_key,mod):
                 bshape=(pod[qn].stop-pod[qn].start,mod[qn].stop-mod[qn].start)
                 data[pod[qn],mod[qn]]=np.random.random(bshape)
@@ -61,8 +61,8 @@ def random(labels,mode='D',dtype=np.float64):
             plabel,precord=Label.union(plbls,'__TENSOR_RANDOM_S_+__',+1,mode=2)
             mlabel,mrecord=Label.union(mlbls,'__TENSOR_RANDOM_S_-__',-1,mode=2)
             data={}
-            ods=[label.qns.to_ordereddict(protocol=QuantumNumbers.COUNTS) for label in labels]
-            pod,mod=plabel.qns.to_ordereddict(),mlabel.qns.to_ordereddict()
+            ods=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS) for label in labels]
+            pod,mod=plabel.qns.toordereddict(),mlabel.qns.toordereddict()
             for qn in it.ifilter(pod.has_key,mod):
                 for pqns,mqns in it.product(precord[qn],mrecord[qn]):
                     qns=tuple(it.chain(pqns,mqns))
@@ -136,7 +136,7 @@ def directsum(tensors,labels,axes=()):
     for axis in axes: labels[axis].qns=tensor.labels[axis].qns
     return type(TENSOR)(data,labels=labels)
 
-def eigh(tensor,row,new,col,return_dagger=False):
+def eigh(tensor,row,new,col,returndagger=False):
     '''
     Eigenvalue decomposition of a tensor.
 
@@ -148,7 +148,7 @@ def eigh(tensor,row,new,col,return_dagger=False):
         The axes or labels to be merged as the row/column during the eigenvalue decomposition.
     new : Label
         The label for the eigenvalues.
-    return_dagger : logical, optional
+    returndagger : logical, optional
         True for returning the Hermitian conjugate of the eigenvalue matrix and False for not.
 
     Returns
@@ -166,74 +166,74 @@ def eigh(tensor,row,new,col,return_dagger=False):
     row=[r if isinstance(r,Label) else tensor.label(r) for r in row]
     col=[c if isinstance(c,Label) else tensor.label(c) for c in col]
     if isinstance(tensor,STensor):
-        row_label,row_record=Label.union(row,'__TENSOR_EIGH_ROW__',+1,mode=2)
-        col_label,col_record=Label.union(col,'__TENSOR_EIGH_COL__',-1,mode=2)
-        assert len(row_label.qns)==len(col_label.qns)
-        m=tensor.merge((row,row_label,row_record),(col,col_label,col_record)).data
+        rowlabel,rowrecord=Label.union(row,'__TENSOR_EIGH_ROW__',+1,mode=2)
+        collabel,colrecord=Label.union(col,'__TENSOR_EIGH_COL__',-1,mode=2)
+        assert len(rowlabel.qns)==len(collabel.qns)
+        m=tensor.merge((row,rowlabel,rowrecord),(col,collabel,colrecord)).data
         Es,Us=[],{}
         for qns,block in m.iteritems():
             assert qns[0]==qns[1] and block.shape[0]==block.shape[1]
             e,u=sl.eigh(block,check_finite=False)
             Es.append(e)
             Us[qns]=u
-        new=new.replace(qns=row_label.qns,flow=None)
+        new=new.replace(qns=rowlabel.qns,flow=None)
         E=DTensor(np.concatenate(Es),labels=[new])
-        U=DTensor(Us,labels=[row_label,new.replace(flow=-1)]).split((row_label,row,row_record))
+        U=DTensor(Us,labels=[rowlabel,new.replace(flow=-1)]).split((rowlabel,row,rowrecord))
     elif tensor.qnon:
-        row_label,row_permutation=Label.union(row,'__TENSOR_EIGH_ROW__',+1,mode=1)
-        col_label,col_permutation=Label.union(col,'__TENSOR_EIGH_COL__',-1,mode=1)
-        assert len(row_label.qns)==len(col_label.qns)
-        m=tensor.merge((row,row_label,row_permutation),(col,col_label,col_permutation)).data
-        row_od,col_od=row_label.qns.to_ordereddict(),col_label.qns.to_ordereddict()
-        E=np.zeros(len(row_label.qns),dtype=np.float64)
-        U=np.zeros((len(row_label.qns),len(row_label.qns)),dtype=tensor.dtype)
-        for qn in row_od:
-            assert row_od[qn]==col_od[qn]
-            e,u=sl.eigh(m[row_od[qn],row_od[qn]],check_finite=False)
-            E[row_od[qn]]=e
-            U[row_od[qn],row_od[qn]]=u
-        new=new.replace(qns=row_label.qns,flow=None)
+        rowlabel,rowpermutation=Label.union(row,'__TENSOR_EIGH_ROW__',+1,mode=1)
+        collabel,colpermutation=Label.union(col,'__TENSOR_EIGH_COL__',-1,mode=1)
+        assert len(rowlabel.qns)==len(collabel.qns)
+        m=tensor.merge((row,rowlabel,rowpermutation),(col,collabel,colpermutation)).data
+        rowod,colod=rowlabel.qns.toordereddict(),collabel.qns.toordereddict()
+        E=np.zeros(len(rowlabel.qns),dtype=np.float64)
+        U=np.zeros((len(rowlabel.qns),len(rowlabel.qns)),dtype=tensor.dtype)
+        for qn in rowod:
+            assert rowod[qn]==colod[qn]
+            e,u=sl.eigh(m[rowod[qn],rowod[qn]],check_finite=False)
+            E[rowod[qn]]=e
+            U[rowod[qn],rowod[qn]]=u
+        new=new.replace(qns=rowlabel.qns,flow=None)
         E=DTensor(E,labels=[new])
-        U=DTensor(U,labels=[row_label,new.replace(flow=-1)]).split((row_label,row,np.argsort(row_permutation)))
+        U=DTensor(U,labels=[rowlabel,new.replace(flow=-1)]).split((rowlabel,row,np.argsort(rowpermutation)))
     else:
-        row_label=Label('__TENSOR_EIGH_ROW__',qns=np.product([label.dim for label in row]))
-        col_label=Label('__TENSOR_EIGH_COL__',qns=np.product([label.dim for label in col]))
-        assert row_label.qns==col_label.qns
-        e,u=sl.eigh(tensor.merge((row,row_label),(col,col_label)).data,check_finite=False)
-        new=new.replace(qns=len(row_label),flow=None)
+        rowlabel=Label('__TENSOR_EIGH_ROW__',qns=np.product([label.dim for label in row]))
+        collabel=Label('__TENSOR_EIGH_COL__',qns=np.product([label.dim for label in col]))
+        assert rowlabel.qns==collabel.qns
+        e,u=sl.eigh(tensor.merge((row,rowlabel),(col,collabel)).data,check_finite=False)
+        new=new.replace(qns=len(rowlabel),flow=None)
         E=DTensor(e,labels=[new])
-        U=DTensor(u,labels=[row_label,new.replace(flow=0)]).split((row_label,row))
-    return (E,U,U.dagger) if return_dagger else (E,U)
+        U=DTensor(u,labels=[rowlabel,new.replace(flow=0)]).split((rowlabel,row))
+    return (E,U,U.dagger) if returndagger else (E,U)
 
-def partitioned_svd(tensor,L,new,R,mode='D',nmax=None,tol=None,return_truncation_err=False):
+def partitionedsvd(tensor,L,new,R,mode='D',nmax=None,tol=None,returnerr=False):
     '''
     Partition a 1d-tensor according to L and R and then perform the Schmitt decomposition.
 
     Parameters
     ----------
     tensor : DTensor
-        The tensor to be partitioned_svded.
+        The tensor to be partitioned svded.
     L,R : Label
         The left/right part of the partition.
     new : Label
         The label for the singular values.
     mode : 'D'/'S', optional
         'D' for dense and 'S' for sparse.
-    nmax,tol,return_truncation_err :
-        Please refer to HamiltonianPy.Misc.Linalg.truncated_svd for details.
+    nmax,tol,returnerr :
+        Please refer to HamiltonianPy.Misc.Linalg.truncatedsvd for details.
 
     Returns
     -------
     U,S,V : DTensor/STensor
         The Schmitt decomposition of the 1d tensor.
-    err : np.float64, optional
+    err : float, optional
         The truncation error.
     '''
     assert tensor.ndim==1 and mode in 'DS'
     if tensor.qnon:
         data,qns=tensor.data,tensor.labels[0].qns
         assert qns.num==1 and sl.norm(qns.contents)<10**-6
-        lod,rod=L.qns.to_ordereddict(),R.qns.to_ordereddict()
+        lod,rod=L.qns.toordereddict(),R.qns.toordereddict()
         us,ss,vs,qns,count=[],[],[],[],0
         for qn in it.ifilter(lod.has_key,rod):
             s1,s2=lod[qn],rod[qn]
@@ -258,7 +258,7 @@ def partitioned_svd(tensor,L,new,R,mode='D',nmax=None,tol=None,return_truncation
                     contents[0].append(qn)
                     contents[1].append(cut)
             new=new.replace(qns=QuantumNumbers('U',contents,QuantumNumbers.COUNTS),flow=None)
-            nod=new.qns.to_ordereddict()
+            nod=new.qns.toordereddict()
             U=np.zeros((L.dim,new.dim),dtype=tensor.dtype)
             S=np.concatenate(Ss)
             V=np.zeros((new.dim,R.dim),dtype=tensor.dtype)
@@ -282,18 +282,18 @@ def partitioned_svd(tensor,L,new,R,mode='D',nmax=None,tol=None,return_truncation
             U=STensor(Us,labels=[L,new.replace(flow=-1)])
             S=DTensor(np.concatenate(Ss),labels=[new])
             V=STensor(Vs,labels=[new.replace(flow=+1),R])
-        if return_truncation_err: err=(temp[nmax:]**2).sum()
+        if returnerr: err=(temp[nmax:]**2).sum()
     else:
         m=tensor.data.reshape((L.dim,R.dim))
-        data=hm.truncated_svd(m,full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=return_truncation_err)
+        data=hm.truncatedsvd(m,full_matrices=False,nmax=nmax,tol=tol,returnerr=returnerr)
         new=new.replace(qns=len(data[1]),flow=None)
         U=DTensor(data[0],labels=[L,new.replace(flow=0)])
         S=DTensor(data[1],labels=[new])
         V=DTensor(data[2],labels=[new.replace(flow=0),R])
-        if return_truncation_err: err=data[3]
-    return (U,S,V,err) if return_truncation_err else (U,S,V)
+        if returnerr: err=data[3]
+    return (U,S,V,err) if returnerr else (U,S,V)
 
-def svd(tensor,row,new,col,nmax=None,tol=None,return_truncation_err=False,**karg):
+def svd(tensor,row,new,col,nmax=None,tol=None,returnerr=False,**karg):
     '''
     Perform the svd.
 
@@ -305,23 +305,23 @@ def svd(tensor,row,new,col,nmax=None,tol=None,return_truncation_err=False,**karg
         The labels or axes to be merged as the row/column during the svd.
     new : Label
         The label for the singular values.
-    nmax,tol,return_truncation_err :
-        Please refer to HamiltonianPy.Misc.Linalg.truncated_svd for details.
+    nmax,tol,returnerr :
+        Please refer to HamiltonianPy.Misc.Linalg.truncatedsvd for details.
 
     Returns
     -------
     U,S,V : DTensor/STensor
         The result tensor.
-    err : np.float64, optional
+    err : float, optional
         The truncation error.
     '''
     assert len(row)+len(col)==tensor.ndim
     row=[r if isinstance(r,Label) else tensor.label(r) for r in row]
     col=[c if isinstance(c,Label) else tensor.label(c) for c in col]
     if isinstance(tensor,STensor):
-        row_label,row_record=Label.union(row,'__TENSOR_SVD_ROW__',+1,mode=2)
-        col_label,col_record=Label.union(col,'__TENSOR_SVD_COL__',-1,mode=2)
-        m=tensor.merge((row,row_label,row_record),(col,col_label,col_record)).data
+        rowlabel,rowrecord=Label.union(row,'__TENSOR_SVD_ROW__',+1,mode=2)
+        collabel,colrecord=Label.union(col,'__TENSOR_SVD_COL__',-1,mode=2)
+        m=tensor.merge((row,rowlabel,rowrecord),(col,collabel,colrecord)).data
         us,ss,vs,qns=[],[],[],[]
         for (rowqn,colqn),block in m.iteritems():
             assert rowqn==colqn
@@ -343,18 +343,18 @@ def svd(tensor,row,new,col,nmax=None,tol=None,return_truncation_err=False,**karg
                 contents[0].append(qn)
                 contents[1].append(cut)
         new=new.replace(qns=QuantumNumbers('U',contents,protocol=QuantumNumbers.COUNTS),flow=None)
-        U=STensor(Us,labels=[row_label,new.replace(flow=-1)]).split((row_label,row,row_record))
+        U=STensor(Us,labels=[rowlabel,new.replace(flow=-1)]).split((rowlabel,row,rowrecord))
         S=DTensor(np.concatenate(Ss),labels=[new])
-        V=STensor(Vs,labels=[new.replace(flow=+1),col_label]).split((col_label,col,col_record))
-        if return_truncation_err: err=(temp[nmax:]**2).sum()
+        V=STensor(Vs,labels=[new.replace(flow=+1),collabel]).split((collabel,col,colrecord))
+        if returnerr: err=(temp[nmax:]**2).sum()
     elif tensor.qnon:
-        row_label,row_permutation=Label.union(row,'__TENSOR_SVD_ROW__',+1,mode=1)
-        col_label,col_permutation=Label.union(col,'__TENSOR_SVD_COL__',-1,mode=1)
-        m=tensor.merge((row,row_label,row_permutation),(col,col_label,col_permutation)).data
-        row_od,col_od=row_label.qns.to_ordereddict(),col_label.qns.to_ordereddict()
+        rowlabel,rowpermutation=Label.union(row,'__TENSOR_SVD_ROW__',+1,mode=1)
+        collabel,colpermutation=Label.union(col,'__TENSOR_SVD_COL__',-1,mode=1)
+        m=tensor.merge((row,rowlabel,rowpermutation),(col,collabel,colpermutation)).data
+        rowod,colod=rowlabel.qns.toordereddict(),collabel.qns.toordereddict()
         us,ss,vs,qns=[],[],[],[]
-        for qn in it.ifilter(row_od.has_key,col_od):
-            u,s,v=sl.svd(m[row_od[qn],col_od[qn]],full_matrices=False,lapack_driver='gesvd')[0:3]
+        for qn in it.ifilter(rowod.has_key,colod):
+            u,s,v=sl.svd(m[rowod[qn],colod[qn]],full_matrices=False,lapack_driver='gesvd')[0:3]
             us.append(u)
             ss.append(s)
             vs.append(v)
@@ -373,37 +373,37 @@ def svd(tensor,row,new,col,nmax=None,tol=None,return_truncation_err=False,**karg
                 contents[1].append(cut)
         S=np.concatenate(Ss)
         new=new.replace(qns=QuantumNumbers('U',contents,protocol=QuantumNumbers.COUNTS),flow=None)
-        od=new.qns.to_ordereddict()
-        U=np.zeros((row_label.dim,new.dim),dtype=tensor.dtype)
-        V=np.zeros((new.dim,col_label.dim),dtype=tensor.dtype)
+        od=new.qns.toordereddict()
+        U=np.zeros((rowlabel.dim,new.dim),dtype=tensor.dtype)
+        V=np.zeros((new.dim,collabel.dim),dtype=tensor.dtype)
         for u,v,qn in zip(Us,Vs,od):
-            U[row_od[qn],od[qn]]=u
-            V[od[qn],col_od[qn]]=v
-        U=DTensor(U,labels=[row_label,new.replace(flow=-1)]).split((row_label,row,np.argsort(row_permutation)))
+            U[rowod[qn],od[qn]]=u
+            V[od[qn],colod[qn]]=v
+        U=DTensor(U,labels=[rowlabel,new.replace(flow=-1)]).split((rowlabel,row,np.argsort(rowpermutation)))
         S=DTensor(S,labels=[new])
-        V=DTensor(V,labels=[new.replace(flow=+1),col_label]).split((col_label,col,np.argsort(col_permutation)))
-        if return_truncation_err: err=(temp[nmax:]**2).sum()
+        V=DTensor(V,labels=[new.replace(flow=+1),collabel]).split((collabel,col,np.argsort(colpermutation)))
+        if returnerr: err=(temp[nmax:]**2).sum()
     else:
-        row_label=Label('__TENSOR_SVD_ROW__',qns=np.product([label.dim for label in row]))
-        col_label=Label('__TENSOR_SVD_COL__',qns=np.product([label.dim for label in col]))
-        m=tensor.merge((row,row_label),(col,col_label)).data
-        temp=hm.truncated_svd(m,full_matrices=False,nmax=nmax,tol=tol,return_truncation_err=return_truncation_err,**karg)
+        rowlabel=Label('__TENSOR_SVD_ROW__',qns=np.product([label.dim for label in row]))
+        collabel=Label('__TENSOR_SVD_COL__',qns=np.product([label.dim for label in col]))
+        m=tensor.merge((row,rowlabel),(col,collabel)).data
+        temp=hm.truncatedsvd(m,full_matrices=False,nmax=nmax,tol=tol,returnerr=returnerr,**karg)
         u,s,v=temp[0],temp[1],temp[2]
         new=new.replace(qns=len(s),flow=None)
-        U=DTensor(u,labels=[row_label,new.replace(flow=0)]).split((row_label,row))
+        U=DTensor(u,labels=[rowlabel,new.replace(flow=0)]).split((rowlabel,row))
         S=DTensor(s,labels=[new])
-        V=DTensor(v,labels=[new.replace(flow=0),col_label]).split((col_label,col))
-        if return_truncation_err: err=temp[3]
-    return (U,S,V,err) if return_truncation_err else (U,S,V)
+        V=DTensor(v,labels=[new.replace(flow=0),collabel]).split((collabel,col))
+        if returnerr: err=temp[3]
+    return (U,S,V,err) if returnerr else (U,S,V)
 
-def expanded_svd(tensor,L,S,R,E,I,cut=0,nmax=None,tol=None):
+def expandedsvd(tensor,L,S,R,E,I,cut=0,nmax=None,tol=None):
     '''
     Expand a label of a tensor and perform a sequential svd.
 
     Parameters
     ----------
     tensor : DTensor
-        The tensor to be expanded_svded.
+        The tensor to be expanded svded.
     L,R : list of Label/int
         The labels or axes to be merged as the left/right dimension during the expanded svd.
     S : Label/int
@@ -417,7 +417,7 @@ def expanded_svd(tensor,L,S,R,E,I,cut=0,nmax=None,tol=None):
         The labels in E whose sequences are equal to or greater than cut will be tied with the v matrices of the svds from the right.
     nmax : int, optional
         The maximum number of singular values to be kept.
-    tol : np.float64, optional
+    tol : float, optional
         The tolerance of the singular values.
 
     Returns
@@ -489,9 +489,9 @@ def deparallelization(tensor,row,new,col,mode='R',zero=10**-8,tol=10**-6):
     mode : 'R', 'C', optional
         'R' for the deparallelization of the row dimension;
         'C' for the deparallelization of the col dimension.
-    zero : np.float64, optional
+    zero : float, optional
         The absolute value to identity zero vectors.
-    tol : np.float64, optional
+    tol : float, optional
         The relative tolerance for rows or columns that can be considered as paralleled.
 
     Returns
@@ -507,7 +507,7 @@ def deparallelization(tensor,row,new,col,mode='R',zero=10**-8,tol=10**-6):
     rlabel=Label.union(row,'__TENSOR_DEPARALLELIZATION_ROW__',+1 if tensor.qnon else 0,mode=0)
     clabel=Label.union(col,'__TENSOR_DEPARALLELIZATION_COL__',-1 if tensor.qnon else 0,mode=0)
     data=tensor.merge((row,rlabel),(col,clabel)).data
-    m1,m2,indices=hm.deparallelization(data,mode=mode,zero=zero,tol=tol,return_indices=True)
+    m1,m2,indices=hm.deparallelization(data,mode=mode,zero=zero,tol=tol,returnindices=True)
     if mode=='R':
         new=new.replace(qns=rlabel.qns.reorder(permutation=indices,protocol='EXPANSION') if tensor.qnon else len(indices))
         T=DTensor(m1,labels=[rlabel,new.replace(flow=-1 if tensor.qnon else 0)]).split((rlabel,row))

@@ -24,12 +24,12 @@ class TestDTensor(TestCase):
         self.assertAlmostEqual((u1*s1*v1-self.tensor).norm,0.0)
         self.assertAlmostEqual((u2*s2*v2-self.tensor).norm,0.0)
 
-    def test_expanded_svd(self):
+    def test_expandedsvd(self):
         L,S,R=self.tensor.labels
         E=[Label('S%s'%i,qns=self.qns,flow=S.flow) for i in xrange(self.s)]
         for cut in xrange(self.s):
             I=[Label('B%i'%i,None,None) for i in xrange(self.s if cut in (0,self.s) else self.s-1)]
-            ms=expanded_svd(self.tensor,L=[L],S=S,R=[R],E=E,I=I,cut=cut)
+            ms=expandedsvd(self.tensor,L=[L],S=S,R=[R],E=E,I=I,cut=cut)
             ms=[ms[0],ms[1]]+ms[2] if cut==0 else ms[0]+[ms[1],ms[2]] if cut==4 else ms[0][:cut]+[ms[1]]+ms[0][cut:]
             self.assertAlmostEqual((np.product(ms).merge((E,S))-self.tensor).norm,0.0)
 

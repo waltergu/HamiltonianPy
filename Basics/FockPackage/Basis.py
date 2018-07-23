@@ -34,7 +34,7 @@ class FBasis(object):
         The number of total single-particle states of the basis.
     nparticle : int
         The number of total particles of the basis.
-    spinz : half integer
+    spinz : half int
         The z component of the total spin of the basis.
     '''
 
@@ -48,7 +48,7 @@ class FBasis(object):
             The number of total single-particle states of the basis.
         nparticle : int, optional
             The number of total particles of the basis.
-        spinz : half integer, optional
+        spinz : half int, optional
             The z component of the total spin of the basis.
         '''
         if nparticle is None:
