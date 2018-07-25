@@ -12,7 +12,7 @@ __all__=['Opt','OptStr','OptMPO','MPO']
 import numpy as np
 import itertools as it
 from numpy.linalg import norm
-from HamiltonianPy import Arithmetic,RZERO,FOperator,SOperator,JWBosonization,QuantumNumbers,decimaltostr
+from HamiltonianPy import Arithmetic,RZERO,FockOperator,SOperator,JWBosonization,QuantumNumbers,decimaltostr
 from HamiltonianPy.TensorNetwork.Tensor import *
 from HamiltonianPy.TensorNetwork.MPS import MPS
 from copy import copy
@@ -217,7 +217,7 @@ class OptStr(Arithmetic,list):
 
         Parameters
         ----------
-        operator : SOperator, FOperator
+        operator : SOperator/FockOperator
             The operator to be converted to an optstr.
         degfres : DegFreTree
             The degfretree of the system.
@@ -229,7 +229,7 @@ class OptStr(Arithmetic,list):
         OptStr
             The corresponding OptStr.
         '''
-        assert isinstance(operator,SOperator) or isinstance(operator,FOperator)
+        assert isinstance(operator,SOperator) or isinstance(operator,FockOperator)
         layer=degfres.layers[layer] if type(layer) in (int,long) else layer
         table,sites=degfres.table(degfres.layers[-1]),degfres.labels('S',degfres.layers[-1])
         operator=operator if isinstance(operator,SOperator) else JWBosonization(operator,table)

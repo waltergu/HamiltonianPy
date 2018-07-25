@@ -9,7 +9,7 @@ Operator pack, including:
 
 __all__=['fspoperators','JWBosonization','twisttransformation']
 
-from ..FockPackage import FockOperator,FLinear,BLinear,CREATION,ANNIHILATION
+from ..FockPackage import FockOperator,FOperator,FLinear,BLinear,CREATION,ANNIHILATION
 from ..SpinPackage import SOperator,SpinMatrix
 from ..Utilities import parity,RZERO
 from collections import OrderedDict
@@ -41,14 +41,14 @@ def fspoperators(table,lattice,statistics='f'):
 
 def JWBosonization(operator,table):
     '''
-    Convert an fermionic operator to a spin operator through the Jordan-Wigner transformation.
+    Convert a fermionic/hard-core-bosonic operator to a spin operator through the Jordan-Wigner transformation.
 
     Parameters
     ----------
-    operator : FOperator
-        The fermionic operator to be transformed.
+    operator : FOperator/BOperator
+        The fermionic/hard-core-bosonic operator to be transformed.
     table : Table
-        The index-sequence table of the fermions.
+        The index-sequence table of the fermions/hard-core-bosons.
 
     Returns
     -------
@@ -82,18 +82,23 @@ def JWBosonization(operator,table):
             counts.append(1)
             tags.append(tag)
             inds.append(operator.indices[k].replace(nambu=None))
-    indices,sms,keys=[],[],ms.keys()
-    TABLE,sign=table.reversal,np.array([[1.0,0.0],[0.0,-1.0]],dtype=dtype)
-    for leaf in xrange(keys[0],keys[-1]+1):
-        if leaf in ms:
-            assert counts[0] in (1,2)
-            length-=counts.pop(0)
-            indices.append(inds.pop(0))
-            sms.append(SpinMatrix(0.5,tags.pop(0)+('' if length%2==0 else 's'),matrix=ms[leaf] if length%2==0 else ms[leaf].dot(sign),dtype=dtype))
-        elif length%2!=0:
-            indices.append(TABLE[leaf].replace(nambu=None))
-            sms.append(SpinMatrix(0.5,'s',matrix=sign,dtype=dtype))
-    return SOperator(value=operator.value*parity(permutation),indices=indices,spins=sms)
+    if isinstance(operator,FOperator):
+        indices,sms=[],[]
+        TABLE,keys=table.reversal,ms.keys()
+        sign=np.array([[1.0,0.0],[0.0,-1.0]],dtype=dtype)
+        for leaf in xrange(keys[0],keys[-1]+1):
+            if leaf in ms:
+                assert counts[0] in (1,2)
+                length-=counts.pop(0)
+                indices.append(inds.pop(0))
+                sms.append(SpinMatrix(0.5,tags.pop(0)+('' if length%2==0 else 's'),matrix=ms[leaf] if length%2==0 else ms[leaf].dot(sign),dtype=dtype))
+            elif length%2!=0:
+                indices.append(TABLE[leaf].replace(nambu=None))
+                sms.append(SpinMatrix(0.5,'s',matrix=sign,dtype=dtype))
+        return SOperator(value=operator.value*parity(permutation),indices=indices,spins=sms)
+    else:
+        sms=[SpinMatrix(0.5,tag,matrix=matrix,dtype=dtype) for tag,matrix in zip(tags,ms.itervalues())]
+        return SOperator(value=operator.value,indices=inds,spins=sms)
 
 def twisttransformation(operator,vectors,thetas):
     '''
