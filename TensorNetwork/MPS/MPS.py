@@ -800,7 +800,7 @@ class MPS(Arithmetic,list):
         MPS
             The predicted imps.
         '''
-        assert self.cut==self.nsite/2 and self.nsite%2==0 and len(sites)==len(bonds)-1==self.nsite
+        assert self.cut==self.nsite/2 and self.nsite%2==0 and len(sites)==len(bonds)-1==self.nsite>0
         lsms,rsms,us,vs=[],[],self.As,self.Bs
         for i,(L,S,R) in enumerate(zip(bonds[:self.cut],sites[:self.cut],bonds[1:self.cut+1])):
             u,s,v=svd(vs[i]*self.Lambda if i==0 else vs[i],row=[MPS.L,MPS.S],new=Label('__IMPSPREDICTION_L_%i__'%i,None),col=[MPS.R])
@@ -837,7 +837,7 @@ class MPS(Arithmetic,list):
         s.relabel(news=[s.labels[0].replace(identifier=identifier)])
         return MPS(mode=self.mode,ms=lsms+rsms,Lambda=s,cut=self.cut)
 
-    def impsgrowth(self,sites,bonds,osvs,qn=0,dtype=np.float64):
+    def impsgrowth(self,sites,bonds,osvs,qn=0):
         '''
         Infinite MPS growth.
 
@@ -849,8 +849,6 @@ class MPS(Arithmetic,list):
             The old singular values.
         qn : QuantumNumber, optional
             The injected quantum number of the new mps.
-        dtype : np.float64, np.complex128, etc, optional
-            The data type of the new mps.
 
         Returns
         -------
@@ -873,7 +871,7 @@ class MPS(Arithmetic,list):
             iqns,oqns=(1,1) if self.mode=='NB' else (QNS.mono(qn.zero()),QNS.mono(qn))
             bonds[+0]=bonds[+0].replace(qns=iqns) if isinstance(bonds[+0],Label) else Label(bonds[+0],qns=iqns,flow=None)
             bonds[-1]=bonds[-1].replace(qns=oqns) if isinstance(bonds[-1],Label) else Label(bonds[-1],qns=oqns,flow=None)
-            result=MPS.random(sites,bonds=bonds,cut=len(sites)/2,nmax=1,dtype=dtype)
+            result=MPS.random(sites,bonds=bonds,cut=len(sites)/2,nmax=1)
             result.Lambda.data=np.array([1.0])
         return result
 

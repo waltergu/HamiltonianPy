@@ -1,8 +1,8 @@
 '''
-DMRG test.
+fDMRG test.
 '''
 
-__all__=['dmrg']
+__all__=['fdmrg']
 
 import mkl
 import numpy as np
@@ -30,13 +30,6 @@ class TestSpin(TestCase):
                 dtype=      np.float64
                 )
 
-    def test_idmrg(self):
-        print
-        N=200
-        targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
-        self.dmrg.register(TSG(name='iGROWTH',targets=targets,nmax=200,savedata=savedata,run=fDMRGTSG))
-        self.dmrg.summary()
-
     def test_fdmrg(self):
         print
         N=20
@@ -58,13 +51,6 @@ class TestSpinlessFermion(TestCase):
                 mask=       ['nambu'],
                 dtype=      np.float64
                 )
-
-    def test_idmrg(self):
-        print
-        N=200
-        targets=[PQN(num) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
-        self.dmrg.register(TSG(name='iGROWTH',targets=targets,nmax=200,savedata=savedata,run=fDMRGTSG))
-        self.dmrg.summary()
 
     def test_fdmrg(self):
         print
@@ -88,13 +74,6 @@ class TestSpinfulFermion(TestCase):
                 dtype=      np.float64
                 )
 
-    def test_idmrg(self):
-        print
-        N=200
-        targets=[SPQN((num*2,0.0)) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
-        self.dmrg.register(TSG(name='iGROWTH',targets=targets,nmax=200,savedata=savedata,run=fDMRGTSG))
-        self.dmrg.summary()
-
     def test_fdmrg(self):
         print
         N=20
@@ -117,13 +96,6 @@ class TestHoneycombHeisenberg(TestCase):
                 dtype=      np.float64
                 )
 
-    def test_idmrg(self):
-        print
-        N=20
-        targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
-        self.dmrg.register(TSG(name='iGROWTH',targets=targets,nmax=100,savedata=savedata,run=fDMRGTSG))
-        self.dmrg.summary()
-
     def test_fdmrg(self):
         print
         N=10
@@ -132,7 +104,7 @@ class TestHoneycombHeisenberg(TestCase):
         self.dmrg.register(TSS(name='SWEEP',target=targets[-1],nsite=N*self.dmrg.nspb,nmaxs=[100,100],dependences=['fGROWTH'],savedata=savedata,run=fDMRGTSS))
         self.dmrg.summary()
 
-dmrg=TestSuite([
+fdmrg=TestSuite([
             TestLoader().loadTestsFromTestCase(TestSpin),
             TestLoader().loadTestsFromTestCase(TestSpinlessFermion),
             TestLoader().loadTestsFromTestCase(TestSpinfulFermion),

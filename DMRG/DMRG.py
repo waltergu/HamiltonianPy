@@ -33,6 +33,8 @@ class Block(object):
         The MPS of the block.
     target : QuantumNumber
         The target of the block.
+    divisor : int
+        The extra divisor of extensive quantities and intensive quantities.
     lcontracts : list of 3d DTensor/STensor
         The contraction of mpo and mps from the left.
     rcontracts : list of 3d DTensor/STensor
@@ -43,7 +45,7 @@ class Block(object):
         The info of the block.
     '''
 
-    def __init__(self,mpo,mps,target=None,LEND=None,REND=None):
+    def __init__(self,mpo,mps,target=None,divisor=1,LEND=None,REND=None):
         '''
         Constructor.
 
@@ -55,10 +57,12 @@ class Block(object):
             The MPS of the block.
         target : QuantumNumber, optional
             The target of the block.
+        divisor : int, optional
+            The extra divisor of extensive quantities and intensive quantities.
         LEND/REND : 3d DTensor/STensor, optional
             The leftmost/rightmost end of the contraction of mpo and mps.
         '''
-        self.reset(mpo,mps,target=target,LEND=LEND,REND=REND)
+        self.reset(mpo,mps,target=target,divisor=divisor,LEND=LEND,REND=REND)
         self.timers=Timers('Preparation','Diagonalization','Truncation')
         self.timers.add('Diagonalization','matvec')
         self.info=Sheet(('Etotal','Esite','nmatvec','nbasis','nslice','overlap','err'))
@@ -108,7 +112,22 @@ class Block(object):
         self.timers=Timers('Preparation','Diagonalization','Truncation')
         self.timers.add('Diagonalization','matvec')
 
-    def reset(self,mpo=None,mps=None,target=None,LEND=None,REND=None):
+    def __getslice__(self,i,j):
+        '''
+        Operator "[]" for slicing.
+        '''
+        result=object.__new__(type(self))
+        result.mpo=self.mpo[i:j]
+        result.mps=self.mps[i:j]
+        result.target=self.target
+        result.divisor=self.divisor
+        result.lcontracts=self.lcontracts[i:j+1]
+        result.rcontracts=self.rcontracts[i:j+1]
+        result.timers=self.timers
+        result.info=self.info
+        return result
+
+    def reset(self,mpo=None,mps=None,target=None,divisor=1,LEND=None,REND=None):
         '''
         Constructor.
 
@@ -120,15 +139,19 @@ class Block(object):
             The MPS of the block.
         target : QuantumNumber, optional
             The target of the block.
+        divisor : int, optional
+            The extra divisor of extensive quantities and intensive quantities.
         LEND/REND : 3d DTensor/STensor, optional
             The leftmost/rightmost end of the contraction of mpo and mps.
         '''
         if mpo is None: mpo=self.mpo
         if mps is None: mps=self.mps
+        if target is None: target=self.target
         assert len(mpo)==len(mps)
         self.mpo=mpo
         self.mps=mps
         self.target=target
+        self.divisor=divisor
         if self.nsite>0:
             if LEND is None:
                 C=self.mpo[0].labels[MPO.L].inverse
@@ -141,7 +164,7 @@ class Block(object):
                 assert C.dim==1==D.dim
                 REND=Tensor([[[1.0]]],labels=[D.P,C,D])
             assert LEND.ndim==3==REND.ndim
-            self.set_contractions(LEND=LEND,REND=REND)
+            self.setcontractions(LEND=LEND,REND=REND)
 
     def relabel(self,sites,obonds,sbonds):
         '''
@@ -159,10 +182,10 @@ class Block(object):
         self.mpo.relabel(sites,obonds)
         self.mps.relabel(sites,sbonds)
         for pos in xrange(self.nsite+1):
-            self.set_lcontract(pos,job='relabel')
-            self.set_rcontract(pos,job='relabel')
+            self.setlcontract(pos,job='relabel')
+            self.setrcontract(pos,job='relabel')
 
-    def set_lcontract(self,pos,job='contract'):
+    def setlcontract(self,pos,job='contract'):
         '''
         Set a certain left contraction.
 
@@ -184,7 +207,7 @@ class Block(object):
             D=self.mps[pos].labels[MPS.L].inverse if pos<self.nsite else self.mps[self.nsite-1].labels[MPS.R]
             self.lcontracts[pos].relabel([D.P,C,D])
 
-    def set_rcontract(self,pos,job='contract'):
+    def setrcontract(self,pos,job='contract'):
         '''
         Set a certain right contraction.
 
@@ -206,7 +229,7 @@ class Block(object):
             D=self.mps[pos].labels[MPS.L] if pos<self.nsite else self.mps[self.nsite-1].labels[MPS.R].inverse
             self.rcontracts[pos].relabel([D.P,C,D])
 
-    def set_contractions(self,LEND=None,REND=None,SL=None,EL=None,SR=None,ER=None):
+    def setcontractions(self,LEND=None,REND=None,SL=None,EL=None,SR=None,ER=None):
         '''
         Set the Hamiltonians of blocks.
 
@@ -223,23 +246,25 @@ class Block(object):
         SR=self.nsite-1 if SR is None else SR
         if LEND is None:
             for pos in xrange(SL):
-                self.set_lcontract(pos,job='relabel')
+                self.setlcontract(pos,job='relabel')
         else:
             self.lcontracts=[None]*(self.nsite+1)
             self.lcontracts[0]=LEND
+            self.setlcontract(0,job='relabel')
         if REND is None:
             for pos in xrange(self.nsite,SR,-1):
-                self.set_rcontract(pos,job='relabel')
+                self.setrcontract(pos,job='relabel')
         else:
             self.rcontracts=[None]*(self.nsite+1)
             self.rcontracts[self.nsite]=REND
+            self.setrcontract(self.nsite,job='relabel')
         if self.cut is not None:
             EL=self.cut if EL is None else EL
             ER=self.cut if ER is None else ER
             for pos in xrange(SL,EL+1):
-                self.set_lcontract(pos,job='contract')
+                self.setlcontract(pos,job='contract')
             for pos in xrange(SR,ER-1,-1):
-                self.set_rcontract(pos,job='contract')
+                self.setrcontract(pos,job='contract')
 
     def predict(self,sites,obonds,sbonds,osvs,qn=0):
         '''
@@ -267,10 +292,11 @@ class Block(object):
         self.rcontracts=[None]*(self.nsite+1)
         self.lcontracts[+0]=LEND
         self.rcontracts[-1]=REND
-        self.set_lcontract(+0,job='relabel')
-        self.set_rcontract(-1,job='relabel')
+        #self.setlcontract(+0,job='relabel')
+        #self.setrcontract(-1,job='relabel')
+        self.setcontractions()
 
-    def grow(self,sites,obonds,sbonds,osvs,qn=0,dtype=np.float64):
+    def grow(self,sites,obonds,sbonds,osvs,qn=0):
         '''
         Infinite block growth.
 
@@ -286,20 +312,18 @@ class Block(object):
             The old singular values.
         qn : QuantumNumber, optional
             The injected quantum number of the block.
-        dtype : np.float64, np.complex128, etc, optional
-            The data type of the block after growth.
         '''
         flag,onsite=self.nsite>0,self.nsite
         if flag: oldlcontracts=self.lcontracts[0:onsite/2+1]
         if flag: oldrcontracts=self.rcontracts[-onsite/2-1:]
         self.mpo=self.mpo.impogrowth(sites,obonds)
-        self.mps=self.mps.impsgrowth(sites,sbonds,osvs,qn=qn,dtype=dtype)
+        self.mps=self.mps.impsgrowth(sites,sbonds,osvs,qn=qn)
         self.target=qn+self.target if isinstance(qn,QuantumNumber) else None
         self.lcontracts=[None]*(self.nsite+1)
         self.rcontracts=[None]*(self.nsite+1)
         if flag: self.lcontracts[0:onsite/2+1]=oldlcontracts
         if flag: self.rcontracts[-onsite/2-1:]=oldrcontracts
-        self.set_contractions(SL=onsite/2+1,EL=self.nsite/2,SR=self.nsite-onsite/2-1,ER=self.nsite/2)
+        self.setcontractions(SL=onsite/2+1,EL=self.nsite/2,SR=self.nsite-onsite/2-1,ER=self.nsite/2)
 
     def iterate(self,log,info='',sp=True,nmax=200,tol=hm.TOL,piechart=True):
         '''
@@ -370,7 +394,7 @@ class Block(object):
             es,vs=hm.eigsh(matrix,which='SA',v0=v0,k=1)
             energy,Psi=es[0],vs[:,0]
             self.info['Etotal']=energy,'%.6f'
-            self.info['Esite']=energy/self.nsite,'%.8f'
+            self.info['Esite']=energy/self.nsite/self.divisor,'%.8f'
             self.info['nmatvec']=matrix.count
             self.info['overlap']=np.inf if v0 is None else np.abs(Psi.conjugate().dot(v0)/norm(v0)/norm(Psi)),'%.6f'
         with self.timers.get('Truncation'):
@@ -379,8 +403,8 @@ class Block(object):
             self.mps[self.cut-1]=u.split((Lsys,[La,Sa],sysantipt))
             self.mps[self.cut]=v.split((Lenv,[Sb,Rb],envantipt))
             self.mps.Lambda=s
-            self.set_lcontract(self.cut)
-            self.set_rcontract(self.cut)
+            self.setlcontract(self.cut)
+            self.setrcontract(self.cut)
             self.info['nslice']=Lgs.dim
             self.info['nbasis']=s.shape[0]
             self.info['err']=err,'%.1e'
@@ -445,6 +469,7 @@ class DMRG(Engine):
     cache : dict
         The cache of the DMRG.
     '''
+    DTRP=2
 
     def __init__(self,lattice,terms,config,degfres,mask=(),dtype=np.complex128,target=0,**karg):
         '''
@@ -474,7 +499,7 @@ class DMRG(Engine):
         self.degfres=degfres
         self.mask=mask
         self.dtype=dtype
-        self.generator=Generator(bonds=lattice.bonds,config=config,terms=terms,dtype=dtype,half=False)
+        self.generator=Generator(bonds=lattice.bonds,config=config,terms=terms,boundary=self.boundary,dtype=dtype,half=False)
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
         self.initblock(target=target)
         self.cache={}
@@ -490,15 +515,6 @@ class DMRG(Engine):
         degfres.reset(leaves=config.table(mask=self.mask).keys())
         return len(degfres.indices())
 
-    def update(self,**karg):
-        '''
-        Update the DMRG with new parameters.
-        '''
-        if len(karg)>0:
-            super(DMRG,self).update(**karg)
-            self.generator.update(**self.data)
-            self.set_block(keep=True)
-
     def initblock(self,target=None):
         '''
         Init the block of the DMRG.
@@ -509,7 +525,7 @@ class DMRG(Engine):
             The target of the block of the DMRG.
         '''
         if len(self.lattice)>0:
-            mpo=OptMPO([OptStr.fromoperator(operator,self.degfres) for operator in self.generator.operators.itervalues()],self.degfres).tompo()
+            mpo=MPO.fromoperators(self.generator.operators,self.degfres)
             sites,bonds=self.degfres.labels('S'),self.degfres.labels('B')
             if self.degfres.mode=='QN':
                 bonds[+0]=Label(bonds[+0],qns=QuantumNumbers.mono(target.zero()),flow=+1)
@@ -518,22 +534,7 @@ class DMRG(Engine):
         else:
             mpo=MPO()
             mps=MPS(mode=self.degfres.mode)
-        self.block=Block(mpo,mps,target=target)            
-
-    def resetblock(self,target=None):
-        '''
-        Set the block of the DMRG.
-
-        Parameters
-        ----------
-        target : QuantumNumber, optional
-            The target of the block of the DMRG.
-        '''
-        self.block.reset(
-            mpo=    OptMPO([OptStr.fromoperator(operator,self.degfres) for operator in self.generator.operators.itervalues()],self.degfres).tompo(),
-            mps=    self.block.mps,
-            target= target
-            )
+        self.block=Block(mpo,mps,target=target)
 
     def sweep(self,info='',path=None,**karg):
         '''

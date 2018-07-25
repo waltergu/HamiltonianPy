@@ -23,6 +23,15 @@ class fDMRG(DMRG):
     Finite density matrix renormalization group.
     '''
 
+    def update(self,**karg):
+        '''
+        Update the DMRG with new parameters.
+        '''
+        if len(karg)>0:
+            super(DMRG,self).update(**karg)
+            self.generator.update(**self.data)
+            self.block.reset(mpo=MPO.fromoperators(self.generator.operators,self.degfres))
+
     def insert(self,A,B,news=None,target=None):
         '''
         Insert two blocks of points into the center of the lattice.
@@ -43,17 +52,16 @@ class fDMRG(DMRG):
         niter=len(self.lattice)/len(self.lattice.block)/2
         sites,obonds,sbonds=self.degfres.labels('S'),self.degfres.labels('O'),self.degfres.labels('B')
         qn=target-self.block.target if isinstance(target,QuantumNumber) else 0
-        if niter>self.lattice.nneighbour+2:
+        if niter>self.lattice.nneighbour+self.DTRP:
             osvs=self.cache['osvs']
             self.cache['osvs']=self.block.mps.Lambda.data
-            self.block.grow(sites,obonds,sbonds,osvs,qn,dtype=self.dtype)
+            self.block.grow(sites,obonds,sbonds,osvs,qn)
         else:
-            mpo=OptMPO([OptStr.fromoperator(operator,self.degfres) for operator in self.generator.operators.itervalues()],self.degfres).tompo()
-            ob,nb=self.block.nsite/2+1,(len(sbonds)+1)/2
+            mpo=MPO.fromoperators(self.generator.operators,self.degfres)
             osvs=self.cache.get('osvs',np.array([1.0]))
-            if niter>1 or nb-ob==1:self.cache['osvs']=self.block.mps.Lambda.data if self.block.nsite>0 else np.array([1.0])
-            mps=self.block.mps.impsgrowth(sites,sbonds,osvs,qn,dtype=self.dtype)
-            self.block.reset(mpo=mpo,mps=mps,target=target)
+            self.cache['osvs']=self.block.mps.Lambda.data if niter>1 else np.array([1.0])
+            mps=self.block.mps.impsgrowth(sites,sbonds,osvs,qn)
+            self.block.reset(mpo=mpo,mps=mps,target=target,divisor=1)
 
 def fDMRGTSG(engine,app):
     '''

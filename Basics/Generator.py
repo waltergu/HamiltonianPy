@@ -70,8 +70,8 @@ class Generator(object):
         self.boundary=boundary
         self.dtype=dtype
         self.options=options
-        self.set_terms(terms)
-        self.set_operators()
+        self.setterms(terms)
+        self.setoperators()
         self._matrix_={}
 
     def reset(self,bonds=None,config=None,table=None,terms=None,boundary=None,dtype=None,**options):
@@ -88,11 +88,11 @@ class Generator(object):
         if dtype is not None: self.dtype=dtype
         if boundary is not None: self.boundary=boundary
         if len(options)>0: self.options=options
-        if terms is not None: self.set_terms(terms)
-        self.set_operators()
+        if terms is not None: self.setterms(terms)
+        self.setoperators()
         self._matrix_={}
 
-    def set_terms(self,terms):
+    def setterms(self,terms):
         '''
         Set the terms of the generator.
         '''
@@ -104,7 +104,7 @@ class Generator(object):
                 else:
                     self.terms['alter'].append(term)
 
-    def set_operators(self):
+    def setoperators(self):
         '''
         Set the cache of the operators.
         '''
@@ -126,7 +126,7 @@ class Generator(object):
                     for opt in opts: self._operators_['bound']+=self.boundary(opt)
             self._operators_['alter'].append(operators)
 
-    def set_matrix(self,sector,optrep,*args,**kargs):
+    def setmatrix(self,sector,optrep,*args,**kargs):
         '''
         Set the cache of the matrix representation of the operators.
 
@@ -202,7 +202,6 @@ class Generator(object):
         if self.boundary is not None:
             self._operators_['bound']=Operators()
             self.boundary.update(**karg)
-            print self.boundary.values
             for term in self.terms['const']:
                 for bond in self.bonds:
                     if not bond.isintracell():

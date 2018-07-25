@@ -1,1 +1,2 @@
-from test_DMRG import *
+from test_iDMRG import *
+from test_fDMRG import *

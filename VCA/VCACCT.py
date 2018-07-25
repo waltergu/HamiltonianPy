@@ -102,9 +102,9 @@ class SubVCA(ED.FED):
             The matrix representation of the Hamiltonian.
         '''
         if reset:
-            self.hgenerator.set_matrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
-            self.wgenerator.set_matrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
-            self.bgenerator.set_matrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
+            self.hgenerator.setmatrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
+            self.wgenerator.setmatrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
+            self.bgenerator.setmatrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
         self.sector=sector
         matrix=self.hgenerator.matrix(sector)+self.wgenerator.matrix(sector)+self.bgenerator.matrix(sector)
         return matrix.T+matrix.conjugate()

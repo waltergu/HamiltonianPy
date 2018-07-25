@@ -75,7 +75,7 @@ class FED(ED):
         csr_matrix
             The matrix representation of the Hamiltonian.
         '''
-        if reset: self.generator.set_matrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
+        if reset: self.generator.setmatrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
         self.sector=sector
         matrix=self.generator.matrix(sector)
         return matrix.T+matrix.conjugate()

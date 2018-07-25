@@ -633,6 +633,27 @@ class MPO(Arithmetic,list):
             result.append(Tensor(m,labels=[L,S.P,S,R]))
         return result
 
+    @staticmethod
+    def fromoperators(operators,degfres,layer=0):
+        '''
+        Convert a collection of operators to matrix product operator.
+
+        Parameters
+        ----------
+        operators : iterable of Operator
+            The collection of operators.
+        degfres : DegFreTree
+            The degfretree of the system.
+        layer : int/tuple-of-str, optional
+            The layer where the converted mpo lives.
+
+        Returns
+        -------
+        MPO
+            The converted matrix product operator.
+        '''
+        return OptMPO([OptStr.fromoperator(operator,degfres,layer) for operator in operators],degfres).tompo()
+
     def __getslice__(self,i,j):
         '''
         Operator "[]" for slicing.

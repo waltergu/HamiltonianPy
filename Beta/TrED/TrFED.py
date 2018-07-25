@@ -174,7 +174,7 @@ class TrFED(ED.FED):
         -------
         csr_matrix
         '''
-        if reset: self.generator.set_matrix(sector,trfoptrep,k=sector,basis=self.basis,dtype=self.dtype)
+        if reset: self.generator.setmatrix(sector,trfoptrep,k=sector,basis=self.basis,dtype=self.dtype)
         return self.generator.matrix(sector)
 
 class EB(HP.EB):

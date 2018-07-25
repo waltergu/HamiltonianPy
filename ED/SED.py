@@ -77,7 +77,7 @@ class SED(ED):
         if reset:
             table=self.generator.table
             if self.sectors==(None,) or len(table)<=1:
-                self.generator.set_matrix(sector,HP.soptrep,table)
+                self.generator.setmatrix(sector,HP.soptrep,table)
             else:
                 assert sector is not None
                 cut,qnses=len(table)/2,[self.qnses[index] for index in sorted(table,key=table.get)]
@@ -86,5 +86,5 @@ class SED(ED):
                 subslice=HP.QuantumNumbers.kron([lqns,rqns]).subslice(targets=(sector,))
                 rcs=(np.divide(subslice,len(rqns)),np.mod(subslice,len(rqns)),np.zeros(len(lqns)*len(rqns),dtype=np.int64))
                 rcs[2][subslice]=xrange(len(subslice))
-                self.generator.set_matrix(sector,HP.soptrep,table,cut=cut,permutations=(lpermutation,rpermutation),rcs=rcs)
+                self.generator.setmatrix(sector,HP.soptrep,table,cut=cut,permutations=(lpermutation,rpermutation),rcs=rcs)
         return self.generator.matrix(sector)
