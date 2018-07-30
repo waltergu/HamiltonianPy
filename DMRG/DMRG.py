@@ -5,10 +5,9 @@ Density matrix renormalization group
 
 DMRG, including:
     * classes: Block, DMRG, TSG, TSS
-    * function: pattern
 '''
 
-__all__=['Block','pattern','DMRG','TSG','TSS']
+__all__=['Block','DMRG','TSG','TSS']
 
 import os,re
 import numpy as np
@@ -102,13 +101,20 @@ class Block(object):
         '''
         Used for pickle.
         '''
-        return {'mpo':self.mpo,'mps':self.mps,'target':self.target,'lcontracts':self.lcontracts,'rcontracts':self.rcontracts,'info':self.info}
+        return {    'mpo':          self.mpo,
+                    'mps':          self.mps,
+                    'target':       self.target,
+                    'divisor':      self.divisor,
+                    'lcontracts':   self.lcontracts,
+                    'rcontracts':   self.rcontracts,
+                    'info':self.info
+                    }
 
     def __setstate__(self,state):
         '''
         Used for pickle.
         '''
-        for key,value in state.itervalues(): setattr(self,key,value)
+        for key,value in state.iteritems(): setattr(self,key,value)
         self.timers=Timers('Preparation','Diagonalization','Truncation')
         self.timers.add('Diagonalization','matvec')
 
@@ -127,7 +133,7 @@ class Block(object):
         result.info=self.info
         return result
 
-    def reset(self,mpo=None,mps=None,target=None,divisor=1,LEND=None,REND=None):
+    def reset(self,mpo=None,mps=None,target=None,divisor=None,LEND=None,REND=None):
         '''
         Constructor.
 
@@ -144,9 +150,10 @@ class Block(object):
         LEND/REND : 3d DTensor/STensor, optional
             The leftmost/rightmost end of the contraction of mpo and mps.
         '''
-        if mpo is None: mpo=self.mpo
-        if mps is None: mps=self.mps
-        if target is None: target=self.target
+        if mpo is None: mpo=getattr(self,'mpo')
+        if mps is None: mps=getattr(self,'mps')
+        if target is None: target=getattr(self,'target')
+        if divisor is None: divisor=getattr(self,'divisor')
         assert len(mpo)==len(mps)
         self.mpo=mpo
         self.mps=mps
@@ -413,37 +420,6 @@ class Block(object):
         log<<'info of the dmrg:\n%s\n\n'%self.info
         if piechart: self.timers.graph(parents=Timers.ALL)
 
-def pattern(name,parameters,target,nsite,mode='re'):
-    '''
-    Return the pattern of data files for match.
-
-    Parameters
-    ----------
-    name : str
-        The name of the DMRG.
-    parameters : Parameters
-        The parameters of the DMRG.
-    target : QuantumNumber
-        The target of the DMRG.
-    nsite : int
-        The number of sites of the DMRG.
-    mode : 're','py'
-        're' for regular and 'py' for python.
-
-    Returns
-    -------
-    string
-        The pattern.
-    '''
-    assert mode in ('re','py')
-    result='%s_%s_DMRG_%s_%s'%(name,parameters,tuple(target) if isinstance(target,QuantumNumber) else None,nsite)
-    if mode=='re':
-        ss=['(',')','[',']','^','+']
-        rs=['\(','\)','\[','\]','\^','\+']
-        for s,r in zip(ss,rs):
-            result=result.replace(s,r)
-    return result
-
 class DMRG(Engine):
     '''
     Density matrix renormalization group method.
@@ -470,6 +446,7 @@ class DMRG(Engine):
         The cache of the DMRG.
     '''
     DTRP=2
+    CORE=('lattice','block','cache')
 
     def __init__(self,lattice,terms,config,degfres,mask=(),dtype=np.complex128,target=0,**karg):
         '''
@@ -515,6 +492,14 @@ class DMRG(Engine):
         degfres.reset(leaves=config.table(mask=self.mask).keys())
         return len(degfres.indices())
 
+    def update(self,**karg):
+        '''
+        Update the DMRG with new parameters.
+        '''
+        if len(karg)>0:
+            super(DMRG,self).update(**karg)
+            self.generator.update(**self.data)
+
     def initblock(self,target=None):
         '''
         Init the block of the DMRG.
@@ -555,13 +540,19 @@ class DMRG(Engine):
         '''
         Use pickle to dump the core of the dmrg.
         '''
-        with open('%s/%s_%s.dat'%(self.din,pattern(self.name,self.parameters,self.block.target,self.block.nsite,mode='py'),self.block.mps.nmax),'wb') as fout:
-            core=   {
-                        'lattice':  self.lattice,
-                        'block':    self.block,
-                        'cache':    self.cache
-                        }
-            pk.dump(core,fout,2)
+        with open('%s/%s_%s_%s_%s.dat'%(self.din,self,self.block.nsite,self.block.target,self.block.mps.nmax),'wb') as fout:
+            pk.dump({key:getattr(self,key) for key in self.CORE},fout,2)
+
+    @staticmethod
+    def rematch(pattern):
+        '''
+        Convert a data-filename pattern to regular-expression-match pattern.
+        '''
+        ss=['(',')','[',']','^','+']
+        rs=['\(','\)','\[','\]','\^','\+']
+        for s,r in zip(ss,rs):
+            pattern=pattern.replace(s,r)
+        return pattern
 
     @staticmethod
     def load(din,pattern,nmax):
@@ -573,7 +564,7 @@ class DMRG(Engine):
         din : str
             The directory where the data files are searched.
         pattern : str
-            The matching pattern of the data files.
+            The  pattern of the data files to match.
         nmax : int
             The maximum number of singular values kept in the mps.
 
@@ -583,10 +574,10 @@ class DMRG(Engine):
             The loaded core of the dmrg.
         '''
         candidates={}
-        names=[name for name in os.listdir(din) if re.match(pattern,name)]
+        names=[name for name in os.listdir(din) if re.match(DMRG.rematch(pattern),name)]
         for name in names:
             split=name.split('_')
-            cnmax=int(split[-1][0:-4])
+            cnmax=int(re.findall(r'\d+',split[-1])[0])
             if cnmax<=nmax:candidates[name]=cnmax
         if len(candidates)>0:
             with open('%s/%s'%(din,sorted(candidates.keys(),key=candidates.get)[-1]),'rb') as fin:
@@ -601,8 +592,10 @@ class TSG(App):
 
     Attributes
     ----------
-    targets : sequence of QuantumNumber
-        The target space at each growth of the DMRG.
+    target : callable that returns QuantumNumber
+        This function returns the target space at each growth of the DMRG.
+    maxiter : int
+        The maximum times of growth.
     nmax : int
         The maximum singular values to be kept.
     npresweep : int
@@ -613,15 +606,17 @@ class TSG(App):
         The tolerance of the target state energy.
     '''
 
-    def __init__(self,targets,nmax,npresweep=10,nsweep=4,tol=10**-6,**karg):
+    def __init__(self,target=None,maxiter=10,nmax=400,npresweep=10,nsweep=4,tol=10**-6,**karg):
         '''
         Constructor.
 
         Parameters
         ----------
-        targets : sequence of QuantumNumber
-            The target space at each growth of the DMRG.
-        nmax : int
+        target : callable that returns QuantumNumber, optional
+            This function returns the target space at each growth of the DMRG.
+        maxiter : int, optional
+            The maximum times of growth.
+        nmax : int, optional
             The maximum number of singular values to be kept.
         npresweep : int, optional
             The number of presweeps to make a random mps converged to the target state.
@@ -630,13 +625,14 @@ class TSG(App):
         tol : float, optional
             The tolerance of the target state energy.
         '''
-        self.targets=targets
+        self.target=(lambda niter: None) if target is None else target
+        self.maxiter=maxiter
         self.nmax=nmax
         self.npresweep=npresweep
         self.nsweep=nsweep
         self.tol=tol
 
-    def recover(self,engine):
+    def recover(self,engine,mode):
         '''
         Recover the core of a dmrg engine.
 
@@ -644,21 +640,28 @@ class TSG(App):
         ----------
         engine : DMRG
             The dmrg engine whose core is to be recovered.
+        mode : 'fDMRG'/'iDMRG'
+            The recover mode.
 
         Returns
         -------
         int
             The recover code.
         '''
-        for i,target in enumerate(reversed(self.targets)):
-            core=DMRG.load(din=engine.din,pattern=pattern(engine.name,engine.parameters,target,(len(self.targets)-i)*engine.nspb*2,mode='re'),nmax=self.nmax)
-            if core:
-                for key,value in core.iteritems(): setattr(engine,key,value)
-                engine.config.reset(pids=engine.lattice.pids)
-                engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
-                engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
-                code=len(self.targets)-i-1
-                break
+        if mode=='fDMRG':
+            for niter in xrange(self.maxiter-1,-1,-1):
+                core=DMRG.load(din=engine.din,pattern='%s_%s_%s'%(engine,(niter+1)*engine.nspb*2,self.target(niter)),nmax=self.nmax)
+                if core: break
+        else:
+            core=DMRG.load(din=engine.din,pattern='%s_%s'%(engine,engine.nspb*2),nmax=self.nmax)
+            niter=None
+        if core:
+            for key,value in core.iteritems(): setattr(engine,key,value)
+            engine.config.reset(pids=engine.lattice.pids)
+            engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
+            engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
+            code=getattr(engine,'niter',niter)
+            assert engine.block.target==self.target(code)
         else:
             code=-1
         return code
@@ -675,7 +678,7 @@ class TSS(App):
         The length of the DMRG's mps.
     nmaxs : list of int
         The maximum numbers of singular values to be kept for the sweeps.
-    BS : BaseSpace
+    BS : list of dict
         The basespace of the DMRG's parameters for the sweeps.
     paths : list of list of '<<' or '>>'
         The paths along which the sweeps are performed.
@@ -726,15 +729,14 @@ class TSS(App):
         int
             The recover code.
         '''
-        parameters=deepcopy(engine.parameters)
-        for i,(nmax,paras) in enumerate(reversed(zip(self.nmaxs,self.BS))):
-            parameters.update(paras)
-            core=DMRG.load(din=engine.din,pattern=pattern(self.name,parameters,self.target,self.nsite,mode='re'),nmax=nmax)
+        for i,(nmax,parameters) in enumerate(reversed(zip(self.nmaxs,self.BS))):
+            DMRG.update(engine,**parameters)
+            core=DMRG.load(din=engine.din,pattern='%s_%s_%s'%(engine,self.nsite,self.target),nmax=nmax)
             if core:
                 for key,value in core.iteritems(): setattr(engine,key,value)
-                engine.parameters=parameters
                 engine.config.reset(pids=engine.lattice.pids)
                 engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
+                engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
                 engine.block.mps>>=1 if engine.block.cut==0 else -1 if engine.block.cut==engine.block.nsite else 0
                 code=len(self.nmaxs)-1-i
                 if self.forcesweep or engine.block.mps.nmax<nmax: code-=1

@@ -4,19 +4,31 @@ The structure of tensor networks
 ================================
 
 The structure of tensor networks, including:
-    * constants: DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS,DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
+    * constants:    DEGFRE_FOCK_PRIORITY,DEGFRE_FOCK_LAYERS,
+                    DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS,
+                    DEGFRE_BOSONIC_PRIORITY,DEGFRE_BOSONIC_LAYERS
+                    DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
     * classes: DegFreTree
 '''
 
-__all__=['DEGFRE_FERMIONIC_PRIORITY','DEGFRE_SPIN_PRIORITY','DEGFRE_FERMIONIC_LAYERS','DEGFRE_SPIN_LAYERS','DegFreTree']
+__all__=[   'DEGFRE_FOCK_PRIORITY','DEGFRE_FOCK_LAYERS',
+            'DEGFRE_FERMIONIC_PRIORITY','DEGFRE_FERMIONIC_LAYERS',
+            'DEGFRE_BOSONIC_PRIORITY','DEGFRE_BOSONIC_LAYERS',
+            'DEGFRE_SPIN_PRIORITY','DEGFRE_SPIN_LAYERS',
+            'DegFreTree'
+            ]
 
 import numpy as np
 from HamiltonianPy import PID,Table,QuantumNumbers
 from HamiltonianPy.Misc import Tree
 from HamiltonianPy.TensorNetwork.Tensor import Label
 
+DEGFRE_FOCK_PRIORITY=('scope','site','orbital','spin','nambu')
+DEGFRE_FOCK_LAYERS=[('scope','site','orbital'),('spin',)]
 DEGFRE_FERMIONIC_PRIORITY=('scope','site','orbital','spin','nambu')
 DEGFRE_FERMIONIC_LAYERS=[('scope','site','orbital'),('spin',)]
+DEGFRE_BOSONIC_PRIORITY=('scope','site','orbital','spin','nambu')
+DEGFRE_BOSONIC_LAYERS=[('scope','site','orbital'),('spin',)]
 DEGFRE_SPIN_PRIORITY=['scope','site','orbital','S']
 DEGFRE_SPIN_LAYERS=[('scope','site','orbital','S')]
 

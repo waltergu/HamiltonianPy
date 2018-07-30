@@ -33,9 +33,9 @@ class TestSpin(TestCase):
     def test_fdmrg(self):
         print
         N=20
-        targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
-        self.dmrg.add(TSG(name='fGROWTH',targets=targets,nmax=200,savedata=savedata,plot=False,run=fDMRGTSG))
-        self.dmrg.register(TSS(name='SWEEP',target=targets[-1],nsite=N*self.dmrg.nspb,nmaxs=[200,200],dependences=['fGROWTH'],savedata=savedata,run=fDMRGTSS))
+        target=lambda niter: SQN(0.0) if qnon else None
+        self.dmrg.add(TSG(name='fGROWTH',target=target,maxiter=N/2,nmax=200,savedata=savedata,plot=False,run=fDMRGTSG))
+        self.dmrg.register(TSS(name='SWEEP',target=target(N/2-1),nsite=N*self.dmrg.nspb,nmaxs=[200,200],dependences=['fGROWTH'],savedata=savedata,run=fDMRGTSS))
         self.dmrg.summary()
 
 class TestSpinlessFermion(TestCase):
@@ -55,9 +55,9 @@ class TestSpinlessFermion(TestCase):
     def test_fdmrg(self):
         print
         N=20
-        targets=[PQN(num) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
-        self.dmrg.add(TSG(name='fGROWTH',targets=targets,nmax=200,savedata=savedata,plot=False,run=fDMRGTSG))
-        self.dmrg.register(TSS(name='SWEEP',target=targets[-1],nsite=N*self.dmrg.nspb,nmaxs=[200,200],dependences=['fGROWTH'],savedata=savedata,run=fDMRGTSS))
+        target=lambda niter: PQN(niter+1) if qnon else None
+        self.dmrg.add(TSG(name='fGROWTH',target=target,maxiter=N/2,nmax=200,savedata=savedata,plot=False,run=fDMRGTSG))
+        self.dmrg.register(TSS(name='SWEEP',target=target(N/2-1),nsite=N*self.dmrg.nspb,nmaxs=[200,200],dependences=['fGROWTH'],savedata=savedata,run=fDMRGTSS))
         self.dmrg.summary()
 
 class TestSpinfulFermion(TestCase):
@@ -77,9 +77,9 @@ class TestSpinfulFermion(TestCase):
     def test_fdmrg(self):
         print
         N=20
-        targets=[SPQN((num*2,0.0)) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
-        self.dmrg.add(TSG(name='fGROWTH',targets=targets,nmax=200,savedata=savedata,plot=False,run=fDMRGTSG))
-        self.dmrg.register(TSS(name='SWEEP',target=targets[-1],nsite=N*self.dmrg.nspb,nmaxs=[200,200],dependences=['fGROWTH'],savedata=savedata,run=fDMRGTSS))
+        target=lambda niter: SPQN((2*(niter+1),0.0)) if qnon else None
+        self.dmrg.add(TSG(name='fGROWTH',target=target,maxiter=N/2,nmax=200,savedata=savedata,plot=False,run=fDMRGTSG))
+        self.dmrg.register(TSS(name='SWEEP',target=target(N/2-1),nsite=N*self.dmrg.nspb,nmaxs=[200,200],dependences=['fGROWTH'],savedata=savedata,run=fDMRGTSS))
         self.dmrg.summary()
 
 class TestHoneycombHeisenberg(TestCase):
@@ -99,9 +99,9 @@ class TestHoneycombHeisenberg(TestCase):
     def test_fdmrg(self):
         print
         N=10
-        targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
-        self.dmrg.add(TSG(name='fGROWTH',targets=targets,nmax=100,savedata=savedata,plot=False,run=fDMRGTSG))
-        self.dmrg.register(TSS(name='SWEEP',target=targets[-1],nsite=N*self.dmrg.nspb,nmaxs=[100,100],dependences=['fGROWTH'],savedata=savedata,run=fDMRGTSS))
+        target=lambda niter: SQN(0.0) if qnon else None
+        self.dmrg.add(TSG(name='fGROWTH',target=target,maxiter=N/2,nmax=100,savedata=savedata,plot=False,run=fDMRGTSG))
+        self.dmrg.register(TSS(name='SWEEP',target=target(N/2-1),nsite=N*self.dmrg.nspb,nmaxs=[100,100],dependences=['fGROWTH'],savedata=savedata,run=fDMRGTSS))
         self.dmrg.summary()
 
 fdmrg=TestSuite([

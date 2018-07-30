@@ -25,11 +25,10 @@ class fDMRG(DMRG):
 
     def update(self,**karg):
         '''
-        Update the DMRG with new parameters.
+        Update the fDMRG with new parameters.
         '''
+        super(fDMRG,self).update(**karg)
         if len(karg)>0:
-            super(DMRG,self).update(**karg)
-            self.generator.update(**self.data)
             self.block.reset(mpo=MPO.fromoperators(self.generator.operators,self.degfres))
 
     def insert(self,A,B,news=None,target=None):
@@ -68,8 +67,8 @@ def fDMRGTSG(engine,app):
     This method iterative update the fDMRG by increasing its lattice in the center by 2 blocks at each iteration.
     '''
     engine.log.open()
-    num=app.recover(engine)
-    scopes,nspb=range(len(app.targets)*2),engine.nspb
+    niter=app.recover(engine,'fDMRG')
+    scopes,nspb=range(app.maxiter*2),engine.nspb
     def TSGSWEEP(nsweep):
         assert engine.block.cut==engine.block.nsite/2
         nold,nnew=engine.block.nsite-2*nspb,engine.block.nsite
@@ -79,15 +78,15 @@ def fDMRGTSG(engine,app):
             engine.sweep(info='No.%s'%(sweep+1),path=path,nmax=app.nmax,piechart=app.plot)
             senew=engine.block.info['Esite']
             if norm(seold-senew)/norm(seold+senew)<app.tol: break
-    for i,target in enumerate(app.targets[num+1:]):
-        pos=i+num+1
-        engine.insert(scopes[pos],scopes[-pos-1],news=scopes[:pos]+scopes[-pos:] if pos>0 else None,target=target)
+    for i in xrange(niter+1,app.maxiter):
+        pos=i+niter+1
+        engine.insert(scopes[pos],scopes[-pos-1],news=scopes[:pos]+scopes[-pos:] if pos>0 else None,target=app.target(pos))
         engine.block.iterate(engine.log,info='%s_%s(++)'%(engine,engine.block),sp=True if pos>0 else False,nmax=app.nmax,piechart=app.plot)
         TSGSWEEP(app.npresweep if pos==0 else app.nsweep)
-        if nspb>1 and len(app.targets)>1 and pos==0 and app.savedata: engine.dump()
-    if num==len(app.targets)-1 and app.nmax>engine.block.mps.nmax: TSGSWEEP(app.nsweep)
+        if nspb>1 and app.maxiter>1 and pos==0 and app.savedata: engine.dump()
+    if niter==app.maxiter-1 and app.nmax>engine.block.mps.nmax: TSGSWEEP(app.nsweep)
     if app.plot and app.savefig:
-        plt.savefig('%s/%s_%s_%s.png'%(engine.log.dir,engine,repr(engine.block.target),app.name))
+        plt.savefig('%s/%s_%s_%s.png'%(engine.log.dir,engine,engine.block.target,app.name))
         plt.close()
     if app.savedata: engine.dump()
     engine.log.close()
@@ -97,16 +96,16 @@ def fDMRGTSS(engine,app):
     This method iterative sweep the fDMRG with 2 sites updated at each iteration.
     '''
     engine.log.open()
-    num=app.recover(engine)
-    if num is None:
+    niter=app.recover(engine)
+    if niter is None:
         if app.name in engine.apps: engine.rundependences(app.name)
-        num=-1
-    for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs[num+1:],app.BS[num+1:],app.paths[num+1:])):
+        niter=-1
+    for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs[niter+1:],app.BS[niter+1:],app.paths[niter+1:])):
         app.parameters.update(parameters)
         if not (app.parameters.match(engine.parameters)): engine.update(**parameters)
         engine.sweep(info='No.%s'%(i+1),path=path,nmax=nmax,piechart=app.plot)
         if app.savedata: engine.dump()
     if app.plot and app.savefig:
-        plt.savefig('%s/%s_%s_%s.png'%(engine.log.dir,engine,repr(engine.block.target),app.name))
+        plt.savefig('%s/%s_%s_%s.png'%(engine.log.dir,engine,engine.block.target,app.name))
         plt.close()
     engine.log.close()

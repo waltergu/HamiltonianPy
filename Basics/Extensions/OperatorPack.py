@@ -9,6 +9,7 @@ Operator pack, including:
 
 __all__=['fspoperators','JWBosonization','twisttransformation']
 
+from ..Geometry import isparallel
 from ..FockPackage import FockOperator,FOperator,FLinear,BLinear,CREATION,ANNIHILATION
 from ..SpinPackage import SOperator,SpinMatrix
 from ..Utilities import parity,RZERO
@@ -119,8 +120,13 @@ def twisttransformation(operator,vectors,thetas):
         The new operator.
     '''
     assert isinstance(operator,FockOperator)
-    icoord=np.linalg.inv(np.asarray(vectors).T).dot(operator.icoord)
-    assert np.max(np.abs(icoord-np.around(icoord)))<RZERO
+    assert len(vectors) in {1,2}
+    if len(vectors)==1:
+        assert isparallel(operator.icoord,vectors[0])
+        icoord=np.array([np.linalg.norm(operator.icoord)/np.linalg.norm(vectors[0])])
+    else:
+        icoord=np.linalg.inv(np.asarray(vectors).T).dot(operator.icoord)
+        assert np.max(np.abs(icoord-np.around(icoord)))<RZERO
     phase,value=np.exp(2.0j*np.pi*icoord.dot(thetas)),operator.value
     if operator.rank in {1,2}:
         if operator.indices[0].nambu==CREATION:

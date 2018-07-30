@@ -871,8 +871,7 @@ class MPS(Arithmetic,list):
             iqns,oqns=(1,1) if self.mode=='NB' else (QNS.mono(qn.zero()),QNS.mono(qn))
             bonds[+0]=bonds[+0].replace(qns=iqns) if isinstance(bonds[+0],Label) else Label(bonds[+0],qns=iqns,flow=None)
             bonds[-1]=bonds[-1].replace(qns=oqns) if isinstance(bonds[-1],Label) else Label(bonds[-1],qns=oqns,flow=None)
-            result=MPS.random(sites,bonds=bonds,cut=len(sites)/2,nmax=1)
-            result.Lambda.data=np.array([1.0])
+            result=MPS.random(sites,bonds=bonds,cut=len(sites)/2,nmax=10)
         return result
 
     def relayer(self,degfres,layer,nmax=None,tol=None):

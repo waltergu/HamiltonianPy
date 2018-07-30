@@ -32,9 +32,8 @@ class TestSpin(TestCase):
 
     def test_idmrg(self):
         print
-        N=200
-        targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
-        self.dmrg.register(TSG(name='iGROWTH',targets=targets,nmax=200,savedata=savedata,run=iDMRGTSG))
+        N=50
+        self.dmrg.register(TSG(name='iGROWTH',target=lambda niter: SQN(0.0) if qnon else None,maxiter=N,nmax=200,savedata=savedata,run=iDMRGTSG))
         self.dmrg.summary()
 
 class TestSpinlessFermion(TestCase):
@@ -53,9 +52,8 @@ class TestSpinlessFermion(TestCase):
 
     def test_idmrg(self):
         print
-        N=200
-        targets=[PQN(num) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
-        self.dmrg.register(TSG(name='iGROWTH',targets=targets,nmax=200,savedata=savedata,run=iDMRGTSG))
+        N=50
+        self.dmrg.register(TSG(name='iGROWTH',target=lambda niter: PQN(niter+1) if qnon else None,maxiter=N,nmax=200,savedata=savedata,run=iDMRGTSG))
         self.dmrg.summary()
 
 class TestSpinfulFermion(TestCase):
@@ -74,9 +72,8 @@ class TestSpinfulFermion(TestCase):
 
     def test_idmrg(self):
         print
-        N=200
-        targets=[SPQN((num*2,0.0)) for num in xrange(1,N/2+1)] if qnon else [None]*(N/2)
-        self.dmrg.register(TSG(name='iGROWTH',targets=targets,nmax=200,savedata=savedata,run=iDMRGTSG))
+        N=50
+        self.dmrg.register(TSG(name='iGROWTH',target=lambda niter: SPQN((2*(niter+1),0.0)) if qnon else None,maxiter=N,nmax=200,savedata=savedata,run=iDMRGTSG))
         self.dmrg.summary()
 
 class TestHoneycombHeisenberg(TestCase):
@@ -95,9 +92,8 @@ class TestHoneycombHeisenberg(TestCase):
 
     def test_idmrg(self):
         print
-        N=20
-        targets=[SQN(0.0)]*(N/2) if qnon else [None]*(N/2)
-        self.dmrg.register(TSG(name='iGROWTH',targets=targets,nmax=100,savedata=savedata,run=iDMRGTSG))
+        N=10
+        self.dmrg.register(TSG(name='iGROWTH',target=lambda niter: SQN(0.0) if qnon else None,maxiter=N,nmax=100,savedata=savedata,run=iDMRGTSG))
         self.dmrg.summary()
 
 idmrg=TestSuite([

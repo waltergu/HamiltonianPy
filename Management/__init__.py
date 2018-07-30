@@ -75,9 +75,8 @@ class Manager(object):
         Subcommand add, which adds an engine to this project.
         '''
         subcommand=self.add_subcommand('add',add)
-        subcommand.add_argument('engine',help='The engine to be added to the project.',choices=['tba','ed','vca','dmrg','fbfm'])
+        subcommand.add_argument('engine',help='The engine to be added to the project.',choices=['tba','ed','vca','vcacct','idmrg','fdmrg','fbfm'])
         subcommand.add_argument('-s','--system',help="'spin' for spin systems and 'fock' for fock systems.",default='fock',choices=['spin','fock'])
-        subcommand.add_argument('-c','--cluster',help="'single' for single cluster and 'multi' for multicluster.",default='single',choices=['single','multi'])
 
     def execute(self):
         '''
@@ -87,7 +86,7 @@ class Manager(object):
         namespace.subcommand(**{key:value for key,value in vars(namespace).iteritems() if key!='subcommand'})
 
     @classmethod
-    def has_project(cls):
+    def hasproject(cls):
         '''
         Judge whether the current folder contains a project.
         '''
@@ -126,21 +125,7 @@ def init(directory,project,authors,email,readme,license,gitignore):
     for folder in dirs:
         if not os.path.exists(folder): os.makedirs(folder)
     with open('%s/README.md'%pdir,'w') as fout:
-        fout.write('# %s'%project)
-        fout.write('\n')
-        if readme:
-            fout.write(readme)
-            fout.write('\n')
-        if authors!='Anonymous':
-            fout.write('\nAuthors\n')
-            fout.write('-------\n')
-            fout.write('\n'.join('* %s'%author.lstrip() for author in authors.split(',')))
-            fout.write('\n')
-        if email:
-            fout.write('\nContact\n')
-            fout.write('-------\n')
-            fout.write('%s\n'%email)
-            fout.write('\n')
+        fout.write(Template.readme(project,readme,authors,email))
     if license.upper()=='T':
         with open('%s/LICENSE'%pdir,'w') as fout:
             fout.write(Template.license(authors))
@@ -160,10 +145,10 @@ def add(engine,**kargs):
 
     Parameters
     ----------
-    engine : 'tba','ed','vca','dmrg','fbfm'
+    engine : 'tba','ed','vca','vcacct','fdmrg','idmrg','fbfm'
         The engine ot be added.
     '''
-    if Manager.has_project():
+    if Manager.hasproject():
         if not os.path.exists('result/%s'%engine):
             os.makedirs('result/%s'%engine)
         with open('source/%s.py'%engine,'w') as fout:
