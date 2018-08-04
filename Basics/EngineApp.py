@@ -272,7 +272,11 @@ class Engine(object):
         name : any hashable object
             The name to specify whose dependences to be run.
         '''
-        for app in it.chain(self.preloads,self.apps[name].dependences):
+        try:
+            index=self.preloads.index(name)
+        except:
+            index=len(self.preloads)
+        for app in it.chain(self.preloads[:index],self.apps[name].dependences):
             app=self.apps[app]
             match=self.parameters.match(app.parameters)
             if app.virgin or not match:

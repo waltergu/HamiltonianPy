@@ -23,6 +23,40 @@ class fDMRG(DMRG):
     Finite density matrix renormalization group.
     '''
 
+    def __init__(self,tsg=None,tss=None,lattice=None,terms=None,config=None,degfres=None,mask=(),dtype=np.complex128,target=0,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        tsg : TSG
+            Two-site grow app.
+        tss : TSS
+            Two-site sweep app.
+        lattice,terms,config,degfres,mask,dtype,target :
+            See DMRG.__init__ for details.
+        '''
+        super(fDMRG,self).__init__(lattice,terms,config,degfres,mask,dtype,target)
+        if isinstance(lattice,Cylinder):
+            assert isinstance(tsg,TSG)
+            self.preload(tsg)
+        assert isinstance(tss,TSS)
+        self.preload(tss)
+
+    @property
+    def TSG(self):
+        '''
+        Two-site grow app.
+        '''
+        return self.apps[self.preloads[0]] if isinstance(self.lattice,Cylinder) else None
+
+    @property
+    def TSS(self):
+        '''
+        Two-site grow app.
+        '''
+        return self.apps[self.preloads[1 if isinstance(self.lattice,Cylinder) else 0]]
+
     def update(self,**karg):
         '''
         Update the fDMRG with new parameters.
@@ -100,9 +134,7 @@ def fDMRGTSS(engine,app):
     if niter is None:
         if app.name in engine.apps: engine.rundependences(app.name)
         niter=-1
-    for i,(nmax,parameters,path) in enumerate(zip(app.nmaxs[niter+1:],app.BS[niter+1:],app.paths[niter+1:])):
-        app.parameters.update(parameters)
-        if not (app.parameters.match(engine.parameters)): engine.update(**parameters)
+    for i,(nmax,path) in enumerate(zip(app.nmaxs[niter+1:],app.paths[niter+1:])):
         engine.sweep(info='No.%s'%(i+1),path=path,nmax=nmax,piechart=app.plot)
         if app.savedata: engine.dump()
     if app.plot and app.savefig:

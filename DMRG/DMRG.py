@@ -4,10 +4,10 @@ Density matrix renormalization group
 ====================================
 
 DMRG, including:
-    * classes: Block, DMRG, TSG, TSS
+    * classes: Block, DMRG, TSG, TSS, GSE
 '''
 
-__all__=['Block','DMRG','TSG','TSS']
+__all__=['Block','DMRG','TSG','TSS','GSE']
 
 import os,re
 import numpy as np
@@ -367,6 +367,8 @@ class Block(object):
                 subslice=QuantumNumbers.kron([Lsys.qns,Lenv.qns],signs=[1,-1]).subslice(targets=(zero,))
                 qns=QuantumNumbers.mono(zero,count=len(subslice))
                 qnpairs=[[(sqn,sqn-oqn) for sqn in Lsys.qns if sqn in envod and sqn-oqn in sysod and sqn-oqn in envod] for oqn in Oa.qns]
+                #self.info['mxblk']=max(max(max(sysod[qn1].stop-sysod[qn1].start,envod[qn2].stop-envod[qn2].start) for qn1,qn2 in pairs) for pairs in qnpairs)
+                #self.info['nblk']=sum(len(pairs) for pairs in qnpairs)
             else:
                 sysantipt,envantipt,subslice=None,None,slice(None)
                 qns=Lsys.qns*Lenv.qns
@@ -426,14 +428,14 @@ class DMRG(Engine):
 
     Attributes
     ----------
-    lattice : Cylinder
+    lattice : Cylinder/Lattice
         The lattice of the DMRG.
     terms : list of Term
         The terms of the DMRG.
     config : IDFConfig
-        The configuration of the internal degrees of freedom on the lattice.
+        The configuration of internal degrees of freedom on a lattice.
     degfres : DegFreTree
-        The physical degrees of freedom tree.
+        The tree stucture of the physical degrees of freedom.
     mask : [] or ['nambu']
         [] for spin systems and ['nambu'] for fermionic systems.
     dtype : np.float64, np.complex128
@@ -487,10 +489,8 @@ class DMRG(Engine):
         '''
         The number of site labels per block.
         '''
-        config,degfres=deepcopy(self.config),deepcopy(self.degfres)
-        config.reset(pids=self.lattice(['__DMRG_NSPB__']).pids)
-        degfres.reset(leaves=config.table(mask=self.mask).keys())
-        return len(degfres.indices())
+        assert isinstance(self.lattice,Cylinder)
+        return DMRG.NS(self.config,self.degfres,self.lattice,self.mask)
 
     def update(self,**karg):
         '''
@@ -542,6 +542,37 @@ class DMRG(Engine):
         '''
         with open('%s/%s_%s_%s_%s.dat'%(self.din,self,self.block.nsite,self.block.target,self.block.mps.nmax),'wb') as fout:
             pk.dump({key:getattr(self,key) for key in self.CORE},fout,2)
+
+    @staticmethod
+    def NS(config,degfres,lattice,mask):
+        '''
+        The number of site labels.
+
+        Parameters
+        ----------
+        config : IDFConfig
+            The configuration of internal degrees of freedom on a lattice.
+        degfres : DegFreTree
+            The tree stucture of the physical degrees of freedom.
+        lattice : Cylinder/Lattice
+            The lattice.
+        mask : [] or ['nambu']
+            [] for spin systems and ['nambu'] for fermionic systems.
+
+        Returns
+        -------
+        int
+            The number of site labels.
+
+        Notes
+        -----
+        When lattice is a cyliner, return the number of site labels per block;
+        When lattice is a lattice, return the number of site labels for the whole lattice.
+        '''
+        config,degfres=deepcopy(config),deepcopy(degfres)
+        config.reset(pids=(lattice(['__DMRG_NSPB__']) if isinstance(lattice,Cylinder) else lattice).pids)
+        degfres.reset(leaves=config.table(mask=mask).keys())
+        return len(degfres.indices())
 
     @staticmethod
     def rematch(pattern):
@@ -678,16 +709,11 @@ class TSS(App):
         The length of the DMRG's mps.
     nmaxs : list of int
         The maximum numbers of singular values to be kept for the sweeps.
-    BS : list of dict
-        The basespace of the DMRG's parameters for the sweeps.
     paths : list of list of '<<' or '>>'
         The paths along which the sweeps are performed.
-    forcesweep : logical
-        When True, the sweep will be taken at least once even if the mps are recovered from existing data files perfectly.
-        When False, no real sweep will be taken if the mps can be perfectly recovered from existing data files.
     '''
 
-    def __init__(self,target,nsite,nmaxs,BS=None,paths=None,forcesweep=False,**karg):
+    def __init__(self,target,nsite,nmaxs,paths=None,**karg):
         '''
         Constructor.
 
@@ -699,21 +725,14 @@ class TSS(App):
             The length of the DMRG's mps.
         nmaxs : list of int
             The maximum numbers of singular values to be kept for each sweep.
-        BS : list of dict, optional
-            The parameters of the DMRG for each sweep.
         paths : list of list of '<<' or '>>', optional
             The paths along which the sweeps are performed.
-        forcesweep : logical, optional
-            When True, the sweep will be taken at least once even if the mps are recovered from existing data files perfectly.
-            When False, no real sweep will be taken if the mps can be perfectly recovered from existing data files.
         '''
         self.target=target
         self.nsite=nsite
         self.nmaxs=nmaxs
-        self.BS=[{}]*len(nmaxs) if BS is None else BS
         self.paths=[None]*len(nmaxs) if paths is None else paths
-        assert len(nmaxs)==len(self.BS) and len(nmaxs)==len(self.paths)
-        self.forcesweep=forcesweep
+        assert len(nmaxs)==len(self.paths)
 
     def recover(self,engine):
         '''
@@ -729,8 +748,7 @@ class TSS(App):
         int
             The recover code.
         '''
-        for i,(nmax,parameters) in enumerate(reversed(zip(self.nmaxs,self.BS))):
-            DMRG.update(engine,**parameters)
+        for i,nmax in enumerate(reversed(self.nmaxs)):
             core=DMRG.load(din=engine.din,pattern='%s_%s_%s'%(engine,self.nsite,self.target),nmax=nmax)
             if core:
                 for key,value in core.iteritems(): setattr(engine,key,value)
@@ -739,8 +757,29 @@ class TSS(App):
                 engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
                 engine.block.mps>>=1 if engine.block.cut==0 else -1 if engine.block.cut==engine.block.nsite else 0
                 code=len(self.nmaxs)-1-i
-                if self.forcesweep or engine.block.mps.nmax<nmax: code-=1
+                if engine.block.mps.nmax<nmax: code-=1
                 break
         else:
             code=None
         return code
+
+class GSE(App):
+    '''
+    Ground state energy.
+
+    Attributes
+    ----------
+    path : BaseSpace
+        The path in the parameter space to calculate the ground state energy.
+    '''
+
+    def __init__(self,path,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        path : BaseSpace
+            The path in the parameter space to calculate the ground state energy.
+        '''
+        self.path=path

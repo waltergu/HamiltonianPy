@@ -129,9 +129,9 @@ def SPQNS(S):
     QuantumNumbers
         The corresponding collection of quantum numbers.
     '''
-    qns,spins=[SPQN((0,0.0))],[SQN(sz) for sz in np.arange(-S,S+1)]
+    qns,spins=[SPQN((0.0,0.0))],[SQN(sz) for sz in np.arange(-S,S+1)]
     for n in xrange(1,len(spins)+1):
-        pn=PQN(n)
+        pn=PQN(n*1.0)
         for ss in it.combinations(spins,n):
             qns.append(SPQN.directsum(pn,sum(ss)))
     return QuantumNumbers('G',(qns,range(len(qns)+1)),protocol=QuantumNumbers.INDPTR).sorted()

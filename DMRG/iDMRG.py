@@ -5,10 +5,10 @@ Infinite density matrix renormalization group
 
 iDMRG, including:
     * classes: iDMRG, QP
-    * function: iDMRGTSG, iDMRGQP
+    * function: iDMRGTSG, iDMRGQP, iDMRGGSE
 '''
 
-__all__=['iDMRG','iDMRGTSG','QP','iDMRGQP']
+__all__=['iDMRG','iDMRGTSG','iDMRGGSE','QP','iDMRGQP']
 
 from .DMRG import *
 import time
@@ -31,6 +31,28 @@ class iDMRG(DMRG):
     '''
     CORE=('niter','lattice','block','cache')
 
+    def __init__(self,tsg,lattice,terms,config,degfres,mask=(),dtype=np.complex128,target=0,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        tsg : TSG
+            The two-site grow app.
+        lattice,terms,config,degfres,mask,dtype,target :
+            See DMRG.__init__ for details.
+        '''
+        super(iDMRG,self).__init__(lattice,terms,config,degfres,mask,dtype,target)
+        assert isinstance(tsg,TSG)
+        self.preload(tsg)
+
+    @property
+    def TSG(self):
+        '''
+        Two-site grow app.
+        '''
+        return self.apps[self.preloads[0]]
+
     def update(self,**karg):
         '''
         Update the iDMRG with new parameters.
@@ -47,7 +69,7 @@ class iDMRG(DMRG):
 
     def iterate(self,target=None):
         '''
-        Init the block of the DMRG.
+        Iterate the block of the DMRG.
 
         Parameters
         ----------
@@ -109,6 +131,22 @@ def iDMRGTSG(engine,app):
         if app.savedata: engine.dump()
         engine.log.close()
 
+def iDMRGGSE(engine,app):
+    '''
+    This method calculates the ground state energy.
+    '''
+    result=np.zeros((app.path.rank(0),2))
+    for i,parameters in enumerate(app.path('+')):
+        engine.update(**parameters)
+        engine.log<<'::<parameters>:: %s\n'%(', '.join('%s=%s'%(key,decimaltostr(value)) for key,value in engine.parameters.iteritems()))
+        engine.rundependences(app.name)
+        result[i,0]=parameters.values()[0] if len(parameters)==1 else i
+        result[i,1]=engine.block.info['Esite']
+    name='%s_%s'%(engine.tostr(mask=app.path.tags),app.name)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result
+
 class QP(App):
     '''
     Quantum pump of an adiabatic process.
@@ -119,9 +157,11 @@ class QP(App):
         The path of the varing parameters during the quantum pump.
     qnname : str
         The name of the pumped quantum number.
+    nprediction : int
+        Number of predictions before the sweep.
     '''
 
-    def __init__(self,path,qnname,**karg):
+    def __init__(self,path,qnname,nprediction=0,**karg):
         '''
         Constructor.
 
@@ -131,17 +171,24 @@ class QP(App):
             The path of the varing parameters during the quantum pump.
         qnname : str
             The name of the pumped quantum number.
+        nprediction : int, optional
+            Number of predictions before the sweep.
         '''
         self.path=path
         self.qnname=qnname
+        self.nprediction=nprediction
 
 def iDMRGQP(engine,app):
     '''
     This function calculate the pumped charge during an adiabatic process.
     '''
+    count=0
     def pumpedcharge(parameters):
         t1=time.time()
         engine.update(**parameters)
+        if count>0:
+            for _ in range(app.nprediction):
+                engine.iterate(engine.TSG.target(engine.niter+1))
         engine.rundependences(app.name)
         ps,qns=engine.block.mps.Lambda.data**2,engine.block.mps.Lambda.labels[0].qns
         diff=getattr(engine.block.target,app.qnname)/2
@@ -151,9 +198,10 @@ def iDMRGQP(engine,app):
         engine.log<<'::<informtation>:: pumped charge=%.6f, time=%.4es\n\n'%(result,t2-t1)
         return result
     result=np.zeros((app.path.rank(0),2))
-    for i,parameters in enumerate(app.path('+')):
-        result[i,0]=parameters.values()[0] if len(parameters)==1 else i
-        result[i,1]=pumpedcharge(parameters)
+    for parameters in app.path('+'):
+        result[count,0]=parameters.values()[0] if len(parameters)==1 else count
+        result[count,1]=pumpedcharge(parameters)
+        count+=1
     name='%s_%s'%(engine.tostr(mask=app.path.tags),app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))

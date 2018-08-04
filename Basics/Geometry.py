@@ -531,7 +531,7 @@ def minimumlengths(cluster,vectors=(),nneighbour=1,zmax=8):
         supercluster=tiling(cluster,vectors=vectors,translations=translations)
         for length in cKDTree(supercluster).query(cluster,k=nneighbour*zmax if nneighbour>0 else 1)[0].flatten():
             for i,minlength in enumerate(result):
-                if abs(length-minlength)<RZERO:
+                if np.allclose(length,minlength):
                     break
                 elif length<minlength:
                     if nneighbour>0: result[i+1:nneighbour+1]=result[i:nneighbour]
