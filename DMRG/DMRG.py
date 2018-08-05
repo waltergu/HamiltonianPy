@@ -299,8 +299,6 @@ class Block(object):
         self.rcontracts=[None]*(self.nsite+1)
         self.lcontracts[+0]=LEND
         self.rcontracts[-1]=REND
-        #self.setlcontract(+0,job='relabel')
-        #self.setrcontract(-1,job='relabel')
         self.setcontractions()
 
     def grow(self,sites,obonds,sbonds,osvs,qn=0):
@@ -358,23 +356,21 @@ class Block(object):
             Oa,(La,Sa,Ra)=Hasite.labels[MPO.R],self.mps[self.cut-1].labels
             Ob,(Lb,Sb,Rb)=Hbsite.labels[MPO.L],self.mps[self.cut].labels
             assert Ra==Lb and Oa==Ob
-            Lsys,syspt=Label.union([La,Sa],'__DMRG_ITERATE_SYS__',flow=+1 if self.mps.mode=='QN' else 0,mode=+1)
-            Lenv,envpt=Label.union([Sb,Rb],'__DMRG_ITERATE_ENV__',flow=-1 if self.mps.mode=='QN' else 0,mode=+1)
-            if self.mps.mode=='QN':
+            Lsys,syspt=Label.union([La,Sa],'__DMRG_ITERATE_SYS__',flow=+1 if self.mps.qnon else 0,mode=+1)
+            Lenv,envpt=Label.union([Sb,Rb],'__DMRG_ITERATE_ENV__',flow=-1 if self.mps.qnon else 0,mode=+1)
+            if self.mps.qnon:
                 zero=self.target.zero()
                 sysantipt,sysod=np.argsort(syspt),Lsys.qns.toordereddict()
                 envantipt,envod=np.argsort(envpt),Lenv.qns.toordereddict()
                 subslice=QuantumNumbers.kron([Lsys.qns,Lenv.qns],signs=[1,-1]).subslice(targets=(zero,))
                 qns=QuantumNumbers.mono(zero,count=len(subslice))
                 qnpairs=[[(sqn,sqn-oqn) for sqn in Lsys.qns if sqn in envod and sqn-oqn in sysod and sqn-oqn in envod] for oqn in Oa.qns]
-                #self.info['mxblk']=max(max(max(sysod[qn1].stop-sysod[qn1].start,envod[qn2].stop-envod[qn2].start) for qn1,qn2 in pairs) for pairs in qnpairs)
-                #self.info['nblk']=sum(len(pairs) for pairs in qnpairs)
             else:
                 sysantipt,envantipt,subslice=None,None,slice(None)
                 qns=Lsys.qns*Lenv.qns
             Hsys=(Ha*Hasite).transpose([Oa,La.P,Sa.P,La,Sa]).merge(([La.P,Sa.P],Lsys.P,syspt),([La,Sa],Lsys,syspt))
             Henv=(Hbsite*Hb).transpose([Ob,Sb.P,Rb.P,Sb,Rb]).merge(([Sb.P,Rb.P],Lenv.P,envpt),([Sb,Rb],Lenv,envpt))
-            if self.mps.mode=='QN':
+            if self.mps.qnon:
                 vecold=np.zeros(Hsys.shape[1]*Henv.shape[1],dtype=Hsys.dtype)
                 vecnew=np.zeros((Hsys.shape[1],Henv.shape[1]),dtype=Hsys.dtype)
                 def matvec(v):
@@ -518,7 +514,7 @@ class DMRG(Engine):
             mps=MPS.random(sites,bonds,cut=len(sites)/2,nmax=10,dtype=self.dtype)
         else:
             mpo=MPO()
-            mps=MPS(mode=self.degfres.mode)
+            mps=MPS()
         self.block=Block(mpo,mps,target=target)
 
     def sweep(self,info='',path=None,**karg):

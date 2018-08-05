@@ -18,9 +18,6 @@ class Vidal(object):
 
     Attributes
     ----------
-    mode : 'NB' or 'QN'
-        'NB' for not using good quantum number;
-        'QN' for using good quantum number.
     Gammas : list of Tensor
         The Gamma matrices on the site.
     Lambdas : list of Tensor
@@ -28,15 +25,12 @@ class Vidal(object):
     '''
     L,S,R=0,1,2
 
-    def __init__(self,mode='NB',Gammas=(),Lambdas=(),sites=None,bonds=None):
+    def __init__(self,Gammas=(),Lambdas=(),sites=None,bonds=None):
         '''
         Constructor.
 
         Parameters
         ----------
-        mode : 'NB' or 'QN', optional
-            'NB' for not using good quantum number;
-            'QN' for using good quantum number.
         Gammas : list of 3d ndarray/Tensor, optional
             The Gamma matrices on the site.
         Lambdas : list of 1d ndarray/Tensor, optional
@@ -46,8 +40,7 @@ class Vidal(object):
         bonds : list of Label, optional
             The labels for the virtual legs.
         '''
-        assert mode in ('QN','NB') and len(Gammas)==len(Lambdas)+1 and (sites is None)==(bonds is None)
-        self.mode=mode
+        assert len(Gammas)==len(Lambdas)+1 and (sites is None)==(bonds is None)
         self.Gammas=[]
         self.Lambdas=[]
         if sites is None:
@@ -61,16 +54,17 @@ class Vidal(object):
                 self.Lambdas.append(Lambda)
         else:
             assert len(Gammas)==len(sites)==len(bonds)-1
+            qnon=next(iter(sites)).qnon
             for Gamma,L,S,R in zip(Gammas,bonds[:-1],sites,bonds[1:]):
                 assert Gamma.ndim==3
-                if mode=='QN':
+                if qnon:
                     L,S,R=L.replace(flow=+1),S.replace(flow=+1),R.replace(flow=-1)
                 else:
                     L,S,R=L.replace(qns=Gamma.shape[Vidal.L],flow=0),S.replace(qns=Gamma.shape[Vidal.S],flow=0),R.replace(qns=Gamma.shape[Vidal.R],flow=0)
                 self.Gammas.append(Tensor(Gamma,labels=[L,S,R]))
             for Lambda,label in zip(Lambdas,bonds[1:-1]):
                 assert Lambda.ndim==1
-                self.Lambdas.append(Tensor(Lambda,labels=[label if mode=='QN' else label.replace(qns=Lambda.shape[0])]))
+                self.Lambdas.append(Tensor(Lambda,labels=[label if qnon else label.replace(qns=Lambda.shape[0])]))
 
     def __str__(self):
         '''

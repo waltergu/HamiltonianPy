@@ -125,7 +125,7 @@ class Label(tuple):
                 result=Label(identifier,qns,flow=flow,prime=prime)
                 return (result,record) if mode==2 else result
         else:
-            result=Label(identifier,np.product([label.qns for label in labels]),flow=0,prime=prime)
+            result=Label(identifier,np.product([label.qns for label in labels]),flow=None if flow is None else 0,prime=prime)
             return (result,None) if mode in (1,2) else result
 
     def __str__(self):
@@ -212,6 +212,7 @@ class TensorBase(object):
     labels : list of Label
         The labels of the axes of the tensor.
     '''
+    DIMCHECK=True
 
     __metaclass__=ABCMeta
 
@@ -362,7 +363,7 @@ class TensorBase(object):
         olds : list of Label/int, optional
             The old labels/axes of the tensor.
         '''
-        raise NotImplementedError('%s reflow error: not implemented.'%self.__class__.__name__)
+        raise NotImplementedError('%s relabel error: not implemented.'%self.__class__.__name__)
 
     @abstractmethod
     def transpose(self,axes=None):
@@ -398,7 +399,7 @@ class TensorBase(object):
         subclass of TensorBase
             The extracted tensor.
         '''
-        raise NotImplementedError('%s dtype error: not implemented.'%self.__class__.__name__)
+        raise NotImplementedError('%s take error: not implemented.'%self.__class__.__name__)
 
     @abstractmethod
     def reorder(self,*args):

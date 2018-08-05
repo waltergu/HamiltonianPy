@@ -314,13 +314,13 @@ class OptStr(Arithmetic,list):
                 news.append(u1.labels[2].replace(prime=not u1.labels[2].prime))
             if u1.labels[1].P in poses:
                 u1.relabel(news=news,olds=olds)
-                result=result*(u1,'ftensordot')*(ms[count],'ftensordot')*(u2,'ftensordot')
+                result=result*(u1,'force')*(ms[count],'force')*(u2,'force')
                 count+=1
             else:
                 olds.append(u1.labels[1])
                 news.append(u1.labels[1].replace(prime=not u1.labels[1].prime))
                 u1.relabel(news=news,olds=olds)
-                result=result*(u1,'ftensordot')*(u2,'ftensordot')
+                result=result*(u1,'force')*(u2,'force')
         if mps1 is mps2:
             mps1._set_ABL_(m,Lambda)
         else:
@@ -329,7 +329,7 @@ class OptStr(Arithmetic,list):
         assert result.ndim==0
         return result.data
 
-    def tompo(self,degfres):
+    def tompo(self,degfres,mode='D'):
         '''
         Convert an optstr to the full-formatted mpo.
 
@@ -337,6 +337,8 @@ class OptStr(Arithmetic,list):
         ----------
         degfres : DegFreTree
             The tree of the site degrees of freedom.
+        mode : 'D'/'S', optional
+            'D' for dense tensors and 'S' for sparse tensors.
 
         Returns
         -------
@@ -366,6 +368,9 @@ class OptStr(Arithmetic,list):
             else:
                 ms.append(DTensor(np.identity(ndegfre,dtype=self.dtype).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
             if degfres.mode=='QN': ms[-1].qngenerate(flow=-1,axes=[MPO.L,MPO.U,MPO.D],qnses=[L.qns,U.qns,D.qns],flows=[1,1,-1])
+        if degfres.mode=='QN' and mode=='S':
+            for m in ms: m.qnsort()
+            ms=[m.tostensor() for m in ms]
         return MPO(ms)
 
     def connect(self,degfres):
@@ -516,12 +521,14 @@ class OptMPO(list):
         np.set_printoptions()
         return '\n'.join(result)
 
-    def tompo(self,**karg):
+    def tompo(self,mode='D',**karg):
         '''
         Convert to the tensor-formatted mpo.
 
         Parameters
         ----------
+        mode : 'D'/'S', optional
+            'D' for dense tensors and 'S' for sparse tensors.
         karg : dict with keys containing 'nsweep','method' and 'options'
             Please see MPO.compress for details.
 
@@ -547,6 +554,10 @@ class OptMPO(list):
             for pos in xrange(len(result)):
                 lqns,sqns=QuantumNumbers.mono(type.zero()) if pos==0 else result[pos-1].labels[MPO.R].qns,self.sites[pos].qns
                 result[pos].qngenerate(flow=-1,axes=[MPO.L,MPO.U,MPO.D],qnses=[lqns,sqns,sqns],flows=[1,1,-1])
+            if mode=='S':
+                for i,m in enumerate(result):
+                    m.qnsort()
+                    result[i]=m.tostensor()
         return result
 
 class MPO(Arithmetic,list):
@@ -606,7 +617,7 @@ class MPO(Arithmetic,list):
             L*=ls[-1].dim
             R*=rs[-1].dim
             result=result*m
-        return result.transpose(axes=[self[0].labels[MPO.L]]+ls+rs+[self[-1].labels[MPO.R]]).data.reshape((L,R))
+        return result.transpose(axes=[self[0].labels[MPO.L]]+ls+rs+[self[-1].labels[MPO.R]]).toarray().reshape((L,R))
 
     @staticmethod
     def compose(ms,sites,bonds):
@@ -634,7 +645,7 @@ class MPO(Arithmetic,list):
         return result
 
     @staticmethod
-    def fromoperators(operators,degfres,layer=0):
+    def fromoperators(operators,degfres,layer=0,mode='D'):
         '''
         Convert a collection of operators to matrix product operator.
 
@@ -646,13 +657,15 @@ class MPO(Arithmetic,list):
             The degfretree of the system.
         layer : int/tuple-of-str, optional
             The layer where the converted mpo lives.
+        mode : 'D'/'S', optional
+            'D' for dense tensors and 'S' for sparse tensors.
 
         Returns
         -------
         MPO
             The converted matrix product operator.
         '''
-        return OptMPO([OptStr.fromoperator(operator,degfres,layer) for operator in operators],degfres).tompo()
+        return OptMPO([OptStr.fromoperator(operator,degfres,layer) for operator in operators],degfres).tompo(mode=mode)
 
     def __getslice__(self,i,j):
         '''
@@ -735,18 +748,22 @@ class MPO(Arithmetic,list):
         assert self.nsite==other.nsite
         ms=[]
         for m1,m2 in zip(self,other):
-            assert m1.labels==m2.labels
+            assert m1.labels==m2.labels and type(m1) is type(m2)
             m1,m2=copy(m1),copy(m2)
             L1,U1,D1,R1=m1.labels
             L2,U2,D2,R2=m2.labels
-            L=L1.replace(qns=QuantumNumbers.kron([L1.qns,L2.qns]) if L1.qnon else L1.qns*L2.qns)
-            R=R1.replace(qns=QuantumNumbers.kron([R1.qns,R2.qns]) if R1.qnon else R1.qns*R2.qns)
+            if isinstance(m1,DTensor):
+                L,linfo=Label.union([L1,L2],identifier=L1.identifier,flow=L1.flow,mode=0),None
+                R,rinfo=Label.union([R1,R2],identifier=R1.identifier,flow=R1.flow,mode=0),None
+            else:
+                L,linfo=Label.union([L1,L2],identifier=L1.identifier,flow=L1.flow,mode=+2)
+                R,rinfo=Label.union([R1,R2],identifier=R1.identifier,flow=R1.flow,mode=+2)
             s=Label('__MPO_MUL__',qns=U1.qns)
-            l1,r1=Label('__MPO_MUL_L1__',qns=L1.qns,flow=L1.flow),Label('__MPO_MUL_R1__',qns=R1.qns,flow=R1.flow)
-            l2,r2=Label('__MPO_MUL_L2__',qns=L2.qns,flow=L2.flow),Label('__MPO_MUL_R2__',qns=R2.qns,flow=R2.flow)
+            l1,r1=L1.replace(identifier='__MPO_MUL_L1__'),R1.replace(identifier='__MPO_MUL_R1__')
+            l2,r2=L2.replace(identifier='__MPO_MUL_L2__'),R2.replace(identifier='__MPO_MUL_R2__')
             m1.relabel(olds=[L1,D1,R1],news=[l1,s.replace(flow=D1.flow),r1])
             m2.relabel(olds=[L2,U2,R2],news=[l2,s.replace(flow=U2.flow),r2])
-            ms.append((m1*m2).transpose((l1,l2,U1,D2,r1,r2)).merge(([l1,l2],L),([r1,r2],R)))
+            ms.append((m1*m2).transpose((l1,l2,U1,D2,r1,r2)).merge(([l1,l2],L,linfo),([r1,r2],R,rinfo)))
         return MPO(ms)
 
     def _mul_mps_(self,other):
@@ -767,16 +784,21 @@ class MPO(Arithmetic,list):
         u,Lambda=other._merge_ABL_()
         ms=[]
         for m1,m2 in zip(self,other):
+            assert type(m1) is type(m2)
             L1,U1,D1,R1=m1.labels
             L2,S,R2=m2.labels
             assert S==D1
-            L=L2.replace(qns=QuantumNumbers.kron([L1.qns,L2.qns]) if L1.qnon else L1.qns*L2.qns)
-            R=R2.replace(qns=QuantumNumbers.kron([R1.qns,R2.qns]) if R1.qnon else R1.qns*R2.qns)
-            m=(m1*m2).transpose((L1,L2,U1,R1,R2)).merge(([L1,L2],L),([R1,R2],R))
+            if isinstance(m1,DTensor):
+                L,linfo=Label.union([L1,L2],identifier=L2.identifier,flow=L2.flow,mode=0),None
+                R,rinfo=Label.union([R1,R2],identifier=R2.identifier,flow=R2.flow,mode=0),None
+            else:
+                L,linfo=Label.union([L1,L2],identifier=L2.identifier,flow=L2.flow,mode=+2)
+                R,rinfo=Label.union([R1,R2],identifier=R2.identifier,flow=R2.flow,mode=+2)
+            m=(m1*m2).transpose((L1,L2,U1,R1,R2)).merge(([L1,L2],L,linfo),([R1,R2],R,rinfo))
             m.relabel(olds=[U1],news=[S])
             ms.append(m)
         other._set_ABL_(u,Lambda)
-        return MPS(mode=other.mode,ms=ms)
+        return MPS(ms=ms)
 
     def relabel(self,sites,bonds):
         '''
@@ -838,7 +860,13 @@ class MPO(Arithmetic,list):
             mps1._set_ABL_(u1,Lambda1)
             mps2._set_ABL_(u2,Lambda2)
         assert result.shape==(1,1)
-        return result.data[0,0]
+        return result.toarray()[0,0]
+
+    def sparsify(self):
+        '''
+        Convert dense tensors to sparse tensors.
+        '''
+        return MPO(ms=(m.tostensor() for m in self))
 
     def compress(self,nsweep=1,method='dpl',options=None):
         '''
@@ -882,6 +910,7 @@ class MPO(Arithmetic,list):
                 for m in self:
                     m[np.abs(m)<tol]=0.0
         else:
+            assert all(isinstance(m,DTensor) for m in self)
             zero,tol=options.get('zero',10**-8),options.get('tol',10**-6)
             for _ in xrange(nsweep):
                 for i,m in enumerate(reversed(self)):
@@ -969,6 +998,7 @@ class MPO(Arithmetic,list):
         MPO
             The new mpo.
         '''
+        assert all(isinstance(m,DTensor) for m in self)
         new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
         old=degfres.level(next(iter(self)).labels[MPO.U].identifier)-1
         assert 0<=new<len(degfres.layers)

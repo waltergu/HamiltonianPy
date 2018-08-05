@@ -588,6 +588,25 @@ class QuantumNumbers(Arithmetic):
         assert isinstance(other,int) or isinstance(other,long)
         return QuantumNumbers.kron([self]*other,signs=[1]*other)
 
+    def iteritems(self,protocol=INDPTR):
+        '''
+        An iteration over the (qn,slice) or (qn,count) pairs.
+
+        Parameters
+        ----------
+        protocol : QuantumNumbers.INDPTR, QuantumNumbers.COUNTS, optional
+            * When QuantumNumbers.INDPTR, yield the iteration over (qn,slice) pairs.
+            * When QuantumNumbers.COUNTS, yield the iteration over (qn,count) pairs.
+
+        Yield
+        -----
+        2-tuple
+            The (qn,slice) or (qn,count) pairs.
+        '''
+        assert protocol in (QuantumNumbers.INDPTR,QuantumNumbers.COUNTS)
+        for qn,start,stop in zip(self.contents,self.indptr[:-1],self.indptr[1:]):
+            yield self.type(qn),slice(start,stop,None) if protocol==QuantumNumbers.INDPTR else stop-start
+
     def sort(self,history=False):
         '''
         Sort the contents of the collection and convert it to the canonical form.

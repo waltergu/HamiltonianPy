@@ -45,7 +45,8 @@ class DTensor(TensorBase,Arithmetic):
         '''
         self.data=np.asarray(data)
         self.labels=labels
-        assert self.data.ndim==len(self.labels) and self.dimcheck()
+        assert self.data.ndim==len(self.labels)
+        if self.DIMCHECK: assert self.dimcheck()
 
     @property
     def dtype(self):
@@ -441,6 +442,7 @@ class STensor(TensorBase,Arithmetic):
         assert len(labels)>1 and all(label.qnon and label.qns.form in 'UC' for label in labels)
         self.data=data
         self.labels=labels
+        if self.DIMCHECK: assert self.dimcheck()
 
     @property
     def dtype(self):
@@ -503,6 +505,9 @@ class STensor(TensorBase,Arithmetic):
         '''
         if isinstance(other,STensor) or isinstance(other,DTensor):
             return contract(self,other)
+        elif isinstance(other,tuple):
+            assert len(other)==2
+            return contract(self,other[0],other[1])
         else:
             for key in self.data: self.data[key]*=other
             return self
@@ -513,6 +518,9 @@ class STensor(TensorBase,Arithmetic):
         '''
         if isinstance(other,STensor) or isinstance(other,DTensor):
             return contract(self,other)
+        elif isinstance(other,tuple):
+            assert len(other)==2
+            return contract(self,other[0],other[1])
         else:
             return STensor({key:self.data[key]*other for key in self.data},self.labels)
 
@@ -535,7 +543,7 @@ class STensor(TensorBase,Arithmetic):
         logical
             True for match and False for not.
         '''
-        ods=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS)]
+        ods=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS) for label in self.labels]
         return all(block.shape==tuple(od[qn] for od,qn in zip(ods,qns)) for qns,block in self.data.iteritems())
 
     def toarray(self):
@@ -574,6 +582,36 @@ class STensor(TensorBase,Arithmetic):
         data={key:block*array[[od[key[axis]] if i==axis else np.newaxis for i in xrange(self.ndim)]] for key,block in self.data.iteritems()}
         return STensor(data,labels=self.labels)
 
+    def contractarray(self,axis,array):
+        '''
+        Contract a dimension of the tensor with an array.
+
+        Parameters
+        ----------
+        axis : int/Label
+            The axis along which to perform the contraction.
+        array : 1d ndarray
+            The array the tensor to be contracted with.
+
+        Returns
+        -------
+        DTensor.
+            The contracted tensor.
+
+        Notes
+        -----
+        The input tensor must be 2 dimensional.
+        '''
+        assert self.ndim==2
+        if isinstance(axis,Label): axis=self.axis(axis)
+        clabel,rlabel=self.labels[axis],self.labels[1-axis]
+        data=np.zeros(len(rlabel.qns),dtype=self.dtype)
+        cod,rod=clabel.qns.toordereddict(),rlabel.qns.toordereddict()
+        for qns,block in self.data.iteritems():
+            cqn,rqn=qns[axis],qns[1-axis]
+            data[rod[rqn]]+=(block if axis==1 else block.T)[:,cod[cqn]].dot(array[cod[cqn]])[...]
+        return DTensor(data,[rlabel.replace(flow=None)])
+
     def relabel(self,news,olds=None):
         '''
         Change the labels of the tensor.
@@ -589,7 +627,7 @@ class STensor(TensorBase,Arithmetic):
         olds,maps=[self.labels[axis] for axis in axes],{}
         assert len(news)==len(olds)
         for axis,old,new in zip(axes,olds,news):
-            if old.qns!=new.qns:
+            if old.qns is not new.qns or old.qns!=new.qns:
                 assert nl.norm(old.qns.indptr-new.qns.indptr)==0
                 for oldqn,newqn in zip(old.qns,new.qns):
                     maps[(axis,oldqn)]=newqn
@@ -817,8 +855,9 @@ def contract(a,b,engine=None):
     ----------
     a,b : DTensor/STensor
         The tensors to be contracted, which should be of the same type or one sparse and another 0d/1d dense.
-        Only when both of them are dense tensors, will the parameter `engine` be considered.
-    engine : 'block'/'tensordot'/'ftensordot'/'einsum'/None, optional
+    engine : force/'block'/'tensordot'/'einsum'/None, optional
+        * 'force': use numpy.tensordot to perform the contraction
+            This engine ignores the flows of the shared labels and perform their contractions by force.
         * 'block': use the block-structure of tensors to perform the contraction
             This engine is valid only when
                 1) `a` and `b` use good quantum numbers,
@@ -826,8 +865,6 @@ def contract(a,b,engine=None):
                 3) all the flow pairs of the shared labels sum to be zero.
         * 'tensordot': use numpy.tensordot to perform the contraction
             This engine is valid only when no flows of the shared labels are `None`.
-        * 'ftensordot': use numpy.tensordot to perform the contraction
-            This engine ignores the flows of the shared labels.
         * 'einsum': use numpy.einsum to perform the contraction
             * This engine is valid only when the total number of different labels is <=52.
             * This is the default engine when there exists a shared label whose flow is `None`.
@@ -844,9 +881,9 @@ def contract(a,b,engine=None):
             2) neither of their flows is `None`,
             3) the sum of their flows is zero.
     *   When `a` and `b` are dense:
-            *   When engine is 'ftensordot', Rule.2 and Rule.3 will be omitted, i.e. as long as Rule.1 is satisfied, the labels will be contracted.
-            *   When Rule.1 and Rule.2 is satisfied but Rule.3 is not, an exception will be raised except when engine is 'ftensordot'.
-            *   When Rule.1 is satisfied but Rule.2 is not, and when engine is NOT 'ftensordot', an elementwise multiplication will be performed along
+            *   When engine is 'force', Rule.2 and Rule.3 will be omitted, i.e. as long as Rule.1 is satisfied, the labels will be contracted.
+            *   When Rule.1 and Rule.2 is satisfied but Rule.3 is not, an exception will be raised except when engine is 'force'.
+            *   When Rule.1 is satisfied but Rule.2 is not, and when engine is NOT 'force', an elementwise multiplication will be performed along
                 the corresponding axis, and the label whose flow is not `None` will be kept for this axis, i.e. only multiplication yet no summation.
             *   As to the efficiency, usually 'block'>'tensordot'>'einsum'. Therefore, `None` is recommeded and let the program choose the optimal.
     *   When `a` and `b` are sparse or one sparse and another 0d/1d dense:
@@ -860,7 +897,7 @@ def contract(a,b,engine=None):
     for label in b.labels: (BC if label in common else BL).append(label)
     BC=[BC[BC.index(label)] for label in AC]
     if isinstance(a,DTensor) and isinstance(b,DTensor):
-        if engine!='ftensordot':
+        if engine!='force':
             keep={}
             for l1,l2 in zip(AC,BC):
                 if l1.flow is None or l2.flow is None:
@@ -876,13 +913,13 @@ def contract(a,b,engine=None):
                 if engine in {'block',None}: engine='tensordot'
             elif engine is None:
                 engine='block'
-        if engine=='tensordot' or engine=='ftensordot':
-            return Tensor(np.tensordot(a.data,b.data,axes=([a.axis(label) for label in common],[b.axis(label) for label in common]) if len(common)>0 else 0),labels=AL+BL)
+        if engine=='tensordot' or engine=='force':
+            return DTensor(np.tensordot(a.data,b.data,axes=([a.axis(label) for label in common],[b.axis(label) for label in common]) if len(common)>0 else 0),labels=AL+BL)
         elif engine=='einsum':
             table={key:chr(i+65) if i<26 else chr(i+97) for i,key in enumerate(set(a.labels)|set(b.labels))}
             labels=[keep.pop(label,label) for label in it.chain(a.labels,b.labels) if label in keep or label not in common]
             scripts='%s,%s->%s'%(''.join(table[label] for label in a.labels),''.join(table[label] for label in b.labels),''.join(table[label] for label in labels))
-            return Tensor(np.einsum(scripts,a.data,b.data),labels=labels)
+            return DTensor(np.einsum(scripts,a.data,b.data),labels=labels)
         else:
             A=a.transpose(AL+AC).data.reshape((np.product([label.dim for label in AL]),np.product([label.dim for label in AC])))
             B=b.transpose(BC+BL).data.reshape((np.product([label.dim for label in BC]),np.product([label.dim for label in BL])))
@@ -898,11 +935,11 @@ def contract(a,b,engine=None):
                 binds=bpermutation[cod[qn]]
                 rinds=rpermutation[rod[qn]]
                 result[linds[:,None],rinds]=A[linds[:,None],ainds].dot(B[binds[:,None],rinds])
-            return Tensor(result.reshape(tuple(label.dim for label in it.chain(AL,BL))),labels=AL+BL)
+            return DTensor(result.reshape(tuple(label.dim for label in it.chain(AL,BL))),labels=AL+BL)
     elif a.ndim<=1:
-        return b.dotarray(a.labels[0],a.data) if a.ndim==1 else b*a.data
+        return (b.contractarray if engine=='force' else b.dotarray)(a.labels[0],a.data) if a.ndim==1 else b*a.data
     elif b.ndim<=1:
-        return a.dotarray(b.labels[0],b.data) if b.ndim==1 else a*b.data
+        return (a.contractarray if engine=='force' else a.dotarray)(b.labels[0],b.data) if b.ndim==1 else a*b.data
     else:
         for l1,l2 in zip(AC,BC):
             if l1.flow+l2.flow!=0: raise ValueError('tensor contraction error: not converged flow for %s and %s'%(repr(l1),repr(l2)))
@@ -913,4 +950,5 @@ def contract(a,b,engine=None):
                 qns=tuple(it.chain(qns1,qns2))
                 if qns not in data: data[qns]=0
                 data[qns]+=np.tensordot(block1,block2,axes=axes)
-        return STensor(data,labels=AL+BL)
+        assert len(AL)+len(BL)>1 or len(AL)+len(BL)==0
+        return STensor(data,labels=AL+BL) if len(AL)+len(BL)>1 else DTensor(data[()],labels=[])

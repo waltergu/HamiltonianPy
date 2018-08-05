@@ -23,7 +23,14 @@ class TestMPS(TestCase):
         bonds[+0]=bonds[+0].replace(qns=SQNS(0.0),flow=+1)
         bonds[-1]=bonds[-1].replace(qns=QuantumNumbers.mono(target),flow=-1)
         for cut in xrange(N+1):
-            mps=MPS.fromstate(state,sites,bonds,cut=cut)
+            mps=MPS.fromstate(state,sites,bonds,mode='D',cut=cut)
+            self.assertTrue(all(mps.iscanonical()))
+            self.assertAlmostEqual(norm(state-mps.state),0.0)
+        for cut in xrange(N+1):
+            mps.canonicalize(cut)
+            self.assertTrue(all(mps.iscanonical()))
+        for cut in xrange(N+1):
+            mps=MPS.fromstate(state,sites,bonds,mode='S',cut=cut)
             self.assertTrue(all(mps.iscanonical()))
             self.assertAlmostEqual(norm(state-mps.state),0.0)
         for cut in xrange(N+1):
@@ -35,7 +42,9 @@ class TestMPS(TestCase):
         np.random.seed()
         sites=[SQNS(0.5) for _ in xrange(N)]
         bonds=[SQN(0.0),SQN(0.0)]
-        mps=MPS.random(sites,bonds,cut=np.random.randint(0,N+1),nmax=20)
+        mps=MPS.random(sites,bonds,mode='D',cut=np.random.randint(0,N+1),nmax=20)
+        self.assertTrue(all(mps.iscanonical()))
+        mps=MPS.random(sites,bonds,mode='S',cut=np.random.randint(0,N+1),nmax=20)
         self.assertTrue(all(mps.iscanonical()))
 
     def test_algebra(self):
@@ -44,8 +53,16 @@ class TestMPS(TestCase):
         sites=[SQNS(0.5) for _ in xrange(N)]
         bonds=[SQN(0.0),SQN(0.0)]
         cut=np.random.randint(0,N+1)
-        mps1=MPS.random(sites,bonds,cut=cut,nmax=10)
-        mps2=MPS.random(sites,bonds,cut=cut,nmax=10)
+        mps1=MPS.random(sites,bonds,mode='D',cut=cut,nmax=10)
+        mps2=MPS.random(sites,bonds,mode='D',cut=cut,nmax=10)
+        self.assertAlmostEqual(norm((mps1+mps2).state-(mps1.state+mps2.state)),0.0)
+        self.assertAlmostEqual(norm((mps1-mps2).state-(mps1.state-mps2.state)),0.0)
+        self.assertAlmostEqual(norm((mps1*2.0).state-mps1.state*2.0),0.0)
+        self.assertAlmostEqual(norm((2.0*mps1).state-2.0*mps1.state),0.0)
+        self.assertAlmostEqual(norm((mps1/2.0).state-mps1.state/2.0),0.0)
+        self.assertAlmostEqual(MPS.overlap(mps1,mps2)-np.dot(mps1.state,mps2.state),0.0)
+        mps1=MPS.random(sites,bonds,mode='S',cut=cut,nmax=10)
+        mps2=MPS.random(sites,bonds,mode='S',cut=cut,nmax=10)
         self.assertAlmostEqual(norm((mps1+mps2).state-(mps1.state+mps2.state)),0.0)
         self.assertAlmostEqual(norm((mps1-mps2).state-(mps1.state-mps2.state)),0.0)
         self.assertAlmostEqual(norm((mps1*2.0).state-mps1.state*2.0),0.0)

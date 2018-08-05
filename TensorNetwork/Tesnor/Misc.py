@@ -105,35 +105,32 @@ def directsum(tensors,labels,axes=()):
     assert len({tuple(tensor.shape[axis] for axis in axes) for tensor in tensors})==1
     assert len({tuple(label.flow for label in tensor.labels) for tensor in tensors})==1
     alters=set(xrange(TENSOR.ndim))-set(axes)
+    dtype=np.find_common_type([],[tensor.dtype for tensor in tensors])
     if isinstance(TENSOR,DTensor):
         assert len({tensor.qnon for tensor in tensors})==1
-        shape,dtypes=[0 if axis in alters else TENSOR.shape[axis] for axis in xrange(TENSOR.ndim)],[]
-        for tensor in tensors:
-            for alter in alters: shape[alter]+=tensor.shape[alter]
-            dtypes.append(tensor.dtype)
-        data=np.zeros(tuple(shape),dtype=np.find_common_type([],dtypes))
+        for alter in alters: labels[alter].qns=(QuantumNumbers.union if TENSOR.qnon else np.sum)([tensor.labels[alter].qns for tensor in tensors])
+        for axis in xrange(TENSOR.ndim): labels[axis].flow=TENSOR.labels[axis].flow
+        for axis in axes: labels[axis].qns=tensor.labels[axis].qns
+        data=np.zeros(tuple(len(label.qns) if isinstance(label.qns,QuantumNumbers) else label.qns for label in labels),dtype=dtype)
         slices=[slice(0,0,0) if axis in alters else slice(None,None,None) for axis in xrange(TENSOR.ndim)]
         for tensor in tensors:
             for alter in alters: slices[alter]=slice(slices[alter].stop,slices[alter].stop+tensor.shape[alter])
             data[tuple(slices)]=tensor.data
-        for alter in alters: labels[alter].qns=(QuantumNumbers.union if TENSOR.qnon else np.sum)([tensor.labels[alter].qns for tensor in tensors])
     else:
-        content={}
-        for qns,block in it.chain(*tuple(tensor.data.iteritems() for tensor in tensors)):
-            if qns not in content: content[qns]=([0 if axis in alters else block.shape[axis] for axis in xrange(block.ndim)],[],[])
-            for alter in alters: content[qns][0][alter]+=block.shape[alter]
-            content[qns][1].append(block.dtype)
-            content[qns][2].append(block)
-        data={}
-        for qns,(shape,dtypes,blocks) in content.iteritems():
-            data[qns]=np.zeros(tuple(shape),dtype=np.find_common_type([],dtypes))
-            slices=[slice(0,0,0) if axis in alters else slice(None,None,None) for axis in xrange(TENSOR.ndim)]
-            for block in blocks:
-                for alter in alters: slices[alter]=slice(slices[alter].stop,slices[alter].stop+block.shape[alter])
-                data[qns][tuple(slices)]=block
         for alter in alters: labels[alter].qns=QuantumNumbers.union([tensor.labels[alter].qns for tensor in tensors]).sorted(history=False)
-    for axis in xrange(TENSOR.ndim): labels[axis].flow=TENSOR.labels[axis].flow
-    for axis in axes: labels[axis].qns=tensor.labels[axis].qns
+        for axis in xrange(TENSOR.ndim): labels[axis].flow=TENSOR.labels[axis].flow
+        for axis in axes: labels[axis].qns=tensor.labels[axis].qns
+        ods=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS) for label in labels]
+        data,counts={},{alter:{} for alter in alters}
+        for tensor in tensors:
+            for alter in alters:
+                for qn,count in tensor.labels[alter].qns.iteritems(protocol=QuantumNumbers.COUNTS):
+                    counts[alter][qn]=counts[alter].get(qn,0)+count
+            for qns,block in tensor.data.iteritems():
+                if qns not in data:
+                    data[qns]=np.zeros(tuple(od[qn] for od,qn in zip(ods,qns)),dtype=dtype)
+                slices=[slice(counts[i][qns[i]]-block.shape[i],counts[i][qns[i]],None) if i in alters else slice(None,None,None) for i in xrange(TENSOR.ndim)]
+                data[qns][tuple(slices)]=block
     return type(TENSOR)(data,labels=labels)
 
 def eigh(tensor,row,new,col,returndagger=False):
