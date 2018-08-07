@@ -95,7 +95,7 @@ class fDMRG(DMRG):
             osvs=self.cache.get('osvs',np.array([1.0]))
             self.cache['osvs']=self.block.mps.Lambda.data if niter>1 else np.array([1.0])
             mps=self.block.mps.impsgrowth(sites,sbonds,osvs,qn,ttype=self.block.ttype)
-            self.block.reset(mpo=mpo,mps=mps,target=target,divisor=1)
+            self.block.reset(mpo=mpo,mps=mps,target=target)
 
 def fDMRGTSG(engine,app):
     '''

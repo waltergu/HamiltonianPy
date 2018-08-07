@@ -7,7 +7,7 @@ __all__=['config']
 config_template="""\
 from HamiltonianPy import *
 
-__all__=['name','nnb','parametermap','idfmap','qnon','qnsmap']
+__all__=['name','nnb','parametermap','idfmap','ttype','qnsmap']
 
 # The configs of the model
 name=None

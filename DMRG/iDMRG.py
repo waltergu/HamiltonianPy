@@ -12,6 +12,7 @@ __all__=['iDMRG','iDMRGTSG','iDMRGGSE','QP','iDMRGQP']
 
 from .DMRG import *
 import time
+import warnings
 import numpy as np
 import itertools as it
 import matplotlib.pyplot as plt
@@ -85,7 +86,6 @@ class iDMRG(DMRG):
             sbonds=[bond.identifier for bond in self.block.mps.bonds]
             qn=target-self.block.target if isinstance(target,QuantumNumber) else 0
             self.block.predict(sites,obonds,sbonds,osvs,qn)
-            self.block.divisor=self.niter+1
         else:
             ls=['iDMRG_K%s'%i for i in xrange(self.niter)]
             rs=['iDMRG_S%s'%i for i in xrange(self.niter)]
@@ -100,11 +100,10 @@ class iDMRG(DMRG):
             qn=target-self.block.target if isinstance(target,QuantumNumber) else 0
             self.cache['osvs']=self.block.mps.Lambda.data if self.niter>0 else np.array([1.0])
             mps=self.block.mps.impsgrowth(sites,bonds,osvs,qn,ttype=self.block.ttype)
-            self.block.reset(mpo=mpo,mps=mps,target=target,divisor=1)
+            self.block.reset(mpo=mpo,mps=mps,target=target)
             if self.niter+1==self.lattice.nneighbour+self.DTRP:
                 nsite,nspb=self.block.nsite,self.nspb
                 self.block=self.block[nsite/2-nspb:nsite/2+nspb]
-                self.block.divisor=self.niter+1
 
 def iDMRGTSG(engine,app):
     '''
@@ -114,18 +113,24 @@ def iDMRGTSG(engine,app):
     if niter<0:
         engine.log.open()
         nspb=engine.nspb
-        def TSGSWEEP(nsweep):
+        def TSGSWEEP(nsweep,ebase,ngrowth):
             assert engine.block.cut==engine.block.nsite/2
-            path=list(it.chain(['<<']*(nspb-1),['>>']*(nspb*2-2),['<<']*(nspb-1)))
+            path=list(it.chain(['%s<<'%ngrowth]*(nspb-1),['%s>>'%ngrowth]*(nspb*2-2),['%s<<'%ngrowth]*(nspb-1)))
             for sweep in xrange(nsweep):
                 seold=engine.block.info['Esite']
-                engine.sweep(info='No.%s'%(sweep+1),path=path,nmax=app.nmax,piechart=app.plot)
+                engine.sweep(info='No.%s'%(sweep+1),path=path,nmax=app.nmax,ebase=ebase,piechart=app.plot)
                 senew=engine.block.info['Esite']
                 if norm(seold-senew)/norm(seold+senew)<app.tol: break
         for i in xrange(app.maxiter):
+            ebase=engine.block.info['Etotal']
+            seold=engine.block.info['Esite']
             engine.iterate(target=app.target(getattr(engine,'niter',i-1)+1))
-            engine.block.iterate(engine.log,info='%s_%s(++)'%(engine,engine.block),sp=i>0,nmax=app.nmax,piechart=app.plot)
-            TSGSWEEP(app.npresweep if i==0 else app.nsweep)
+            engine.block.iterate(engine.log,info='%s_%s(%s++)'%(engine,engine.block,i),sp=i>0,ebase=ebase,nmax=app.nmax,piechart=app.plot)
+            TSGSWEEP(app.npresweep if i==0 else app.nsweep,ebase,i)
+            senew=engine.block.info['Esite']
+            if seold is not None and norm(seold-senew)/norm(seold+senew)<10*app.tol: break
+        else:
+            warning.warn('iDMRGTSG warning: not converged energy after %s iterations.'%app.maxiter)
         if app.plot and app.savefig:
             plt.savefig('%s/%s_%s_%s.png'%(engine.log.dir,engine,engine.block.target,app.name))
             plt.close()

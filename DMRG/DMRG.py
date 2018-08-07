@@ -88,8 +88,6 @@ class Block(object):
         The MPS of the block.
     target : QuantumNumber
         The target of the block.
-    divisor : int
-        The extra divisor of extensive quantities and intensive quantities.
     ttype : 'D'/'S'
         Tensor type. 'D' for dense and 'S' for sparse.
     lcontracts : list of 3d DTensor/STensor
@@ -102,7 +100,7 @@ class Block(object):
         The info of the block.
     '''
 
-    def __init__(self,mpo,mps,target=None,divisor=1,LEND=None,REND=None,ttype='D'):
+    def __init__(self,mpo,mps,target=None,LEND=None,REND=None,ttype='D'):
         '''
         Constructor.
 
@@ -114,14 +112,12 @@ class Block(object):
             The MPS of the block.
         target : QuantumNumber, optional
             The target of the block.
-        divisor : int, optional
-            The extra divisor of extensive quantities and intensive quantities.
         LEND/REND : 3d DTensor/STensor, optional
             The leftmost/rightmost end of the contraction of mpo and mps.
         ttype : 'D'/'S', optional
             Tensor type. 'D' for dense and 'S' for sparse.
         '''
-        self.reset(mpo,mps,target=target,divisor=divisor,LEND=LEND,REND=REND,ttype=ttype)
+        self.reset(mpo,mps,target=target,LEND=LEND,REND=REND,ttype=ttype)
         self.timers=Timers('Preparation','Diagonalization','Truncation')
         self.timers.add('Diagonalization','matvec')
         self.info=Sheet(('Etotal','Esite','nmatvec','nbasis','nslice','overlap','err'))
@@ -164,7 +160,6 @@ class Block(object):
         return {    'mpo':          self.mpo,
                     'mps':          self.mps,
                     'target':       self.target,
-                    'divisor':      self.divisor,
                     'ttype':        self.ttype,
                     'lcontracts':   self.lcontracts,
                     'rcontracts':   self.rcontracts,
@@ -187,7 +182,6 @@ class Block(object):
         result.mpo=self.mpo[i:j]
         result.mps=self.mps[i:j]
         result.target=self.target
-        result.divisor=self.divisor
         result.ttype=self.ttype
         result.lcontracts=self.lcontracts[i:j+1]
         result.rcontracts=self.rcontracts[i:j+1]
@@ -195,26 +189,24 @@ class Block(object):
         result.info=self.info
         return result
 
-    def reset(self,mpo=None,mps=None,target=None,divisor=None,LEND=None,REND=None,ttype=None):
+    def reset(self,mpo=None,mps=None,target=None,LEND=None,REND=None,ttype=None):
         '''
         Constructor.
 
         Parameters
         ----------
-        mpo,mps,target,divisor,LEND,REND,ttype :
+        mpo,mps,target,LEND,REND,ttype :
             See Block.__init__ for details.
         '''
         if mpo is None: mpo=getattr(self,'mpo')
         if mps is None: mps=getattr(self,'mps')
         if target is None: target=getattr(self,'target')
-        if divisor is None: divisor=getattr(self,'divisor')
         if ttype is None: ttype=getattr(self,'ttype')
         assert len(mpo)==len(mps)
         self.ttype=ttype
         self.mpo=mpo if mpo.ttype in (self.ttype,None) else mpo.todense() if self.ttype=='D' else mpo.tosparse()
         self.mps=mps if mps.ttype in (self.ttype,None) else mps.todense() if self.ttype=='D' else mps.tosparse()
         self.target=target
-        self.divisor=divisor
         if self.nsite>0:
             if LEND is None:
                 C=self.mpo[0].labels[MPO.L].inverse
@@ -386,7 +378,7 @@ class Block(object):
         if flag: self.rcontracts[-onsite/2-1:]=oldrcontracts
         self.setcontractions(SL=onsite/2+1,EL=self.nsite/2,SR=self.nsite-onsite/2-1,ER=self.nsite/2)
 
-    def iterate(self,log,info='',sp=True,nmax=200,tol=hm.TOL,piechart=True):
+    def iterate(self,log,info='',sp=True,nmax=200,tol=hm.TOL,ebase=None,piechart=True):
         '''
         The two site dmrg step.
 
@@ -402,6 +394,8 @@ class Block(object):
             The maximum singular values to be kept.
         tol : float, optional
             The tolerance of the singular values.
+        ebase : float, optional
+            The base for calculating the ground state energy per site.
         piechart : logical, optional
             True for showing the piechart of self.timers while False for not.
         '''
@@ -428,7 +422,7 @@ class Block(object):
             es,vs=hm.eigsh(matrix,which='SA',v0=v0,k=1)
             energy,Psi=es[0],vs[:,0]
             self.info['Etotal']=energy,'%.6f'
-            self.info['Esite']=energy/self.nsite/self.divisor,'%.8f'
+            self.info['Esite']=(energy-(ebase or 0.0))/self.nsite,'%.8f'
             self.info['nmatvec']=matrix.count
             self.info['overlap']=np.inf if v0 is None else np.abs(Psi.conjugate().dot(v0)/norm(v0)/norm(Psi)),'%.6f'
         with self.timers.get('Truncation'):
@@ -670,7 +664,7 @@ class TSG(App):
         The tolerance of the target state energy.
     '''
 
-    def __init__(self,target=None,maxiter=10,nmax=400,npresweep=10,nsweep=4,tol=10**-6,**karg):
+    def __init__(self,target=None,maxiter=10,nmax=400,npresweep=10,nsweep=4,tol=10**-5,**karg):
         '''
         Constructor.
 

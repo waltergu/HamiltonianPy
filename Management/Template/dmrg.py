@@ -53,7 +53,7 @@ from config import *
 
 __all__=['idmrgconstruct']
 
-def idmrgconstruct(name,parameters,lattice,terms,target,maxiter,{argumentstatistics}boundary=None,**karg):
+def idmrgconstruct(name,parameters,lattice,terms,target,maxiter=50,{argumentstatistics}boundary=None,**karg):
     priority,layers,mask=DEGFRE_{system}_PRIORITY,DEGFRE_{system}_LAYERS,[{mask}]
     dmrg=DMRG.iDMRG(
         dlog=       'log',
