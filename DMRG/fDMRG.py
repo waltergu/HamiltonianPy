@@ -23,7 +23,7 @@ class fDMRG(DMRG):
     Finite density matrix renormalization group.
     '''
 
-    def __init__(self,tsg=None,tss=None,lattice=None,terms=None,config=None,degfres=None,mask=(),dtype=np.complex128,target=0,**karg):
+    def __init__(self,tsg=None,tss=None,lattice=None,terms=None,config=None,degfres=None,mask=(),ttype='D',dtype=np.complex128,target=0,**karg):
         '''
         Constructor.
 
@@ -33,10 +33,10 @@ class fDMRG(DMRG):
             Two-site grow app.
         tss : TSS
             Two-site sweep app.
-        lattice,terms,config,degfres,mask,dtype,target :
+        lattice,terms,config,degfres,mask,ttype,dtype,target :
             See DMRG.__init__ for details.
         '''
-        super(fDMRG,self).__init__(lattice,terms,config,degfres,mask,dtype,target)
+        super(fDMRG,self).__init__(lattice,terms,config,degfres,mask,ttype,dtype,target)
         if isinstance(lattice,Cylinder):
             assert isinstance(tsg,TSG)
             self.preload(tsg)
@@ -63,7 +63,7 @@ class fDMRG(DMRG):
         '''
         super(fDMRG,self).update(**karg)
         if len(karg)>0:
-            self.block.reset(mpo=MPO.fromoperators(self.generator.operators,self.degfres))
+            self.block.reset(mpo=MPO.fromoperators(self.generator.operators,self.degfres,ttype=self.block.ttype))
 
     def insert(self,A,B,news=None,target=None):
         '''
@@ -84,16 +84,17 @@ class fDMRG(DMRG):
         self.generator.reset(bonds=self.lattice.bonds,config=self.config)
         niter=len(self.lattice)/len(self.lattice.block)/2
         sites,obonds,sbonds=self.degfres.labels('S'),self.degfres.labels('O'),self.degfres.labels('B')
+        if self.block.ttype=='S': sites=[site.replace(qns=site.qns.sorted()) for site in sites]
         qn=target-self.block.target if isinstance(target,QuantumNumber) else 0
         if niter>self.lattice.nneighbour+self.DTRP:
             osvs=self.cache['osvs']
             self.cache['osvs']=self.block.mps.Lambda.data
             self.block.grow(sites,obonds,sbonds,osvs,qn)
         else:
-            mpo=MPO.fromoperators(self.generator.operators,self.degfres)
+            mpo=MPO.fromoperators(self.generator.operators,self.degfres,ttype=self.block.ttype)
             osvs=self.cache.get('osvs',np.array([1.0]))
             self.cache['osvs']=self.block.mps.Lambda.data if niter>1 else np.array([1.0])
-            mps=self.block.mps.impsgrowth(sites,sbonds,osvs,qn)
+            mps=self.block.mps.impsgrowth(sites,sbonds,osvs,qn,ttype=self.block.ttype)
             self.block.reset(mpo=mpo,mps=mps,target=target,divisor=1)
 
 def fDMRGTSG(engine,app):
@@ -101,7 +102,7 @@ def fDMRGTSG(engine,app):
     This method iterative update the fDMRG by increasing its lattice in the center by 2 blocks at each iteration.
     '''
     engine.log.open()
-    niter=app.recover(engine,'fDMRG')
+    niter=app.recover(engine)
     scopes,nspb=range(app.maxiter*2),engine.nspb
     def TSGSWEEP(nsweep):
         assert engine.block.cut==engine.block.nsite/2

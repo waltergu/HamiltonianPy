@@ -12,7 +12,7 @@ __all__=['Opt','OptStr','OptMPO','MPO']
 import numpy as np
 import itertools as it
 from numpy.linalg import norm
-from HamiltonianPy import Arithmetic,RZERO,FockOperator,SOperator,JWBosonization,QuantumNumbers,decimaltostr
+from HamiltonianPy import Arithmetic,RZERO,FockOperator,SOperator,JWBosonization,QuantumNumber,QuantumNumbers,decimaltostr
 from HamiltonianPy.TensorNetwork.Tensor import *
 from HamiltonianPy.TensorNetwork.MPS import MPS
 from copy import copy
@@ -329,7 +329,7 @@ class OptStr(Arithmetic,list):
         assert result.ndim==0
         return result.data
 
-    def tompo(self,degfres,mode='D'):
+    def tompo(self,degfres,ttype='D'):
         '''
         Convert an optstr to the full-formatted mpo.
 
@@ -337,8 +337,8 @@ class OptStr(Arithmetic,list):
         ----------
         degfres : DegFreTree
             The tree of the site degrees of freedom.
-        mode : 'D'/'S', optional
-            'D' for dense tensors and 'S' for sparse tensors.
+        ttype : 'D'/'S', optional
+            Tensor type. 'D' for dense and 'S' for sparse.
 
         Returns
         -------
@@ -346,13 +346,13 @@ class OptStr(Arithmetic,list):
             The corresponding MPO.
         '''
         index=self[0].site.identifier
-        type,layer=degfres[index].type if degfres.mode=='QN' else None,degfres.layers[degfres.level(index)-1]
+        type,layer=degfres.dtype,degfres.layers[degfres.level(index)-1]
         table,sites,bonds=degfres.table(layer),degfres.labels('S',layer),degfres.labels('O',layer)
         poses,matrices=set(table[opt.site.identifier] for opt in self),[opt.matrix for opt in self]
         ms,count=[],0
         for pos in xrange(len(sites)):
             ndegfre=sites[pos].dim
-            if degfres.mode=='QN':
+            if issubclass(type,QuantumNumbers):
                 L=Label(bonds[pos],qns=QuantumNumbers.mono(type.zero()) if pos==0 else ms[-1].labels[MPO.R].qns,flow=None)
                 U=sites[pos].P
                 D=copy(sites[pos])
@@ -367,8 +367,9 @@ class OptStr(Arithmetic,list):
                 count+=1
             else:
                 ms.append(DTensor(np.identity(ndegfre,dtype=self.dtype).reshape((1,ndegfre,ndegfre,1)),labels=[L,U,D,R]))
-            if degfres.mode=='QN': ms[-1].qngenerate(flow=-1,axes=[MPO.L,MPO.U,MPO.D],qnses=[L.qns,U.qns,D.qns],flows=[1,1,-1])
-        if degfres.mode=='QN' and mode=='S':
+            if issubclass(type,QuantumNumbers): ms[-1].qngenerate(flow=-1,axes=[MPO.L,MPO.U,MPO.D],qnses=[L.qns,U.qns,D.qns],flows=[1,1,-1])
+        if ttype=='S':
+            assert issubclass(type,QuantumNumbers)
             for m in ms: m.qnsort()
             ms=[m.tostensor() for m in ms]
         return MPO(ms)
@@ -521,14 +522,14 @@ class OptMPO(list):
         np.set_printoptions()
         return '\n'.join(result)
 
-    def tompo(self,mode='D',**karg):
+    def tompo(self,ttype='D',**karg):
         '''
         Convert to the tensor-formatted mpo.
 
         Parameters
         ----------
-        mode : 'D'/'S', optional
-            'D' for dense tensors and 'S' for sparse tensors.
+        ttype : 'D'/'S', optional
+            Tensor type. 'D' for dense and 'S' for sparse.
         karg : dict with keys containing 'nsweep','method' and 'options'
             Please see MPO.compress for details.
 
@@ -554,10 +555,11 @@ class OptMPO(list):
             for pos in xrange(len(result)):
                 lqns,sqns=QuantumNumbers.mono(type.zero()) if pos==0 else result[pos-1].labels[MPO.R].qns,self.sites[pos].qns
                 result[pos].qngenerate(flow=-1,axes=[MPO.L,MPO.U,MPO.D],qnses=[lqns,sqns,sqns],flows=[1,1,-1])
-            if mode=='S':
-                for i,m in enumerate(result):
-                    m.qnsort()
-                    result[i]=m.tostensor()
+        if ttype=='S':
+            assert issubclass(type,QuantumNumber)
+            for i,m in enumerate(result):
+                m.qnsort()
+                result[i]=m.tostensor()
         return result
 
 class MPO(Arithmetic,list):
@@ -566,7 +568,7 @@ class MPO(Arithmetic,list):
     '''
     L,U,D,R=0,1,2,3
 
-    def __init__(self,ms=()):
+    def __init__(self,ms=(),ttype=None):
         '''
         Constructor.
 
@@ -574,10 +576,12 @@ class MPO(Arithmetic,list):
         ----------
         ms : list of 4d DTensor/STensor, optional
             The matrices of the mpo.
+        ttype : None/'D'/'S', optional
+            Tensor type. 'D' for dense, 'S' for sparse and None for automatic.
         '''
         for m in ms:
             assert m.ndim==4 and m.labels[MPO.U]==m.labels[MPO.D].P
-            self.append(m)
+            self.append(Tensor(m,ttype=ttype))
 
     @property
     def nsite(self):
@@ -619,8 +623,15 @@ class MPO(Arithmetic,list):
             result=result*m
         return result.transpose(axes=[self[0].labels[MPO.L]]+ls+rs+[self[-1].labels[MPO.R]]).toarray().reshape((L,R))
 
+    @property
+    def ttype(self):
+        '''
+        Tensor type of the mps.
+        '''
+        return self[0].ttype if len(self)>0 else None
+
     @staticmethod
-    def compose(ms,sites,bonds):
+    def compose(ms,sites,bonds,ttype=None):
         '''
         Constructor.
 
@@ -632,6 +643,8 @@ class MPO(Arithmetic,list):
             The site labels of the mpo.
         bonds : list of Label
             The bond labels of the mpo.
+        ttype : None/'D'/'S', optional
+            Tensor type. 'D' for dense, 'S' for sparse and None for automatic.
         '''
         assert len(ms)==len(sites)==len(bonds)-1
         result=MPO()
@@ -641,11 +654,11 @@ class MPO(Arithmetic,list):
             L=L.replace(flow=+1) if qnon else L.replace(qns=m.shape[0],flow=0)
             S=S.replace(flow=-1) if qnon else S.replace(qns=m.shape[1],flow=0)
             R=R.replace(flow=-1) if qnon else R.replace(qns=m.shape[3],flow=0)
-            result.append(Tensor(m,labels=[L,S.P,S,R]))
+            result.append(Tensor(m,labels=[L,S.P,S,R],ttype=ttype))
         return result
 
     @staticmethod
-    def fromoperators(operators,degfres,layer=0,mode='D'):
+    def fromoperators(operators,degfres,layer=0,ttype='D'):
         '''
         Convert a collection of operators to matrix product operator.
 
@@ -657,15 +670,15 @@ class MPO(Arithmetic,list):
             The degfretree of the system.
         layer : int/tuple-of-str, optional
             The layer where the converted mpo lives.
-        mode : 'D'/'S', optional
-            'D' for dense tensors and 'S' for sparse tensors.
+        ttype : 'D'/'S', optional
+            Tensor type. 'D' for dense and 'S' for sparse.
 
         Returns
         -------
         MPO
             The converted matrix product operator.
         '''
-        return OptMPO([OptStr.fromoperator(operator,degfres,layer) for operator in operators],degfres).tompo(mode=mode)
+        return OptMPO([OptStr.fromoperator(operator,degfres,layer) for operator in operators],degfres).tompo(ttype=ttype)
 
     def __getslice__(self,i,j):
         '''
@@ -862,11 +875,17 @@ class MPO(Arithmetic,list):
         assert result.shape==(1,1)
         return result.toarray()[0,0]
 
-    def sparsify(self):
+    def tosparse(self):
         '''
         Convert dense tensors to sparse tensors.
         '''
         return MPO(ms=(m.tostensor() for m in self))
+
+    def todense(self):
+        '''
+        Convert sparse tensors to dense tensors.
+        '''
+        return MPO(ms=(m.todtensor() for m in self))
 
     def compress(self,nsweep=1,method='dpl',options=None):
         '''
@@ -930,7 +949,7 @@ class MPO(Arithmetic,list):
                         self[i+0].relabel(olds=[MPO.R],news=[self[i+0].labels[MPO.R].replace(identifier=R.identifier)])
                         self[i+1].relabel(olds=[MPO.L],news=[self[i+1].labels[MPO.L].replace(identifier=R.identifier)])
 
-    def impoprediction(self,sites,bonds):
+    def impoprediction(self,sites,bonds,ttype=None):
         '''
         Infinite mpo prediction.
 
@@ -938,6 +957,8 @@ class MPO(Arithmetic,list):
         ----------
         sites,bonds : list of Label/str
             The site/bond labels/identifiers of the new mpo.
+        ttype : None/'D'/'S', optional
+            Tensor type. 'D' for dense, 'S' for sparse and None for automatic.
 
         Returns
         -------
@@ -953,9 +974,9 @@ class MPO(Arithmetic,list):
             D=m.labels[MPO.D].replace(identifier=S.identifier if isinstance(S,Label) else S)
             R=m.labels[MPO.R].replace(identifier=R.identifier if isinstance(R,Label) else R)
             ms.append(Tensor(m.data,labels=[L,U,D,R]))
-        return MPO(ms)
+        return MPO(ms,ttype=ttype)
 
-    def impogrowth(self,sites,bonds):
+    def impogrowth(self,sites,bonds,ttype=None):
         '''
         Infinite mpo growth.
 
@@ -963,6 +984,8 @@ class MPO(Arithmetic,list):
         ----------
         sites,bonds : list of Label/str
             The site/bond labels/identifiers of the new mpo.
+        ttype : None/'D'/'S', optional
+            Tensor type. 'D' for dense, 'S' for sparse and None for automatic.
 
         Returns
         -------
@@ -976,7 +999,7 @@ class MPO(Arithmetic,list):
         rms=self[ob-1:]
         lms.relabel(sites[:ob-1],bonds[:ob])
         rms.relabel(sites[-ob+1:],bonds[-ob:])
-        return MPO(it.chain(lms,cms,rms))
+        return MPO(it.chain(lms,cms,rms),ttype=ttype)
 
     def relayer(self,degfres,layer,nmax=None,tol=None):
         '''

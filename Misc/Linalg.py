@@ -158,7 +158,7 @@ class LinearOperator(pl.LinearOperator):
             The shape of the linear operator.
         dtype : np.float64, np.complex128, etc
             The data type of the linear operator.
-        count : integer
+        count : int
             The count for the matrix-vector multiplications.
         _matvec_ : callable
             The matrix-vector multiplication function.

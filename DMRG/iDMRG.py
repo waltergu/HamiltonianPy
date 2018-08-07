@@ -31,7 +31,7 @@ class iDMRG(DMRG):
     '''
     CORE=('niter','lattice','block','cache')
 
-    def __init__(self,tsg,lattice,terms,config,degfres,mask=(),dtype=np.complex128,target=0,**karg):
+    def __init__(self,tsg,lattice,terms,config,degfres,mask=(),ttype='D',dtype=np.complex128,target=0,**karg):
         '''
         Constructor.
 
@@ -39,10 +39,10 @@ class iDMRG(DMRG):
         ----------
         tsg : TSG
             The two-site grow app.
-        lattice,terms,config,degfres,mask,dtype,target :
+        lattice,terms,config,degfres,mask,ttype,dtype,target :
             See DMRG.__init__ for details.
         '''
-        super(iDMRG,self).__init__(lattice,terms,config,degfres,mask,dtype,target)
+        super(iDMRG,self).__init__(lattice,terms,config,degfres,mask,ttype,dtype,target)
         assert isinstance(tsg,TSG)
         self.preload(tsg)
 
@@ -61,7 +61,7 @@ class iDMRG(DMRG):
         if len(karg)>0:
             operators=self.generator.operators
             if len(operators)>0:
-                mpo=MPO.fromoperators(operators,self.degfres)
+                mpo=MPO.fromoperators(operators,self.degfres,ttype=self.block.ttype)
                 if getattr(self,'niter',0)>=self.lattice.nneighbour+self.DTRP:
                     nsite,nspb=len(mpo),self.nspb
                     mpo=mpo[nsite/2-nspb:nsite/2+nspb]
@@ -93,12 +93,13 @@ class iDMRG(DMRG):
             self.config.reset(pids=self.lattice.pids)
             self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
             self.generator.reset(bonds=self.lattice.bonds,config=self.config)
-            mpo=MPO.fromoperators(self.generator.operators,self.degfres)
+            mpo=MPO.fromoperators(self.generator.operators,self.degfres,ttype=self.block.ttype)
             sites,bonds=self.degfres.labels('S'),self.degfres.labels('B')
+            if self.block.ttype=='S': sites=[site.replace(qns=site.qns.sorted()) for site in sites]
             osvs=self.cache.get('osvs',np.array([1.0]))
             qn=target-self.block.target if isinstance(target,QuantumNumber) else 0
             self.cache['osvs']=self.block.mps.Lambda.data if self.niter>0 else np.array([1.0])
-            mps=self.block.mps.impsgrowth(sites,bonds,osvs,qn)
+            mps=self.block.mps.impsgrowth(sites,bonds,osvs,qn,ttype=self.block.ttype)
             self.block.reset(mpo=mpo,mps=mps,target=target,divisor=1)
             if self.niter+1==self.lattice.nneighbour+self.DTRP:
                 nsite,nspb=self.block.nsite,self.nspb
@@ -109,7 +110,7 @@ def iDMRGTSG(engine,app):
     '''
     This method iterative update the iDMRG (two-site update).
     '''
-    niter=app.recover(engine,'iDMRG')
+    niter=app.recover(engine)
     if niter<0:
         engine.log.open()
         nspb=engine.nspb

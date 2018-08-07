@@ -56,6 +56,13 @@ class DTensor(TensorBase,Arithmetic):
         return self.data.dtype
 
     @property
+    def ttype(self):
+        '''
+        Tensor type.
+        '''
+        return 'D'
+
+    @property
     def norm(self):
         '''
         The norm of the tensor.
@@ -452,6 +459,13 @@ class STensor(TensorBase,Arithmetic):
         return next(self.data.itervalues()).dtype
 
     @property
+    def ttype(self):
+        '''
+        Tensor type.
+        '''
+        return 'S'
+
+    @property
     def norm(self):
         '''
         The norm of the tensor.
@@ -463,7 +477,7 @@ class STensor(TensorBase,Arithmetic):
         '''
         The dagger of the tensor.
         '''
-        return Tensor({key:block.conjugate() for key,block in self.data.iteritems()},labels=[label.P for label in self.labels])
+        return STensor({key:block.conjugate() for key,block in self.data.iteritems()},labels=[label.P for label in self.labels])
 
     def __str__(self):
         '''
@@ -652,7 +666,7 @@ class STensor(TensorBase,Arithmetic):
 
         Returns
         -------
-        Tensor
+        STensor
             The new tensor with the reordered axes.
         '''
         axes=range(self.ndim-1,-1,-1) if axes is None else [self.axis(axis) if isinstance(axis,Label) else axis for axis in axes]
@@ -829,23 +843,35 @@ class STensor(TensorBase,Arithmetic):
             result[mask].append((keep,block))
         return result
 
-def Tensor(data,labels):
+def Tensor(data,labels=None,ttype=None):
     '''
     A unified constrcutor for both dense tensors and sparse tensors.
 
     Parameters
     ----------
-    data : ndarray/dict
+    data : ndarray/dict/STensor/DTensor
         The data of the tensor.
-    labels : list of Label
+    labels : list of Label, optional
         The labels of the tensor.
+    ttype : None/'D'/'S', optional
+        The tensor type. 'D' for dense, 'S' for sparse and None for automatic.
 
     Returns
     -------
     DTensor/STensor
         The constructed tensor.
     '''
-    return (STensor if isinstance(data,dict) else DTensor)(data,labels)
+    assert ttype in {None,'D','S'}
+    if labels is None:
+        assert isinstance(data,DTensor) or isinstance(data,STensor)
+        result=data
+    else:
+        result=(STensor if isinstance(data,dict) else DTensor)(data,labels)
+    if ttype=='S' and isinstance(result,DTensor):
+        result=result.tostensor()
+    elif ttype=='D' and isinstance(result,STensor):
+        result=result.todtensor()
+    return result
 
 def contract(a,b,engine=None):
     '''

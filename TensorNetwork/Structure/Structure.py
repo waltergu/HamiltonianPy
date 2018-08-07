@@ -44,8 +44,6 @@ class DegFreTree(Tree):
 
     Attributes
     ----------
-    mode : 'QN' or 'NB'
-        The mode of the DegFreTree.
     layers : list of tuples of str
         The tag of each layer of indices.
     priority : list of str
@@ -56,14 +54,12 @@ class DegFreTree(Tree):
         The cache of the degfretree.
     '''
 
-    def __init__(self,mode,layers,priority,leaves=(),map=None):
+    def __init__(self,layers,priority,leaves=(),map=None):
         '''
         Constructor.
 
         Parameters
         ----------
-        mode : 'QN' or 'NB'
-            The mode of the DegFreTree.
         layers : list of tuples of str
             The tag of each layer of indices.
         priority : list of str
@@ -73,21 +69,26 @@ class DegFreTree(Tree):
         map : callable, optional
             This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
         '''
-        self.reset(mode=mode,layers=layers,priority=priority,leaves=leaves,map=map)
+        self.reset(layers=layers,priority=priority,leaves=leaves,map=map)
 
-    def reset(self,mode=None,layers=None,priority=None,leaves=(),map=None):
+    @property
+    def dtype(self):
+        '''
+        The type of the data of the degfretree.
+        '''
+        return type(self[self.indices(-1)[0]]) if len(self)>0 else None
+
+    def reset(self,layers=None,priority=None,leaves=(),map=None):
         '''
         Reset the DegFreTree.
 
         Parameters
         ----------
-        mode,layers,priority,leaves,map :
+        layers,priority,leaves,map :
             Please see DegFreTree.__init__ for details.
         '''
         self.clear()
         Tree.__init__(self)
-        assert mode in (None,'QN','NB')
-        if mode is not None: self.mode=mode
         if layers is not None: self.layers=layers
         if priority is not None: self.priority=priority
         if map is not None: self.map=map
@@ -106,14 +107,11 @@ class DegFreTree(Tree):
                     self.addleaf(parent=index.replace(**{key:None for key in layer}),leaf=index,data=None)
             for i,layer in enumerate(reversed(self.layers)):
                 if i==0:
-                    for index in self.indices(layer):
-                        self[index]=self.map(index)
+                    for index in self.indices(layer): self[index]=self.map(index)
                 else:
+                    dtype=self.dtype
                     for index in self.indices(layer):
-                        if self.mode=='QN':
-                            self[index]=QuantumNumbers.kron([self[child] for child in self.children(index)])
-                        else:
-                            self[index]=np.product([self[child] for child in self.children(index)])
+                        self[index]=(QuantumNumbers.kron if issubclass(dtype,QuantumNumbers) else np.product)([self[child] for child in self.children(index)])
 
     def ndegfre(self,index):
         '''
@@ -129,10 +127,8 @@ class DegFreTree(Tree):
         int
             The number of degrees of freedom.
         '''
-        if self.mode=='NB':
-            return self[index]
-        else:
-            return len(self[index])
+        qns=self[index]
+        return len(qns) if isinstance(qns,QuantumNumbers) else qns
 
     def indices(self,layer=0):
         '''

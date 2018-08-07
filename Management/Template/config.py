@@ -20,7 +20,7 @@ parametermap=None
 idfmap=lambda pid: None
 
 # qnsmap
-qnon=True
+ttype='D'
 qnsmap=lambda index: None
 
 # terms

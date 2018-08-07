@@ -107,7 +107,7 @@ class TestSTensor(TestCase):
         L=Label('l',qns=(self.qns**self.l).sorted(history=False),flow=+1)
         S=Label('s',qns=(self.qns**self.s).sorted(history=False),flow=+1)
         R=Label('r',qns=(self.qns**self.r).sorted(history=False),flow=-1)
-        self.stensor=random([L,S,R],mode='S')
+        self.stensor=random([L,S,R],ttype='S')
         self.dtensor=self.stensor.todtensor()
 
     def test_merge_and_split(self):

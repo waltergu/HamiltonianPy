@@ -36,7 +36,7 @@ class MPS(Arithmetic,list):
     '''
     L,S,R=0,1,2
 
-    def __init__(self,ms=(),Lambda=None,cut=None):
+    def __init__(self,ms=(),Lambda=None,cut=None,ttype=None):
         '''
         Constructor.
 
@@ -48,11 +48,13 @@ class MPS(Arithmetic,list):
             The Lambda matrix (singular values) on the connecting bond.
         cut : int, optional
             The position of the connecting bond.
+        ttype : None/'D'/'S', optional
+            Tensor type. 'D' for dense, 'S' for sparse and None for automatic.
         '''
         assert (Lambda is None)==(cut is None)
         for m in ms:
             assert (isinstance(m,DTensor) or isinstance(m,STensor)) and m.ndim==3
-            self.append(m)
+            self.append(Tensor(m,ttype=ttype))
         if Lambda is None:
             self.Lambda=None
             self.cut=None
@@ -168,8 +170,15 @@ class MPS(Arithmetic,list):
         '''
         return next(iter(self)).qnon
 
+    @property
+    def ttype(self):
+        '''
+        Tensor type of the mps.
+        '''
+        return self[0].ttype if len(self)>0 else None
+
     @staticmethod
-    def compose(ms,sites,bonds,Lambda=None,cut=None):
+    def compose(ms,sites,bonds,Lambda=None,cut=None,ttype=None):
         '''
         Constructor.
 
@@ -185,6 +194,8 @@ class MPS(Arithmetic,list):
             The Lambda matrix (singular values) on the connecting bond.
         cut : int, optional
             The position of the connecting bond.
+        ttype : None/'D'/'S', optional
+            Tensor type. 'D' for dense, 'S' for sparse and None for automatic.
         '''
         assert len(ms)==len(sites)==len(bonds)-1 and (Lambda is None)==(cut is None)
         qnon=next(iter(sites)).qnon
@@ -197,11 +208,11 @@ class MPS(Arithmetic,list):
             L=L.replace(flow=+1) if qnon else L.replace(qns=m.shape[MPS.L],flow=0)
             S=S.replace(flow=+1) if qnon else S.replace(qns=m.shape[MPS.S],flow=0)
             R=R.replace(flow=-1) if qnon else R.replace(qns=m.shape[MPS.R],flow=0)
-            result.append(Tensor(m,labels=[L,S,R]))
+            result.append(Tensor(m,labels=[L,S,R],ttype=ttype))
         return result
 
     @staticmethod
-    def fromstate(state,sites,bonds,mode='D',cut=0,nmax=None,tol=None):
+    def fromstate(state,sites,bonds,cut=0,nmax=None,tol=None,ttype='D'):
         '''
         Convert the normal representation of a state to the matrix product representation.
 
@@ -213,14 +224,14 @@ class MPS(Arithmetic,list):
             The labels for the physical legs.
         bonds : list of Label
             The labels for the virtual legs.
-        mode : 'D'/'S', optional
-            'D' for dense tensors and 'S' for sparse tensors.
         cut : int, optional
             The index of the connecting link.
         nmax : int, optional
             The maximum number of singular values to be kept.
         tol : float, optional
             The tolerance of the singular values.
+        ttype : 'D'/'S', optional
+            Tensor type. 'D' for dense and 'S' for sparse.
 
         Returns
         -------
@@ -229,6 +240,7 @@ class MPS(Arithmetic,list):
         '''
         assert state.ndim==1 and len(sites)+1==len(bonds)
         qnon=next(iter(bonds)).qnon
+        if ttype=='S': assert qnon
         L=Label('__MPS_from_state_L__',bonds[+0].qns,flow=+1 if qnon else 0)
         S=Label.union(sites,'__MPS_from_state_S__',flow=+1 if qnon else 0,mode=0)
         R=Label('__MPS_from_state_R__',bonds[-1].qns,flow=-1 if qnon else 0)
@@ -245,11 +257,11 @@ class MPS(Arithmetic,list):
             ms,Lambda=expandedsvd(m,L=[L],S=S,R=[R],E=sites,I=bonds[1:-1],nmax=nmax,tol=tol,cut=cut)
             ms[+0].relabel(olds=[L],news=[bonds[+0].replace(flow=+1 if qnon else 0)])
             ms[-1].relabel(olds=[R],news=[bonds[-1].replace(flow=-1 if qnon else 0)])
-        if qnon and mode=='S': ms=[m.tostensor() for m in ms]
+        if ttype=='S': ms=[m.tostensor() for m in ms]
         return MPS(ms=ms,Lambda=Lambda,cut=cut)
 
     @staticmethod
-    def productstate(ms,sites,bonds,mode='D'):
+    def productstate(ms,sites,bonds,ttype='D'):
         '''
         Generate a product state.
 
@@ -261,8 +273,8 @@ class MPS(Arithmetic,list):
             The site labels of the product state.
         bonds : list of Label
             The bond labels of the product state.
-        mode : 'D'/'S', optional
-            'D' for dense tensors and 'S' for sparse tensors.
+        ttype : 'D'/'S', optional
+            Tensor type. 'D' for dense and 'S' for sparse.
 
         Returns
         -------
@@ -275,11 +287,13 @@ class MPS(Arithmetic,list):
             L,R=bonds[i].replace(qns=1) if i>0 else copy(bonds[i]),bonds[i+1].replace(qns=1)
             ms[i]=DTensor(ms[i].reshape(1,S.dim,1),labels=[L,S,R])
             if S.qnon: ms[i].qngenerate(flow=-1,axes=[0,1],qnses=[ms[i-1].labels[MPS.R].qns if i>0 else L.qns,S.qns],flows=[1,1])
-        if S.qnon and mode=='S': ms=[m.tostensor() for m in ms]
+        if ttype=='S':
+            assert S.qnon
+            ms=[m.tostensor() for m in ms]
         return MPS(ms=ms)
 
     @staticmethod
-    def random(sites,bonds=None,mode='D',cut=None,nmax=None,dtype=np.float64):
+    def random(sites,bonds=None,cut=None,nmax=None,ttype='D',dtype=np.float64):
         '''
         Generate a random mps.
 
@@ -292,12 +306,12 @@ class MPS(Arithmetic,list):
                 The labels/identifiers of the virtual legs.
             * 2-list of QuantumNumber
                 The quantum number of the first and last virtual legs.
-        mode : 'D'/'S', optional
-            'D' for dense tensors and 'S' for sparse tensors.
         cut : int, optional
             The index of the connecting link.
         nmax : int, optional
             The maximum number of singular values to be kept.
+        ttype : 'D'/'S', optional
+            Tensor type. 'D' for dense and 'S' for sparse.
         dtype : np.float64, np.complex128, optional
             The data type of the random mps.
 
@@ -321,6 +335,7 @@ class MPS(Arithmetic,list):
             assert len(bonds)==len(sites)+1
             bonds=[bond if isinstance(bond,Label) else Label(bond,None,None) for bond in bonds]
         qnon,shape=next(iter(sites)).qnon,tuple([site.dim for site in sites])
+        if ttype=='S': assert qnon
         if qnon:
             result=0
             if dtype in (np.float32,np.float64):
@@ -330,9 +345,9 @@ class MPS(Arithmetic,list):
             for k,indices in enumerate(QNS.decomposition([site.qns for site in sites],bonds[-1].qns[0]-bonds[+0].qns[0],method='monte carlo',nmax=nmax)):
                 ms=[np.array([1.0 if i==index else 0.0 for i in xrange(site.dim)],dtype=dtype) for site,index in zip(sites,indices)]
                 result+=MPS.productstate(ms,sites,copy(bonds))*coeffs[k]
-            if mode=='S':
+            if ttype=='S':
                 for m in result: m.qnsort()
-                result=result.sparsify()
+                result=result.tosparse()
         else:
             ms=[]
             for i in xrange(len(sites)):
@@ -631,11 +646,17 @@ class MPS(Arithmetic,list):
             self>>=(self.nsite,nmax,tol)
             self<<=(self.nsite-cut,nmax,tol)
 
-    def sparsify(self):
+    def tosparse(self):
         '''
         Convert dense tensors to sparse tensors.
         '''
         return MPS(ms=(m.tostensor() for m in self),Lambda=self.Lambda,cut=self.cut)
+
+    def todense(self):
+        '''
+        Convert sparse tensors to dense tensors.
+        '''
+        return MPS(ms=(m.todtensor() for m in self),Lambda=self.Lambda,cut=self.cut)
 
     def compress(self,nsweep=1,cut=0,nmax=None,tol=None):
         '''
@@ -788,7 +809,7 @@ class MPS(Arithmetic,list):
             self.Lambda=s
         self.cut=self.cut+1
 
-    def impsprediction(self,sites,bonds,osvs,qn=0):
+    def impsprediction(self,sites,bonds,osvs,qn=0,ttype=None):
         '''
         Infinite MPS state prediction.
 
@@ -800,6 +821,8 @@ class MPS(Arithmetic,list):
             The old singular values.
         qn : QuantumNumber, optional
             The injected quantum number of the new mps.
+        ttype : None/'D'/'S', optional
+            Tensor type. 'D' for dense, 'S' for sparse and None for automatic..
 
         Returns
         -------
@@ -841,9 +864,9 @@ class MPS(Arithmetic,list):
         lsms[-1].relabel(olds=[MPS.R],news=[lsms[-1].labels[MPS.R].replace(identifier=identifier)])
         rsms[+0].relabel(olds=[MPS.L],news=[rsms[+0].labels[MPS.L].replace(identifier=identifier)])
         s.relabel(news=[s.labels[0].replace(identifier=identifier)])
-        return MPS(ms=it.chain(lsms,rsms),Lambda=s,cut=self.cut)
+        return MPS(ms=it.chain(lsms,rsms),Lambda=s,cut=self.cut,ttype=ttype)
 
-    def impsgrowth(self,sites,bonds,osvs,qn=0):
+    def impsgrowth(self,sites,bonds,osvs,qn=0,ttype=None):
         '''
         Infinite MPS growth.
 
@@ -855,6 +878,8 @@ class MPS(Arithmetic,list):
             The old singular values.
         qn : QuantumNumber, optional
             The injected quantum number of the new mps.
+        ttype : NOne/'D'/'S', optional
+            Tensor type. 'D' for dense, 'S' for sparse and None for automatic.
 
         Returns
         -------
@@ -865,19 +890,19 @@ class MPS(Arithmetic,list):
             assert self.cut==self.nsite/2 and self.nsite%2==0 and len(sites)+1==len(bonds)
             ob,nb=self.nsite/2+1,(len(bonds)+1)/2
             ns=nb-ob
-            cms=self[ob-ns-1:ob+ns-1].impsprediction(sites[ob-1:2*nb-ob-1],bonds[ob-1:2*nb-ob],osvs,qn=qn)
+            cms=self[ob-ns-1:ob+ns-1].impsprediction(sites[ob-1:2*nb-ob-1],bonds[ob-1:2*nb-ob],osvs,qn=qn,ttype=ttype)
             lms=MPS([copy(self[pos]) for pos in xrange(0,self.cut)])
             rms=MPS([copy(self[pos]) for pos in xrange(self.cut,self.nsite)])
             lms.relabel(sites[:ob-1],bonds[:ob])
             rms.relabel(sites[-ob+1:],bonds[-ob:])
             rms.qninject(qn)
-            result=MPS(it.chain(lms,cms,rms),Lambda=cms.Lambda,cut=nb-1)
+            result=MPS(it.chain(lms,cms,rms),Lambda=cms.Lambda,cut=nb-1,ttype=ttype)
         else:
             bonds=copy(bonds)
             iqns,oqns=(QNS.mono(qn.zero()),QNS.mono(qn)) if isinstance(qn,QN) else (1,1)
             bonds[+0]=bonds[+0].replace(qns=iqns) if isinstance(bonds[+0],Label) else Label(bonds[+0],qns=iqns,flow=None)
             bonds[-1]=bonds[-1].replace(qns=oqns) if isinstance(bonds[-1],Label) else Label(bonds[-1],qns=oqns,flow=None)
-            result=MPS.random(sites,bonds=bonds,cut=len(sites)/2,nmax=10)
+            result=MPS.random(sites,bonds=bonds,cut=len(sites)/2,nmax=10,ttype=ttype or 'D')
         return result
 
     def relayer(self,degfres,layer,nmax=None,tol=None):

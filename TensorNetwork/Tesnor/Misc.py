@@ -17,7 +17,7 @@ from TensorBase import Label
 from Tensor import DTensor,STensor
 from HamiltonianPy import QuantumNumbers
 
-def random(labels,mode='D',dtype=np.float64):
+def random(labels,ttype='D',dtype=np.float64):
     '''
     Construct a random block-structured tensor.
 
@@ -25,8 +25,8 @@ def random(labels,mode='D',dtype=np.float64):
     ----------
     labels : list of Label
         The labels of the random tensor.
-    mode : 'D'/'S', optional
-        'D' for dense and 'S' for sparse.
+    ttype : 'D'/'S', optional
+        Tensor type. 'D' for dense and 'S' for sparse.
     dtype : np.float64, np.complex128, optional
         The data type of the random tensor.
 
@@ -35,7 +35,7 @@ def random(labels,mode='D',dtype=np.float64):
     DTensor/STensor
         A random block-structured tensor.
     '''
-    assert  mode in 'DS' and dtype in (np.float32,np.float64,np.complex64,np.complex128)
+    assert  ttype in 'DS' and dtype in (np.float32,np.float64,np.complex64,np.complex128)
     np.random.seed()
     if next(iter(labels)).qnon:
         paxes,plbls,maxes,mlbls=[],[],[],[]
@@ -43,7 +43,7 @@ def random(labels,mode='D',dtype=np.float64):
             (paxes if label.flow==1 else maxes).append(axis)
             (plbls if label.flow==1 else mlbls).append(label)
         traxes=np.argsort(list(it.chain(paxes,maxes)))
-        if mode=='D':
+        if ttype=='D':
             plabel,ppermutation=Label.union(plbls,'__TENSOR_RANDOM_D_+__',+1,mode=1)
             mlabel,mpermutation=Label.union(mlbls,'__TENSOR_RANDOM_D_-__',-1,mode=1)
             data=np.zeros((plabel.dim,mlabel.dim),dtype=dtype)
@@ -73,7 +73,7 @@ def random(labels,mode='D',dtype=np.float64):
                         data[qns][...]+=1j*np.random.random(data[qns].shape)
             result=STensor(data,labels=labels)
     else:
-        assert mode=='D'
+        assert ttype=='D'
         data=np.zeros(tuple(label.dim for label in labels),dtype=dtype)
         data[...]=np.random.random(data.shape)
         if dtype in (np.complex64,np.complex128):
@@ -202,7 +202,7 @@ def eigh(tensor,row,new,col,returndagger=False):
         U=DTensor(u,labels=[rowlabel,new.replace(flow=0)]).split((rowlabel,row))
     return (E,U,U.dagger) if returndagger else (E,U)
 
-def partitionedsvd(tensor,L,new,R,mode='D',nmax=None,tol=None,returnerr=False):
+def partitionedsvd(tensor,L,new,R,nmax=None,tol=None,ttype='D',returnerr=False):
     '''
     Partition a 1d-tensor according to L and R and then perform the Schmitt decomposition.
 
@@ -214,8 +214,8 @@ def partitionedsvd(tensor,L,new,R,mode='D',nmax=None,tol=None,returnerr=False):
         The left/right part of the partition.
     new : Label
         The label for the singular values.
-    mode : 'D'/'S', optional
-        'D' for dense and 'S' for sparse.
+    ttype : 'D'/'S', optional
+        Tensor type. 'D' for dense and 'S' for sparse.
     nmax,tol,returnerr :
         Please refer to HamiltonianPy.Misc.Linalg.truncatedsvd for details.
 
@@ -226,7 +226,7 @@ def partitionedsvd(tensor,L,new,R,mode='D',nmax=None,tol=None,returnerr=False):
     err : float, optional
         The truncation error.
     '''
-    assert tensor.ndim==1 and mode in 'DS'
+    assert tensor.ndim==1 and ttype in 'DS'
     if tensor.qnon:
         data,qns=tensor.data,tensor.labels[0].qns
         assert qns.num==1 and sl.norm(qns.contents)<10**-6
@@ -244,7 +244,7 @@ def partitionedsvd(tensor,L,new,R,mode='D',nmax=None,tol=None,returnerr=False):
         temp=np.sort(np.concatenate([-s for s in ss]))
         nmax=len(temp) if nmax is None else min(nmax,len(temp))
         tol=temp[nmax-1] if tol is None else min(-tol,temp[nmax-1])
-        if mode=='D':
+        if ttype=='D':
             Us,Ss,Vs,contents=[],[],[],([],[])
             for u,s,v,qn in zip(us,ss,vs,qns):
                 cut=np.searchsorted(-s,tol,side='right')

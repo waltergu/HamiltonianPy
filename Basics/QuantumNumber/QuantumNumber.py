@@ -373,7 +373,7 @@ class QuantumNumbers(Arithmetic):
                 * qn : QuantumNumber
                     The new quantum number of the unitary kron
                 * qni(i=1,2,...) : QuantumNumber
-                    The quantum number from the input collections, such that qn==sum_i qni
+                    The quantum number from the input collections, such that qn==sum_i qni*sign(i)
                 * start,stop : int
                     The corresponding slice of (qn1,qn2,...) in the qn block
         '''

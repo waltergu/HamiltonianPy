@@ -5,9 +5,10 @@ Density matrix renormalization group
 
 DMRG, including:
     * classes: Block, DMRG, TSG, TSS, GSE
+    * functions: DMRGMatVec
 '''
 
-__all__=['Block','DMRG','TSG','TSS','GSE']
+__all__=['DMRGMatVec','Block','DMRG','TSG','TSS','GSE']
 
 import os,re
 import numpy as np
@@ -19,6 +20,61 @@ from HamiltonianPy import *
 from HamiltonianPy.TensorNetwork import *
 from copy import deepcopy
 from collections import OrderedDict
+
+def DMRGMatVec(Hsys,Henv):
+    '''
+    DMRG matrix-vector multiplication.
+
+    Parameters
+    ----------
+    Hsys : 3d DTensor/STensor
+        The system (left) Hamiltonian.
+    Henv : 3d DTensor/STensor
+        The environment (right) Hamiltonian.
+
+    Returns
+    -------
+    callable
+        The multiplication function of the whole Hamiltonian on a dense vector.
+    '''
+    Oa,Lsys=Hsys.labels[0],Hsys.labels[2]
+    Ob,Lenv=Henv.labels[0],Henv.labels[2]
+    assert Oa==Ob
+    if Hsys.qnon:
+        sysod=Lsys.qns.toordereddict(protocol=QuantumNumbers.INDPTR)
+        envod=Lenv.qns.toordereddict(protocol=QuantumNumbers.INDPTR)
+        records,count={},0
+        for qn in it.ifilter(sysod.has_key,envod):
+            sysslice,envslice=sysod[qn],envod[qn]
+            inc=(sysslice.stop-sysslice.start)*(envslice.stop-envslice.start)
+            records[qn]=slice(count,count+inc)
+            count+=inc
+        if isinstance(Hsys,STensor):
+            def matvec(v):
+                result=np.zeros(v.shape,dtype=v.dtype)
+                for qns in it.ifilter(Henv.data.has_key,Hsys.data):
+                    newslice,oldslice=records[qns[1]],records[qns[2]]
+                    for sysblock,envblock in zip(Hsys.data[qns],Henv.data[qns]):
+                        result[newslice]+=sysblock.dot(v[oldslice].reshape((sysblock.shape[1],envblock.shape[1]))).dot(envblock.T).reshape(-1)
+                return result
+        else:
+            qnpairs=[[(sqn,sqn-oqn) for sqn in Lsys.qns if sqn in envod and sqn-oqn in sysod and sqn-oqn in envod] for oqn in Oa.qns]
+            def matvec(v):
+                result=np.zeros(v.shape,dtype=v.dtype)
+                for hsys,henv,pairs in zip(Hsys.data,Henv.data,qnpairs):
+                    for qn1,qn2 in pairs:
+                        newslice,oldslice=records[qn1],records[qn2]
+                        sysblock,envblock=hsys[sysod[qn1],sysod[qn2]],henv.T[envod[qn2],envod[qn1]]
+                        result[newslice]+=sysblock.dot(v[oldslice].reshape((sysblock.shape[1],envblock.shape[0]))).dot(envblock).reshape(-1)
+                return result
+    else:
+        def matvec(v):
+            v=v.reshape((Hsys.shape[1],Henv.shape[1]))
+            result=np.zeros_like(v)
+            for hsys,henv in zip(Hsys.data,Henv.data):
+                result+=hsys.dot(v).dot(henv.T)
+            return result.reshape(-1)
+    return matvec
 
 class Block(object):
     '''
@@ -34,6 +90,8 @@ class Block(object):
         The target of the block.
     divisor : int
         The extra divisor of extensive quantities and intensive quantities.
+    ttype : 'D'/'S'
+        Tensor type. 'D' for dense and 'S' for sparse.
     lcontracts : list of 3d DTensor/STensor
         The contraction of mpo and mps from the left.
     rcontracts : list of 3d DTensor/STensor
@@ -44,7 +102,7 @@ class Block(object):
         The info of the block.
     '''
 
-    def __init__(self,mpo,mps,target=None,divisor=1,LEND=None,REND=None):
+    def __init__(self,mpo,mps,target=None,divisor=1,LEND=None,REND=None,ttype='D'):
         '''
         Constructor.
 
@@ -60,8 +118,10 @@ class Block(object):
             The extra divisor of extensive quantities and intensive quantities.
         LEND/REND : 3d DTensor/STensor, optional
             The leftmost/rightmost end of the contraction of mpo and mps.
+        ttype : 'D'/'S', optional
+            Tensor type. 'D' for dense and 'S' for sparse.
         '''
-        self.reset(mpo,mps,target=target,divisor=divisor,LEND=LEND,REND=REND)
+        self.reset(mpo,mps,target=target,divisor=divisor,LEND=LEND,REND=REND,ttype=ttype)
         self.timers=Timers('Preparation','Diagonalization','Truncation')
         self.timers.add('Diagonalization','matvec')
         self.info=Sheet(('Etotal','Esite','nmatvec','nbasis','nslice','overlap','err'))
@@ -105,6 +165,7 @@ class Block(object):
                     'mps':          self.mps,
                     'target':       self.target,
                     'divisor':      self.divisor,
+                    'ttype':        self.ttype,
                     'lcontracts':   self.lcontracts,
                     'rcontracts':   self.rcontracts,
                     'info':self.info
@@ -127,36 +188,31 @@ class Block(object):
         result.mps=self.mps[i:j]
         result.target=self.target
         result.divisor=self.divisor
+        result.ttype=self.ttype
         result.lcontracts=self.lcontracts[i:j+1]
         result.rcontracts=self.rcontracts[i:j+1]
         result.timers=self.timers
         result.info=self.info
         return result
 
-    def reset(self,mpo=None,mps=None,target=None,divisor=None,LEND=None,REND=None):
+    def reset(self,mpo=None,mps=None,target=None,divisor=None,LEND=None,REND=None,ttype=None):
         '''
         Constructor.
 
         Parameters
         ----------
-        mpo : MPO, optional
-            The MPO of the block.
-        mps : MPS, optional
-            The MPS of the block.
-        target : QuantumNumber, optional
-            The target of the block.
-        divisor : int, optional
-            The extra divisor of extensive quantities and intensive quantities.
-        LEND/REND : 3d DTensor/STensor, optional
-            The leftmost/rightmost end of the contraction of mpo and mps.
+        mpo,mps,target,divisor,LEND,REND,ttype :
+            See Block.__init__ for details.
         '''
         if mpo is None: mpo=getattr(self,'mpo')
         if mps is None: mps=getattr(self,'mps')
         if target is None: target=getattr(self,'target')
         if divisor is None: divisor=getattr(self,'divisor')
+        if ttype is None: ttype=getattr(self,'ttype')
         assert len(mpo)==len(mps)
-        self.mpo=mpo
-        self.mps=mps
+        self.ttype=ttype
+        self.mpo=mpo if mpo.ttype in (self.ttype,None) else mpo.todense() if self.ttype=='D' else mpo.tosparse()
+        self.mps=mps if mps.ttype in (self.ttype,None) else mps.todense() if self.ttype=='D' else mps.tosparse()
         self.target=target
         self.divisor=divisor
         if self.nsite>0:
@@ -164,12 +220,12 @@ class Block(object):
                 C=self.mpo[0].labels[MPO.L].inverse
                 D=self.mps[0].labels[MPS.L].inverse
                 assert C.dim==1==D.dim
-                LEND=Tensor([[[1.0]]],labels=[D.P,C,D])
+                LEND=Tensor([[[1.0]]],labels=[D.P,C,D],ttype=self.ttype)
             if REND is None:
                 C=self.mpo[self.nsite-1].labels[MPO.R].inverse
                 D=self.mps[self.nsite-1].labels[MPS.R].inverse
                 assert C.dim==1==D.dim
-                REND=Tensor([[[1.0]]],labels=[D.P,C,D])
+                REND=Tensor([[[1.0]]],labels=[D.P,C,D],ttype=self.ttype)
             assert LEND.ndim==3==REND.ndim
             self.setcontractions(LEND=LEND,REND=REND)
 
@@ -321,8 +377,8 @@ class Block(object):
         flag,onsite=self.nsite>0,self.nsite
         if flag: oldlcontracts=self.lcontracts[0:onsite/2+1]
         if flag: oldrcontracts=self.rcontracts[-onsite/2-1:]
-        self.mpo=self.mpo.impogrowth(sites,obonds)
-        self.mps=self.mps.impsgrowth(sites,sbonds,osvs,qn=qn)
+        self.mpo=self.mpo.impogrowth(sites,obonds,ttype=self.ttype)
+        self.mps=self.mps.impsgrowth(sites,sbonds,osvs,qn=qn,ttype=self.ttype)
         self.target=qn+self.target if isinstance(qn,QuantumNumber) else None
         self.lcontracts=[None]*(self.nsite+1)
         self.rcontracts=[None]*(self.nsite+1)
@@ -349,53 +405,26 @@ class Block(object):
         piechart : logical, optional
             True for showing the piechart of self.timers while False for not.
         '''
-        log<<'%s\n%s\n'%(info,self.graph)
+        log<<'%s(%s)\n%s\n'%(info,self.ttype,self.graph)
         with self.timers.get('Preparation'):
             Ha,Hasite=self.lcontracts[self.cut-1],self.mpo[self.cut-1]
             Hb,Hbsite=self.rcontracts[self.cut+1],self.mpo[self.cut]
             Oa,(La,Sa,Ra)=Hasite.labels[MPO.R],self.mps[self.cut-1].labels
             Ob,(Lb,Sb,Rb)=Hbsite.labels[MPO.L],self.mps[self.cut].labels
             assert Ra==Lb and Oa==Ob
-            Lsys,syspt=Label.union([La,Sa],'__DMRG_ITERATE_SYS__',flow=+1 if self.mps.qnon else 0,mode=+1)
-            Lenv,envpt=Label.union([Sb,Rb],'__DMRG_ITERATE_ENV__',flow=-1 if self.mps.qnon else 0,mode=+1)
-            if self.mps.qnon:
-                zero=self.target.zero()
-                sysantipt,sysod=np.argsort(syspt),Lsys.qns.toordereddict()
-                envantipt,envod=np.argsort(envpt),Lenv.qns.toordereddict()
-                subslice=QuantumNumbers.kron([Lsys.qns,Lenv.qns],signs=[1,-1]).subslice(targets=(zero,))
-                qns=QuantumNumbers.mono(zero,count=len(subslice))
-                qnpairs=[[(sqn,sqn-oqn) for sqn in Lsys.qns if sqn in envod and sqn-oqn in sysod and sqn-oqn in envod] for oqn in Oa.qns]
-            else:
-                sysantipt,envantipt,subslice=None,None,slice(None)
-                qns=Lsys.qns*Lenv.qns
-            Hsys=(Ha*Hasite).transpose([Oa,La.P,Sa.P,La,Sa]).merge(([La.P,Sa.P],Lsys.P,syspt),([La,Sa],Lsys,syspt))
-            Henv=(Hbsite*Hb).transpose([Ob,Sb.P,Rb.P,Sb,Rb]).merge(([Sb.P,Rb.P],Lenv.P,envpt),([Sb,Rb],Lenv,envpt))
-            if self.mps.qnon:
-                vecold=np.zeros(Hsys.shape[1]*Henv.shape[1],dtype=Hsys.dtype)
-                vecnew=np.zeros((Hsys.shape[1],Henv.shape[1]),dtype=Hsys.dtype)
-                def matvec(v):
-                    with self.timers.get('matvec'):
-                        vec,result=vecold,vecnew
-                        vec[subslice]=v
-                        result[...]=0.0
-                        vec=vec.reshape((Hsys.shape[1],Henv.shape[1]))
-                        for hsys,henv,pairs in zip(Hsys.data,Henv.data,qnpairs):
-                            for qn1,qn2 in pairs:
-                                result[sysod[qn1],envod[qn1]]+=hsys[sysod[qn1],sysod[qn2]].dot(vec[sysod[qn2],envod[qn2]]).dot(henv.T[envod[qn2],envod[qn1]])
-                    return result.reshape(-1)[subslice] 
-                matrix=hm.LinearOperator(shape=(len(subslice),len(subslice)),matvec=matvec,dtype=Hsys.dtype)
-            else:
-                def matvec(v):
-                    with self.timers.get('matvec'):
-                        v=v.reshape((Hsys.shape[1],Henv.shape[1]))
-                        result=np.zeros_like(v)
-                        for hsys,henv in zip(Hsys.data,Henv.data):
-                            result+=hsys.dot(v).dot(henv.T)
-                    return result.reshape(-1)
-                matrix=hm.LinearOperator(shape=(Hsys.shape[1]*Henv.shape[1],Hsys.shape[1]*Henv.shape[1]),matvec=matvec,dtype=Hsys.dtype)
+            Lsys,sysinfo=Label.union([La,Sa],'__DMRG_ITERATE_SYS__',flow=+1 if self.mps.qnon else 0,mode=+2 if self.ttype=='S' else +1)
+            Lenv,envinfo=Label.union([Sb,Rb],'__DMRG_ITERATE_ENV__',flow=-1 if self.mps.qnon else 0,mode=+2 if self.ttype=='S' else +1)
+            subslice=QuantumNumbers.kron([Lsys.qns,Lenv.qns],signs=[1,-1]).subslice(targets=(self.target.zero(),)) if self.mps.qnon else slice(None)
+            shape=(len(subslice),len(subslice)) if self.mps.qnon else (Lsys.qns*Lenv.qns,Lsys.qns*Lenv.qns)
+            Hsys=(Ha*Hasite).transpose([Oa,La.P,Sa.P,La,Sa]).merge(([La.P,Sa.P],Lsys.P.inverse,sysinfo),([La,Sa],Lsys.inverse,sysinfo))
+            Henv=(Hbsite*Hb).transpose([Ob,Sb.P,Rb.P,Sb,Rb]).merge(([Sb.P,Rb.P],Lenv.P.inverse,envinfo),([Sb,Rb],Lenv.inverse,envinfo))
+            matvec=DMRGMatVec(Hsys,Henv)
+            def timedmatvec(v):
+                with self.timers.get('matvec'): return matvec(v)
+            matrix=hm.LinearOperator(shape=shape,matvec=timedmatvec,dtype=Hsys.dtype)
         with self.timers.get('Diagonalization'):
             u,s,v=self.mps[self.cut-1],self.mps.Lambda,self.mps[self.cut]
-            v0=(u*s*v).merge(([La,Sa],Lsys,syspt),([Sb,Rb],Lenv,envpt)).toarray().reshape(-1)[subslice] if sp and s.norm>RZERO else None
+            v0=(u*s*v).merge(([La,Sa],Lsys,sysinfo),([Sb,Rb],Lenv,envinfo)).toarray().reshape(-1)[subslice] if sp and s.norm>RZERO else None
             es,vs=hm.eigsh(matrix,which='SA',v0=v0,k=1)
             energy,Psi=es[0],vs[:,0]
             self.info['Etotal']=energy,'%.6f'
@@ -403,10 +432,13 @@ class Block(object):
             self.info['nmatvec']=matrix.count
             self.info['overlap']=np.inf if v0 is None else np.abs(Psi.conjugate().dot(v0)/norm(v0)/norm(Psi)),'%.6f'
         with self.timers.get('Truncation'):
+            sysantiinfo=sysinfo if self.ttype=='S' else np.argsort(sysinfo) if self.mps.qnon else None
+            envantiinfo=envinfo if self.ttype=='S' else np.argsort(envinfo) if self.mps.qnon else None
+            qns=QuantumNumbers.mono(self.target.zero(),count=len(subslice)) if self.mps.qnon else Lsys.qns*Lenv.qns
             Lgs,new=Label('__DMRG_ITERATE_GS__',qns=qns),Ra.replace(qns=None)
-            u,s,v,err=partitionedsvd(Tensor(Psi,labels=[Lgs]),Lsys,new,Lenv,nmax=nmax,tol=tol,returnerr=True)
-            self.mps[self.cut-1]=u.split((Lsys,[La,Sa],sysantipt))
-            self.mps[self.cut]=v.split((Lenv,[Sb,Rb],envantipt))
+            u,s,v,err=partitionedsvd(Tensor(Psi,labels=[Lgs]),Lsys,new,Lenv,nmax=nmax,tol=tol,ttype=self.ttype,returnerr=True)
+            self.mps[self.cut-1]=u.split((Lsys,[La,Sa],sysantiinfo))
+            self.mps[self.cut]=v.split((Lenv,[Sb,Rb],envantiinfo))
             self.mps.Lambda=s
             self.setlcontract(self.cut)
             self.setrcontract(self.cut)
@@ -446,7 +478,7 @@ class DMRG(Engine):
     DTRP=2
     CORE=('lattice','block','cache')
 
-    def __init__(self,lattice,terms,config,degfres,mask=(),dtype=np.complex128,target=0,**karg):
+    def __init__(self,lattice,terms,config,degfres,mask=(),ttype='D',dtype=np.complex128,target=0,**karg):
         '''
         Constructor.
 
@@ -462,6 +494,8 @@ class DMRG(Engine):
             The physical degrees of freedom tree.
         mask : [] or ['nambu']
             [] for spin systems and ['nambu'] for fermionic systems.
+        ttype : 'D'/'S'
+            Tensor type. 'D' for dense and 'S' for sparse.
         dtype : np.float64,np.complex128, optional
             The data type.
         target : QuantumNumber, optional
@@ -476,7 +510,7 @@ class DMRG(Engine):
         self.dtype=dtype
         self.generator=Generator(bonds=lattice.bonds,config=config,terms=terms,boundary=self.boundary,dtype=dtype,half=False)
         if self.map is None: self.parameters.update(OrderedDict((term.id,term.value) for term in terms))
-        self.initblock(target=target)
+        self.initblock(target=target,ttype=ttype)
         self.cache={}
         self.logging()
 
@@ -496,7 +530,7 @@ class DMRG(Engine):
             super(DMRG,self).update(**karg)
             self.generator.update(**self.data)
 
-    def initblock(self,target=None):
+    def initblock(self,target=None,ttype='D'):
         '''
         Init the block of the DMRG.
 
@@ -504,18 +538,21 @@ class DMRG(Engine):
         ----------
         target : QuantumNumber, optional
             The target of the block of the DMRG.
+        ttype : 'D'/'S', optional
+
         '''
         if len(self.lattice)>0:
-            mpo=MPO.fromoperators(self.generator.operators,self.degfres)
+            mpo=MPO.fromoperators(self.generator.operators,self.degfres,ttype=ttype)
             sites,bonds=self.degfres.labels('S'),self.degfres.labels('B')
-            if self.degfres.mode=='QN':
+            if ttype=='S': sites=[site.replace(qns=site.qns.sorted()) for site in sites]
+            if isinstance(target,QuantumNumber):
                 bonds[+0]=Label(bonds[+0],qns=QuantumNumbers.mono(target.zero()),flow=+1)
                 bonds[-1]=Label(bonds[-1],qns=QuantumNumbers.mono(target),flow=-1)
-            mps=MPS.random(sites,bonds,cut=len(sites)/2,nmax=10,dtype=self.dtype)
+            mps=MPS.random(sites,bonds,cut=len(sites)/2,nmax=10,ttype=ttype,dtype=self.dtype)
         else:
             mpo=MPO()
             mps=MPS()
-        self.block=Block(mpo,mps,target=target)
+        self.block=Block(mpo,mps,target=target,ttype=ttype)
 
     def sweep(self,info='',path=None,**karg):
         '''
@@ -659,7 +696,7 @@ class TSG(App):
         self.nsweep=nsweep
         self.tol=tol
 
-    def recover(self,engine,mode):
+    def recover(self,engine):
         '''
         Recover the core of a dmrg engine.
 
@@ -667,15 +704,13 @@ class TSG(App):
         ----------
         engine : DMRG
             The dmrg engine whose core is to be recovered.
-        mode : 'fDMRG'/'iDMRG'
-            The recover mode.
 
         Returns
         -------
         int
             The recover code.
         '''
-        if mode=='fDMRG':
+        if engine.__class__.__name__=='fDMRG':
             for niter in xrange(self.maxiter-1,-1,-1):
                 core=DMRG.load(din=engine.din,pattern='%s_%s_%s'%(engine,(niter+1)*engine.nspb*2,self.target(niter)),nmax=self.nmax)
                 if core: break

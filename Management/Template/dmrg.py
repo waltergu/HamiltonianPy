@@ -16,7 +16,7 @@ __all__=['fdmrgconstruct']
 def fdmrgconstruct(name,parameters,lattice,terms,target,maxiter=None,{argumentstatistics}boundary=None,**karg):
     priority,layers,mask=DEGFRE_{system}_PRIORITY,DEGFRE_{system}_LAYERS,[{mask}]
     config=IDFConfig(priority=priority,map=idfmap)
-    degfres=DegFreTree(mode='QN' if qnon else 'NB',priority=priority,layers=layers,map=qnsmap)
+    degfres=DegFreTree(priority=priority,layers=layers,map=qnsmap)
     if isinstance(lattice,Cylinder):
         tsg=DMRG.TSG(name='GROWTH',target=target,maxiter=maxiter,nmax=100,plot=False,run=DMRG.fDMRGTSG)
         tss=DMRG.TSS(name='SWEEP',target=target(maxiter-1),nsite=DMRG.NS(config,degfres,lattice,mask)*2*maxiter,nmaxs=[100,100],run=DMRG.fDMRGTSS)
@@ -38,6 +38,7 @@ def fdmrgconstruct(name,parameters,lattice,terms,target,maxiter=None,{argumentst
         terms=      [term({termstatistics}**parameters) for term in terms],
         mask=       mask,
         boundary=   boundary,
+        ttype=      ttype,
         dtype=      np.complex128
         )
     return dmrg
@@ -64,10 +65,11 @@ def idmrgconstruct(name,parameters,lattice,terms,target,maxiter,{argumentstatist
         map=        parametermap,
         lattice=    lattice,
         config=     IDFConfig(priority=priority,map=idfmap),
-        degfres=    DegFreTree(mode='QN' if qnon else 'NB',priority=priority,layers=layers,map=qnsmap),
+        degfres=    DegFreTree(priority=priority,layers=layers,map=qnsmap),
         terms=      [term({termstatistics}**parameters) for term in terms],
         mask=       mask,
         boundary=   boundary,
+        ttype=      ttype,
         dtype=      np.complex128
         )
     return dmrg

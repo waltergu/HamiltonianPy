@@ -212,7 +212,7 @@ class TensorBase(object):
     labels : list of Label
         The labels of the axes of the tensor.
     '''
-    DIMCHECK=True
+    DIMCHECK=False
 
     __metaclass__=ABCMeta
 
@@ -293,6 +293,13 @@ class TensorBase(object):
         The data type of the tensor.
         '''
         raise NotImplementedError('%s dtype error: not implemented.'%self.__class__.__name__)
+
+    @abstractproperty
+    def ttype(self):
+        '''
+        Tensor type.
+        '''
+        raise NotImplementedError('%s ttype error: not implemented.'%self.__class__.__name__)
 
     @abstractproperty
     def norm(self):
