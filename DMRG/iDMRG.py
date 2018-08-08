@@ -46,6 +46,7 @@ class iDMRG(DMRG):
         super(iDMRG,self).__init__(lattice,terms,config,degfres,mask,ttype,dtype,target)
         assert isinstance(tsg,TSG)
         self.preload(tsg)
+        self.niter=0
 
     @property
     def TSG(self):
@@ -77,7 +78,6 @@ class iDMRG(DMRG):
         target : QuantumNumber, optional
             The target of the block of the DMRG.
         '''
-        self.niter=getattr(self,'niter',-1)+1
         osvs=self.cache.get('osvs',np.array([1.0]))
         if self.niter>=self.lattice.nneighbour+self.DTRP:
             self.cache['osvs']=self.block.mps.Lambda.data
@@ -104,6 +104,7 @@ class iDMRG(DMRG):
             if self.niter+1==self.lattice.nneighbour+self.DTRP:
                 nsite,nspb=self.block.nsite,self.nspb
                 self.block=self.block[nsite/2-nspb:nsite/2+nspb]
+        self.niter+=1
 
 def iDMRGTSG(engine,app):
     '''
@@ -122,11 +123,11 @@ def iDMRGTSG(engine,app):
                 senew=engine.block.info['Esite']
                 if norm(seold-senew)/norm(seold+senew)<app.tol: break
         for i in xrange(app.maxiter):
-            ebase=engine.block.info['Etotal']
+            ebase=engine.block.info['Etotal'] if engine.niter>=engine.lattice.nneighbour+engine.DTRP-1 else None
             seold=engine.block.info['Esite']
             engine.iterate(target=app.target(getattr(engine,'niter',i-1)+1))
             engine.block.iterate(engine.log,info='%s_%s(%s++)'%(engine,engine.block,i),sp=i>0,ebase=ebase,nmax=app.nmax,piechart=app.plot)
-            TSGSWEEP(app.npresweep if i==0 else app.nsweep,ebase,i)
+            TSGSWEEP(app.npresweep if engine.niter==0 else app.nsweep,ebase,i)
             senew=engine.block.info['Esite']
             if seold is not None and norm(seold-senew)/norm(seold+senew)<10*app.tol: break
         else:
