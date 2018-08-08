@@ -378,7 +378,7 @@ class Block(object):
         if flag: self.rcontracts[-onsite/2-1:]=oldrcontracts
         self.setcontractions(SL=onsite/2+1,EL=self.nsite/2,SR=self.nsite-onsite/2-1,ER=self.nsite/2)
 
-    def iterate(self,log,info='',sp=True,nmax=200,tol=hm.TOL,ebase=None,piechart=True):
+    def iterate(self,log,info='',sp=True,nmax=200,tol=10**-6,ebase=None,piechart=True):
         '''
         The two site dmrg step.
 
@@ -419,7 +419,7 @@ class Block(object):
         with self.timers.get('Diagonalization'):
             u,s,v=self.mps[self.cut-1],self.mps.Lambda,self.mps[self.cut]
             v0=(u*s*v).merge(([La,Sa],Lsys,sysinfo),([Sb,Rb],Lenv,envinfo)).toarray().reshape(-1)[subslice] if sp and s.norm>RZERO else None
-            es,vs=hm.eigsh(matrix,which='SA',v0=v0,k=1)
+            es,vs=hm.eigsh(matrix,which='SA',v0=v0,k=1,tol=tol*10**-2)
             energy,Psi=es[0],vs[:,0]
             self.info['Etotal']=energy,'%.6f'
             self.info['Esite']=(energy-(ebase or 0.0))/self.nsite,'%.8f'
@@ -664,7 +664,7 @@ class TSG(App):
         The tolerance of the target state energy.
     '''
 
-    def __init__(self,target=None,maxiter=10,nmax=400,npresweep=10,nsweep=4,tol=10**-5,**karg):
+    def __init__(self,target=None,maxiter=10,nmax=400,npresweep=10,nsweep=4,tol=10**-6,**karg):
         '''
         Constructor.
 

@@ -115,10 +115,10 @@ def iDMRGTSG(engine,app):
         nspb=engine.nspb
         def TSGSWEEP(nsweep,ebase,ngrowth):
             assert engine.block.cut==engine.block.nsite/2
-            path=list(it.chain(['%s<<'%ngrowth]*(nspb-1),['%s>>'%ngrowth]*(nspb*2-2),['%s<<'%ngrowth]*(nspb-1)))
+            path=list(it.chain(['<<']*(nspb-1),['>>']*(nspb*2-2),['<<']*(nspb-1)))
             for sweep in xrange(nsweep):
                 seold=engine.block.info['Esite']
-                engine.sweep(info='No.%s'%(sweep+1),path=path,nmax=app.nmax,ebase=ebase,piechart=app.plot)
+                engine.sweep(info='No.%s-%s'%(ngrowth+1,sweep+1),path=path,nmax=app.nmax,ebase=ebase,piechart=app.plot)
                 senew=engine.block.info['Esite']
                 if norm(seold-senew)/norm(seold+senew)<app.tol: break
         for i in xrange(app.maxiter):
@@ -130,7 +130,7 @@ def iDMRGTSG(engine,app):
             senew=engine.block.info['Esite']
             if seold is not None and norm(seold-senew)/norm(seold+senew)<10*app.tol: break
         else:
-            warning.warn('iDMRGTSG warning: not converged energy after %s iterations.'%app.maxiter)
+            warnings.warn('iDMRGTSG warning: not converged energy after %s iterations.'%app.maxiter)
         if app.plot and app.savefig:
             plt.savefig('%s/%s_%s_%s.png'%(engine.log.dir,engine,engine.block.target,app.name))
             plt.close()
