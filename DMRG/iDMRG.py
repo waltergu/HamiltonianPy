@@ -46,7 +46,7 @@ class iDMRG(DMRG):
         super(iDMRG,self).__init__(lattice,terms,config,degfres,mask,ttype,dtype,target)
         assert isinstance(tsg,TSG)
         self.preload(tsg)
-        self.niter=0
+        self.niter=-1
 
     @property
     def TSG(self):
@@ -63,10 +63,13 @@ class iDMRG(DMRG):
         if len(karg)>0:
             operators=self.generator.operators
             if len(operators)>0:
+                lold,rold=self.block.mpo[0].labels[MPO.L],self.block.mpo[-1].labels[MPO.R]
                 mpo=MPO.fromoperators(operators,self.degfres,ttype=self.block.ttype)
                 if getattr(self,'niter',0)>=self.lattice.nneighbour+self.DTRP:
                     nsite,nspb=len(mpo),self.nspb
                     mpo=mpo[nsite/2-nspb:nsite/2+nspb]
+                lnew,rnew=mpo[0].labels[MPO.L],mpo[-1].labels[MPO.R]
+                assert lnew.equivalent(lold) and rnew.equivalent(rold)
                 self.block.reset(mpo=mpo,LEND=self.block.lcontracts[0],REND=self.block.rcontracts[-1])
 
     def iterate(self,target=None):
@@ -78,6 +81,7 @@ class iDMRG(DMRG):
         target : QuantumNumber, optional
             The target of the block of the DMRG.
         '''
+        self.niter+=1
         osvs=self.cache.get('osvs',np.array([1.0]))
         if self.niter>=self.lattice.nneighbour+self.DTRP:
             self.cache['osvs']=self.block.mps.Lambda.data
@@ -104,7 +108,6 @@ class iDMRG(DMRG):
             if self.niter+1==self.lattice.nneighbour+self.DTRP:
                 nsite,nspb=self.block.nsite,self.nspb
                 self.block=self.block[nsite/2-nspb:nsite/2+nspb]
-        self.niter+=1
 
 def iDMRGTSG(engine,app):
     '''

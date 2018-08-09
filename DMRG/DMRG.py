@@ -49,9 +49,10 @@ def DMRGMatVec(Hsys,Henv):
             inc=(sysslice.stop-sysslice.start)*(envslice.stop-envslice.start)
             records[qn]=slice(count,count+inc)
             count+=inc
+        dtype=Hsys.dtype
         if isinstance(Hsys,STensor):
             def matvec(v):
-                result=np.zeros(v.shape,dtype=v.dtype)
+                result=np.zeros(v.shape,dtype=dtype)
                 for qns in it.ifilter(Henv.data.has_key,Hsys.data):
                     newslice,oldslice=records[qns[1]],records[qns[2]]
                     for sysblock,envblock in zip(Hsys.data[qns],Henv.data[qns]):
@@ -60,7 +61,7 @@ def DMRGMatVec(Hsys,Henv):
         else:
             qnpairs=[[(sqn,sqn-oqn) for sqn in Lsys.qns if sqn in envod and sqn-oqn in sysod and sqn-oqn in envod] for oqn in Oa.qns]
             def matvec(v):
-                result=np.zeros(v.shape,dtype=v.dtype)
+                result=np.zeros(v.shape,dtype=dtype)
                 for hsys,henv,pairs in zip(Hsys.data,Henv.data,qnpairs):
                     for qn1,qn2 in pairs:
                         newslice,oldslice=records[qn1],records[qn2]

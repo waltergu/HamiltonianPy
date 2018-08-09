@@ -375,6 +375,8 @@ class DTensor(TensorBase,Arithmetic):
                 contents[index[unkownaxis]]=qn
             else:
                 assert (contents[index[unkownaxis]]==qn).all()
+        for i in xrange(len(contents)):
+            if contents[i] is None: contents[i]=type.zero()
         self.labels[unkownaxis].qns=QuantumNumbers('G',(type,contents,np.arange(len(contents)+1)),protocol=QuantumNumbers.INDPTR)
         self.labels[unkownaxis].flow=flow
 
