@@ -379,7 +379,7 @@ class Block(object):
         if flag: self.rcontracts[-onsite/2-1:]=oldrcontracts
         self.setcontractions(SL=onsite/2+1,EL=self.nsite/2,SR=self.nsite-onsite/2-1,ER=self.nsite/2)
 
-    def iterate(self,log,info='',sp=True,nmax=200,tol=10**-6,ebase=None,piechart=True):
+    def iterate(self,log,info='',sp=True,nmax=200,tol=10**-6,divisor=None,piechart=True):
         '''
         The two site dmrg step.
 
@@ -395,8 +395,9 @@ class Block(object):
             The maximum singular values to be kept.
         tol : float, optional
             The tolerance of the singular values.
-        ebase : float, optional
-            The base for calculating the ground state energy per site.
+        divisor : int/None, optional
+            * When int, it is used as the divisor to calculated the ground state energy per site;
+            * When None, the default divisor will be used to calculated the ground state energy per site.
         piechart : logical, optional
             True for showing the piechart of self.timers while False for not.
         '''
@@ -423,7 +424,7 @@ class Block(object):
             es,vs=hm.eigsh(matrix,which='SA',v0=v0,k=1,tol=tol*10**-2)
             energy,Psi=es[0],vs[:,0]
             self.info['Etotal']=energy,'%.6f'
-            self.info['Esite']=(energy-(ebase or 0.0))/self.nsite,'%.8f'
+            self.info['Esite']=energy/(divisor or self.nsite),'%.8f'
             self.info['nmatvec']=matrix.count
             self.info['overlap']=np.inf if v0 is None else np.abs(Psi.conjugate().dot(v0)/norm(v0)/norm(Psi)),'%.6f'
         with self.timers.get('Truncation'):
@@ -653,8 +654,8 @@ class TSG(App):
     ----------
     target : callable that returns QuantumNumber
         This function returns the target space at each growth of the DMRG.
-    maxiter : int
-        The maximum times of growth.
+    miniter/maxiter : int
+        The minimum/maximum times of growth.
     nmax : int
         The maximum singular values to be kept.
     npresweep : int
@@ -665,7 +666,7 @@ class TSG(App):
         The tolerance of the target state energy.
     '''
 
-    def __init__(self,target=None,maxiter=10,nmax=400,npresweep=10,nsweep=4,tol=10**-6,**karg):
+    def __init__(self,target=None,miniter=1,maxiter=50,nmax=400,npresweep=10,nsweep=4,tol=10**-6,**karg):
         '''
         Constructor.
 
@@ -673,8 +674,8 @@ class TSG(App):
         ----------
         target : callable that returns QuantumNumber, optional
             This function returns the target space at each growth of the DMRG.
-        maxiter : int, optional
-            The maximum times of growth.
+        miniter/maxiter : int, optional
+            The minimum/maximum times of growth.
         nmax : int, optional
             The maximum number of singular values to be kept.
         npresweep : int, optional
@@ -685,6 +686,7 @@ class TSG(App):
             The tolerance of the target state energy.
         '''
         self.target=(lambda niter: None) if target is None else target
+        self.miniter=miniter
         self.maxiter=maxiter
         self.nmax=nmax
         self.npresweep=npresweep

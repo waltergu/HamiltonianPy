@@ -13,13 +13,13 @@ from config import *
 
 __all__=['fdmrgconstruct']
 
-def fdmrgconstruct(name,parameters,lattice,terms,target,maxiter=None,{argumentstatistics}boundary=None,**karg):
+def fdmrgconstruct(name,parameters,lattice,terms,target,niter=None,{argumentstatistics}boundary=None,**karg):
     priority,layers,mask=DEGFRE_{system}_PRIORITY,DEGFRE_{system}_LAYERS,[{mask}]
     config=IDFConfig(priority=priority,map=idfmap)
     degfres=DegFreTree(priority=priority,layers=layers,map=qnsmap)
     if isinstance(lattice,Cylinder):
-        tsg=DMRG.TSG(name='GROWTH',target=target,maxiter=maxiter,nmax=100,plot=False,run=DMRG.fDMRGTSG)
-        tss=DMRG.TSS(name='SWEEP',target=target(maxiter-1),nsite=DMRG.NS(config,degfres,lattice,mask)*2*maxiter,nmaxs=[100,100],run=DMRG.fDMRGTSS)
+        tsg=DMRG.TSG(name='GROWTH',target=target,maxiter=niter,nmax=100,plot=False,run=DMRG.fDMRGTSG)
+        tss=DMRG.TSS(name='SWEEP',target=target(niter-1),nsite=DMRG.NS(config,degfres,lattice,mask)*2*niter,nmaxs=[100,100],run=DMRG.fDMRGTSS)
     else:
         tsg=None
         tss=DMRG.TSS(name='SWEEP',target=target,nsite=DMRG.NS(config,degfres,lattice,mask),nmaxs=[100,100],run=DMRG.fDMRGTSS)
@@ -53,14 +53,14 @@ from config import *
 
 __all__=['idmrgconstruct']
 
-def idmrgconstruct(name,parameters,lattice,terms,target,maxiter=50,{argumentstatistics}boundary=None,**karg):
+def idmrgconstruct(name,parameters,lattice,terms,target,{argumentstatistics}boundary=None,**karg):
     priority,layers,mask=DEGFRE_{system}_PRIORITY,DEGFRE_{system}_LAYERS,[{mask}]
     dmrg=DMRG.iDMRG(
         dlog=       'log',
         din=        'data',
         dout=       'result/idmrg',
         name=       '%s_%s'%(name,lattice.name),
-        tsg=        DMRG.TSG(name='ITER',target=target,maxiter=maxiter,nmax=100,plot=True,run=DMRG.iDMRGTSG),
+        tsg=        DMRG.TSG(name='ITER',target=target,miniter=nnb+6,maxiter=50,nmax=100,plot=True,run=DMRG.iDMRGTSG),
         parameters= parameters,
         map=        parametermap,
         lattice=    lattice,

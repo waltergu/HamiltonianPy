@@ -55,22 +55,41 @@ class iDMRG(DMRG):
         '''
         return self.apps[self.preloads[0]]
 
+    @property
+    def mpo(self):
+        '''
+        MPO shifted by the last ground state energy.
+        '''
+        if self.niter<0:
+            mpo=MPO()
+        elif self.niter<self.lattice.nneighbour+self.DTRP:
+            self.cache['optstrs']=[OptStr.fromoperator(operator,self.degfres) for operator in self.generator.operators]
+            if self.niter==0:
+                self.cache['shiftedsites']=[]
+            else:
+                nsite,nspb=self.block.nsite,self.nspb
+                sites=self.degfres.labels('S')[nsite/2-nspb:nsite/2+nspb]
+                if self.block.ttype=='S': sites=[site.replace(qns=site.qns.sorted()) for site in sites]
+                self.cache['shiftedsites'].extend(OptStr([Opt.identity(site,self.dtype)*(-self.block.info['Esite'])]) for site in sites)
+            mpo=OptMPO(self.cache['optstrs']+self.cache['shiftedsites'],self.degfres).tompo(ttype=self.block.ttype)
+        else:
+            self.cache['optstrs']=[OptStr.fromoperator(operator,self.degfres) for operator in self.generator.operators]
+            sites=self.block.mps.sites
+            self.cache['shiftedsites']=[OptStr([Opt.identity(site,self.dtype)*(-self.block.info['Esite'])]) for site in sites]
+            mpo=OptMPO(self.cache['optstrs']+self.cache['shiftedsites'],self.degfres).tompo(ttype=self.block.ttype)
+            mpo=mpo[len(mpo)/2-len(sites)/2:len(mpo)/2+len(sites)/2]
+            lold,rold=self.block.mpo[0].labels[MPO.L],self.block.mpo[-1].labels[MPO.R]
+            lnew,rnew=mpo[0].labels[MPO.L],mpo[-1].labels[MPO.R]
+            assert lnew.equivalent(lold) and rnew.equivalent(rold)
+        return mpo
+
     def update(self,**karg):
         '''
         Update the iDMRG with new parameters.
         '''
         super(iDMRG,self).update(**karg)
-        if len(karg)>0:
-            operators=self.generator.operators
-            if len(operators)>0:
-                lold,rold=self.block.mpo[0].labels[MPO.L],self.block.mpo[-1].labels[MPO.R]
-                mpo=MPO.fromoperators(operators,self.degfres,ttype=self.block.ttype)
-                if getattr(self,'niter',0)>=self.lattice.nneighbour+self.DTRP:
-                    nsite,nspb=len(mpo),self.nspb
-                    mpo=mpo[nsite/2-nspb:nsite/2+nspb]
-                lnew,rnew=mpo[0].labels[MPO.L],mpo[-1].labels[MPO.R]
-                assert lnew.equivalent(lold) and rnew.equivalent(rold)
-                self.block.reset(mpo=mpo,LEND=self.block.lcontracts[0],REND=self.block.rcontracts[-1])
+        if len(karg)>0 and len(self.generator.operators)>0:
+            self.block.reset(mpo=self.mpo,LEND=self.block.lcontracts[0],REND=self.block.rcontracts[-1])
 
     def iterate(self,target=None):
         '''
@@ -85,6 +104,7 @@ class iDMRG(DMRG):
         osvs=self.cache.get('osvs',np.array([1.0]))
         if self.niter>=self.lattice.nneighbour+self.DTRP:
             self.cache['osvs']=self.block.mps.Lambda.data
+            self.block.mpo=self.mpo
             sites=self.block.mps.sites
             obonds=[bond.identifier for bond in self.block.mpo.bonds]
             sbonds=[bond.identifier for bond in self.block.mps.bonds]
@@ -97,7 +117,7 @@ class iDMRG(DMRG):
             self.config.reset(pids=self.lattice.pids)
             self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
             self.generator.reset(bonds=self.lattice.bonds,config=self.config)
-            mpo=MPO.fromoperators(self.generator.operators,self.degfres,ttype=self.block.ttype)
+            mpo=self.mpo
             sites,bonds=self.degfres.labels('S'),self.degfres.labels('B')
             if self.block.ttype=='S': sites=[site.replace(qns=site.qns.sorted()) for site in sites]
             osvs=self.cache.get('osvs',np.array([1.0]))
@@ -117,22 +137,21 @@ def iDMRGTSG(engine,app):
     if niter<0:
         engine.log.open()
         nspb=engine.nspb
-        def TSGSWEEP(nsweep,ebase,ngrowth):
+        def TSGSWEEP(nsweep,ngrowth):
             assert engine.block.cut==engine.block.nsite/2
             path=list(it.chain(['<<']*(nspb-1),['>>']*(nspb*2-2),['<<']*(nspb-1)))
             for sweep in xrange(nsweep):
                 seold=engine.block.info['Esite']
-                engine.sweep(info='No.%s-%s'%(ngrowth+1,sweep+1),path=path,nmax=app.nmax,ebase=ebase,piechart=app.plot)
+                engine.sweep(info='No.%s-%s'%(ngrowth+1,sweep+1),path=path,nmax=app.nmax,divisor=2*nspb,piechart=app.plot)
                 senew=engine.block.info['Esite']
                 if norm(seold-senew)/norm(seold+senew)<app.tol: break
         for i in xrange(app.maxiter):
-            ebase=engine.block.info['Etotal'] if engine.niter>=engine.lattice.nneighbour+engine.DTRP-1 else None
             seold=engine.block.info['Esite']
             engine.iterate(target=app.target(getattr(engine,'niter',i-1)+1))
-            engine.block.iterate(engine.log,info='%s_%s(%s++)'%(engine,engine.block,i),sp=i>0,ebase=ebase,nmax=app.nmax,piechart=app.plot)
-            TSGSWEEP(app.npresweep if engine.niter==0 else app.nsweep,ebase,i)
+            engine.block.iterate(engine.log,info='%s_%s(%s++)'%(engine,engine.block,i),sp=i>0,divisor=2*nspb,nmax=app.nmax,piechart=app.plot)
+            TSGSWEEP(app.npresweep if engine.niter==0 else app.nsweep,i)
             senew=engine.block.info['Esite']
-            if seold is not None and norm(seold-senew)/norm(seold+senew)<10*app.tol: break
+            if i>=app.miniter-1 and seold is not None and norm(seold-senew)/norm(seold+senew)<10*app.tol: break
         else:
             warnings.warn('iDMRGTSG warning: not converged energy after %s iterations.'%app.maxiter)
         if app.plot and app.savefig:
@@ -167,11 +186,9 @@ class QP(App):
         The path of the varing parameters during the quantum pump.
     qnname : str
         The name of the pumped quantum number.
-    nprediction : int
-        Number of predictions before the sweep.
     '''
 
-    def __init__(self,path,qnname,nprediction=0,**karg):
+    def __init__(self,path,qnname,**karg):
         '''
         Constructor.
 
@@ -181,37 +198,45 @@ class QP(App):
             The path of the varing parameters during the quantum pump.
         qnname : str
             The name of the pumped quantum number.
-        nprediction : int, optional
-            Number of predictions before the sweep.
         '''
         self.path=path
         self.qnname=qnname
-        self.nprediction=nprediction
 
 def iDMRGQP(engine,app):
     '''
     This function calculate the pumped charge during an adiabatic process.
     '''
-    count=0
     def pumpedcharge(parameters):
         t1=time.time()
         engine.update(**parameters)
-        if count>0:
-            for _ in range(app.nprediction):
-                engine.iterate(engine.TSG.target(engine.niter+1))
         engine.rundependences(app.name)
-        ps,qns=engine.block.mps.Lambda.data**2,engine.block.mps.Lambda.labels[0].qns
-        diff=getattr(engine.block.target,app.qnname)/2
-        result=(ps.dot(qns.expansion()[:,qns.type.names.index(app.qnname)])-diff)/ps.sum()
+        def averagedcharge(mps,statistics):
+            ps=mps.Lambda.data**2
+            qnindex=mps.Lambda.labels[0].qns.type.names.index(app.qnname)
+            qns=mps.Lambda.labels[0].qns.expansion()[:,qnindex]
+            if statistics=='f': qns*=(-1)**(qns-1)
+            return ps.dot(qns)/ps.sum()
+        regulator,statistics=getattr(engine.block.target,app.qnname)/2,'f' if tuple(engine.mask)==('nambu',) else 'b'
+        orignialcharge=averagedcharge(engine.block.mps,statistics)
+        if len(engine.block.mps)>=2:
+            mps,nsite=engine.block.mps,engine.block.mps.nsite
+            assert mps.cut==nsite/2
+            mps<<=nsite/2-1
+            for i in xrange(nsite-1):
+                regulator+=averagedcharge(mps,statistics)
+                if i<nsite-2:mps>>=1
+            mps<<=nsite/2-1
+            assert mps.cut==nsite/2
+            regulator/=nsite
+        result=orignialcharge-regulator
         t2=time.time()
         engine.log<<'::<parameters>:: %s\n'%(', '.join('%s=%s'%(key,decimaltostr(value)) for key,value in engine.parameters.iteritems()))
         engine.log<<'::<informtation>:: pumped charge=%.6f, time=%.4es\n\n'%(result,t2-t1)
         return result
     result=np.zeros((app.path.rank(0),2))
-    for parameters in app.path('+'):
-        result[count,0]=parameters.values()[0] if len(parameters)==1 else count
-        result[count,1]=pumpedcharge(parameters)
-        count+=1
+    for i,parameters in enumerate(app.path('+')):
+        result[i,0]=parameters.values()[0] if len(parameters)==1 else i
+        result[i,1]=pumpedcharge(parameters)
     name='%s_%s'%(engine.tostr(mask=app.path.tags),app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
