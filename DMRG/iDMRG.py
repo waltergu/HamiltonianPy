@@ -216,19 +216,7 @@ def iDMRGQP(engine,app):
             qns=mps.Lambda.labels[0].qns.expansion()[:,qnindex]
             if statistics=='f': qns*=(-1)**(qns-1)
             return ps.dot(qns)/ps.sum()
-        regulator,statistics=getattr(engine.block.target,app.qnname)/2,'f' if tuple(engine.mask)==('nambu',) else 'b'
-        orignialcharge=averagedcharge(engine.block.mps,statistics)
-        if len(engine.block.mps)>=2:
-            mps,nsite=engine.block.mps,engine.block.mps.nsite
-            assert mps.cut==nsite/2
-            mps<<=nsite/2-1
-            for i in xrange(nsite-1):
-                regulator+=averagedcharge(mps,statistics)
-                if i<nsite-2:mps>>=1
-            mps<<=nsite/2-1
-            assert mps.cut==nsite/2
-            regulator/=nsite
-        result=orignialcharge-regulator
+        result=averagedcharge(engine.block.mps,'f' if tuple(engine.mask)==('nambu',) else 'b')-getattr(engine.block.target,app.qnname)/2
         t2=time.time()
         engine.log<<'::<parameters>:: %s\n'%(', '.join('%s=%s'%(key,decimaltostr(value)) for key,value in engine.parameters.iteritems()))
         engine.log<<'::<informtation>:: pumped charge=%.6f, time=%.4es\n\n'%(result,t2-t1)
