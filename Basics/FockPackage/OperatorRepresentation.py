@@ -54,10 +54,10 @@ def foptrep(operator,basis,transpose=False,dtype=np.complex128):
         result=csr_matrix(content,shape=(basis[0].nbasis,basis[1].nbasis))
     return result.T if transpose else result
 
-@jit([  "Tuple((float32[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)",
-        "Tuple((float64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)",
-        "Tuple((complex64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)",
-        "Tuple((complex128[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)"
+@jit([  "Tuple((float32[:],int64[:],int64[:]))(float32,boolean[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((float64[:],int64[:],int64[:]))(float64,boolean[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex64[:],int64[:],int64[:]))(complex64,boolean[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex128[:],int64[:],int64[:]))(complex128,boolean[:],int64[:],int64[:],int64,pyobject)"
 ])
 def fermioptrep_even(value,nambus,seqs,table,nbasis,dtype):
     ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int64),np.zeros(nbasis+1,dtype=np.int64)
@@ -79,10 +79,10 @@ def fermioptrep_even(value,nambus,seqs,table,nbasis,dtype):
     indptr[-1]=ndata
     return data,indices,indptr
 
-@jit([  "Tuple((float32[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
-        "Tuple((float64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
-        "Tuple((complex64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
-        "Tuple((complex128[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)"
+@jit([  "Tuple((float32[:],int64[:],int64[:]))(float32,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((float64[:],int64[:],int64[:]))(float64,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex64[:],int64[:],int64[:]))(complex64,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex128[:],int64[:],int64[:]))(complex128,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)"
 ])
 def fermioptrep_odd(value,nambus,seqs,table1,table2,nbasis,dtype):
     ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int64),np.zeros(nbasis+1,dtype=np.int64)
@@ -104,10 +104,10 @@ def fermioptrep_odd(value,nambus,seqs,table1,table2,nbasis,dtype):
     indptr[-1]=ndata
     return data,indices,indptr
 
-@jit([  "Tuple((float32[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)",
-        "Tuple((float64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)",
-        "Tuple((complex64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)",
-        "Tuple((complex128[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)"
+@jit([  "Tuple((float32[:],int64[:],int64[:]))(float32,boolean[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((float64[:],int64[:],int64[:]))(float64,boolean[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex64[:],int64[:],int64[:]))(complex64,boolean[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex128[:],int64[:],int64[:]))(complex128,boolean[:],int64[:],int64[:],int64,pyobject)"
 ])
 def boseoptrep_even(value,nambus,seqs,table,nbasis,dtype):
     ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int64),np.zeros(nbasis+1,dtype=np.int64)
@@ -125,10 +125,10 @@ def boseoptrep_even(value,nambus,seqs,table,nbasis,dtype):
     indptr[-1]=ndata
     return data,indices,indptr
 
-@jit([  "Tuple((float32[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
-        "Tuple((float64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
-        "Tuple((complex64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
-        "Tuple((complex128[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)"
+@jit([  "Tuple((float32[:],int64[:],int64[:]))(float32,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((float64[:],int64[:],int64[:]))(float64,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex64[:],int64[:],int64[:]))(complex64,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex128[:],int64[:],int64[:]))(complex128,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)"
 ])
 def boseoptrep_odd(value,nambus,seqs,table1,table2,nbasis,dtype):
     ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int64),np.zeros(nbasis+1,dtype=np.int64)

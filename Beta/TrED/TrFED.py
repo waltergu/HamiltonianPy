@@ -105,9 +105,13 @@ def trfoptrep(operator,k,basis,dtype=np.complex128):
     data,indices,indptr,dim=_trfoptrep_(k,value,nambus,sequences,table,seqs,maps,translations,signs,masks,nk,dtype)
     return csr_matrix((data,indices,indptr),shape=(dim,dim)).T
 
-@jit
+@jit([  "Tuple((float32[:],int64[:],int64[:],int64))(int64,float32,boolean[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((float64[:],int64[:],int64[:],int64))(int64,float64,boolean[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex64[:],int64[:],int64[:],int64))(int64,complex64,boolean[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex128[:],int64[:],int64[:],int64))(int64,complex128,boolean[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64,pyobject)",
+])
 def _trfoptrep_(k,value,nambus,sequences,table,seqs,maps,translations,signs,masks,nk,dtype):
-    ndata,data,indices,indptr=0,np.zeros(len(seqs),dtype=dtype),np.zeros(len(seqs),dtype=np.int32),np.zeros(len(seqs)+1,dtype=np.int32)
+    ndata,data,indices,indptr=0,np.zeros(len(seqs),dtype=dtype),np.zeros(len(seqs),dtype=np.int64),np.zeros(len(seqs)+1,dtype=np.int64)
     dim,eye,temp=0,int(1),np.zeros(len(sequences)+1,dtype=np.int64)
     factor=np.exp(1.0j*2*np.pi*k/nk)
     for i in range(len(seqs)):

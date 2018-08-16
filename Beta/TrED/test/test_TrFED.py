@@ -31,10 +31,10 @@ class TestTrFED(TestCase):
         lattice=Square('S1')('%sP-1O'%m)
         config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fock(norbital=1,nspin=2,nnambu=1))
         basis=FBasis(m*2,m,0.0)
-        ed=FED(name='OneD_%s_%s'%(lattice.name,basis.rep),sectors=[basis],lattice=lattice,config=config,terms=[Hopping('t1',t1),Hubbard('U',U)],dtype=np.complex128)
-        eigvals0=eigh(ed.matrix(basis.rep).todense(),eigvals_only=True)
+        ed=FED(name='OneD_%s_%r'%(lattice.name,basis),sectors=[basis],lattice=lattice,config=config,terms=[Hopping('t1',t1),Hubbard('U',U)],dtype=np.complex128)
+        eigvals0=eigh(ed.matrix(basis).todense(),eigvals_only=True)
         basis=TrFBasis(FBasis(m*2,m,0.0),dk=2,nk=m)
-        ed=TrFED(name='OneD_%s_%s'%(lattice.name,basis.rep),basis=basis,lattice=lattice,config=config,terms=[Hopping('t1',t1),Hubbard('U',U)],dtype=np.complex128)
+        ed=TrFED(name='OneD_%s_%r'%(lattice.name,basis),basis=basis,lattice=lattice,config=config,terms=[Hopping('t1',t1),Hubbard('U',U)],dtype=np.complex128)
         eigvals1=[]
         for k in range(m): eigvals1.append(eigh(ed.matrix(sector=k).todense(),eigvals_only=True))
         eigvals1=sorted(np.concatenate(eigvals1))
@@ -42,7 +42,7 @@ class TestTrFED(TestCase):
 
 trfed=TestSuite([
             TestLoader().loadTestsFromTestCase(TestTrFBasis),
-            TestLoader().loadTestsFromTestCase(TestTrFED),            
+            TestLoader().loadTestsFromTestCase(TestTrFED),
             ])
 
 if __name__=='__main__':
