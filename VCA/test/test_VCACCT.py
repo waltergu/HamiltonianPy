@@ -12,7 +12,7 @@ from unittest import TestCase,TestLoader,TestSuite
 
 class TestVCACCT(TestCase):
     def test_vcacct(self):
-        print
+        print()
         t1,U,afm=-1.0,8.0,0.0
         H2,H4C=Hexagon('H2'),Hexagon('H4C')
         cell,LA,LB,lattice=H2('1P-1P',nneighbour=1),H4C.sublattice(0,nneighbour=1),H4C.sublattice(1,nneighbour=1),H4C('1P-1P',nneighbour=1)

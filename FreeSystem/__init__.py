@@ -14,6 +14,6 @@ MODULES     DESCRIPTION
 =======     ===================================================================================
 '''
 
-from TBA import *
-from FLQT import *
-from SCMF import *
+from .TBA import *
+from .FLQT import *
+from .SCMF import *

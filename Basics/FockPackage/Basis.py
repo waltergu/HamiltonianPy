@@ -73,12 +73,11 @@ class FBasis(object):
         '''
         Convert an instance to string.
         '''
-        return '\n'.join('{:}: {:b}'.format(i,v) for i,v in enumerate(xrange(self.nbasis) if self.mode=='FG' else self.table))
+        return '\n'.join('{:}: {:b}'.format(i,v) for i,v in enumerate(range(self.nbasis) if self.mode=='FG' else self.table))
 
-    @property
-    def rep(self):
+    def __repr__(self):
         '''
-        The string representation of the basis.
+        Convert an instance to string.
         '''
         if 'FS' in self.mode:
             return '%s(%s,%s,%s)'%(self.mode,self.nstate,self.nparticle,self.spinz)
@@ -87,20 +86,32 @@ class FBasis(object):
         else:
             return '%s(%s)'%(self.mode,self.nstate)
 
+    def __hash__(self):
+        '''
+        Hash the basis.
+        '''
+        return hash((self.nstate,self.nparticle,self.spinz))
+
+    def __eq__(self,other):
+        '''
+        Overloaded equivalent(==) operator.
+        '''
+        return self.nstate==other.nstate and self.nparticle==other.nparticle and self.spinz==other.spinz
+
     def replace(self,**karg):
         '''
         Replace `nstate`,`nparticle` or `spinz` of a basis and construct a new one.
         '''
         keys={'nstate','nparticle','spinz'}
-        assert set(karg.iterkeys())<=keys
+        assert set(karg.keys())<=keys
         return FBasis(**{key:karg.get(key,getattr(self,key)) for key in keys})
 
 def table_ep(nstate,nparticle,dtype=np.int64):
     '''
     This function generates the table of binary representations of a particle-conserved and spin-non-conserved basis.
     '''
-    result=np.zeros(factorial(nstate)/factorial(nparticle)/factorial(nstate-nparticle),dtype=dtype)
-    buff=combinations(xrange(nstate),nparticle)
+    result=np.zeros(factorial(nstate)//factorial(nparticle)//factorial(nstate-nparticle),dtype=dtype)
+    buff=combinations(range(nstate),nparticle)
     for i,v in enumerate(buff):
         basis=0
         for num in v:
@@ -113,10 +124,10 @@ def table_es(nstate,nparticle,spinz,dtype=np.int64):
     '''
     This function generates the table of binary representations of a particle-conserved and spin-conserved basis.
     '''
-    n,nup,ndw=nstate/2,(nparticle+int(2*spinz))/2,(nparticle-int(2*spinz))/2
-    result=np.zeros(factorial(n)/factorial(nup)/factorial(n-nup)*factorial(n)/factorial(ndw)/factorial(n-ndw),dtype=dtype)
-    buff_up=list(combinations(xrange(1,2*n,2),nup))
-    buff_dw=list(combinations(xrange(0,2*n,2),ndw))
+    n,nup,ndw=nstate//2,(nparticle+int(2*spinz))//2,(nparticle-int(2*spinz))//2
+    result=np.zeros(factorial(n)//factorial(nup)//factorial(n-nup)*factorial(n)//factorial(ndw)//factorial(n-ndw),dtype=dtype)
+    buff_up=list(combinations(range(1,2*n,2),nup))
+    buff_dw=list(combinations(range(0,2*n,2),ndw))
     count=0
     for vup in buff_up:
         buff=0
@@ -152,7 +163,7 @@ def sequence(rep,table):
         return rep
     else:
         lb=0;ub=len(table);count=0
-        result=(lb+ub)/2
+        result=(lb+ub)//2
         while table[result]!=rep:
             count+=1
             if table[result]>rep:
@@ -160,7 +171,7 @@ def sequence(rep,table):
             else:
                 lb=result
             if 2**(count-2)>len(table): break
-            result=(lb+ub)/2
+            result=(lb+ub)//2
         else:
             return result
         raise ValueError('sequence error: the input rep is not in the table.')
@@ -185,6 +196,6 @@ def FBases(mode,nstate,select=None):
     if mode=='FG':
         return [FBasis(nstate)]
     elif mode=='FP':
-        return [FBasis(nstate,n) for n in xrange(nstate+1) if select is None or select(n)]
+        return [FBasis(nstate,n) for n in range(nstate+1) if select is None or select(n)]
     else:
-        return [FBasis(nstate,n,sz) for n in xrange(nstate+1) for sz in (n/2.0-np.array(xrange(max(n-nstate/2,0),min(n,nstate/2)+1))) if select is None or select(n,sz)]
+        return [FBasis(nstate,n,sz) for n in range(nstate+1) for sz in (n/2.0-np.array(range(max(n-nstate//2,0),min(n,nstate//2)+1))) if select is None or select(n,sz)]

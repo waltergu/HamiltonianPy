@@ -16,7 +16,7 @@ from warnings import warn
 from copy import copy
 from collections import OrderedDict
 from HamiltonianPy import QuantumNumbers,Arithmetic
-from TensorBase import Label,TensorBase
+from .TensorBase import Label,TensorBase
 
 __all__=['DTensor','STensor','Tensor','contract']
 
@@ -183,7 +183,7 @@ class DTensor(TensorBase,Arithmetic):
         DTensor
             The new tensor.
         '''
-        return self*array[[slice(None) if i==(self.axis(axis) if isinstance(axis,Label) else axis) else np.newaxis for i in xrange(self.ndim)]]
+        return self*array[[slice(None) if i==(self.axis(axis) if isinstance(axis,Label) else axis) else np.newaxis for i in range(self.ndim)]]
 
     def relabel(self,news,olds=None):
         '''
@@ -196,7 +196,7 @@ class DTensor(TensorBase,Arithmetic):
         olds : list of Label/int, optional
             The old labels/axes of the tensor.
         '''
-        olds=range(self.ndim) if olds is None else [self.axis(old) if isinstance(old,Label) else old for old in olds]
+        olds=list(range(self.ndim)) if olds is None else [self.axis(old) if isinstance(old,Label) else old for old in olds]
         assert len(news)==len(olds)
         for old,new in zip(olds,news):
             self.labels[old]=new
@@ -215,7 +215,7 @@ class DTensor(TensorBase,Arithmetic):
         DTensor
             The new tensor with the reordered axes.
         '''
-        axes=range(self.ndim-1,-1,-1) if axes is None else [self.axis(axis) if isinstance(axis,Label) else axis for axis in axes]
+        axes=list(range(self.ndim-1,-1,-1)) if axes is None else [self.axis(axis) if isinstance(axis,Label) else axis for axis in axes]
         return DTensor(self.data.transpose(axes),labels=[self.labels[axis] for axis in axes])
 
     def take(self,index,axis):
@@ -287,7 +287,7 @@ class DTensor(TensorBase,Arithmetic):
             The new tensor.
         '''
         permutations={}
-        keep=OrderedDict([(i,i) for i in xrange(self.ndim)])
+        keep=OrderedDict([(i,i) for i in range(self.ndim)])
         labels=OrderedDict([(i,label) for i,label in enumerate(self.labels)])
         for arg in args:
             assert len(arg) in (2,3)
@@ -301,9 +301,9 @@ class DTensor(TensorBase,Arithmetic):
             for axis in axes[1:]:
                 keep.pop(axis)
                 labels.pop(axis)
-        data=self.data.reshape(tuple(np.product(self.data.shape[ax]) if isinstance(ax,slice) else self.data.shape[ax] for ax in keep.itervalues()))
-        labels=labels.values()
-        for label,permutation in permutations.iteritems():
+        data=self.data.reshape(tuple(np.product(self.data.shape[ax]) if isinstance(ax,slice) else self.data.shape[ax] for ax in keep.values()))
+        labels=list(labels.values())
+        for label,permutation in permutations.items():
             data=hm.reorder(data,axes=[labels.index(label)],permutation=permutation)
         return DTensor(data,labels=labels)
 
@@ -326,7 +326,7 @@ class DTensor(TensorBase,Arithmetic):
         '''
         table={(self.axis(arg[0]) if isinstance(arg[0],Label) else arg[0]):i for i,arg in enumerate(args)}
         shape,labels,axes,permutations=(),[],[],[]
-        for axis,dim,label in zip(xrange(self.ndim),self.shape,self.labels):
+        for axis,dim,label in zip(range(self.ndim),self.shape,self.labels):
             if axis in table:
                 arg=args[table[axis]]
                 assert len(arg) in (2,3)
@@ -366,7 +366,7 @@ class DTensor(TensorBase,Arithmetic):
             self.labels[axis].qns=qns
             self.labels[axis].flow=f
             assert qns.type is type
-        unkownaxis=(set(xrange(self.ndim))-set(axes)).pop()
+        unkownaxis=(set(range(self.ndim))-set(axes)).pop()
         expansions=[qns.expansion() for qns in qnses]
         contents=[None]*self.shape[unkownaxis]
         for index in sorted(np.argwhere(np.abs(self.data)>hm.TOL if tol is None else tol),key=lambda index: index[unkownaxis]):
@@ -375,7 +375,7 @@ class DTensor(TensorBase,Arithmetic):
                 contents[index[unkownaxis]]=qn
             else:
                 assert (contents[index[unkownaxis]]==qn).all()
-        for i in xrange(len(contents)):
+        for i in range(len(contents)):
             if contents[i] is None: contents[i]=type.zero()
         self.labels[unkownaxis].qns=QuantumNumbers('G',(type,contents,np.arange(len(contents)+1)),protocol=QuantumNumbers.INDPTR)
         self.labels[unkownaxis].flow=flow
@@ -458,7 +458,7 @@ class STensor(TensorBase,Arithmetic):
         '''
         The data type of the tensor.
         '''
-        return next(self.data.itervalues()).dtype
+        return next(iter(self.data.values())).dtype
 
     @property
     def ttype(self):
@@ -472,26 +472,26 @@ class STensor(TensorBase,Arithmetic):
         '''
         The norm of the tensor.
         '''
-        return np.linalg.norm([np.sum(block*block) for block in self.data.itervalues()])
+        return np.linalg.norm([np.sum(block*block) for block in self.data.values()])
 
     @property
     def dagger(self):
         '''
         The dagger of the tensor.
         '''
-        return STensor({key:block.conjugate() for key,block in self.data.iteritems()},labels=[label.P for label in self.labels])
+        return STensor({key:block.conjugate() for key,block in self.data.items()},labels=[label.P for label in self.labels])
 
     def __str__(self):
         '''
         Convert an instance to string.
         '''
-        return "STensor(\nlabels=%s\n%s\n)"%(self.labels,'\n'.join('%s:\n%s'%(key,block) for key,block in self.data.iteritems()))
+        return "STensor(\nlabels=%s\n%s\n)"%(self.labels,'\n'.join('%s:\n%s'%(key,block) for key,block in self.data.items()))
 
     def __repr__(self):
         '''
         Convert an instance to string.
         '''
-        return "STensor(\nlabels=%s\n%s\n)"%(self.labels,'\n'.join('%s: %s'%(key,block.shape) for key,block in self.data.iteritems()))
+        return "STensor(\nlabels=%s\n%s\n)"%(self.labels,'\n'.join('%s: %s'%(key,block.shape) for key,block in self.data.items()))
 
     def __iadd__(self,other):
         '''
@@ -548,7 +548,7 @@ class STensor(TensorBase,Arithmetic):
             assert self.ndim==other.ndim and all(l1.equivalent(l2) for l1,l2 in zip(self.labels,other.labels))
             return self.data==other.data
         else:
-            return {key:block==other for key,block in self.data.iteritems()}
+            return {key:block==other for key,block in self.data.items()}
 
     def dimcheck(self):
         '''
@@ -560,7 +560,7 @@ class STensor(TensorBase,Arithmetic):
             True for match and False for not.
         '''
         ods=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS) for label in self.labels]
-        return all(block.shape==tuple(od[qn] for od,qn in zip(ods,qns)) for qns,block in self.data.iteritems())
+        return all(block.shape==tuple(od[qn] for od,qn in zip(ods,qns)) for qns,block in self.data.items())
 
     def toarray(self):
         '''
@@ -573,7 +573,7 @@ class STensor(TensorBase,Arithmetic):
         '''
         result=np.zeros(self.shape,dtype=self.dtype)
         ods=[label.qns.toordereddict() for label in self.labels]
-        for key,block in self.data.iteritems():
+        for key,block in self.data.items():
             result[[ods[i][qn] for i,qn in enumerate(key)]]=block
         return result
 
@@ -595,7 +595,7 @@ class STensor(TensorBase,Arithmetic):
         '''
         if isinstance(axis,Label): axis=self.axis(axis)
         od=self.labels[axis].qns.toordereddict()
-        data={key:block*array[[od[key[axis]] if i==axis else np.newaxis for i in xrange(self.ndim)]] for key,block in self.data.iteritems()}
+        data={key:block*array[[od[key[axis]] if i==axis else np.newaxis for i in range(self.ndim)]] for key,block in self.data.items()}
         return STensor(data,labels=self.labels)
 
     def contractarray(self,axis,array):
@@ -623,7 +623,7 @@ class STensor(TensorBase,Arithmetic):
         clabel,rlabel=self.labels[axis],self.labels[1-axis]
         data=np.zeros(len(rlabel.qns),dtype=self.dtype)
         cod,rod=clabel.qns.toordereddict(),rlabel.qns.toordereddict()
-        for qns,block in self.data.iteritems():
+        for qns,block in self.data.items():
             cqn,rqn=qns[axis],qns[1-axis]
             data[rod[rqn]]+=(block if axis==1 else block.T)[:,cod[cqn]].dot(array[cod[cqn]])[...]
         return DTensor(data,[rlabel.replace(flow=None)])
@@ -639,7 +639,7 @@ class STensor(TensorBase,Arithmetic):
         olds : list of Label/int, optional
             The old labels/axes of the tensor.
         '''
-        axes=range(self.ndim) if olds is None else [self.axis(old) if isinstance(old,Label) else old for old in olds]
+        axes=list(range(self.ndim)) if olds is None else [self.axis(old) if isinstance(old,Label) else old for old in olds]
         olds,maps=[self.labels[axis] for axis in axes],{}
         assert len(news)==len(olds)
         for axis,old,new in zip(axes,olds,news):
@@ -651,7 +651,7 @@ class STensor(TensorBase,Arithmetic):
         if len(maps)>0:
             data={}
             flows=[label.flow for label in self.labels]
-            for qns,block in self.data.iteritems():
+            for qns,block in self.data.items():
                 newqns=tuple(maps.get((axis,qn),qn) for axis,qn in enumerate(qns))
                 assert nl.norm(sum(qn*flow for qn,flow in zip(newqns,flows)))==0
                 data[newqns]=block
@@ -671,9 +671,9 @@ class STensor(TensorBase,Arithmetic):
         STensor
             The new tensor with the reordered axes.
         '''
-        axes=range(self.ndim-1,-1,-1) if axes is None else [self.axis(axis) if isinstance(axis,Label) else axis for axis in axes]
+        axes=list(range(self.ndim-1,-1,-1)) if axes is None else [self.axis(axis) if isinstance(axis,Label) else axis for axis in axes]
         labels=[self.labels[axis] for axis in axes]
-        data={tuple(key[axis] for axis in axes):block.transpose(axes) for key,block in self.data.iteritems()}
+        data={tuple(key[axis] for axis in axes):block.transpose(axes) for key,block in self.data.items()}
         return STensor(data,labels=labels)
 
     def take(self,index,axis):
@@ -695,7 +695,7 @@ class STensor(TensorBase,Arithmetic):
         if isinstance(axis,Label): axis=self.axis(axis)
         qn=self.labels[axis].qns[index]
         index=index-self.labels[axis].qns.toordereddict()[qn].start
-        data={tuple(key[i] for i in xrange(self.ndim) if i!=axis): block.take(index,axis) for key,block in self.data.iteritems() if key[axis]==qn}
+        data={tuple(key[i] for i in range(self.ndim) if i!=axis): block.take(index,axis) for key,block in self.data.items() if key[axis]==qn}
         return STensor(data,labels=[label for i,label in enumerate(self.labels) if i!=axis])
 
     def reorder(self,*args):
@@ -751,8 +751,8 @@ class STensor(TensorBase,Arithmetic):
         The record is necessary in order to make the quantum numbers of the merged label canonical.
         '''
         signs={}
-        keep=OrderedDict([(i,i) for i in xrange(self.ndim)])
-        records=OrderedDict([(i,None) for i in xrange(self.ndim)])
+        keep=OrderedDict([(i,i) for i in range(self.ndim)])
+        records=OrderedDict([(i,None) for i in range(self.ndim)])
         labels=OrderedDict([(i,label) for i,label in enumerate(self.labels)])
         for olds,new,record in args:
             axes=np.array([self.axis(old) if isinstance(old,Label) else old for old in olds])
@@ -767,14 +767,14 @@ class STensor(TensorBase,Arithmetic):
                 records.pop(axis)
                 labels.pop(axis)
         data={}
-        counts=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS) for label in labels.itervalues()]
-        for qns,block in self.data.iteritems():
-            new=tuple(sum(qns[axis]*signs[axis] for axis in xrange(ax.start,ax.stop)) if isinstance(ax,slice) else qns[ax] for ax in keep.itervalues())
-            shape=tuple(np.product(block.shape[ax]) if isinstance(ax,slice) else block.shape[ax] for ax in keep.itervalues())
-            slices=[record[new[pos]][qns[ax]] if isinstance(ax,slice) else slice(None) for pos,(ax,record) in enumerate(zip(keep.itervalues(),records.itervalues()))]
+        counts=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS) for label in labels.values()]
+        for qns,block in self.data.items():
+            new=tuple(sum(qns[axis]*signs[axis] for axis in range(ax.start,ax.stop)) if isinstance(ax,slice) else qns[ax] for ax in keep.values())
+            shape=tuple(np.product(block.shape[ax]) if isinstance(ax,slice) else block.shape[ax] for ax in keep.values())
+            slices=[record[new[pos]][qns[ax]] if isinstance(ax,slice) else slice(None) for pos,(ax,record) in enumerate(zip(iter(keep.values()),iter(records.values())))]
             if new not in data: data[new]=np.zeros(tuple(count[qn] for count,qn in zip(counts,new)),dtype=block.dtype)
             data[new][slices]=block.reshape(shape)
-        return STensor(data,labels=labels.values())
+        return STensor(data,labels=list(labels.values()))
 
     def split(self,*args):
         '''
@@ -803,10 +803,10 @@ class STensor(TensorBase,Arithmetic):
         labels=list(it.chain(*[args[table[axis]][1] if axis in table else [label] for axis,label in enumerate(self.labels)]))
         counts=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS) for label in labels]
         data={}
-        for qns,block in self.data.iteritems():
-            for content in it.product(*[record[qns[axis]].iteritems() for axis,record in zip(axes,records)]):
+        for qns,block in self.data.items():
+            for content in it.product(*[iter(record[qns[axis]].items()) for axis,record in zip(axes,records)]):
                 new=tuple(it.chain(*[content[table[axis]][0] if axis in table else [qn] for axis,qn in enumerate(qns)]))
-                slices=[content[table[axis]][1] if axis in table else slice(None) for axis in xrange(len(qns))]
+                slices=[content[table[axis]][1] if axis in table else slice(None) for axis in range(len(qns))]
                 assert new not in data
                 data[new]=block[slices].reshape(tuple(count[qn] for count,qn in zip(counts,new)))
         return STensor(data,labels=labels)
@@ -838,8 +838,8 @@ class STensor(TensorBase,Arithmetic):
         '''
         result={}
         masks=[self.axis(label) if isinstance(label,Label) else label for label in masks]
-        keeps=[axis for axis in xrange(self.ndim) if axis not in masks]
-        for key,block in self.data.iteritems():
+        keeps=[axis for axis in range(self.ndim) if axis not in masks]
+        for key,block in self.data.items():
             mask,keep=tuple(key[axis] for axis in masks),tuple(key[axis] for axis in keeps)
             if mask not in result: result[mask]=[]
             result[mask].append((keep,block))
@@ -957,7 +957,7 @@ def contract(a,b,engine=None):
             r,rpermutation=Label.union(BL,None,-1,mode=1)
             lod,cod,rod=l.qns.toordereddict(),c.qns.toordereddict(),r.qns.toordereddict()
             result=np.zeros((A.shape[0],B.shape[1]),dtype=np.find_common_type([A.dtype,B.dtype],[]))
-            for qn in it.ifilter(lambda qn:True if lod.has_key(qn) and rod.has_key(qn) else False,cod):
+            for qn in filter(lambda qn:True if qn in lod and qn in rod else False,cod):
                 linds=lpermutation[lod[qn]]
                 ainds=apermutation[cod[qn]]
                 binds=bpermutation[cod[qn]]
@@ -973,7 +973,7 @@ def contract(a,b,engine=None):
             if l1.flow+l2.flow!=0: raise ValueError('tensor contraction error: not converged flow for %s and %s'%(repr(l1),repr(l2)))
         data={}
         ad,bd,axes=a.todict(AC),b.todict(BC),([a.axis(label) for label in common],[b.axis(label) for label in common]) if len(common)>0 else 0
-        for coqns in it.ifilter(ad.has_key,bd):
+        for coqns in filter(lambda key: key in ad,bd):
             for (qns1,block1),(qns2,block2) in it.product(ad[coqns],bd[coqns]):
                 qns=tuple(it.chain(qns1,qns2))
                 if qns not in data: data[qns]=0

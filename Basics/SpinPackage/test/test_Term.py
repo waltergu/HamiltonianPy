@@ -14,7 +14,6 @@ from unittest import TestCase,TestLoader,TestSuite
 
 class TestSpinTerm(TestCase):
     def setUp(self):
-        print 'test_spin_term'
         J,h=1.0,5.0
         p1,p2=np.array([0.0,0.0]),np.array([1.0,0.0])
         self.lattice=Lattice(name='WG',rcoords=[p1,p2],neighbours=1)

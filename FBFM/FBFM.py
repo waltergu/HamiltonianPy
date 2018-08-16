@@ -18,7 +18,7 @@ import scipy.linalg as sl
 import numpy.linalg as nl
 import itertools as it
 import matplotlib.pyplot as plt
-from fmatrix import *
+from .fmatrix import *
 from collections import OrderedDict
 from fractions import Fraction
 
@@ -72,10 +72,10 @@ class FBFMBasis(object):
         Eup,Uup,Edw,Udw=[],[],[],[]
         for k in [()] if self.BZ is None else self.BZ.mesh('k'):
             m=matrix(k)
-            es,us=nl.eigh(m[:m.shape[0]/2,:m.shape[0]/2])
+            es,us=nl.eigh(m[:m.shape[0]//2,:m.shape[0]//2])
             Edw.append(es)
             Udw.append(us)
-            es,us=nl.eigh(m[m.shape[0]/2:,m.shape[0]/2:])
+            es,us=nl.eigh(m[m.shape[0]//2:,m.shape[0]//2:])
             Eup.append(es)
             Uup.append(us)
         Eup,Uup=np.asarray(Eup),np.asarray(Uup).transpose((1,0,2))
@@ -163,9 +163,9 @@ def optrep(operator,k,basis):
     permutation=np.array([0]) if basis.BZ is None else np.argsort((basis.BZ-k).sorted(history=True)[1])
     if operator is None:
         result=np.zeros((nk,nsp,nsp,nk,nsp,nsp),dtype=basis.dtype)
-        for i in xrange(nk):
-            for j in xrange(nsp):
-                for k in xrange(nsp):
+        for i in range(nk):
+            for j in range(nsp):
+                for k in range(nsp):
                     result[i,j,k,i,j,k]=basis.E1[permutation[i],j]-basis.E2[i,k]
         return result.reshape((nk*nsp**2,nk*nsp**2))
     elif isinstance(operator,HP.FQuadratic):
@@ -174,11 +174,11 @@ def optrep(operator,k,basis):
         result=np.zeros((nk,nk,nsp*nsp,nsp*nsp),dtype=basis.dtype)
         diag=operator.value*(1 if len(k)==0 else np.exp(-1j*np.inner(basis.BZ.kcoord(k),operator.icoord)))*np.identity(nsp,dtype=basis.dtype)
         if index1.spin==(0 if basis.polarization=='up' else 1):
-            for i in xrange(nk):
+            for i in range(nk):
                 result[i,i,:,:]=np.kron(np.kron(basis.U1[seq2,i,:].reshape((-1,1)),basis.U1[seq1,i,:].conjugate().reshape((1,-1))),diag)
         else:
             diagsum=(basis.U2[seq1,:,:].conjugate()*basis.U2[seq2,:,:]).sum()*np.identity(nsp,dtype=basis.dtype)
-            for i in xrange(nk):
+            for i in range(nk):
                 result[i,i,:,:]=np.kron(diag,diagsum-np.kron(basis.U2[seq1,i,:].conjugate().reshape((-1,1)),basis.U2[seq2,i,:].reshape((1,-1))))
         return result.transpose((0,2,1,3)).reshape((nk*nsp**2,nk*nsp**2))
     elif isinstance(operator,HP.FHubbard):
@@ -410,7 +410,7 @@ def FBFMEB(engine,app):
         bz,reciprocals=engine.basis.BZ,engine.lattice.reciprocals
         if not isinstance(path,HP.BaseSpace): path=bz.path(HP.KMap(reciprocals,path) if isinstance(path,str) else path,mode='Q')
         result=np.zeros((path.rank(0),ne+1))
-        result[:,0]=path.mesh(0) if path.mesh(0).ndim==1 else np.array(xrange(path.rank(0)))
+        result[:,0]=path.mesh(0) if path.mesh(0).ndim==1 else np.array(range(path.rank(0)))
         engine.log<<'%s: '%path.rank(0)
         for i,paras in enumerate(path('+')):
             engine.log<<'%s%s'%(i,'..' if i<path.rank(0)-1 else '')
@@ -419,7 +419,7 @@ def FBFMEB(engine,app):
         engine.log<<'\n'
     else:
         result=np.zeros((2,ne+1))
-        result[:,0]=np.array(xrange(2))
+        result[:,0]=np.array(range(2))
         m=engine.matrix(scalefree=app.scalefree,scaleint=app.scaleint)
         result[0,1:]=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,evon=False)
         result[1,1:]=result[0,1:]

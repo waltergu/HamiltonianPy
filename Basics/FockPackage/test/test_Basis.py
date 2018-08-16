@@ -13,21 +13,21 @@ class TestFBasis(TestCase):
         self.spinz=1
 
     def test_fbasis(self):
-        print
+        print()
         for basis in [  FBasis(nstate=self.nstate,nparticle=self.nparticle,spinz=self.spinz),
                         FBasis(nstate=self.nstate,nparticle=self.nparticle),
                         FBasis(nstate=self.nstate)
                         ]:
-            print '%s\n%s\n'%(basis.rep,basis)
+            print('%r\n%s\n'%(basis,basis))
 
     def test_fbases(self):
-        print
+        print()
         for basis in FBases(mode='FS',nstate=self.nstate,select=lambda n,sz: True if n%2==0 and sz==0 else False):
-            print '%s\n%s\n'%(basis.rep,basis)
+            print('%r\n%s\n'%(basis,basis))
         for basis in FBases(mode='FP',nstate=self.nstate):
-            print '%s\n%s\n'%(basis.rep,basis)
+            print('%r\n%s\n'%(basis,basis))
         for basis in FBases(mode='FG',nstate=self.nstate):
-            print '%s\n%s\n'%(basis.rep,basis)
+            print('%r\n%s\n'%(basis,basis))
 
 fockbasis=TestSuite([
             TestLoader().loadTestsFromTestCase(TestFBasis),

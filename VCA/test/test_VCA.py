@@ -12,7 +12,7 @@ from unittest import TestCase,TestLoader,TestSuite
 
 class TestVCA(TestCase):
     def test_vca(self):
-        print
+        print()
         t,U,m,n=-1.0,8.0,2,2
         basis=FBasis(2*m*n,m*n,0.0)
         cell=Square('S1')('1P-1P',1)
@@ -20,7 +20,7 @@ class TestVCA(TestCase):
         config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fock(atom=0,norbital=1,nspin=2,nnambu=1))
         cgf=VCA.VGF(nstep=200,prepare=ED.EDGFP,savedata=False,run=ED.EDGF)
         vca=VCA.VCA(
-                name=       'WG-%s-%s'%(lattice.name,basis.rep),
+                name=       'WG-%s-%r'%(lattice.name,basis),
                 cgf=        cgf,
                 sectors=    [basis],
                 cell=       cell,

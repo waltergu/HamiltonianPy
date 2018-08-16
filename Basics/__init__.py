@@ -46,15 +46,15 @@ Concretely, the roles they play are
 +-----------------------+-----------------------------------------------------------------------------------------------------------+
 '''
 
-from Utilities import *
-from BaseSpace import *
-from Geometry import *
-from DegreeOfFreedom import *
-from Operator import *
-from Term import *
-from EngineApp import *
-from Generator import *
-from FockPackage import *
-from SpinPackage import *
-from QuantumNumber import *
-from Extensions import *
+from .Utilities import *
+from .BaseSpace import *
+from .Geometry import *
+from .DegreeOfFreedom import *
+from .Operator import *
+from .Term import *
+from .EngineApp import *
+from .Generator import *
+from .FockPackage import *
+from .SpinPackage import *
+from .QuantumNumber import *
+from .Extensions import *

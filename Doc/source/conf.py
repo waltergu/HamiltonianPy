@@ -34,11 +34,11 @@ source_suffix='.rst'
 master_doc='index'
 
 # General information about the project.
-project=u'HamiltonianPy'
-copyright=u'2017, Zhao-Long Gu'
-author=u'Zhao-Long Gu'
-version=u'1.2.0'
-release=u'1.2.0'
+project='HamiltonianPy'
+copyright='2017, Zhao-Long Gu'
+author='Zhao-Long Gu'
+version='1.2.0'
+release='1.2.0'
 
 # Options for HTML output
 html_theme='classic'

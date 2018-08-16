@@ -144,7 +144,7 @@ class DegFreTree(Tree):
         list of Index
             The indices in the requested layer.
         '''
-        return self.cache[('indices',self.layers[layer] if type(layer) in (int,long) else layer)]
+        return self.cache[('indices',self.layers[layer] if type(layer) is int else layer)]
 
     def table(self,layer=0):
         '''
@@ -160,7 +160,7 @@ class DegFreTree(Tree):
         Table
             The index-sequence table.
         '''
-        return self.cache[('table',self.layers[layer] if type(layer) in (int,long) else layer)]
+        return self.cache[('table',self.layers[layer] if type(layer) is int else layer)]
 
     def labels(self,mode,layer=0):
         '''
@@ -180,11 +180,11 @@ class DegFreTree(Tree):
         list of Label/str
             The inquired labels/identifiers.
         '''
-        mode,layer=mode.upper(),self.layers[layer] if type(layer) in (int,long) else layer
+        mode,layer=mode.upper(),self.layers[layer] if type(layer) is int else layer
         assert mode in ('B','S','O')
         if ('labels',mode,layer) not in self.cache:
             if mode in ('B','O'):
-                result=['%s%s-%s'%(mode,self.layers.index(layer),i) for i in xrange(len(self.indices(layer))+1)]
+                result=['%s%s-%s'%(mode,self.layers.index(layer),i) for i in range(len(self.indices(layer))+1)]
             else:
                 result=[Label(index,self[index],None) for index in self.indices(layer)]
             self.cache[('labels',mode,layer)]=result

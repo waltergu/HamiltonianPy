@@ -13,7 +13,7 @@ class TestEngineApp(TestCase):
         self.app=App(name='myapp',run=lambda engine,app: engine.din+app.name)
 
     def test_register(self):
-        print
+        print()
         self.engine.register(app=self.app)
 
 engineapp=TestSuite([

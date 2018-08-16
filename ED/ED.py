@@ -27,7 +27,7 @@ class ED(HP.Engine):
     ----------
     sector : any hashable object
         The sector of the system.
-    sectors : iterable
+    sectors : set
         The sectors of the system.
     lattice : Lattice
         The lattice of the system.
@@ -71,6 +71,35 @@ class ED(HP.Engine):
             super(ED,self).update(**karg)
             self.generator.update(**self.data)
             self.operators=self.generator.operators
+
+    def addsector(self,sector,setcurrent=False):
+        '''
+        Add a sector to the engine.
+
+        Parameters
+        ----------
+        sector : hashable
+            The sector to be added.
+        setcurrent : logical, optional
+            True for setting the added sector as the sector of the engine and False for not.
+        '''
+        self.sectors.add(sector)
+        if setcurrent: self.sector=sector
+
+    def removesector(self,sector,newcurrent=None):
+        '''
+        Remove a sector from the engine.
+
+        Parameters
+        ----------
+        sector : hashable
+            The sector to be removed.
+        newcurrent : hashable, optional
+            The new sector of the engine.
+        '''
+        self.sectors.remove(sector)
+        if newcurrent is not None: self.sector=newcurrent
+        self.generator.removematrix(sector)
 
     def matrix(self,sector,reset=True):
         '''
@@ -120,15 +149,15 @@ class ED(HP.Engine):
         vs : list of 1d ndarray, optional
             List of k eigenvectors.
         '''
-        self.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value,n=10)) for key,value in self.parameters.iteritems()))
+        self.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value,n=10)) for key,value in self.parameters.items()))
         if resettimers: self.timers.reset()
         if sector is None and len(self.sectors)>1:
-            cols=['nopt','dim','nnz','Mt(s)','Et(s)']+(['E%s'%i for i in xrange(k-1,-1,-1)] if showes else [])
+            cols=['nopt','dim','nnz','Mt(s)','Et(s)']+(['E%s'%i for i in range(k-1,-1,-1)] if showes else [])
             widths=[14,4,8,10,10,10]+([13]*k if showes else [])
-            info=HP.Sheet(corner='sector',rows=self.sectors,cols=cols,widths=widths)
+            info=HP.Sheet(corner='sector',rows=[repr(sector) for sector in self.sectors],cols=cols,widths=widths)
             self.log<<'%s\n%s\n%s\n'%(info.frame(),info.coltagstostr(corneron=True),info.division())
             sectors,es,vs=[],[],[]
-            for i,sector in enumerate(self.sectors):
+            for sector in self.sectors:
                 with self.timers.get('Matrix'): matrix=self.matrix(sector,reset=resetmatrix)
                 V0=None if v0 is None or matrix.shape[0]!=v0.shape[0] else v0
                 with self.timers.get('ES'): eigs=HM.eigsh(matrix,v0=V0,k=min(k,matrix.shape[0]),which='SA',evon=evon)
@@ -136,13 +165,13 @@ class ED(HP.Engine):
                 sectors.extend([sector]*min(k,matrix.shape[0]))
                 es.extend(eigs[0] if evon else eigs)
                 if evon: vs.extend(eigs[1].T)
-                info[(sector,'nopt')]=len(self.operators)
-                info[(sector,'dim')]=matrix.shape[0]
-                info[(sector,'nnz')]=matrix.nnz
-                info[(sector,'Mt(s)')]=self.timers['Matrix'].records[-1],'%.4e'
-                info[(sector,'Et(s)')]=self.timers['ES'].records[-1],'%.4e'
-                for j in xrange(k-1,-1,-1): info[(sector,'E%s'%j)]=(es[-1-j],'%.8f') if j<matrix.shape[0] else ''
-                self.log<<'%s\n'%info.rowtostr(row=sector)
+                info[(repr(sector),'nopt')]=len(self.operators)
+                info[(repr(sector),'dim')]=matrix.shape[0]
+                info[(repr(sector),'nnz')]=matrix.nnz
+                info[(repr(sector),'Mt(s)')]=self.timers['Matrix'].records[-1],'%.4e'
+                info[(repr(sector),'Et(s)')]=self.timers['ES'].records[-1],'%.4e'
+                for j in range(k-1,-1,-1): info[(repr(sector),'E%s'%j)]=(es[-1-j],'%.8f') if j<matrix.shape[0] else ''
+                self.log<<'%s\n'%info.rowtostr(row=repr(sector))
             indices=np.argsort(es)[:k]
             sectors=[sectors[index] for index in indices]
             es=np.asarray(es)[indices]
@@ -151,7 +180,7 @@ class ED(HP.Engine):
         else:
             if sector is None: sector=next(iter(self.sectors))
             with self.timers.get('Matrix'): matrix=self.matrix(sector,reset=resetmatrix)
-            self.log<<'::<Information>:: sector=%s, nopt=%s, dim=%s, nnz=%s, '%(sector,len(self.operators),matrix.shape[0],matrix.nnz)
+            self.log<<'::<Information>:: sector=%r, nopt=%s, dim=%s, nnz=%s, '%(sector,len(self.operators),matrix.shape[0],matrix.nnz)
             V0=None if v0 is None or matrix.shape[0]!=v0.shape[0] else v0
             with self.timers.get('ES'): eigs=HM.eigsh(matrix,v0=V0,k=k,which='SA',evon=evon)
             self.timers.record()
@@ -189,7 +218,6 @@ class EIGS(HP.App):
         evon : logical, optional
             True for calculating the eigenvectors and False for not.
         '''
-        super(EIGS,self).__init__(**karg)
         self.sector=sector
         self.ne=ne
         self.evon=evon
@@ -203,7 +231,7 @@ def EDEIGS(engine,app):
     engine.log<<HP.Sheet(
                     corner=     'Energy',
                     rows=       ['Es','Et'],
-                    cols=       ['Level %s'%(i+1) for i in xrange(app.ne)],
+                    cols=       ['Level %s'%(i+1) for i in range(app.ne)],
                     contents=   np.array([eigs[1],eigs[1]/len(engine.lattice)])
                     )<<'\n'
     if app.returndata: return eigs
@@ -246,7 +274,7 @@ def EDEL(engine,app):
     '''
     name='%s_%s'%(engine.tostr(mask=app.path.tags),app.name)
     result=np.zeros((app.path.rank(0),app.ns*(app.nder+1)+1))
-    result[:,0]=app.path.mesh(0) if len(app.path.tags)==1 and app.path.mesh(0).ndim==1 else np.array(xrange(app.path.rank(0)))
+    result[:,0]=app.path.mesh(0) if len(app.path.tags)==1 and app.path.mesh(0).ndim==1 else np.array(range(app.path.rank(0)))
     for i,paras in enumerate(app.path('+')):
         engine.update(**paras)
         result[i,1:app.ns+1]=engine.eigs(sector=app.sector,k=app.ns,evon=False,resetmatrix=True if i==0 else False,resettimers=True if i==0 else False)[1]
@@ -258,11 +286,11 @@ def EDEL(engine,app):
             if app.savefig: plt.savefig('%s/%s_TIMERS.png'%(engine.log.dir,name))
             plt.close()
     if app.nder>0:
-        for i in xrange(app.ns): result.T[[j*app.ns+i+1 for j in xrange(1,app.nder+1)]]=HM.derivatives(result[:,0],result[:,i+1],ders=range(1,app.nder+1))
+        for i in range(app.ns): result.T[[j*app.ns+i+1 for j in range(1,app.nder+1)]]=HM.derivatives(result[:,0],result[:,i+1],ders=list(range(1,app.nder+1)))
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
     if app.plot:
         ns=app.ns
-        options={'legend':[('%s der of '%HP.ordinal(k/ns-1) if k/ns>0 else '')+'$E_{%s}$'%(k%ns) for k in xrange(result.shape[1]-1)],'legendloc':'lower right'} if ns<=10 else {}
+        options={'legend':[('%s der of '%HP.ordinal(k//ns-1) if k//ns>0 else '')+'$E_{%s}$'%(k%ns) for k in range(result.shape[1]-1)],'legendloc':'lower right'} if ns<=10 else {}
         app.figure('L',result,'%s/%s'%(engine.dout,name),**options)
     if app.returndata: return result
 
@@ -351,14 +379,14 @@ class BGF(object):
                 if log: log<<'%s%s%s'%('\b'*30 if i>0 else '',('%s/%s(%.2es/%.3es)'%(i+1,len(Qs),te-ts,te-t0)).center(30),'\b'*30 if i==len(Qs)-1 else '')
         elif self.method=='B':
             lanczos=self.controllers['lanczos']
-            for i in xrange(lanczos.maxiter):
+            for i in range(lanczos.maxiter):
                 ts=time.time()
                 lanczos.iter()
                 te=time.time()
                 if log: log<<'%s%s%s'%('\b'*30 if i>0 else '',('%s/%s(%.2es/%.3es)'%(i+1,lanczos.maxiter,te-ts,te-t0)).center(30),'\b'*30 if i==lanczos.maxiter-1 else '')
         elif self.method=='S' and np is not None:
             path,Qs=os.path.dirname(os.path.realpath(__file__)),self.controllers['Qs']
-            datas=[[self.controllers['vecs'],[],[]] for i in xrange(np)]
+            datas=[[self.controllers['vecs'],[],[]] for i in range(np)]
             for i,lanczos in enumerate(self.controllers['lczs']):
                 datas[i%np][1].append(lanczos)
                 datas[i%np][2].append(i)
@@ -434,7 +462,7 @@ class BGF(object):
         if self.method=='S':
             niters,Lambdas,Qs,QTs=self.data['niters'],self.data['Lambdas'],self.data['Qs'],self.data['QTs']
             result=np.zeros((Lambdas.shape[0],Lambdas.shape[0]),dtype=np.complex128)
-            for i in xrange(Lambdas.shape[0]):
+            for i in range(Lambdas.shape[0]):
                 result[i,:]=(Qs[i,:,0:niters[i]]/(omega-Lambdas[i,0:niters[i]])[np.newaxis,:]).dot(QTs[i,0:niters[i]])
             return result
         else:
@@ -489,7 +517,7 @@ def EDGFP(engine,app):
     This method prepares the GF.
     '''
     if os.path.isfile('%s/%s_coeff.dat'%(engine.din,engine.tostr(ndecimal=14))):
-        engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value,n=10)) for key,value in engine.parameters.iteritems()))
+        engine.log<<'::<Parameters>:: %s\n'%(', '.join('%s=%s'%(key,HP.decimaltostr(value,n=10)) for key,value in engine.parameters.items()))
         with open('%s/%s_coeff.dat'%(engine.din,engine.tostr(ndecimal=14)),'rb') as fin:
             app.gse=pk.load(fin)
             app.blocks=pk.load(fin)
@@ -499,9 +527,9 @@ def EDGFP(engine,app):
     if len(engine.sectors)>1: engine.log<<'::<Information>:: sector=%s, gse=%.8f.\n'%(engine.sector,app.gse)
     app.blocks,nb,blocks=[],next(iter(app.generate(engine,app.operators,'NB'))),app.generate(engine,app.operators,app.method)
     timers=HP.Timers('Preparation','Iteration','Diagonalization',root='Total')
-    info=HP.Sheet(corner='GF Block',cols=['Preparation','Iteration','Diagonalization','Total'],rows=['# %s'%(i+1) for i in xrange(nb)]+['Summary'],widths=[8,11,11,15,11])
+    info=HP.Sheet(corner='GF Block',cols=['Preparation','Iteration','Diagonalization','Total'],rows=['# %s'%(i+1) for i in range(nb)]+['Summary'],widths=[8,11,11,15,11])
     engine.log<<'%s\n%s\n%s\n'%(info.frame(),info.coltagstostr(corneron=True),info.division())
-    for i in xrange(nb):
+    for i in range(nb):
         with timers.get('Total') as gftimer:
             bnum='# %s'%(i+1)
             engine.log<<'%s|'%info.tagtostr(bnum)

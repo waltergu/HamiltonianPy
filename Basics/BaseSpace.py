@@ -11,8 +11,8 @@ BaseSpace, including
 __all__=['BaseSpace', 'KSpace', 'KPath', 'TSpace', 'FBZ']
 
 from collections import OrderedDict
-from Geometry import volume,isonline
-from QuantumNumber import QuantumNumbers,NewQuantumNumber
+from .Geometry import volume,isonline
+from .QuantumNumber import QuantumNumbers,NewQuantumNumber
 import numpy as np
 import numpy.linalg as nl
 import matplotlib.pyplot as plt
@@ -137,7 +137,7 @@ def KSpace(reciprocals,nk=100,segments=None,end=False):
     segments=[(-0.5,0.5)]*nvectors if segments is None else segments
     assert len(segments)==nvectors and nvectors in (1,2,3)
     vol=(nl.norm if nvectors==1 else (np.cross if nvectors==2 else volume))(*reciprocals)
-    mesh=[np.dot([a+(b-a)*i/(nk-1 if end else nk) for (a,b),i in zip(segments,pos)],reciprocals) for pos in it.product(*([xrange(nk)]*nvectors))]
+    mesh=[np.dot([a+(b-a)*i/(nk-1 if end else nk) for (a,b),i in zip(segments,pos)],reciprocals) for pos in it.product(*([range(nk)]*nvectors))]
     return BaseSpace(('k',np.asarray(mesh),np.abs(vol)))
 
 def KPath(path,nk=100,ends=None,mode='R'):
@@ -169,7 +169,7 @@ def KPath(path,nk=100,ends=None,mode='R'):
     nks=[nk]*len(path) if mode.upper()=='R' else [int(length/min(lengths)*nk) for length in lengths]
     ends=[False]*len(path) if ends is None else ends
     assert len(ends)==len(path)
-    return BaseSpace(('k',np.array([start+(stop-start)/(nk-1 if end else nk)*i for (start,stop),nk,end in zip(path,nks,ends) for i in xrange(nk)])))
+    return BaseSpace(('k',np.array([start+(stop-start)/(nk-1 if end else nk)*i for (start,stop),nk,end in zip(path,nks,ends) for i in range(nk)])))
 
 def TSpace(mesh):
     '''
@@ -198,10 +198,10 @@ class FBZ(QuantumNumbers,BaseSpace):
         nks : iterable of int, optional
             The number of points along each translation vector i.e. the periods along each direction.
         '''
-        nks=(nks or 100,)*len(reciprocals) if type(nks) in (int,long,type(None)) else nks
+        nks=(nks or 100,)*len(reciprocals) if type(nks) in (int,type(None)) else nks
         assert len(nks)==len(reciprocals)
-        qntype=NewQuantumNumber('kp',tuple('k%s'%(i+1) for i in xrange(len(nks))),nks)
-        data=np.array(list(it.product(*[xrange(nk) for nk in nks])))
+        qntype=NewQuantumNumber('kp',tuple('k%s'%(i+1) for i in range(len(nks))),nks)
+        data=np.array(list(it.product(*[range(nk) for nk in nks])))
         counts=np.ones(np.product(nks),dtype=np.int64)
         super(FBZ,self).__init__('C',(qntype,data,counts),protocol=QuantumNumbers.COUNTS)
         self.tags=['k']
@@ -264,8 +264,8 @@ class FBZ(QuantumNumbers,BaseSpace):
         assert mode in ('P','Q','I') and len(ends)==len(path)
         maxp=max(self.type.periods)
         disps=[np.dot(self.reciprocals.T,disp) for disp in list(it.product(*([[0,-1]]*len(self.reciprocals))))]
-        psegments,qsegments=[[] for i in xrange(len(path))],[[] for i in xrange(len(path))]
-        isegments,dsegments=[[] for i in xrange(len(path))],[[] for i in xrange(len(path))]
+        psegments,qsegments=[[] for i in range(len(path))],[[] for i in range(len(path))]
+        isegments,dsegments=[[] for i in range(len(path))],[[] for i in range(len(path))]
         for pos,(qn,rcoord0) in enumerate(zip(self.contents,self.mesh('k'))):
             for disp in disps:
                 rcoord=rcoord0+disp

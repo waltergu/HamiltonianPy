@@ -13,5 +13,5 @@ MODULES     DESCRIPTION
 ========    =====================================
 '''
 
-from VCA import *
-from VCACCT import *
+from .VCA import *
+from .VCACCT import *

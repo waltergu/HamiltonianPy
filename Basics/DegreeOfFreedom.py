@@ -12,9 +12,9 @@ __all__=['Table','Index','Internal','IDFConfig','QNSConfig','IndexPack','IndexPa
 import numpy as np
 import itertools as it
 from numpy.linalg import norm
-from Utilities import RZERO,Arithmetic,decimaltostr
-from Geometry import PID
-from QuantumNumber import QuantumNumbers
+from .Utilities import RZERO,Arithmetic,decimaltostr
+from .Geometry import PID
+from .QuantumNumber import QuantumNumbers
 from collections import OrderedDict
 
 class Table(dict):
@@ -89,7 +89,7 @@ class Table(dict):
             The reversed table whose key is the sequence and value the index.
         '''
         result=Table()
-        for k,v in self.iteritems():
+        for k,v in self.items():
             result[v]=k
         return result
 
@@ -180,7 +180,7 @@ class Index(tuple):
         Return a new Index object with specified fields replaced with new values.
         '''
         result=super(Index,type(self)).__new__(type(self),map(karg.pop,self.names,self))
-        if karg: raise ValueError('Index replace error: it got unexpected field names: %r'%karg.keys())
+        if karg: raise ValueError('Index replace error: it got unexpected field names: %r'%list(karg.keys()))
         result.names=self.names
         result.icls=self.icls
         return result
@@ -343,7 +343,7 @@ class IDFConfig(dict):
             The subset IDFConfig.
         '''
         result=IDFConfig(priority=self.priority,map=self.map)
-        for pid,interanl in self.iteritems():
+        for pid,interanl in self.items():
             if select(pid): result[pid]=interanl
         return result
 
@@ -433,7 +433,7 @@ class QNSConfig(dict):
             The subset QNSConfig.
         '''
         result=QNSConfig(priority=self.priority,map=self.map)
-        for index,qns in self.iteritems():
+        for index,qns in self.items():
             if select(index): result[index]=qns
         return result
 

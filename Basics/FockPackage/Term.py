@@ -15,8 +15,9 @@ from ..Term import *
 from ..DegreeOfFreedom import *
 from ..Operator import *
 from ..Geometry import Bond
-from DegreeOfFreedom import *
-from Operator import * 
+from .DegreeOfFreedom import *
+from .Operator import *
+from collections import Callable
 import numpy as np
 
 class Quadratic(Term):
@@ -80,7 +81,7 @@ class Quadratic(Term):
             self.indexpacks=IndexPacks(fpack)
         elif isinstance(indexpacks,IndexPacks):
             self.indexpacks=fpack*indexpacks
-        elif callable(indexpacks):
+        elif isinstance(indexpacks,Callable):
             self.indexpacks=lambda bond: fpack*indexpacks(bond)
         else:
             raise ValueError('Quadratic init error: the input indexpacks should be an instance of IndexPacks or a function.')
@@ -136,7 +137,7 @@ class Quadratic(Term):
             result={}
             if self.neighbour==bond.neighbour:
                 value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
-                for fpack in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
+                for fpack in self.indexpacks(bond) if isinstance(self.indexpacks,Callable) else self.indexpacks:
                     if self.mode=='pr':
                         assert getattr(fpack,'nambus',None) in ((ANNIHILATION,ANNIHILATION),(CREATION,CREATION))
                     else:
@@ -156,7 +157,7 @@ class Quadratic(Term):
         CONSTRUCTOR=FQuadratic if self.statistics=='f' else BQuadratic
         def operators(expansion,bond,table):
             result=Operators()
-            for (eindex,sindex),value in expansion.iteritems():
+            for (eindex,sindex),value in expansion.items():
                 if np.abs(value)>RZERO:
                     if table is None:
                         result+=CONSTRUCTOR(value=dtype(value),indices=(eindex,sindex),seqs=None,rcoord=bond.rcoord,icoord=bond.icoord)
@@ -200,7 +201,7 @@ class Quadratic(Term):
             value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
             if np.abs(value)>RZERO:
                 edgr,sdgr=config[bond.epoint.pid],config[bond.spoint.pid]
-                for fpack in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
+                for fpack in self.indexpacks(bond) if isinstance(self.indexpacks,Callable) else self.indexpacks:
                     if not hasattr(fpack,'atoms') or (edgr.atom,sdgr.atom)==fpack.atoms:
                         result.append('%s%s:%s*%s'%(self.statistics,self.mode,decimaltostr(value,Term.NDECIMAL),fpack.tostr(mask=('atoms',),form='repr')))
         return '\n'.join(result)
@@ -302,7 +303,7 @@ class Hubbard(Term):
             assert nv in (1,4) and dgr.nspin==2 and order in ('normal','density')
             expansion=[]
             if nv>=1:
-                for h in xrange(dgr.norbital):
+                for h in range(dgr.norbital):
                     value=self.value/2 if nv==1 else self.value[0]/2
                     index1=Index(pid,FID(h,1,CREATION))
                     index2=Index(pid,FID(h,0,CREATION))
@@ -310,8 +311,8 @@ class Hubbard(Term):
                     index4=Index(pid,FID(h,1,ANNIHILATION))
                     expansion.append((value,index1,index2,index3,index4))
             if nv==4:
-                for h in xrange(dgr.norbital):
-                    for g in xrange(dgr.norbital):
+                for h in range(dgr.norbital):
+                    for g in range(dgr.norbital):
                         if g!=h:
                             value=self.value[1]/2
                             index1=Index(pid,FID(g,1,CREATION))
@@ -319,25 +320,25 @@ class Hubbard(Term):
                             index3=Index(pid,FID(h,0,ANNIHILATION))
                             index4=Index(pid,FID(g,1,ANNIHILATION))
                             expansion.append((value,index1,index2,index3,index4))
-                for h in xrange(dgr.norbital):
-                    for g in xrange(h):
-                        for f in xrange(2):
+                for h in range(dgr.norbital):
+                    for g in range(h):
+                        for f in range(2):
                             value=(self.value[1]-self.value[2])/2
                             index1=Index(pid,FID(g,f,CREATION))
                             index2=Index(pid,FID(h,f,CREATION))
                             index3=Index(pid,FID(h,f,ANNIHILATION))
                             index4=Index(pid,FID(g,f,ANNIHILATION))
                             expansion.append((value,index1,index2,index3,index4))
-                for h in xrange(dgr.norbital):
-                    for g in xrange(h):
+                for h in range(dgr.norbital):
+                    for g in range(h):
                         value=self.value[2]
                         index1=Index(pid,FID(g,1,CREATION))
                         index2=Index(pid,FID(h,0,CREATION))
                         index3=Index(pid,FID(g,0,ANNIHILATION))
                         index4=Index(pid,FID(h,1,ANNIHILATION))
                         expansion.append((value,index1,index2,index3,index4))
-                for h in xrange(dgr.norbital):
-                    for g in xrange(h):
+                for h in range(dgr.norbital):
+                    for g in range(h):
                         value=self.value[3]
                         index1=Index(pid,FID(g,1,CREATION))
                         index2=Index(pid,FID(g,0,CREATION))
@@ -370,7 +371,7 @@ class Hubbard(Term):
                                 icoord=     bond.epoint.icoord
                                 )
             if not half: result+=result.dagger
-            if order=='density': result=Operators((opt.id,opt) for opt in [opt.reorder([0,3,1,2]) for opt in result.itervalues()])
+            if order=='density': result=Operators((opt.id,opt) for opt in [opt.reorder([0,3,1,2]) for opt in result.values()])
         return result
 
     @property
@@ -453,7 +454,7 @@ class Coulomb(Term):
         self.neighbour=neighbour
         if indexpacks is None:
             self.indexpacks=(IndexPacks(FockPack(value=1.0)),IndexPacks(FockPack(value=1.0)))
-        elif callable(indexpacks):
+        elif isinstance(indexpacks,Callable):
             self.indexpacks=indexpacks
         else:
             assert len(indexpacks)==2
@@ -469,7 +470,7 @@ class Coulomb(Term):
         result.append('value=%s'%self.value)
         result.append('statistics=%s'%self.statistics)
         result.append('neighbour=%s'%self.neighbour)
-        result.append('indexpacks=%s'%(self.indexpacks if callable(self.indexpacks) else (self.indexpacks,)))
+        result.append('indexpacks=%s'%(self.indexpacks if isinstance(self.indexpacks,Callable) else (self.indexpacks,)))
         if self.amplitude is not None:
             result.append('amplitude=%s'%self.amplitude)
         if self.modulate is not None:
@@ -504,7 +505,7 @@ class Coulomb(Term):
         if self.neighbour==bond.neighbour:
             expansion={}
             value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
-            eindexpacks,sindexpacks=self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks
+            eindexpacks,sindexpacks=self.indexpacks(bond) if isinstance(self.indexpacks,Callable) else self.indexpacks
             for epack in eindexpacks:
                 for ecoeff,index1,index2 in epack.expand(Bond(0,bond.epoint,bond.epoint),config[bond.epoint.pid],config[bond.epoint.pid]):
                     dagger1,dagger2=index1.replace(nambu=1-index1.nambu),index2.replace(nambu=1-index2.nambu)
@@ -520,7 +521,7 @@ class Coulomb(Term):
                                     key=(dagger4,dagger3,dagger2,dagger1) if self.neighbour==0 else (dagger2,dagger1,dagger4,dagger3)
                                     expansion[key]=np.conjugate(coeff)+expansion.get(key,0.0)
             CONSTRUCTOR=FCoulomb if self.statistics=='f' else BCoulomb
-            for (index1,index2,index3,index4),value in expansion.iteritems():
+            for (index1,index2,index3,index4),value in expansion.items():
                 if np.abs(value)>RZERO:
                     if table is None:
                         result+=CONSTRUCTOR(
@@ -574,7 +575,7 @@ class Coulomb(Term):
             value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
             if np.abs(value)>RZERO:
                 edgr,sdgr=config[bond.epoint.pid],config[bond.spoint.pid]
-                eindexpacks,sindexpacks=self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks
+                eindexpacks,sindexpacks=self.indexpacks(bond) if isinstance(self.indexpacks,Callable) else self.indexpacks
                 epacks,spacks=[],[]
                 for epack in eindexpacks:
                     if not hasattr(epack,'atoms') or (edgr.atom,edgr.atom)==epack.atoms:

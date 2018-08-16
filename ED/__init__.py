@@ -14,6 +14,6 @@ MODULES     DESCRIPTION
 =======     =============================================================
 '''
 
-from ED import *
-from FED import *
-from SED import *
+from .ED import *
+from .FED import *
+from .SED import *

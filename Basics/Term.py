@@ -10,8 +10,8 @@ This module defines the way to describe a term of the Hamiltonian, including:
 __all__=['Term']
 
 from numpy import ndarray,complex128
-from Utilities import Arithmetic
-from collections import Iterable
+from .Utilities import Arithmetic
+from collections import Iterable,Callable
 from copy import copy
 
 class Term(Arithmetic):
@@ -45,7 +45,7 @@ class Term(Arithmetic):
         '''
         self.id=id
         self.value=value
-        self.modulate=modulate if callable(modulate) or modulate is None else lambda **karg: karg.get(self.id,None)
+        self.modulate=modulate if isinstance(modulate,Callable) or modulate is None else lambda **karg: karg.get(self.id,None)
 
     def __mul__(self,other):
         '''

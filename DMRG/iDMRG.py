@@ -68,7 +68,7 @@ class iDMRG(DMRG):
                 self.cache['shiftedsites']=[]
             else:
                 nsite,nspb=self.block.nsite,self.nspb
-                sites=self.degfres.labels('S')[nsite/2-nspb:nsite/2+nspb]
+                sites=self.degfres.labels('S')[nsite//2-nspb:nsite//2+nspb]
                 if self.block.ttype=='S': sites=[site.replace(qns=site.qns.sorted()) for site in sites]
                 self.cache['shiftedsites'].extend(OptStr([Opt.identity(site,self.dtype)*(-self.block.info['Esite'])]) for site in sites)
             mpo=OptMPO(self.cache['optstrs']+self.cache['shiftedsites'],self.degfres).tompo(ttype=self.block.ttype)
@@ -77,7 +77,7 @@ class iDMRG(DMRG):
             sites=self.block.mps.sites
             self.cache['shiftedsites']=[OptStr([Opt.identity(site,self.dtype)*(-self.block.info['Esite'])]) for site in sites]
             mpo=OptMPO(self.cache['optstrs']+self.cache['shiftedsites'],self.degfres).tompo(ttype=self.block.ttype)
-            mpo=mpo[len(mpo)/2-len(sites)/2:len(mpo)/2+len(sites)/2]
+            mpo=mpo[len(mpo)//2-len(sites)//2:len(mpo)//2+len(sites)//2]
             lold,rold=self.block.mpo[0].labels[MPO.L],self.block.mpo[-1].labels[MPO.R]
             lnew,rnew=mpo[0].labels[MPO.L],mpo[-1].labels[MPO.R]
             assert lnew.equivalent(lold) and rnew.equivalent(rold)
@@ -111,11 +111,11 @@ class iDMRG(DMRG):
             qn=target-self.block.target if isinstance(target,QuantumNumber) else 0
             self.block.predict(sites,obonds,sbonds,osvs,qn)
         else:
-            ls=['iDMRG_K%s'%i for i in xrange(self.niter)]
-            rs=['iDMRG_S%s'%i for i in xrange(self.niter)]
+            ls=['iDMRG_K%s'%i for i in range(self.niter)]
+            rs=['iDMRG_S%s'%i for i in range(self.niter)]
             self.lattice.insert('iDMRG_L','iDMRG_R',news=ls+rs)
             self.config.reset(pids=self.lattice.pids)
-            self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
+            self.degfres.reset(leaves=list(self.config.table(mask=self.mask).keys()))
             self.generator.reset(bonds=self.lattice.bonds,config=self.config)
             mpo=self.mpo
             sites,bonds=self.degfres.labels('S'),self.degfres.labels('B')
@@ -127,7 +127,7 @@ class iDMRG(DMRG):
             self.block.reset(mpo=mpo,mps=mps,target=target)
             if self.niter+1==self.lattice.nneighbour+self.DTRP:
                 nsite,nspb=self.block.nsite,self.nspb
-                self.block=self.block[nsite/2-nspb:nsite/2+nspb]
+                self.block=self.block[nsite//2-nspb:nsite//2+nspb]
 
 def iDMRGTSG(engine,app):
     '''
@@ -140,12 +140,12 @@ def iDMRGTSG(engine,app):
         def TSGSWEEP(nsweep,ngrowth):
             assert engine.block.cut==engine.block.nsite/2
             path=list(it.chain(['<<']*(nspb-1),['>>']*(nspb*2-2),['<<']*(nspb-1)))
-            for sweep in xrange(nsweep):
+            for sweep in range(nsweep):
                 seold=engine.block.info['Esite']
                 engine.sweep(info='No.%s-%s'%(ngrowth+1,sweep+1),path=path,nmax=app.nmax,divisor=2*nspb,piechart=app.plot)
                 senew=engine.block.info['Esite']
                 if norm(seold-senew)/norm(seold+senew)<app.tol: break
-        for i in xrange(app.maxiter):
+        for i in range(app.maxiter):
             seold=engine.block.info['Esite']
             engine.iterate(target=app.target(getattr(engine,'niter',i-1)+1))
             engine.block.iterate(engine.log,info='%s_%s(%s++)'%(engine,engine.block,i),sp=i>0,divisor=2*nspb,nmax=app.nmax,piechart=app.plot)
@@ -167,9 +167,9 @@ def iDMRGGSE(engine,app):
     result=np.zeros((app.path.rank(0),2))
     for i,parameters in enumerate(app.path('+')):
         engine.update(**parameters)
-        engine.log<<'::<parameters>:: %s\n'%(', '.join('%s=%s'%(key,decimaltostr(value)) for key,value in engine.parameters.iteritems()))
+        engine.log<<'::<parameters>:: %s\n'%(', '.join('%s=%s'%(key,decimaltostr(value)) for key,value in engine.parameters.items()))
         engine.rundependences(app.name)
-        result[i,0]=parameters.values()[0] if len(parameters)==1 else i
+        result[i,0]=list(parameters.values())[0] if len(parameters)==1 else i
         result[i,1]=engine.block.info['Esite']
     name='%s_%s'%(engine.tostr(mask=app.path.tags),app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
@@ -218,12 +218,12 @@ def iDMRGQP(engine,app):
             return ps.dot(qns)/ps.sum()
         result=averagedcharge(engine.block.mps,'f' if tuple(engine.mask)==('nambu',) else 'b')-getattr(engine.block.target,app.qnname)/2
         t2=time.time()
-        engine.log<<'::<parameters>:: %s\n'%(', '.join('%s=%s'%(key,decimaltostr(value)) for key,value in engine.parameters.iteritems()))
+        engine.log<<'::<parameters>:: %s\n'%(', '.join('%s=%s'%(key,decimaltostr(value)) for key,value in engine.parameters.items()))
         engine.log<<'::<informtation>:: pumped charge=%.6f, time=%.4es\n\n'%(result,t2-t1)
         return result
     result=np.zeros((app.path.rank(0),2))
     for i,parameters in enumerate(app.path('+')):
-        result[i,0]=parameters.values()[0] if len(parameters)==1 else i
+        result[i,0]=list(parameters.values())[0] if len(parameters)==1 else i
         result[i,1]=pumpedcharge(parameters)
     name='%s_%s'%(engine.tostr(mask=app.path.tags),app.name)
     if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)

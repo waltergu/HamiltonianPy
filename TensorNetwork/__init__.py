@@ -19,7 +19,7 @@ MODULES         DESCRIPTION
 ===========     =================================
 '''
 
-from Tensor import *
-from Structure import *
-from MPS import *
-from MPO import *
+from .Tensor import *
+from .Structure import *
+from .MPS import *
+from .MPO import *

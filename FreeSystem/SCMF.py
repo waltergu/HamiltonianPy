@@ -11,7 +11,7 @@ __all__=['OP','SCMF']
 
 from numpy import *
 from ..Basics import RZERO,Generator,Timers,Sheet
-from TBA import *
+from .TBA import *
 from copy import deepcopy
 from collections import OrderedDict
 from scipy.optimize import broyden2
@@ -123,7 +123,7 @@ class SCMF(TBA):
         kspace : BaseSpace, optional
             The Brillouin zone of the system.
         '''
-        self.update(**{name:order.value for name,order in self.ops.iteritems()})
+        self.update(**{name:order.value for name,order in self.ops.items()})
         self.mu,nmatrix=super(SCMF,self).mu(self.filling,kspace),self.nmatrix
         f=(lambda e,mu: 1 if e<=mu else 0) if abs(self.temperature)<RZERO else (lambda e,mu: 1/(exp((e-mu)/self.temperature)+1))
         m=zeros((nmatrix,nmatrix),dtype=complex128)
@@ -131,7 +131,7 @@ class SCMF(TBA):
             eigs,eigvecs=eigh(matrix)
             for eig,eigvec in zip(eigs,eigvecs.T):
                 m+=dot(eigvec.conj().reshape((nmatrix,1)),eigvec.reshape((1,nmatrix)))*f(eig,self.mu)
-        nstate=(1 if kspace is None else kspace.rank('k'))*nmatrix/self.config.values()[0].nspin
+        nstate=(1 if kspace is None else kspace.rank('k'))*nmatrix/list(self.config.values())[0].nspin
         for key in self.ops.keys():
             self.ops[key].value=sum(m*self.ops[key].matrix)/nstate
             if self.ops[key].dtype in (float32,float64): self.ops[key].value=self.ops[key].value.real

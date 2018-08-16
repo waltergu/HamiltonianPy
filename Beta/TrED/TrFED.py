@@ -6,7 +6,7 @@
 
 __all__=['TrFBasis','trfoptrep','TrFED','EB','TrFEDEB']
 
-from fbasis import *
+from .fbasis import *
 from numba import jit
 from math import sqrt
 from scipy.sparse import csr_matrix
@@ -108,13 +108,13 @@ def trfoptrep(operator,k,basis,dtype=np.complex128):
 @jit
 def _trfoptrep_(k,value,nambus,sequences,table,seqs,maps,translations,signs,masks,nk,dtype):
     ndata,data,indices,indptr=0,np.zeros(len(seqs),dtype=dtype),np.zeros(len(seqs),dtype=np.int32),np.zeros(len(seqs)+1,dtype=np.int32)
-    dim,eye,temp=0,long(1),np.zeros(len(sequences)+1,dtype=np.int64)
+    dim,eye,temp=0,int(1),np.zeros(len(sequences)+1,dtype=np.int64)
     factor=np.exp(1.0j*2*np.pi*k/nk)
-    for i in xrange(len(seqs)):
+    for i in range(len(seqs)):
         if masks[k,i]>=0:
             indptr[dim]=ndata
             temp[0]=table[seqs[i]]
-            for m in xrange(len(sequences)):
+            for m in range(len(sequences)):
                 if bool(temp[m]&eye<<sequences[m])==nambus[m]: break
                 temp[m+1]=temp[m]|eye<<sequences[m] if nambus[m] else temp[m]&~(eye<<sequences[m])
             else:
@@ -122,8 +122,8 @@ def _trfoptrep_(k,value,nambus,sequences,table,seqs,maps,translations,signs,mask
                 j=maps[seq]
                 if masks[k,j]>=0:
                     nsign=0
-                    for m in xrange(len(sequences)):
-                        for n in xrange(sequences[m]):
+                    for m in range(len(sequences)):
+                        for n in range(sequences[m]):
                             if temp[m]&eye<<n: nsign+=1
                     indices[ndata]=masks[k,j]
                     sign=(1 if j==i else signs[seq])*(-1)**nsign
@@ -205,7 +205,7 @@ def TrFEDEB(engine,app):
     This function calculates the energy bands.
     '''
     result=np.zeros((engine.basis.nk+(1 if app.kend else 0),app.ns+1))
-    for i in xrange(engine.basis.nk):
+    for i in range(engine.basis.nk):
         result[i,0]=i
         result[i,1:]=engine.eigs(sector=i,k=app.ns,evon=False,resettimers=True if i==0 else False,showes=False)[1]
         engine.log<<'\n'

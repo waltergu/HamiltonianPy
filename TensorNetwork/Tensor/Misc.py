@@ -13,8 +13,8 @@ import numpy as np
 import itertools as it
 import scipy.linalg as sl
 import HamiltonianPy.Misc as hm
-from TensorBase import Label
-from Tensor import DTensor,STensor
+from .TensorBase import Label
+from .Tensor import DTensor,STensor
 from HamiltonianPy import QuantumNumbers
 
 def random(labels,ttype='D',dtype=np.float64):
@@ -48,7 +48,7 @@ def random(labels,ttype='D',dtype=np.float64):
             mlabel,mpermutation=Label.union(mlbls,'__TENSOR_RANDOM_D_-__',-1,mode=1)
             data=np.zeros((plabel.dim,mlabel.dim),dtype=dtype)
             pod,mod=plabel.qns.toordereddict(),mlabel.qns.toordereddict()
-            for qn in it.ifilter(pod.has_key,mod):
+            for qn in filter(lambda key: key in pod,mod):
                 bshape=(pod[qn].stop-pod[qn].start,mod[qn].stop-mod[qn].start)
                 data[pod[qn],mod[qn]]=np.random.random(bshape)
                 if dtype in (np.complex64,np.complex128):
@@ -63,7 +63,7 @@ def random(labels,ttype='D',dtype=np.float64):
             data={}
             ods=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS) for label in labels]
             pod,mod=plabel.qns.toordereddict(),mlabel.qns.toordereddict()
-            for qn in it.ifilter(pod.has_key,mod):
+            for qn in filter(lambda key: key in pod,mod):
                 for pqns,mqns in it.product(precord[qn],mrecord[qn]):
                     qns=tuple(it.chain(pqns,mqns))
                     qns=tuple(qns[axis] for axis in traxes)
@@ -104,32 +104,32 @@ def directsum(tensors,labels,axes=()):
     assert len({tensor.ndim for tensor in tensors})==1
     assert len({tuple(tensor.shape[axis] for axis in axes) for tensor in tensors})==1
     assert len({tuple(label.flow for label in tensor.labels) for tensor in tensors})==1
-    alters=set(xrange(TENSOR.ndim))-set(axes)
+    alters=set(range(TENSOR.ndim))-set(axes)
     dtype=np.find_common_type([],[tensor.dtype for tensor in tensors])
     if isinstance(TENSOR,DTensor):
         assert len({tensor.qnon for tensor in tensors})==1
         for alter in alters: labels[alter].qns=(QuantumNumbers.union if TENSOR.qnon else np.sum)([tensor.labels[alter].qns for tensor in tensors])
-        for axis in xrange(TENSOR.ndim): labels[axis].flow=TENSOR.labels[axis].flow
-        for axis in axes: labels[axis].qns=tensor.labels[axis].qns
+        for axis in range(TENSOR.ndim): labels[axis].flow=TENSOR.labels[axis].flow
+        for axis in axes: labels[axis].qns=TENSOR.labels[axis].qns
         data=np.zeros(tuple(len(label.qns) if isinstance(label.qns,QuantumNumbers) else label.qns for label in labels),dtype=dtype)
-        slices=[slice(0,0,0) if axis in alters else slice(None,None,None) for axis in xrange(TENSOR.ndim)]
+        slices=[slice(0,0,0) if axis in alters else slice(None,None,None) for axis in range(TENSOR.ndim)]
         for tensor in tensors:
             for alter in alters: slices[alter]=slice(slices[alter].stop,slices[alter].stop+tensor.shape[alter])
             data[tuple(slices)]=tensor.data
     else:
         for alter in alters: labels[alter].qns=QuantumNumbers.union([tensor.labels[alter].qns for tensor in tensors]).sorted(history=False)
-        for axis in xrange(TENSOR.ndim): labels[axis].flow=TENSOR.labels[axis].flow
-        for axis in axes: labels[axis].qns=tensor.labels[axis].qns
+        for axis in range(TENSOR.ndim): labels[axis].flow=TENSOR.labels[axis].flow
+        for axis in axes: labels[axis].qns=TENSOR.labels[axis].qns
         ods=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS) for label in labels]
         data,counts={},{alter:{} for alter in alters}
         for tensor in tensors:
             for alter in alters:
                 for qn,count in tensor.labels[alter].qns.iteritems(protocol=QuantumNumbers.COUNTS):
                     counts[alter][qn]=counts[alter].get(qn,0)+count
-            for qns,block in tensor.data.iteritems():
+            for qns,block in tensor.data.items():
                 if qns not in data:
                     data[qns]=np.zeros(tuple(od[qn] for od,qn in zip(ods,qns)),dtype=dtype)
-                slices=[slice(counts[i][qns[i]]-block.shape[i],counts[i][qns[i]],None) if i in alters else slice(None,None,None) for i in xrange(TENSOR.ndim)]
+                slices=[slice(counts[i][qns[i]]-block.shape[i],counts[i][qns[i]],None) if i in alters else slice(None,None,None) for i in range(TENSOR.ndim)]
                 data[qns][tuple(slices)]=block
     return type(TENSOR)(data,labels=labels)
 
@@ -168,7 +168,7 @@ def eigh(tensor,row,new,col,returndagger=False):
         assert len(rowlabel.qns)==len(collabel.qns)
         m=tensor.merge((row,rowlabel,rowrecord),(col,collabel,colrecord)).data
         Es,Us=[],{}
-        for qns,block in m.iteritems():
+        for qns,block in m.items():
             assert qns[0]==qns[1] and block.shape[0]==block.shape[1]
             e,u=sl.eigh(block,check_finite=False)
             Es.append(e)
@@ -232,7 +232,7 @@ def partitionedsvd(tensor,L,new,R,nmax=None,tol=None,ttype='D',returnerr=False):
         assert qns.num==1 and sl.norm(qns.contents)<10**-6
         lod,rod=L.qns.toordereddict(),R.qns.toordereddict()
         us,ss,vs,qns,count=[],[],[],[],0
-        for qn in it.ifilter(lod.has_key,rod):
+        for qn in filter(lambda key: key in lod,rod):
             s1,s2=lod[qn],rod[qn]
             n1,n2=s1.stop-s1.start,s2.stop-s2.start
             u,s,v=sl.svd(data[count:count+n1*n2].reshape((n1,n2)),full_matrices=False,lapack_driver='gesvd')[0:3]
@@ -320,7 +320,7 @@ def svd(tensor,row,new,col,nmax=None,tol=None,returnerr=False,**karg):
         collabel,colrecord=Label.union(col,'__TENSOR_SVD_COL__',-1,mode=2)
         m=tensor.merge((row,rowlabel,rowrecord),(col,collabel,colrecord)).data
         us,ss,vs,qns=[],[],[],[]
-        for (rowqn,colqn),block in m.iteritems():
+        for (rowqn,colqn),block in m.items():
             assert rowqn==colqn
             u,s,v=sl.svd(block,full_matrices=False,lapack_driver='gesvd')[0:3]
             us.append(u)
@@ -350,7 +350,7 @@ def svd(tensor,row,new,col,nmax=None,tol=None,returnerr=False,**karg):
         m=tensor.merge((row,rowlabel,rowpermutation),(col,collabel,colpermutation)).data
         rowod,colod=rowlabel.qns.toordereddict(),collabel.qns.toordereddict()
         us,ss,vs,qns=[],[],[],[]
-        for qn in it.ifilter(rowod.has_key,colod):
+        for qn in filter(lambda key: key in rowod,colod):
             u,s,v=sl.svd(m[rowod[qn],colod[qn]],full_matrices=False,lapack_driver='gesvd')[0:3]
             us.append(u)
             ss.append(s)
@@ -433,7 +433,7 @@ def expandedsvd(tensor,L,S,R,E,I,cut=0,nmax=None,tol=None):
     ms,u,s,v=[],None,None,None
     if cut==len(E):
         assert len(E)==len(I)
-        for i in xrange(cut):
+        for i in range(cut):
             if i>0: data=s*v
             u,s,v=svd(data,row=data.labels[:2],new=I[i],col=data.labels[2:],nmax=nmax,tol=tol)
             ms.append(u)
@@ -442,7 +442,7 @@ def expandedsvd(tensor,L,S,R,E,I,cut=0,nmax=None,tol=None):
         return ms,s,v
     elif cut==0:
         assert len(E)==len(I)
-        for i in xrange(len(E)-1,-1,-1):
+        for i in range(len(E)-1,-1,-1):
             if i<len(E)-1: data=u*s
             u,s,v=svd(data,row=data.labels[:-2],new=I[i],col=data.labels[-2:],nmax=nmax,tol=tol)
             ms.insert(0,v)
@@ -451,13 +451,13 @@ def expandedsvd(tensor,L,S,R,E,I,cut=0,nmax=None,tol=None):
         return u,s,ms
     else:
         assert len(E)==len(I)+1
-        for i in xrange(cut):
+        for i in range(cut):
             if i>0: data=s*v
             new=I[i] if i<cut-1 else Label('__TENSOR_EXPANDED_SVD_LINNER__',None)
             u,s,v=svd(data,row=data.labels[:2],new=new,col=data.labels[2:],nmax=nmax,tol=tol)
             ms.append(u)
         ls,data=s,v
-        for i in xrange(len(E)-1,cut-1,-1):
+        for i in range(len(E)-1,cut-1,-1):
             if i<len(E)-1: data=u*s
             new=I[i-1] if i>cut else Label('__TENSOR_EXPANDED_SVD_RINNER__',None)
             u,s,v=svd(data,row=data.labels[:-2],new=new,col=data.labels[-2:],nmax=nmax,tol=tol)

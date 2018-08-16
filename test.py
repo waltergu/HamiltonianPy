@@ -5,9 +5,11 @@ if __name__=='__main__':
         if platform.system()=='Windows':
             os.system("powershell.exe rm -r *.png")
             os.system("powershell.exe rm -r *.dat")
+            os.system("powershell.exe rm -r *.log")
         else:
             os.system("rm -rf *.png")
             os.system("rm -rf *.dat")
+            os.system("rm -rf *.log")
     else:
         from Test.test_Misc import *
         from Test.test_Basics import *

@@ -10,17 +10,22 @@ UCDA incoporates the geometry of the latttice, the internal degrees of freedom o
 * subpackage `FreeSystem`: tight binding approximation (TBA) and Bogoliubov de Gennes (BdG) equations for fermionic systems,
 * subpackage `ED`: exact diagonalization (ED) for electron and spin systems,
 * subpackage `VCA`: cluster pertubation theory (CPT) and variational cluster approach (VCA) for fermionic systems,
+* subpackage `TensorNetwork`: tensor network represetation of Hamiltonians (MPO) and states (MPS),
 * subpackage `DMRG`: density matrix renormalization group (DMRG) for electron and spin systems,
 * subpackage `FBFM`: spin wave theory for flat band ferromagnets (FBFM).
 
 Dependency
 ----------
-It works with python 2.7, and requires several packages:
+It works with python 3.6, and requires several packages:
 * numpy latest version
 * scipy latest version
+* numba latest version
 * matplotlib latest version
-* mpi4py
+* mpi4py latest version
 
+Notes
+-----
+python 2.x is no longer supported.
 
 Source code
 -----------

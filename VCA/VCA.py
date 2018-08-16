@@ -10,7 +10,7 @@ CPT and VCA, including:
 
 __all__=['VGF','VCA','EB','VCAEB','VCADOS','VCAFS','VCABC','VCATEB','VCAGP','GPM','VCAGPM','CPFF','VCACPFF','OP','VCAOP','DTBT','VCADTBT']
 
-from gf_contract import *
+from .gf_contract import *
 from numpy.linalg import det,inv
 from scipy.linalg import eigh
 from scipy.integrate import quad
@@ -209,7 +209,7 @@ class VCA(ED.FED):
         cgf.resetopts(HP.fspoperators(config.table(),lattice))
         self.preload(cgf)
         self.preload(HP.GF(operators=HP.fspoperators(HP.IDFConfig(priority=config.priority,pids=cell.pids,map=config.map).table(),cell),dtype=cgf.dtype))
-        self.sectors={sector.rep:sector for sector in sectors}
+        self.sectors=set(sectors)
         self.cell=cell
         self.lattice=lattice
         self.config=config
@@ -282,15 +282,15 @@ class VCA(ED.FED):
         '''
         self.periodization={}
         cgf,gf=self.CGF,self.GF
-        groups=[[] for i in xrange(gf.nopt)]
+        groups=[[] for i in range(gf.nopt)]
         for index,copt in enumerate(cgf.loperators):
             for i,opt in enumerate(gf.operators):
                 if copt.indices[0].iid==opt.indices[0].iid and HP.issubordinate(copt.rcoord-opt.rcoord,self.cell.vectors):
                     groups[i].append((index,copt))
                     break
-        self.periodization['seqs']=np.zeros((gf.nopt,cgf.nlopt/gf.nopt),dtype=np.int64)
-        self.periodization['coords']=np.zeros((gf.nopt,cgf.nlopt/gf.nopt,len(gf.operators[0].rcoord)),dtype=np.float64)
-        for i in xrange(gf.nopt):
+        self.periodization['seqs']=np.zeros((gf.nopt,cgf.nlopt//gf.nopt),dtype=np.int64)
+        self.periodization['coords']=np.zeros((gf.nopt,cgf.nlopt//gf.nopt,len(gf.operators[0].rcoord)),dtype=np.float64)
+        for i in range(gf.nopt):
             for j,(index,opt) in enumerate(sorted(groups[i],key=lambda entry: entry[0])):
                 self.periodization['seqs'][i,j]=index+1
                 self.periodization['coords'][i,j,:]=opt.rcoord
@@ -312,12 +312,29 @@ class VCA(ED.FED):
             The matrix representation of the Hamiltonian.
         '''
         if reset:
-            self.hgenerator.setmatrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
-            self.wgenerator.setmatrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
-            self.bgenerator.setmatrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
+            self.hgenerator.setmatrix(sector,HP.foptrep,sector,transpose=False,dtype=self.dtype)
+            self.wgenerator.setmatrix(sector,HP.foptrep,sector,transpose=False,dtype=self.dtype)
+            self.bgenerator.setmatrix(sector,HP.foptrep,sector,transpose=False,dtype=self.dtype)
         self.sector=sector
         matrix=self.hgenerator.matrix(sector)+self.wgenerator.matrix(sector)+self.bgenerator.matrix(sector)
         return matrix.T+matrix.conjugate()
+
+    def removesector(self,sector,newcurrent=None):
+        '''
+        Remove a sector from the engine.
+
+        Parameters
+        ----------
+        sector : hashable
+            The sector to be removed.
+        newcurrent : hashable, optional
+            The new sector of the engine.
+        '''
+        self.sectors.remove(sector)
+        if newcurrent is not None: self.sector=newcurrent
+        self.hgenerator.removematrix(sector)
+        self.wgenerator.removematrix(sector)
+        self.bgenerator.removematrix(sector)
 
     def update(self,**karg):
         '''
@@ -511,7 +528,7 @@ class VCA(ED.FED):
         2d ndarray
             The VCA Green's function.
         '''
-        return _gf_contract_(k,self.mgf(omega,k),self.periodization['seqs'],self.periodization['coords'])/(self.nclopt/self.nopt)
+        return _gf_contract_(k,self.mgf(omega,k),self.periodization['seqs'],self.periodization['coords'])/(self.nclopt//self.nopt)
 
     def gfmesh(self,omega,kmesh):
         '''
@@ -534,7 +551,7 @@ class VCA(ED.FED):
         result=np.zeros((kmesh.shape[0],self.nopt,self.nopt),dtype=np.complex128)
         for n,k in enumerate(kmesh):
             result[n,:,:]=_gf_contract_(k,mgfmesh[n,:,:],self.periodization['seqs'],self.periodization['coords'])
-        return result/(self.nclopt/self.nopt)
+        return result/(self.nclopt//self.nopt)
 
     def totba(self,weisson=False):
         '''
@@ -606,7 +623,7 @@ def VCAEB(engine,app):
     if isinstance(app.path,str): app.path=HP.KPath(HP.KMap(engine.lattice.reciprocals,path),nk=100)
     erange,kmesh,nk=np.linspace(app.emin,app.emax,app.ne),app.path.mesh('k'),app.path.rank('k')
     result=np.zeros((nk,app.ne,3))
-    result[:,:,0]=np.tensordot(np.array(xrange(nk)),np.ones(app.ne),axes=0)
+    result[:,:,0]=np.tensordot(np.array(range(nk)),np.ones(app.ne),axes=0)
     result[:,:,1]=np.tensordot(np.ones(nk),erange,axes=0)
     for i,omega in enumerate(erange):
         result[:,i,2]=-(np.trace(engine.gfmesh(omega+app.mu+app.eta*1j,kmesh),axis1=1,axis2=2)).imag/engine.nopt/np.pi
@@ -695,7 +712,7 @@ def VCAGP(engine,app):
     rquad=quad(fx,0,np.float(np.inf),full_output=2,epsrel=1.49e-12)
     part1=-rquad[0]/np.pi
     part2=np.trace(ptmesh,axis1=1,axis2=2).sum().real/2
-    gp=(cgf.gse+(part1+part2)/nk)/(engine.nclopt/engine.nopt)/len(engine.cell)
+    gp=(cgf.gse+(part1+part2)/nk)/(engine.nclopt//engine.nopt)/len(engine.cell)
     etime=time.time()
     engine.log<<'gp(mu=%s,err=%.2e,neval=%s,time=%.2es): %s\n\n'%(HP.decimaltostr(app.mu),rquad[1],rquad[2]['neval'],etime-stime,gp)
     if app.returndata: return gp
@@ -749,9 +766,9 @@ def VCAGPM(engine,app):
         mode,nbs,nder,minormax='+',len(app.BS.tags),app.options.get('nder',0),app.options.get('minormax','min')
         result=np.zeros((app.BS.rank(0),nbs+nder+1))
         for i,paras in enumerate(app.BS(mode)):
-            result[i,0:nbs]=np.array(paras.values())
-            result[i,nbs]=gp(paras.values(),paras.keys())
-        if nder>0:result[:,nbs+1:]=HM.derivatives(result[:,0],result[:,nbs],ders=range(1,nder+1)).T
+            result[i,0:nbs]=np.array(list(paras.values()))
+            result[i,nbs]=gp(list(paras.values()),list(paras.keys()))
+        if nder>0:result[:,nbs+1:]=HM.derivatives(result[:,0],result[:,nbs],ders=list(range(1,nder+1))).T
         index=np.argmin(result[:,-1]) if minormax=='min' else np.argmax(result[:,-1]) if minormax=='max' else np.argmax(np.abs(result[:,-1]))
         engine.log<<'Summary:\n%s\n'%HP.Sheet(
                                 cols=           app.BS.tags+['%sgp'%('' if nder==0 else '%s der of '%HP.ordinal(nder-1))],
@@ -759,13 +776,13 @@ def VCAGPM(engine,app):
                                 )
         name='%s_%s'%(engine.tostr(mask=app.BS.tags),app.name)
         if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
-        if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name),interpolate=True,legend=['%sgp'%('%s der of '%HP.ordinal(k-1) if k>0 else '') for k in xrange(nder+1)])
+        if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name),interpolate=True,legend=['%sgp'%('%s der of '%HP.ordinal(k-1) if k>0 else '') for k in range(nder+1)])
         if app.returndata: return result
     else:
-        result=HM.fstable(gp,app.BS.values(),args=(app.BS.keys(),),**app.options)
-        engine.log<<'Summary:\n%s\n'%HP.Sheet(cols=app.BS.keys()+['niter','nfev','gp'],contents=np.append(result.x,[result.nit,result.nfev,result.fun]).reshape((1,-1)))
-        if app.savedata: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.tostr(mask=app.BS.keys()),app.name),np.append(result.x,result.fun))
-        if app.returndata: return {key:value for key,value in zip(app.BS.keys(),result.x)},result.fun
+        result=HM.fstable(gp,list(app.BS.values()),args=(list(app.BS.keys()),),**app.options)
+        engine.log<<'Summary:\n%s\n'%HP.Sheet(cols=list(app.BS.keys())+['niter','nfev','gp'],contents=np.append(result.x,[result.nit,result.nfev,result.fun]).reshape((1,-1)))
+        if app.savedata: np.savetxt('%s/%s_%s.dat'%(engine.dout,engine.tostr(mask=list(app.BS.keys())),app.name),np.append(result.x,result.fun))
+        if app.returndata: return {key:value for key,value in zip(list(app.BS.keys()),result.x)},result.fun
 
 class CPFF(HP.CPFF):
     '''
@@ -867,14 +884,14 @@ def VCAOP(engine,app):
     for i,term in enumerate(app.terms):
         order=deepcopy(term)
         order.value=1.0
-        for opt in HP.Generator(engine.lattice.bonds,engine.config,table=table,terms=[order],half=True).operators.itervalues():
+        for opt in HP.Generator(engine.lattice.bonds,engine.config,table=table,terms=[order],half=True).operators:
             ms[i,opt.seqs[0],opt.seqs[1]]+=opt.value
         ms[i,:,:]+=ms[i,:,:].T.conjugate()
     fx=lambda omega,m: (np.trace(np.tensordot(engine.mgfmesh(omega=app.mu+1j*omega,kmesh=kmesh),m,axes=(2,0)),axis1=1,axis2=2)-np.trace(m)/(1j*omega-app.p)).sum().real
     for term,m,dtype in zip(app.terms,ms,app.dtypes):
         ops[term.id]=quad(fx,0,np.float(np.inf),args=m)[0]/nk/engine.nclopt*2/np.pi
         if dtype in (np.float32,np.float64): ops[term.id]=ops[term.id].real
-    engine.log<<HP.Sheet(corner='Order',rows=['Value'],cols=ops.keys(),contents=np.array(ops.values()).reshape((1,-1)))<<'\n'
+    engine.log<<HP.Sheet(corner='Order',rows=['Value'],cols=list(ops.keys()),contents=np.array(list(ops.values())).reshape((1,-1)))<<'\n'
     if app.returndata: return ops
 
 class DTBT(HP.App):
@@ -916,7 +933,7 @@ def VCADTBT(engine,app):
     nk,kmesh=app.path.rank('k'),app.path.mesh('k')
     nwk=lambda omega,k: (np.trace(engine.gf(omega*1j+app.mu,k))-engine.nopt/(omega*1j-app.p)).real
     result=np.zeros((nk,2))
-    result[:,0]=np.array(xrange(nk))
+    result[:,0]=np.array(range(nk))
     for i,k in enumerate(kmesh):
         result[i,1]=quad(nwk,0,np.float(np.inf),args=k)[0]/np.pi
     name='%s_%s'%(engine,app.name)

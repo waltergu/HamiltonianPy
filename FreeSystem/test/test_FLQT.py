@@ -13,9 +13,9 @@ from unittest import TestCase,TestLoader,TestSuite
 
 class TestFLQT(TestCase):
     def test_flqt(self):
-        print
+        print()
         N,mu1,mu2=50,0.0,3.0
-        lattice=Lattice(name='flqt',rcoords=tiling([np.array([0.0])],vectors=[np.array([1.0])],translations=xrange(N)))
+        lattice=Lattice(name='flqt',rcoords=tiling([np.array([0.0])],vectors=[np.array([1.0])],translations=range(N)))
         config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fock(norbital=1,nspin=1,nnambu=2))
         flqt=FLQT(
             name=       'flqt',

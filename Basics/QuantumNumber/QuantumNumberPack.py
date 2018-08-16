@@ -10,7 +10,7 @@ Quantum number pack, including:
 
 import numpy as np
 import itertools as it
-from QuantumNumber import *
+from .QuantumNumber import *
 
 __all__=['NewQuantumNumber','SQN','SQNS','PQN','PQNS','SPQN','SzPQNS','SPQNS','Z2QN','Z2QNS']
 
@@ -53,11 +53,11 @@ def NewQuantumNumber(typename,names,periods,doc=None):
     assert len(names)==len(periods)
     for name,period in zip(names,periods):
         assert isinstance(name,str)
-        assert (period is None) or (type(period) in (long,int) and period>0)
+        assert (period is None) or (type(period) is int and period>0)
     namespace={'QuantumNumber':QuantumNumber}
     definition=template.format(typename=typename,names=names,periods=periods,doc=doc or typename)
     try:
-        exec definition in namespace
+        exec(definition,namespace)
     except SyntaxError as err:
         raise SyntaxError(err.message+':\n'+definition)
     return namespace[str(typename)]
@@ -81,7 +81,7 @@ def SQNS(S):
     QuantumNumbers
         The corresponding collection of quantum numbers.
     '''
-    return QuantumNumbers('C',([SQN(sz) for sz in np.arange(-S,S+1)],range(int(2*S)+2)),protocol=QuantumNumbers.INDPTR)
+    return QuantumNumbers('C',([SQN(sz) for sz in np.arange(-S,S+1)],list(range(int(2*S)+2))),protocol=QuantumNumbers.INDPTR)
 
 def PQNS(N):
     '''
@@ -97,7 +97,7 @@ def PQNS(N):
     QuantumNumbers
         The corresponding collection of quantum numbers.
     '''
-    return QuantumNumbers('C',([PQN(n) for n in xrange(N+1)],range(N+2)),protocol=QuantumNumbers.INDPTR)
+    return QuantumNumbers('C',([PQN(n) for n in range(N+1)],list(range(N+2))),protocol=QuantumNumbers.INDPTR)
 
 def SzPQNS(Sz):
     '''
@@ -130,11 +130,11 @@ def SPQNS(S):
         The corresponding collection of quantum numbers.
     '''
     qns,spins=[SPQN((0.0,0.0))],[SQN(sz) for sz in np.arange(-S,S+1)]
-    for n in xrange(1,len(spins)+1):
+    for n in range(1,len(spins)+1):
         pn=PQN(n*1.0)
         for ss in it.combinations(spins,n):
             qns.append(SPQN.directsum(pn,sum(ss)))
-    return QuantumNumbers('G',(qns,range(len(qns)+1)),protocol=QuantumNumbers.INDPTR).sorted()
+    return QuantumNumbers('G',(qns,list(range(len(qns)+1))),protocol=QuantumNumbers.INDPTR).sorted()
 
 def Z2QNS():
     '''
@@ -145,4 +145,4 @@ def Z2QNS():
     QuantumNumbers
         As above.
     '''
-    return QuantumNumbers('C',([Z2QN(0.0),Z2QN(1.0)],range(3)),protocol=QuantumNumbers.INDPTR)
+    return QuantumNumbers('C',([Z2QN(0.0),Z2QN(1.0)],list(range(3))),protocol=QuantumNumbers.INDPTR)

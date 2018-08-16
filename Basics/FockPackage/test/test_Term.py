@@ -23,14 +23,14 @@ class TestQuadratic(TestCase):
         self.pairing=Pairing('delta',1.0,neighbour=1,indexpacks=sigmaz("SP")+sigmay("OB"))
 
     def test_operators(self):
-        print
+        print()
         opts=Operators()
         for bond in self.lattice.bonds:
             opts+=self.hopping.operators(bond,self.config,self.config.table(mask=[]))
             opts+=self.onsite.operators(bond,self.config,self.config.table(mask=[]))
             opts+=self.pairing.operators(bond,self.config,self.config.table(mask=[]))
         self.assertEqual(len(opts),24)
-        print repr(opts)
+        print(repr(opts))
 
 class TestHubbard(TestCase):
     def setUp(self):
@@ -41,12 +41,12 @@ class TestHubbard(TestCase):
         self.hubbard=Hubbard('UUJJ',[20.0,12.0,5.0,5.0])
 
     def test_operators(self):
-        print
+        print()
         opts=Operators()
         for bond in self.lattice.bonds:
             opts+=self.hubbard.operators(bond,self.config,self.config.table(mask=['nambu']))
         self.assertEqual(len(opts),8)
-        print repr(opts)
+        print(repr(opts))
 
 class TestCoulomb(TestCase):
     def setUp(self):
@@ -58,13 +58,13 @@ class TestCoulomb(TestCase):
         self.V=Coulomb('V',8.0,neighbour=1,indexpacks=(sigmaz('sp'),sigmaz('sp')))
 
     def test_operators(self):
-        print 
+        print() 
         opts=Operators()
         for bond in self.lattice.bonds:
             opts+=self.U.operators(bond,self.config,self.config.table(mask=['nambu']))
             opts+=self.V.operators(bond,self.config,self.config.table(mask=['nambu']))
         self.assertEqual(len(opts),6)
-        print repr(opts)
+        print(repr(opts))
 
 fockterm=TestSuite([
             TestLoader().loadTestsFromTestCase(TestQuadratic),

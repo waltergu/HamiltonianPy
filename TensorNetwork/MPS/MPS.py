@@ -282,7 +282,7 @@ class MPS(Arithmetic,list):
             The corresponding product state.
         '''
         assert len(ms)==len(sites)==len(bonds)-1
-        for i in xrange(len(ms)):
+        for i in range(len(ms)):
             S=sites[i]
             L,R=bonds[i].replace(qns=1) if i>0 else copy(bonds[i]),bonds[i+1].replace(qns=1)
             ms[i]=DTensor(ms[i].reshape(1,S.dim,1),labels=[L,S,R])
@@ -328,7 +328,7 @@ class MPS(Arithmetic,list):
                 oqns=bonds[-1].qns if isinstance(bonds[-1],Label) else bonds[-1] if isinstance(bonds[-1],QNS) else QNS.mono(bonds[-1]) if isinstance(bonds[-1],QN) else 1
             else:
                 iqns,oqns=1,1
-            bonds=[Label('__MPS_RANDOM_B_%s__'%i,None,None) for i in xrange(len(sites)+1)]
+            bonds=[Label('__MPS_RANDOM_B_%s__'%i,None,None) for i in range(len(sites)+1)]
             bonds[+0]=bonds[+0].replace(qns=iqns)
             bonds[-1]=bonds[-1].replace(qns=oqns)
         else:
@@ -343,14 +343,14 @@ class MPS(Arithmetic,list):
             else:
                 coeffs=np.random.random(nmax)+1j*np.random.random(nmax)
             for k,indices in enumerate(QNS.decomposition([site.qns for site in sites],bonds[-1].qns[0]-bonds[+0].qns[0],method='monte carlo',nmax=nmax)):
-                ms=[np.array([1.0 if i==index else 0.0 for i in xrange(site.dim)],dtype=dtype) for site,index in zip(sites,indices)]
+                ms=[np.array([1.0 if i==index else 0.0 for i in range(site.dim)],dtype=dtype) for site,index in zip(sites,indices)]
                 result+=MPS.productstate(ms,sites,copy(bonds))*coeffs[k]
             if ttype=='S':
                 for m in result: m.qnsort()
                 result=result.tosparse()
         else:
             ms=[]
-            for i in xrange(len(sites)):
+            for i in range(len(sites)):
                 if dtype in (np.float32,np.float64):
                     ms.append(np.random.random((nmax,shape[i],nmax)))
                 else:
@@ -423,19 +423,26 @@ class MPS(Arithmetic,list):
         assert result.ndim==0
         return result.data
 
-    def __getslice__(self,i,j):
+    def __getitem__(self,k):
         '''
         Operator "[]" for slicing.
         '''
-        result=list.__new__(MPS)
-        result.extend(self[pos] for pos in xrange(i,min(j,len(self))))
-        if self.cut is not None and i<self.cut<j:
-            result.Lambda=self.Lambda
-            result.cut=self.cut-i
+        if isinstance(k,slice):
+            assert k.step is None or k.step==1
+            i,j=k.start,k.stop
+            i=0 if i is None else len(self)+i if i<0 else i
+            j=len(self) if j is None else len(self)+j if j<0 else j
+            result=list.__new__(MPS)
+            result.extend(self[pos] for pos in range(i,min(j,len(self))))
+            if self.cut is not None and i<self.cut<j:
+                result.Lambda=self.Lambda
+                result.cut=self.cut-i
+            else:
+                result.Lambda=None
+                result.cut=None
+            return result
         else:
-            result.Lambda=None
-            result.cut=None
-        return result
+            return super(MPS,self).__getitem__(k)
 
     def __str__(self):
         '''
@@ -475,10 +482,10 @@ class MPS(Arithmetic,list):
 
         k,nmax,tol=other if isinstance(other,tuple) else (other,None,None)
         if k>=0:
-            for _ in xrange(k):
+            for _ in range(k):
                 self._set_B_and_lmove_(self[self.cut-1]*self.Lambda,nmax,tol)
         else:
-            for _ in xrange(-k):
+            for _ in range(-k):
                 self._set_A_and_rmove_(self.Lambda*self[self.cut],nmax,tol)
         return self
 
@@ -673,7 +680,7 @@ class MPS(Arithmetic,list):
         tol : float, optional
             The tolerance of the singular values.
         '''
-        for _ in xrange(nsweep): self.canonicalize(cut=cut,nmax=nmax,tol=tol)
+        for _ in range(nsweep): self.canonicalize(cut=cut,nmax=nmax,tol=tol)
 
     def reset(self,cut=None):
         '''
@@ -829,7 +836,7 @@ class MPS(Arithmetic,list):
         MPS
             The predicted imps.
         '''
-        assert self.cut==self.nsite/2 and self.nsite%2==0 and len(sites)==len(bonds)-1==self.nsite>0
+        assert self.cut==self.nsite//2 and self.nsite%2==0 and len(sites)==len(bonds)-1==self.nsite>0
         lsms,rsms,us,vs=[],[],self.As,self.Bs
         for i,(L,S,R) in enumerate(zip(bonds[:self.cut],sites[:self.cut],bonds[1:self.cut+1])):
             u,s,v=svd(vs[i]*self.Lambda if i==0 else vs[i],row=[MPS.L,MPS.S],new=Label('__IMPSPREDICTION_L_%i__'%i,None),col=[MPS.R])
@@ -843,7 +850,7 @@ class MPS(Arithmetic,list):
             else:
                 ml=s*v
                 ml.relabel([R.inverse.replace(identifier='__IMPSPREDICTION_ML_0__'),ml.labels[1].replace(identifier='__IMPSPREDICTION_C0__')])
-        for i,(L,S,R) in enumerate(reversed(zip(bonds[self.cut:],sites[self.cut:],bonds[self.cut+1:]))):
+        for i,(L,S,R) in enumerate(reversed(list(zip(bonds[self.cut:],sites[self.cut:],bonds[self.cut+1:])))):
             u,s,v=svd(us[-1-i]*self.Lambda if i==0 else us[-1-i],row=[MPS.L],new=Label('__IMPSPREDICTION_R_%i__'%i,None),col=[MPS.S,MPS.R])
             L=v.labels[MPS.L].replace(identifier=L.identifier if isinstance(L,Label) else L,qns=v.labels[MPS.L].qns+qn)
             S=v.labels[MPS.S].replace(identifier=S.identifier if isinstance(S,Label) else S)
@@ -887,12 +894,12 @@ class MPS(Arithmetic,list):
             The imps after growth.
         '''
         if self.nsite>0:
-            assert self.cut==self.nsite/2 and self.nsite%2==0 and len(sites)+1==len(bonds)
-            ob,nb=self.nsite/2+1,(len(bonds)+1)/2
+            assert self.cut==self.nsite//2 and self.nsite%2==0 and len(sites)+1==len(bonds)
+            ob,nb=self.nsite//2+1,(len(bonds)+1)//2
             ns=nb-ob
             cms=self[ob-ns-1:ob+ns-1].impsprediction(sites[ob-1:2*nb-ob-1],bonds[ob-1:2*nb-ob],osvs,qn=qn,ttype=ttype)
-            lms=MPS([copy(self[pos]) for pos in xrange(0,self.cut)])
-            rms=MPS([copy(self[pos]) for pos in xrange(self.cut,self.nsite)])
+            lms=MPS([copy(self[pos]) for pos in range(0,self.cut)])
+            rms=MPS([copy(self[pos]) for pos in range(self.cut,self.nsite)])
             lms.relabel(sites[:ob-1],bonds[:ob])
             rms.relabel(sites[-ob+1:],bonds[-ob:])
             rms.qninject(qn)
@@ -902,7 +909,7 @@ class MPS(Arithmetic,list):
             iqns,oqns=(QNS.mono(qn.zero()),QNS.mono(qn)) if isinstance(qn,QN) else (1,1)
             bonds[+0]=bonds[+0].replace(qns=iqns) if isinstance(bonds[+0],Label) else Label(bonds[+0],qns=iqns,flow=None)
             bonds[-1]=bonds[-1].replace(qns=oqns) if isinstance(bonds[-1],Label) else Label(bonds[-1],qns=oqns,flow=None)
-            result=MPS.random(sites,bonds=bonds,cut=len(sites)/2,nmax=10,ttype=ttype or 'D')
+            result=MPS.random(sites,bonds=bonds,cut=len(sites)//2,nmax=10,ttype=ttype or 'D')
         return result
 
     def relayer(self,degfres,layer,nmax=None,tol=None):
@@ -926,7 +933,7 @@ class MPS(Arithmetic,list):
             The new mps.
         '''
         assert all(isinstance(m,DTensor) for m in self)
-        new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
+        new=layer if type(layer) is int else degfres.layers.index(layer)
         assert 0<=new<len(degfres.layers)
         old=degfres.level(next(iter(self)).labels[MPS.S].identifier)-1
         if new==old:

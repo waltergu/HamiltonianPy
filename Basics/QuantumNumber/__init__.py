@@ -13,5 +13,5 @@ MODULES                 DESCRIPTION
 ===================     =============================================================================
 '''
 
-from QuantumNumber import *
-from QuantumNumberPack import *
+from .QuantumNumber import *
+from .QuantumNumberPack import *

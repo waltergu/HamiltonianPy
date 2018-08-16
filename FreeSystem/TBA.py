@@ -108,7 +108,7 @@ class TBA(Engine):
             result[opt.seqs]+=opt.value*phase
             if len(self.mask)==0:
                 i,j=opt.seqs
-                if i<nmatrix/2 and j<nmatrix/2: result[j+nmatrix/2,i+nmatrix/2]+=-opt.value*conjugate(phase)
+                if i<nmatrix//2 and j<nmatrix//2: result[j+nmatrix//2,i+nmatrix//2]+=-opt.value*conjugate(phase)
         result+=conjugate(result.T)
         return result
 
@@ -259,12 +259,12 @@ def TBAEB(engine,app):
         if app.path.mesh(0).ndim==1:
             result[:,0]=app.path.mesh(0)
         else:
-            result[:,0]=array(xrange(app.path.rank(0)))
+            result[:,0]=array(range(app.path.rank(0)))
         for i,paras in enumerate(app.path()):
             result[i,1:]=eigh(engine.matrix(**paras),eigvals_only=True)
     else:
         result=zeros((2,nmatrix+1))
-        result[:,0]=array(xrange(2))
+        result[:,0]=array(range(2))
         result[0,1:]=eigh(engine.matrix(),eigvals_only=True)
         result[1,1:]=result[0,1:]
     name='%s_%s'%(engine.tostr(mask=() if app.path is None else app.path.tags),app.name)

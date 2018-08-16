@@ -14,6 +14,6 @@ MODULES       DESCRIPTION
 ==========    ===================
 '''
 
-from Tree import *
-from Linalg import *
-from Optimize import *
+from .Tree import *
+from .Linalg import *
+from .Optimize import *

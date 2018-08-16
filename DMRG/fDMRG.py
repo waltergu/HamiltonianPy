@@ -80,9 +80,9 @@ class fDMRG(DMRG):
         '''
         self.lattice.insert(A,B,news=news)
         self.config.reset(pids=self.lattice.pids)
-        self.degfres.reset(leaves=self.config.table(mask=self.mask).keys())
+        self.degfres.reset(leaves=list(self.config.table(mask=self.mask).keys()))
         self.generator.reset(bonds=self.lattice.bonds,config=self.config)
-        niter=len(self.lattice)/len(self.lattice.block)/2
+        niter=len(self.lattice)//len(self.lattice.block)//2
         sites,obonds,sbonds=self.degfres.labels('S'),self.degfres.labels('O'),self.degfres.labels('B')
         if self.block.ttype=='S': sites=[site.replace(qns=site.qns.sorted()) for site in sites]
         qn=target-self.block.target if isinstance(target,QuantumNumber) else 0
@@ -103,17 +103,17 @@ def fDMRGTSG(engine,app):
     '''
     engine.log.open()
     niter=app.recover(engine)
-    scopes,nspb=range(app.maxiter*2),engine.nspb
+    scopes,nspb=list(range(app.maxiter*2)),engine.nspb
     def TSGSWEEP(nsweep):
-        assert engine.block.cut==engine.block.nsite/2
+        assert engine.block.cut==engine.block.nsite//2
         nold,nnew=engine.block.nsite-2*nspb,engine.block.nsite
-        path=list(it.chain(['++<<']*((nnew-nold-2)/2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)/2)))
-        for sweep in xrange(nsweep):
+        path=list(it.chain(['++<<']*((nnew-nold-2)//2),['++>>']*(nnew-nold-2),['++<<']*((nnew-nold-2)//2)))
+        for sweep in range(nsweep):
             seold=engine.block.info['Esite']
             engine.sweep(info='No.%s'%(sweep+1),path=path,nmax=app.nmax,piechart=app.plot)
             senew=engine.block.info['Esite']
             if norm(seold-senew)/norm(seold+senew)<app.tol: break
-    for i in xrange(niter+1,app.maxiter):
+    for i in range(niter+1,app.maxiter):
         pos=i+niter+1
         engine.insert(scopes[pos],scopes[-pos-1],news=scopes[:pos]+scopes[-pos:] if pos>0 else None,target=app.target(pos))
         engine.block.iterate(engine.log,info='%s_%s(++)'%(engine,engine.block),sp=True if pos>0 else False,nmax=app.nmax,piechart=app.plot)

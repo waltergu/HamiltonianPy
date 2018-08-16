@@ -12,4 +12,4 @@ MODULES    DESCRIPTION
 =======    ===========================================
 '''
 
-from FBFM import *
+from .FBFM import *

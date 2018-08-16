@@ -100,7 +100,7 @@ class Spin(Internal):
         '''
         pid=pid._replace(**{key:None for key in set(mask)&set(PID._fields)})
         result=[]
-        for orbital in (None,) if 'orbital' in mask else xrange(self.norbital):
+        for orbital in (None,) if 'orbital' in mask else range(self.norbital):
             result.append(Index(pid=pid,iid=SID(orbital=orbital,S=None if 'S' in mask else self.S)))
         return result
 
@@ -135,9 +135,9 @@ class SpinMatrix(np.ndarray):
         result=np.zeros((int(S*2)+1,int(S*2)+1),dtype=dtype).view(cls)
         if tag in ('I','i','X','x','Y','y','Z','z','P','p','M','m'):
             tag=tag.lower()
-            for i in xrange(int(S*2)+1):
+            for i in range(int(S*2)+1):
                 row,m=int(S*2)-i,S-i
-                for j in xrange(int(S*2)+1):
+                for j in range(int(S*2)+1):
                     col,n=int(S*2)-j,S-j
                     if tag=='i':
                         result[row,col]=delta(i,j)

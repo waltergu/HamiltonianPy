@@ -117,7 +117,7 @@ class KMap(list):
         elif key=='H': reciprocals=np.asarray(reciprocals) or np.array([[1.0,-1.0/np.sqrt(3.0)],[0,-2.0/np.sqrt(3.0)]])*2*np.pi
         plt.title(name)
         plt.axis('equal')
-        for tag,position in KMap.database[key].iteritems():
+        for tag,position in KMap.database[key].items():
             if '1' not in tag:
                 coords=reciprocals.T.dot(position)
                 assert len(coords)==2
@@ -188,8 +188,8 @@ def hexagon_bz(reciprocals=None,nk=100,vh='H'):
             b2=np.array([0.5,np.sqrt(3.0)/2])*4*np.pi/np.sqrt(3.0)
     p0,p1,p2,p3,p4=-(b1+b2)/3,(b1+b2)/3,(b1+b2)*2/3,(b1*2-b2)/3,(b2*2-b1)/3
     mesh=np.zeros((nk**2,b1.shape[0]))
-    for i in xrange(nk):
-        for j in xrange(nk):
+    for i in range(nk):
+        for j in range(nk):
             coords=b1*i/nk+b2*j/nk+p0
             if isintratriangle(coords,p1,p2,p3,vertexes=(False,True,False),edges=(True,True,False)): coords=coords-b1
             if isintratriangle(coords,p1,p2,p4,vertexes=(False,True,False),edges=(True,True,False)): coords=coords-b2

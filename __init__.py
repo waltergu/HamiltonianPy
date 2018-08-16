@@ -62,4 +62,4 @@ Contents
    Management/index
 '''
 
-from Basics import *
+from .Basics import *

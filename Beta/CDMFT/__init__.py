@@ -13,5 +13,5 @@ MODULES       DESCRIPTION
 ==========    ===============================
 '''
 
-from CDMFT import *
-from CDMFTCCT import *
+from .CDMFT import *
+from .CDMFTCCT import *

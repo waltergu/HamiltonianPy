@@ -21,8 +21,8 @@ class Tree(dict):
     '''
 
     ROOT=None
-    (DEPTH,WIDTH)=range(2)
-    (NODE,DATA,PAIR)=range(3)
+    (DEPTH,WIDTH)=list(range(2))
+    (NODE,DATA,PAIR)=list(range(3))
 
     def __init__(self,root=None,data=None):
         '''
@@ -156,7 +156,7 @@ class Tree(dict):
         '''
         assert generation>0
         result=node
-        for _ in xrange(generation):
+        for _ in range(generation):
             result=self.parent(result)
         return result
 
@@ -210,7 +210,7 @@ class Tree(dict):
         '''
         assert generation>0
         result=[node]
-        for _ in xrange(generation):
+        for _ in range(generation):
             result=[node for mediate in result[:] for node in self.children(mediate)]
         return result
 

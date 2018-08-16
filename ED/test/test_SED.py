@@ -11,17 +11,17 @@ from unittest import TestCase,TestLoader,TestSuite
 
 class TestSED(TestCase):
     def test_sed(self):
-        print
+        print()
         J,h,m,n=1.0,0.0,4,1
         lattice=Hexagon('H4')('%sO-%sP'%(m,n),1)
         config=IDFConfig(pids=lattice.pids,priority=DEFAULT_SPIN_PRIORITY,map=lambda pid: Spin(S=0.5))
-        qnses=QNSConfig(indices=config.table().keys(),priority=DEFAULT_SPIN_PRIORITY,map=lambda index: SQNS(0.5))
+        qnses=QNSConfig(indices=list(config.table().keys()),priority=DEFAULT_SPIN_PRIORITY,map=lambda index: SQNS(0.5))
         sed=SED(
             name=       'WG-%s'%lattice.name,
             lattice=    lattice,
             config=     config,
             qnses=      qnses,
-            sectors=    [SQN(0.5*i) for i in xrange(-4*m*n,4*m*n+1,2)],
+            sectors=    [SQN(0.5*i) for i in range(-4*m*n,4*m*n+1,2)],
             terms=[     SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg()),
                         SpinTerm('h',h,neighbour=0,indexpacks=S('z'),modulate=True)
                         ],

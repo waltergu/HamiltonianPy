@@ -14,6 +14,6 @@ MODULES         DESCRIPTION
 ============    ========================================================================
 '''
 
-from TensorBase import *
-from Tensor import *
-from Misc import *
+from .TensorBase import *
+from .Tensor import *
+from .Misc import *

@@ -19,19 +19,19 @@ class TestLanczos(TestCase):
         m+=m.T.conjugate()
         self.v0=np.random.random((Nv,N))
         self.lanczos=Lanczos(m,deepcopy(self.v0),maxiter=Niter,keepstate=True)
-        for _ in xrange(Niter): self.lanczos.iter()
+        for _ in range(Niter): self.lanczos.iter()
 
     def test_hermiticity(self):
         self.assertAlmostEqual(sl.norm(self.lanczos.T-self.lanczos.T.T.conjugate()),0.0)
 
     def test_deviation(self):
-        print
+        print()
         h=np.zeros((self.lanczos.niter,self.lanczos.niter),dtype=self.lanczos.matrix.dtype)
-        for i in xrange(self.lanczos.niter):
+        for i in range(self.lanczos.niter):
             hi=self.lanczos.matrix.dot(self.lanczos.vectors[i]).conjugate()
-            for j in xrange(self.lanczos.niter):
+            for j in range(self.lanczos.niter):
                 h[i,j]=hi.dot(self.lanczos.vectors[j])
-        print 'diff from h: %s.'%sl.norm(self.lanczos.T-h)
+        print('diff from h: %s.'%sl.norm(self.lanczos.T-h))
 
     def test_reconstruction(self):
         V=np.asarray(self.lanczos.vectors)

@@ -9,7 +9,7 @@ Vidal matrix product states, including:
 
 __all__=['Vidal']
 
-from MPS import MPS
+from .MPS import MPS
 from ..Tensor import *
 
 class Vidal(object):

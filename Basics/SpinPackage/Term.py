@@ -13,8 +13,9 @@ from ..Utilities import RZERO,decimaltostr
 from ..Term import *
 from ..DegreeOfFreedom import *
 from ..Operator import * 
-from DegreeOfFreedom import *
-from Operator import *
+from .DegreeOfFreedom import *
+from .Operator import *
+from collections import Callable
 import numpy as np
 
 class SpinTerm(Term):
@@ -98,11 +99,11 @@ class SpinTerm(Term):
         if bond.neighbour==self.neighbour:
             value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
             if abs(value)>RZERO:
-                for spack in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
+                for spack in self.indexpacks(bond) if isinstance(self.indexpacks,Callable) else self.indexpacks:
                     pv,tags,ms,orbitals=value*spack.value,spack.tags,spack.matrices,spack.orbitals
                     if len(tags)==1:
                         assert self.neighbour==0
-                        for orbital in xrange(espin.norbital):
+                        for orbital in range(espin.norbital):
                             if orbitals[0] in (None,orbital):
                                 eindex=Index(pid=epoint.pid,iid=SID(orbital=orbital,S=espin.S))
                                 result+=SOperator(
@@ -112,9 +113,9 @@ class SpinTerm(Term):
                                     seqs=       None if table is None else (table[eindex],)
                                     )
                     elif len(tags)==2:
-                        for eorbital in xrange(espin.norbital):
+                        for eorbital in range(espin.norbital):
                             if orbitals[0] in (None,eorbital):
-                                for sorbital in xrange(sspin.norbital):
+                                for sorbital in range(sspin.norbital):
                                     if (orbitals[0] is not None and orbitals[1]==sorbital) or (orbitals[0] is None and sorbital==eorbital):
                                         eindex=Index(pid=epoint.pid,iid=SID(orbital=eorbital,S=espin.S))
                                         sindex=Index(pid=spoint.pid,iid=SID(orbital=sorbital,S=sspin.S))
@@ -155,6 +156,6 @@ class SpinTerm(Term):
         if self.neighbour==bond.neighbour:
             value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
             if np.abs(value)>RZERO:
-                for spack in self.indexpacks(bond) if callable(self.indexpacks) else self.indexpacks:
+                for spack in self.indexpacks(bond) if isinstance(self.indexpacks,Callable) else self.indexpacks:
                     result.append('sp:%s*%s'%(decimaltostr(value,Term.NDECIMAL),repr(spack)))
         return '\n'.join(result)

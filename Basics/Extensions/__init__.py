@@ -15,7 +15,7 @@ MODULES         DESCRIPTION
 ==============  =======================
 '''
 
-from LatticePack import *
-from KSpacePack import *
-from AppPack import *
-from OperatorPack import *
+from .LatticePack import *
+from .KSpacePack import *
+from .AppPack import *
+from .OperatorPack import *

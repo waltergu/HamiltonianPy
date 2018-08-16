@@ -112,13 +112,13 @@ class Arithmetic(object):
         '''
         return self*other
 
-    def __idiv__(self,other):
+    def __itruediv__(self,other):
         '''
         Overloaded self-division(/=) operator.
         '''
         return self.__imul__(1.0/other)
 
-    def __div__(self,other):
+    def __truediv__(self,other):
         '''
         Overloaded left division(/) operator.
         '''
@@ -371,7 +371,7 @@ class Timers(Tree):
         '''
         Record all the timers.
         '''
-        for timer in self.itervalues():
+        for timer in self.values():
             timer.record()
 
     def reset(self):
@@ -380,7 +380,7 @@ class Timers(Tree):
         '''
         self.close()
         self.cleancache()
-        for timer in self.itervalues():
+        for timer in self.values():
             timer.reset()
         self[self.root].proceed()
 
@@ -481,7 +481,7 @@ class Sheet(object):
         int
             The row index.
         '''
-        return row if isinstance(row,int) or isinstance(row,long) else self.rows.index(row)
+        return row if isinstance(row,int) else self.rows.index(row)
 
     def colindex(self,col):
         '''
@@ -497,7 +497,7 @@ class Sheet(object):
         int
             The column index.
         '''
-        return col if isinstance(col,int) or isinstance(col,long) else self.cols.index(col)
+        return col if isinstance(col,int) else self.cols.index(col)
 
     def index(self,entry):
         '''
@@ -716,8 +716,8 @@ class Sheet(object):
             The converted sheet.
         '''
         assert mode in ('R','C')
-        result=Sheet(rows=od.keys()) if mode=='R' else Sheet(cols=od.keys())
-        for key,value in od.iteritems():
+        result=Sheet(rows=list(od.keys())) if mode=='R' else Sheet(cols=list(od.keys()))
+        for key,value in od.items():
             result[key]=value
         return result
 
@@ -818,10 +818,10 @@ def parity(permutation):
     '''
     permutation=copy(permutation)
     result=1
-    for i in xrange(len(permutation)-1):
+    for i in range(len(permutation)-1):
         if permutation[i]!=i:
             result*=-1
-            pos=min(xrange(i,len(permutation)),key=permutation.__getitem__)
+            pos=min(range(i,len(permutation)),key=permutation.__getitem__)
             permutation[i],permutation[pos]=permutation[pos],permutation[i]
     return result
 
@@ -850,8 +850,8 @@ def berrycurvature(H,kx,ky,mu,d=10**-6):
     Vx=(H(kx+d,ky)-H(kx-d,ky))/(2*d)
     Vy=(H(kx,ky+d)-H(kx,ky-d))/(2*d)
     Es,Evs=eigh(H(kx,ky))
-    for n in xrange(Es.shape[0]):
-        for m in xrange(Es.shape[0]):
+    for n in range(Es.shape[0]):
+        for m in range(Es.shape[0]):
             if Es[n]<=mu and Es[m]>mu:
                 result-=2*(np.vdot(np.dot(Vx,Evs[:,n]),Evs[:,m])*np.vdot(Evs[:,m],np.dot(Vy,Evs[:,n]))/(Es[n]-Es[m])**2).imag
     return result
@@ -881,11 +881,11 @@ def berryphase(H,path,ns):
             result=np.ones(len(ns),new.dtype)
             evs,old=new,new
         else:
-            for j in xrange(len(ns)):
+            for j in range(len(ns)):
                 result[j]*=np.vdot(old[:,j],new[:,j])
             old=new
     else:
-        for j in xrange(len(ns)):
+        for j in range(len(ns)):
             result[j]*=np.vdot(old[:,j],evs[:,j])
     return np.angle(result)/np.pi
 
@@ -905,14 +905,14 @@ def decimaltostr(number,n=5):
     str
         The string representation of the input number.
     '''
-    if isinstance(number,int) or isinstance(number,long):
+    if isinstance(number,int):
         result=str(number)
     elif isinstance(number,float):
-        result=('{:.%sf}'%n).format(number).rstrip('0')
+        result=('{:.%sf}'%n).format(number).rstrip('0') if number!=0.0 else '0.0'
         if result[-1]=='.': result+='0'
     elif isinstance(number,complex):
-        real=('{:.%sf}'%n).format(number.real).rstrip('0')
-        imag=('{:.%sf}'%n).format(number.imag).rstrip('0')
+        real=('{:.%sf}'%n).format(number.real).rstrip('0') if number.real!=0.0 else '0.'
+        imag=('{:.%sf}'%n).format(number.imag).rstrip('0') if number.imag!=0.0 else '0.'
         temp=[]
         if real!='0.': temp.append('%s%s'%(real,'0' if real[-1]=='.' else ''))
         if imag!='0.': temp.append('%s%s%sj'%('+' if number.imag>0 and len(temp)>0 else '',imag,'0' if imag[-1]=='.' else ''))
@@ -970,8 +970,8 @@ def mpirun(f,arguments,comm=MPI.COMM_WORLD,bcast=True):
     temp=comm.gather(temp,root=0)
     result=[]
     if rank==0:
-        for i in xrange(len(arguments)):
-            result.append(temp[i%size][i/size])
+        for i in range(len(arguments)):
+            result.append(temp[i%size][i//size])
     if bcast:
         result=comm.bcast(result,root=0)
     return result

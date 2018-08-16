@@ -1,1 +1,1 @@
-from DQMC import *
+from .DQMC import *

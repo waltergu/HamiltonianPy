@@ -14,6 +14,7 @@ import numpy.linalg as nl
 import scipy.interpolate as ip
 import scipy.optimize as op
 import warnings
+from collections import Callable
 
 def bisect(f,xs,args=()):
     '''
@@ -108,7 +109,7 @@ def fpapprox(fun,x0,args=(),eps=1.49e-06,fpmode=0):
         return op.approx_fprime(x0,fun,eps,*args)
     else:
         result,dx=np.zeros(len(x0)),np.eye(len(x0))
-        for i in xrange(len(x0)):
+        for i in range(len(x0)):
             result[i]=(fun(x0+eps*dx[i],*args)-fun(x0-eps*dx[i],*args))/2/eps
         return result
 
@@ -138,12 +139,12 @@ def quadapprox(fun,x0,args=(),eps=1.49e-06):
     '''
     N,xs,diffs=len(x0),[],[]
     es,eps=np.eye(N),[eps]*N if isinstance(eps,float) else eps
-    for i in xrange(N):
+    for i in range(N):
         xs.append(x0+eps[i]*es[i])
         diffs.append(eps[i]*es[i])
         xs.append(x0-eps[i]*es[i])
         diffs.append(-eps[i]*es[i])
-        for j in xrange(i):
+        for j in range(i):
             xs.append(x0+eps[i]*es[i]+eps[j]*es[j])
             diffs.append(eps[i]*es[i]+eps[j]*es[j])
     f0=fun(x0,*args)
@@ -157,8 +158,8 @@ def quadapprox(fun,x0,args=(),eps=1.49e-06):
         b[n]=fun(x,*args)
     coeff,count=nl.solve(a,b-f0),0
     fp1,fp2=coeff[:N],np.zeros((N,N))
-    for i in xrange(N):
-        for j in xrange(i+1):
+    for i in range(N):
+        for j in range(i+1):
             if j==i:
                 fp2[i,j]=coeff[N+count]*2
             else:
@@ -267,19 +268,19 @@ def newton(fun,x0,args=(),tol=10**-4,callback=None,disp=False,eps=1.49e-06,fpmod
     result=op.OptimizeResult()
     x=np.asarray(x0)
     fp1,fp2=fpquadapprox(fx,x)
-    for niter in xrange(maxiter):
+    for niter in range(maxiter):
         diff=nl.solve(fp2,-fp1)
-        print '\ndiff: %s\n'%diff
+        print('\ndiff: %s\n'%diff)
         err=nl.norm(diff)
         if err<=tol:
             x+=diff
-            if callable(callback): callback(x)
+            if isinstance(callback,Callable): callback(x)
             break
         alpha=linesearchstable(fx,x,diff,fp1,fp2,eps=eps,fpmode=fpmode)[0]
-        print '\nalpha: %s\n'%alpha
+        print('\nalpha: %s\n'%alpha)
         err*=np.abs(alpha)
         x+=alpha*diff
-        if callable(callback): callback(x)
+        if isinstance(callback,Callable): callback(x)
         if err<=tol: break
         fp1,fp2=fpquadapprox(fx,x) if hesmode=='quadapprox' else fpbfgs(fx,x,alpha*diff,fp1,fp2)
     result.x,result.fun,result.nfev,result.nit=x,fx(x),len(record),niter+1
@@ -290,10 +291,10 @@ def newton(fun,x0,args=(),tol=10**-4,callback=None,disp=False,eps=1.49e-06,fpmod
     else:
         result.success,result.status,result.message=True,0,'Optimization terminated successfully.'
     if disp:
-        print result.message
-        print 'Current function value: %s'%result.fun
-        print 'Iterations: %s'%result.nit
-        print 'Function evaluations: %s'%result.nfev
+        print(result.message)
+        print('Current function value: %s'%result.fun)
+        print('Iterations: %s'%result.nit)
+        print('Function evaluations: %s'%result.nfev)
     return result
 
 def fstable(fun,x0,args=(),method='Newton',tol=10**-4,callback=None,options=None):

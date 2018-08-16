@@ -1,5 +1,5 @@
-from test_LatticePack import *
-from test_KSpacePack import *
+from .test_LatticePack import *
+from .test_KSpacePack import *
 from unittest import TestSuite
 
 __all__=['extensions','lattice','kspace']

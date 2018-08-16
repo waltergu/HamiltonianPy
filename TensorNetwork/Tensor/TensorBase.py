@@ -179,10 +179,10 @@ class Label(tuple):
             The new label.
         '''
         result=tuple.__new__(self.__class__,map(karg.pop,type(self).names,self))
-        for key,value in self.__dict__.iteritems():
+        for key,value in self.__dict__.items():
             setattr(result,key,karg.pop(key,value))
         if karg:
-            raise ValueError("Label replace error: %s are not the attributes of the label."%karg.keys())
+            raise ValueError("Label replace error: %s are not the attributes of the label."%list(karg.keys()))
         return result
 
     def equivalent(self,other):
@@ -201,7 +201,7 @@ class Label(tuple):
         '''
         return self==other and self.qns==other.qns and self.flow==other.flow
 
-class TensorBase(object):
+class TensorBase(object,metaclass=ABCMeta):
     '''
     The base class for dense and sparse labeled multi-dimensional tensors.
 
@@ -213,8 +213,6 @@ class TensorBase(object):
         The labels of the axes of the tensor.
     '''
     DIMCHECK=False
-
-    __metaclass__=ABCMeta
 
     @property
     def shape(self):
@@ -284,7 +282,7 @@ class TensorBase(object):
         axes : list of Label/int, optional
             The labels/axes whose flows to be reversed.
         '''
-        axes=[self.axis(axis) if isinstance(axis,Label) else axis for axis in (xrange(self.ndim) if axes is None else axes)]
+        axes=[self.axis(axis) if isinstance(axis,Label) else axis for axis in (range(self.ndim) if axes is None else axes)]
         self.relabel(olds=axes,news=[self.labels[axis].inverse for axis in axes])
 
     @abstractproperty

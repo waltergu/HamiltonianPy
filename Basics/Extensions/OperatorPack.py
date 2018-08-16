@@ -68,7 +68,7 @@ def JWBosonization(operator,table):
     length=len(operator.indices)
     assert length%2==0
     dtype=np.array(operator.value).dtype
-    permutation=sorted(range(length),key=lambda k:table[operator.indices[k].replace(nambu=None)])
+    permutation=sorted(list(range(length)),key=lambda k:table[operator.indices[k].replace(nambu=None)])
     ms,counts,tags,inds=OrderedDict(),[],[],[]
     for k in permutation:
         leaf=table[operator.indices[k].replace(nambu=None)]
@@ -85,9 +85,9 @@ def JWBosonization(operator,table):
             inds.append(operator.indices[k].replace(nambu=None))
     if isinstance(operator,FOperator):
         indices,sms=[],[]
-        TABLE,keys=table.reversal,ms.keys()
+        TABLE,keys=table.reversal,list(ms.keys())
         sign=np.array([[1.0,0.0],[0.0,-1.0]],dtype=dtype)
-        for leaf in xrange(keys[0],keys[-1]+1):
+        for leaf in range(keys[0],keys[-1]+1):
             if leaf in ms:
                 assert counts[0] in (1,2)
                 length-=counts.pop(0)
@@ -98,7 +98,7 @@ def JWBosonization(operator,table):
                 sms.append(SpinMatrix(0.5,'s',matrix=sign,dtype=dtype))
         return SOperator(value=operator.value*parity(permutation),indices=indices,spins=sms)
     else:
-        sms=[SpinMatrix(0.5,tag,matrix=matrix,dtype=dtype) for tag,matrix in zip(tags,ms.itervalues())]
+        sms=[SpinMatrix(0.5,tag,matrix=matrix,dtype=dtype) for tag,matrix in zip(tags,iter(ms.values()))]
         return SOperator(value=operator.value,indices=inds,spins=sms)
 
 def twisttransformation(operator,vectors,thetas):

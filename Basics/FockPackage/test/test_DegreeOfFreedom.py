@@ -35,9 +35,9 @@ class TestFock(TestCase):
         self.fock=Fock(atom=0,norbital=2,nspin=2,nnambu=2)
 
     def test_indices(self):
-        r1=[Index(pid=PID(scope='WG',site=0),iid=FID(orbital=ob,spin=sp,nambu=nb)) for nb in xrange(self.fock.nnambu) for sp in xrange(self.fock.nspin) for ob in xrange(self.fock.norbital)]
-        r2=[Index(pid=PID(scope='WG',site=0),iid=FID(orbital=ob,spin=sp,nambu=None))for sp in xrange(self.fock.nspin) for ob in xrange(self.fock.norbital)]
-        r3=[Index(pid=PID(scope='WG',site=None),iid=FID(orbital=ob,spin=sp,nambu=None))for sp in xrange(self.fock.nspin) for ob in xrange(self.fock.norbital)]
+        r1=[Index(pid=PID(scope='WG',site=0),iid=FID(orbital=ob,spin=sp,nambu=nb)) for nb in range(self.fock.nnambu) for sp in range(self.fock.nspin) for ob in range(self.fock.norbital)]
+        r2=[Index(pid=PID(scope='WG',site=0),iid=FID(orbital=ob,spin=sp,nambu=None))for sp in range(self.fock.nspin) for ob in range(self.fock.norbital)]
+        r3=[Index(pid=PID(scope='WG',site=None),iid=FID(orbital=ob,spin=sp,nambu=None))for sp in range(self.fock.nspin) for ob in range(self.fock.norbital)]
         self.assertEqual(self.fock.indices(PID(scope='WG',site=0),mask=[]),r1)
         self.assertEqual(self.fock.indices(PID(scope='WG',site=0),mask=['nambu']),r2)
         self.assertEqual(self.fock.indices(PID(scope='WG',site=0),mask=['nambu','site']),r3)

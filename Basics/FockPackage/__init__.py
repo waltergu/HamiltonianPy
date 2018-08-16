@@ -16,8 +16,8 @@ MODULES                     DESCRIPTION
 ========================    ======================================================================================================================
 '''
 
-from DegreeOfFreedom import *
-from Operator import *
-from Term import *
-from Basis import *
-from OperatorRepresentation import *
+from .DegreeOfFreedom import *
+from .Operator import *
+from .Term import *
+from .Basis import *
+from .OperatorRepresentation import *

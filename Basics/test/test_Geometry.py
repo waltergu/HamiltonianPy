@@ -40,9 +40,9 @@ class TestFunctions(TestCase):
         m,n=3,4
         cluster=[np.array([0.0,0.0])]
         a1,a2=np.array([1.0,0.0]),np.array([0.0,1.0])
-        supercluster=tiling(cluster=cluster,vectors=[a1,a2],translations=it.product(xrange(m),xrange(n)))
+        supercluster=tiling(cluster=cluster,vectors=[a1,a2],translations=it.product(range(m),range(n)))
         for i,coord in enumerate(supercluster):
-            self.assertEqual(nl.norm(a1*(i/n)+a2*(i%n)-coord),0.0)
+            self.assertEqual(nl.norm(a1*(i//n)+a2*(i%n)-coord),0.0)
 
     def test_minimumlengths(self):
         point,a1,a2=np.array([0.0,0.0]),np.array([1.0,0.0]),np.array([0.0,1.0])
@@ -77,14 +77,14 @@ class TestLink(TestCase):
         self.neighbours={i:length for i,length in enumerate(minimumlengths(cluster=self.cluster,vectors=self.vectors,nneighbour=3))}
 
     def test_intralinks(self):
-        print
+        print()
         links=intralinks(cluster=self.cluster,vectors=self.vectors,neighbours=self.neighbours)
-        print '\n'.join([str(link) for link in links])
+        print('\n'.join([str(link) for link in links]))
 
     def test_interlinks(self):
-        print
+        print()
         links=interlinks([np.array([0.0,0.0])],[np.array([0.0,1.0])],neighbours=self.neighbours)
-        print '\n'.join([str(link) for link in links])
+        print('\n'.join([str(link) for link in links]))
 
 class TestLattice(TestCase):
     def setUp(self):
@@ -96,34 +96,34 @@ class TestLattice(TestCase):
         return 'L%s%s'%(m,n)
 
     def rcoords(self,m,n):
-        return tiling(cluster=[self.point],vectors=[self.a1,self.a2],translations=it.product(xrange(m),xrange(n)))
+        return tiling(cluster=[self.point],vectors=[self.a1,self.a2],translations=it.product(range(m),range(n)))
 
     def vectors(self,m,n):
         return [self.a1*m,self.a2*n]
 
     def test_periodic(self):
-        print
+        print()
         m,n=10,10
         stime=time.time()
         lattice=Lattice('%s_P'%self.name(m,n),rcoords=self.rcoords(m,n),vectors=self.vectors(m,n),neighbours=2)
         etime=time.time()
-        print 'time(%s): %s'%(lattice.name,etime-stime)
+        print('time(%s): %s'%(lattice.name,etime-stime))
         lattice.plot(show=True,pidon=False,suspend=False)
 
     def test_open(self):
-        print
+        print()
         m,n=10,10
         stime=time.time()
         lattice=Lattice('%s_O'%self.name(m,n),rcoords=self.rcoords(m,n),neighbours=2)
         etime=time.time()
-        print 'time(%s): %s'%(lattice.name,etime-stime)
+        print('time(%s): %s'%(lattice.name,etime-stime))
         lattice.plot(show=True,pidon=False,suspend=False)
 
     def test_merge(self):
         M,m,n=2,2,2
         lattice=Lattice.merge(
             name=           'Merge',
-            sublattices=    [Lattice(name='sub%s'%i,rcoords=translation(self.rcoords(m,n),self.a1*m*i)) for i in xrange(M)],
+            sublattices=    [Lattice(name='sub%s'%i,rcoords=translation(self.rcoords(m,n),self.a1*m*i)) for i in range(M)],
             vectors=        [self.a1*m*M,self.a2*n],
             neighbours=     2
         )
@@ -138,7 +138,7 @@ class TestSuperLattice(TestCase):
 
     def test_superlattice(self):
         N=4
-        for n in xrange(N):
+        for n in range(N):
             self.lattice=SuperLattice(
                 name=           'Super',
                 sublattices=    [self.lattice,Lattice('%s-%s'%(self.name,n),rcoords=[self.a1*n],vectors=[self.a2])],

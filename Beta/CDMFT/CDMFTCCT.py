@@ -10,7 +10,7 @@ CDMFT with concatenated lattice, including:
 
 __all__=['CDMFTCCT']
 
-from CDMFT import *
+from .CDMFT import *
 
 class CDMFTCCT(CDMFT):
     '''

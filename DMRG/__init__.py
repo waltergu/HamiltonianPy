@@ -12,6 +12,6 @@ MODULES    DESCRIPTION
 =======    =============================================================================
 '''
 
-from DMRG import *
-from iDMRG import *
-from fDMRG import *
+from .DMRG import *
+from .iDMRG import *
+from .fDMRG import *

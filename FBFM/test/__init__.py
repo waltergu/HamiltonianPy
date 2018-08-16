@@ -1,1 +1,1 @@
-from test_FBFM import *
+from .test_FBFM import *

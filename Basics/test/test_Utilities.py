@@ -19,13 +19,13 @@ class TestTimers(TestCase):
         self.timers.close()
 
     def test_timers(self):
-        print
+        print()
         np.random.seed()
-        for _ in xrange(self.nrecord):
+        for _ in range(self.nrecord):
             for key in self.keys:
                 with self.timers.get(key): sleep(np.random.random())
             self.timers.record()
-            print '%s\n'%self.timers
+            print('%s\n'%self.timers)
             self.timers.graph()
 
 class TestSheet(TestCase):
@@ -37,14 +37,14 @@ class TestSheet(TestCase):
         self.info['nbasis']=200
 
     def test_sheet(self):
-        print
-        print self.info
+        print()
+        print(self.info)
 
 class Test_mpirun(TestCase):
     def setUp(self):
         def f(n):
             with open('test_mpirun_%s.dat'%n,'w+') as fout:
-                fout.write(str(np.array(xrange(4))+n))
+                fout.write(str(np.array(range(4))+n))
         self.f=f
         self.np=4
 

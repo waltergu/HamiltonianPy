@@ -12,4 +12,4 @@ MODULES    DESCRIPTION
 =======    =======================
 '''
 
-from MPO import *
+from .MPO import *

@@ -8,8 +8,8 @@ This module defines the core class of the `Basics` subpackage: `Generator`.
 
 __all__=['Generator']
 
-from Utilities import RZERO
-from Operator import *
+from .Utilities import RZERO
+from .Operator import *
 from collections import OrderedDict
 from matplotlib.font_manager import FontProperties
 import numpy as np
@@ -132,7 +132,7 @@ class Generator(object):
 
         Parameters
         ----------
-        sector : str
+        sector : hashable
             The sector of the matrix representation of the operators.
         optrep : callable
             The function to generate the matrix representation of a single operator.
@@ -148,6 +148,17 @@ class Generator(object):
                 for operator in term.operators(bond,self.config,table=self.table,dtype=self.dtype,**self.options):
                     matrix+=optrep(operator,*args,**kargs)
             self._matrix_[sector]['alter'].append(matrix)
+
+    def removematrix(self,sector):
+        '''
+        Remove the matrix cache of a given sector from the generator.
+
+        Parameters
+        ----------
+        sector : hashable
+            The sector whose matrix cache to be removed.
+        '''
+        self._matrix_.pop(sector,None)
 
     def __str__(self):
         '''
@@ -178,7 +189,7 @@ class Generator(object):
 
         Parameters
         ----------
-        sector : str
+        sector : hashable
             The sector of the matrix representation of the operators.
 
         Returns

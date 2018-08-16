@@ -16,7 +16,7 @@ __all__=[   'FockOperator','FockLinear','FockQuadratic','FockHubbard','FockCoulo
 
 from ..Operator import *
 from ..Utilities import parity
-from DegreeOfFreedom import ANNIHILATION,CREATION
+from .DegreeOfFreedom import ANNIHILATION,CREATION
 import numpy as np
 
 class FockOperator(Operator):

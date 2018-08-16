@@ -9,7 +9,7 @@ Quantum number, including:
 
 from copy import copy
 from collections import OrderedDict
-from fpermutation import fpermutation
+from .fpermutation import fpermutation
 from ..Utilities import Arithmetic
 import numpy as np
 import itertools as it
@@ -63,7 +63,7 @@ class QuantumNumber(Arithmetic,tuple):
         assert len(names)==len(periods)
         for name,period in zip(names,periods):
             assert isinstance(name,str)
-            assert (period is None) or (type(period) in (long,int) and period>0)
+            assert (period is None) or (type(period) is int and period>0)
         cls.names=tuple(names)
         cls.periods=tuple(periods)
 
@@ -189,13 +189,15 @@ class QuantumNumber(Arithmetic,tuple):
 
     __eq__=tuple.__eq__
 
+    __hash__=tuple.__hash__
+
     def replace(self,**karg):
         '''
         Return a new QuantumNumber object with specified fields replaced with new values.
         '''
         result=self.__class__(map(karg.pop,self.__class__.names,self))
         if karg:
-            raise ValueError('%s replace error: it got unexpected field names: %r'%(self.__class__.__name__,karg.keys()))
+            raise ValueError('%s replace error: it got unexpected field names: %r'%(self.__class__.__name__,list(karg.keys())))
         return result
 
 class QuantumNumbers(Arithmetic):
@@ -252,6 +254,7 @@ class QuantumNumbers(Arithmetic):
                 self.type=data[0]
                 self.contents=np.asarray(data[1])
                 counts=data[2]
+            counts=np.asarray(counts)
             assert np.all(counts>=0)
             self.indptr=np.concatenate(([0],np.cumsum(counts)))
         else:
@@ -309,7 +312,7 @@ class QuantumNumbers(Arithmetic):
             The union of the input collections.
         '''
         if signs is None: signs=len(args)*[1]
-        assert all(isinstance(sign,int) or isinstance(sign,long) for sign in signs)
+        assert all(isinstance(sign,int) for sign in signs)
         assert len(signs)==len(args)
         cumsums=np.concatenate(([0],np.cumsum([len(arg) for arg in args])))
         contents=np.concatenate([arg.contents if sign==1 else -arg.contents for arg,sign in zip(args,signs)])
@@ -387,7 +390,7 @@ class QuantumNumbers(Arithmetic):
             if history:
                 if qn not in record: record[qn]={}
                 record[qn][qns]=slice(result[qn]-count,result[qn])
-        contents,counts=np.asarray(result.keys()),np.asarray(result.values())
+        contents,counts=np.asarray(list(result.keys())),np.asarray(list(result.values()))
         permutation=np.lexsort(contents.T[::-1])
         result=QuantumNumbers('C',(type,contents[permutation],counts[permutation]),protocol=QuantumNumbers.COUNTS)
         return (result,record) if history else result
@@ -414,12 +417,12 @@ class QuantumNumbers(Arithmetic):
         '''
         assert protocol in (QuantumNumbers.COUNTS,QuantumNumbers.INDPTR)
         if type is None: type=next(iter(ordereddict)).__class__
-        contents=np.asarray(ordereddict.keys())
+        contents=np.asarray(list(ordereddict.keys()))
         if protocol==QuantumNumbers.COUNTS:
-            counts=ordereddict.values()
+            counts=list(ordereddict.values())
             return QuantumNumbers('U',(type,contents,counts),protocol=QuantumNumbers.COUNTS)
         else:
-            indptr=np.concatenate(([0],[slice.stop for slice in ordereddict.itervalues()]))
+            indptr=np.concatenate(([0],[slice.stop for slice in ordereddict.values()]))
             return QuantumNumbers('U',(type,contents,indptr),protocol=QuantumNumbers.INDPTR)
 
     @staticmethod
@@ -452,14 +455,14 @@ class QuantumNumbers(Arithmetic):
                 indices=[]
                 for qns in reversed(qnses):
                     indices.append(pos%len(qns))
-                    pos/=len(qns)
+                    pos//=len(qns)
                 result.add(tuple(reversed(indices)))
             if nmax is not None and nmax>len(result):
                 random.seed()
                 result=random.sample(result,nmax)
         else:
             if signs is None: signs=len(qnses)*[1]
-            assert type(nmax) in (int,long) and len(signs)==len(qnses) and all(sign in {+1,-1} for sign in signs)
+            assert type(nmax) is int and len(signs)==len(qnses) and all(sign in {+1,-1} for sign in signs)
             random.seed()
             target=np.array(target)
             qnses=[qns.expansion()*sign for qns,sign in zip(qnses,signs)]
@@ -570,7 +573,7 @@ class QuantumNumbers(Arithmetic):
         '''
         Overloaded left multiplication(*) operator.
         '''
-        assert type(other) in (int,long)
+        assert type(other) is int
         return QuantumNumbers.kron([self]*other)
 
     __imul__=__mul__
@@ -585,7 +588,7 @@ class QuantumNumbers(Arithmetic):
         '''
         Overloaded power(**) operator.
         '''
-        assert isinstance(other,int) or isinstance(other,long)
+        assert isinstance(other,int)
         return QuantumNumbers.kron([self]*other,signs=[1]*other)
 
     def iteritems(self,protocol=INDPTR):
@@ -629,7 +632,7 @@ class QuantumNumbers(Arithmetic):
         counts=counts[permutation]
         indices=np.concatenate((np.argwhere(mask).reshape((-1)),[len(mask)]))
         self.indptr=np.zeros(self.contents.shape[0]+1,dtype=np.int64)
-        for i in xrange(len(indices)-1):
+        for i in range(len(indices)-1):
             self.indptr[i+1]=self.indptr[i]+counts[indices[i]:indices[i+1]].sum()
         if history: return fpermutation(indptr[:-1][permutation],counts,len(self))
 
@@ -720,7 +723,7 @@ class QuantumNumbers(Arithmetic):
             The subslice.
         '''
         indices=np.concatenate([self.indices(target) for target in targets])
-        return np.concatenate([xrange(self.indptr[index],self.indptr[index+1]) for index in indices])
+        return np.concatenate([range(self.indptr[index],self.indptr[index+1]) for index in indices])
 
     def expansion(self,targets=None):
         '''
@@ -791,7 +794,7 @@ class QuantumNumbers(Arithmetic):
             if protocol=='EXPANSION':
                 return QuantumNumbers(
                         form=       'G',
-                        data=       (self.type,self.expansion()[permutation],range(len(permutation)+1)),
+                        data=       (self.type,self.expansion()[permutation],list(range(len(permutation)+1))),
                         protocol=   QuantumNumbers.INDPTR
                         )
             else:

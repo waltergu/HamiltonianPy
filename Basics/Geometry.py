@@ -14,7 +14,7 @@ __all__=[   'azimuthd','azimuth','polard','polar','volume',
             'PID', 'Point', 'Bond', 'Link', 'Lattice', 'SuperLattice','Cylinder'
             ]
 
-from Utilities import RZERO
+from .Utilities import RZERO
 from collections import namedtuple,Iterable
 from scipy.spatial import cKDTree
 import numpy as np
@@ -191,7 +191,7 @@ def issubordinate(rcoord,vectors):
     nvectors=len(vectors)
     ndim=len(vectors[0])
     a=np.zeros((3,3))
-    for i in xrange(nvectors):
+    for i in range(nvectors):
         a[0:ndim,i]=vectors[i]
     if nvectors==2:
         if ndim==2:
@@ -202,7 +202,7 @@ def issubordinate(rcoord,vectors):
         a[:,2]=buff
     if nvectors==1:
         buff1,buff2=a[:,0],np.zeros(3)
-        for i in xrange(3):
+        for i in range(3):
             buff2[...]=0.0
             buff2[i]=np.pi
             if not isparallel(buff1,buff2): break
@@ -524,7 +524,7 @@ def minimumlengths(cluster,vectors=(),nneighbour=1,zmax=8):
     assert nneighbour>=0
     result=np.array([np.inf]*(nneighbour+1))
     if len(cluster)>0:
-        translations=list(it.product(*([xrange(-nneighbour,nneighbour+1)]*len(vectors))))
+        translations=list(it.product(*([range(-nneighbour,nneighbour+1)]*len(vectors))))
         for translation in translations:
             if any(translation): translations.remove(tuple([-i for i in translation]))
         translations=sorted(translations,key=nl.norm)
@@ -570,16 +570,16 @@ def intralinks(cluster,vectors=(),maxtranslations=None,neighbours=None):
         if maxtranslations is None: maxtranslations=[len(neighbours)-1]*len(vectors)
         if neighbours is None: neighbours={0:0.0}
         assert len(maxtranslations)==len(vectors)
-        translations=list(it.product(*[xrange(-nnb,nnb+1) for nnb in maxtranslations]))
+        translations=list(it.product(*[range(-nnb,nnb+1) for nnb in maxtranslations]))
         for translation in translations:
             if any(translation): translations.remove(tuple([-i for i in translation]))
         translations=sorted(translations,key=nl.norm)
         supercluster=tiling(cluster,vectors=vectors,translations=translations)
         disps=tiling([np.zeros(len(next(iter(cluster))))]*len(cluster),vectors=vectors,translations=translations)
-        smatrix=cKDTree(cluster).sparse_distance_matrix(cKDTree(supercluster),np.max(neighbours.values())+RZERO)
+        smatrix=cKDTree(cluster).sparse_distance_matrix(cKDTree(supercluster),np.max(list(neighbours.values()))+RZERO)
         for (i,j),dist in smatrix.items():
             if i<=j:
-                for neighbour,length in neighbours.iteritems():
+                for neighbour,length in neighbours.items():
                     if abs(length-dist)<RZERO:
                         result.append(Link(neighbour,sindex=i,eindex=j%len(cluster),disp=disps[j]))
                         break
@@ -604,9 +604,9 @@ def interlinks(cluster1,cluster2,neighbours=None):
     result=[]
     if len(cluster1)>0 and len(cluster2)>0:
         if neighbours is None: neighbours={0:0.0}
-        smatrix=cKDTree(cluster1).sparse_distance_matrix(cKDTree(cluster2),np.max(neighbours.values())+RZERO)
+        smatrix=cKDTree(cluster1).sparse_distance_matrix(cKDTree(cluster2),np.max(list(neighbours.values()))+RZERO)
         for (i,j),dist in smatrix.items():
-            for neighbour,length in neighbours.iteritems():
+            for neighbour,length in neighbours.items():
                 if abs(length-dist)<RZERO:
                     result.append(Link(neighbour,sindex=i,eindex=j,disp=0))
                     break
@@ -656,7 +656,7 @@ class Lattice(object):
             * When dict, the neighbour-length map of the lattice.
         '''
         rcoords=np.asarray(rcoords)
-        if pids is None: pids=[PID(scope=name,site=i) for i in xrange(len(rcoords))]
+        if pids is None: pids=[PID(scope=name,site=i) for i in range(len(rcoords))]
         if icoords is None: icoords=np.zeros(rcoords.shape)
         assert len(pids)==len(rcoords)==len(icoords)
         self.name=name
@@ -1002,13 +1002,13 @@ class Cylinder(Lattice):
         else:
             if news is not None:
                 assert len(news)*len(self.block)==len(self)
-                self.pids=[PID(scope=scope,site=i) for scope in news for i in xrange(len(self.block))]
-            apids,bpids=self.pids[:len(self)/2],self.pids[len(self)/2:]
-            arcoords,brcoords=self.rcoords[:len(self)/2]-self.translation,self.rcoords[len(self)/2:]+self.translation
+                self.pids=[PID(scope=scope,site=i) for scope in news for i in range(len(self.block))]
+            apids,bpids=self.pids[:len(self)//2],self.pids[len(self)//2:]
+            arcoords,brcoords=self.rcoords[:len(self)//2]-self.translation,self.rcoords[len(self)//2:]+self.translation
             self.pids=apids+aspids+bspids+bpids
             self.rcoords=np.vstack([arcoords,asrcoords,bsrcoords,brcoords])
         self.icoords=np.zeros(self.rcoords.shape)
-        if np.any(np.asarray(self.neighbours.values())==np.inf):
+        if np.any(np.asarray(list(self.neighbours.values()))==np.inf):
             self.neighbours={i:length for i,length in enumerate(minimumlengths(self.rcoords,self.vectors,self.nneighbour,Lattice.ZMAX))}
 
     def __call__(self,scopes):
@@ -1027,12 +1027,12 @@ class Cylinder(Lattice):
         '''
         result=Lattice(
                     name=           self.name.replace('+',str(len(scopes))),
-                    pids=           [PID(scope=scope,site=i) for scope in scopes for i in xrange(len(self.block))],
-                    rcoords=        tiling(self.block,[self.translation],np.linspace(-(len(scopes)-1)/2.0,(len(scopes)-1)/2.0,len(scopes)) if len(scopes)>1 else xrange(1)),
+                    pids=           [PID(scope=scope,site=i) for scope in scopes for i in range(len(self.block))],
+                    rcoords=        tiling(self.block,[self.translation],np.linspace(-(len(scopes)-1)/2.0,(len(scopes)-1)/2.0,len(scopes)) if len(scopes)>1 else range(1)),
                     icoords=        None,
                     vectors=        self.vectors,
                     neighbours=     self.neighbours
                     )
-        if np.any(np.asarray(result.neighbours.values())==np.inf):
+        if np.any(np.asarray(list(result.neighbours.values()))==np.inf):
             result.neighbours={i:length for i,length in enumerate(minimumlengths(result.rcoords,result.vectors,result.nneighbour,Lattice.ZMAX))}
         return result

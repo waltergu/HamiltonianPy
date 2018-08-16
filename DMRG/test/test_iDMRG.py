@@ -17,7 +17,7 @@ ttype,savedata,qnon='S',True,True
 
 class TestSpin(TestCase):
     def test_idmrg(self):
-        print
+        print()
         J,spin,N=1.0,0.5,50
         priority,layers=DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
         self.dmrg=iDMRG(
@@ -36,7 +36,7 @@ class TestSpin(TestCase):
 
 class TestSpinlessFermion(TestCase):
     def test_idmrg(self):
-        print
+        print()
         t,N=-0.5,50
         priority,layers=DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS
         self.dmrg=iDMRG(
@@ -55,7 +55,7 @@ class TestSpinlessFermion(TestCase):
 
 class TestSpinfulFermion(TestCase):
     def test_idmrg(self):
-        print
+        print()
         t,U,N=-1.0,1.0,50
         priority,layers=DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS
         self.dmrg=iDMRG(
@@ -74,7 +74,7 @@ class TestSpinfulFermion(TestCase):
 
 class TestHoneycombHeisenberg(TestCase):
     def test_idmrg(self):
-        print
+        print()
         J,N=1.0,10
         h4,priority,layers=Hexagon(name='H4'),DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
         self.dmrg=iDMRG(

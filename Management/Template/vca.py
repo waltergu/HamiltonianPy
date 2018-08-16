@@ -19,7 +19,7 @@ def vcaconstruct(name,parameters,sectors,cell,lattice,terms,weiss,baths=(),mask=
         dlog=       'log',
         din=        'data',
         dout=       'result/vca',
-        name=       '%s_%s_%s'%(name,lattice.name,'_'.join(sector.rep for sector in sectors)),
+        name=       '%s_%s_%s'%(name,lattice.name,'_'.join(repr(sector) for sector in sectors)),
         cgf=        VCA.VGF(nstep=150,method='S',prepare=ED.EDGFP,run=ED.EDGF),
         parameters= parameters,
         map=        parametermap,

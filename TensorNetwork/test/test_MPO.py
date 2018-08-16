@@ -77,7 +77,7 @@ class SpinBase(object):
         self.lattice=Cylinder(name='WG',block=[np.array([0.0,0.0]),np.array([0.0,1.0])],translation=np.array([1.0,0.0]))([0,1])
         self.terms=[SpinTerm('J',1.0,neighbour=1,indexpacks=Heisenberg())]
         self.config=IDFConfig(priority=self.priority,pids=self.lattice.pids,map=lambda pid: Spin(S=S))
-        self.degfres=DegFreTree(layers=self.layers,priority=self.priority,leaves=self.config.table(mask=[]).keys(),map=lambda index:SQNS(S))
+        self.degfres=DegFreTree(layers=self.layers,priority=self.priority,leaves=list(self.config.table(mask=[]).keys()),map=lambda index:SQNS(S))
         self.generator=Generator(self.lattice.bonds,self.config,terms=self.terms,dtype=np.float64)
         self.mopts=[soptrep(opt,self.config.table(mask=[])) for opt in self.generator.operators]
         np.random.seed()
@@ -114,7 +114,7 @@ class FermiBase(object):
         self.lattice=Cylinder(name='WG',block=[np.array([0.0,0.0]),np.array([0.0,1.0])],translation=np.array([1.0,0.0]))([0,1])
         self.terms=[Hopping('t',1.0,neighbour=1)]
         self.config=IDFConfig(priority=self.priority,pids=self.lattice.pids,map=lambda pid: Fock(norbital=1,nspin=1,nnambu=1))
-        self.degfres=DegFreTree(layers=self.layers,priority=self.priority,leaves=self.config.table(mask=['nambu']).keys(),map=lambda index:PQNS(1))
+        self.degfres=DegFreTree(layers=self.layers,priority=self.priority,leaves=list(self.config.table(mask=['nambu']).keys()),map=lambda index:PQNS(1))
         self.generator=Generator(self.lattice.bonds,self.config,terms=self.terms,dtype=np.complex128)
         self.mopts=[soptrep(JWBosonization(opt,self.config.table(mask=['nambu'])),self.config.table(mask=['nambu'])) for opt in self.generator.operators]
         np.random.seed()

@@ -10,7 +10,7 @@ CPT and VCA with concatenated lattice, including:
 
 __all__=['SubVCA','VCACCT','VCACCTGFP','VCACCTGF']
 
-from VCA import *
+from .VCA import *
 from copy import deepcopy
 from collections import Counter,OrderedDict
 import numpy as np
@@ -45,7 +45,7 @@ class SubVCA(ED.FED):
         log : Log, optional
             The log of the subsystem.
         '''
-        self.sectors={sector.rep:sector for sector in sectors}
+        self.sectors=set(sectors)
         self.lattice=lattice
         self.config=config
         self.terms=terms
@@ -102,12 +102,29 @@ class SubVCA(ED.FED):
             The matrix representation of the Hamiltonian.
         '''
         if reset:
-            self.hgenerator.setmatrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
-            self.wgenerator.setmatrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
-            self.bgenerator.setmatrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
+            self.hgenerator.setmatrix(sector,HP.foptrep,sector,transpose=False,dtype=self.dtype)
+            self.wgenerator.setmatrix(sector,HP.foptrep,sector,transpose=False,dtype=self.dtype)
+            self.bgenerator.setmatrix(sector,HP.foptrep,sector,transpose=False,dtype=self.dtype)
         self.sector=sector
         matrix=self.hgenerator.matrix(sector)+self.wgenerator.matrix(sector)+self.bgenerator.matrix(sector)
         return matrix.T+matrix.conjugate()
+
+    def removesector(self,sector,newcurrent=None):
+        '''
+        Remove a sector from the engine.
+
+        Parameters
+        ----------
+        sector : hashable
+            The sector to be removed.
+        newcurrent : hashable, optional
+            The new sector of the engine.
+        '''
+        self.sectors.remove(sector)
+        if newcurrent is not None: self.sector=newcurrent
+        self.hgenerator.removematrix(sector)
+        self.wgenerator.removematrix(sector)
+        self.bgenerator.removematrix(sector)
 
     def update(self,**karg):
         '''
@@ -171,7 +188,7 @@ class VCACCT(VCA):
         self.logging()
         self.groups=[subsystem.get('group',subsystem['lattice'].name) for subsystem in subsystems]
         self.subsystems={}
-        extras={key:value for key,value in karg.iteritems() if key!='name'}
+        extras={key:value for key,value in karg.items() if key!='name'}
         attrs={attr:vars(cgf)[attr] for attr in set(vars(cgf))-{'name','parameters','virgin','operators','k','omega','prepare','run'}}
         for group in set(self.groups):
             index=self.groups.index(group)
@@ -235,7 +252,7 @@ class VCACCT(VCA):
         '''
         if len(karg)>0:
             self.CGF.virgin=True
-            for subsystem in self.subsystems.itervalues():
+            for subsystem in self.subsystems.values():
                 subsystem.update(**karg)
             super(ED.ED,self).update(**karg)
             data=self.data
@@ -252,7 +269,7 @@ def VCACCTGFP(engine,app):
     '''
     app.gse=0.0
     counter=Counter(engine.groups)
-    for group,subsystem in engine.subsystems.iteritems():
+    for group,subsystem in engine.subsystems.items():
         subsystem.apps['gf'].prepare(subsystem,subsystem.apps['gf'])
         app.gse+=subsystem.apps['gf'].gse*counter[group]
 
@@ -263,7 +280,7 @@ def VCACCTGF(engine,app):
     cgf=engine.records[app.name]
     if app.omega is not None:
         gfs={}
-        for group,subsystem in engine.subsystems.iteritems():
+        for group,subsystem in engine.subsystems.items():
             gf=subsystem.apps['gf']
             gf.omega=app.omega
             gfs[group]=gf.run(subsystem,gf)

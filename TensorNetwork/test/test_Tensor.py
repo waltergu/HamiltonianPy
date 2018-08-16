@@ -26,9 +26,9 @@ class TestDTensor(TestCase):
 
     def test_expandedsvd(self):
         L,S,R=self.tensor.labels
-        E=[Label('S%s'%i,qns=self.qns,flow=S.flow) for i in xrange(self.s)]
-        for cut in xrange(self.s):
-            I=[Label('B%i'%i,None,None) for i in xrange(self.s if cut in (0,self.s) else self.s-1)]
+        E=[Label('S%s'%i,qns=self.qns,flow=S.flow) for i in range(self.s)]
+        for cut in range(self.s):
+            I=[Label('B%i'%i,None,None) for i in range(self.s if cut in (0,self.s) else self.s-1)]
             ms=expandedsvd(self.tensor,L=[L],S=S,R=[R],E=E,I=I,cut=cut)
             ms=[ms[0],ms[1]]+ms[2] if cut==0 else ms[0]+[ms[1],ms[2]] if cut==4 else ms[0][:cut]+[ms[1]]+ms[0][cut:]
             self.assertAlmostEqual((np.product(ms).merge((E,S))-self.tensor).norm,0.0)
@@ -67,7 +67,7 @@ class TestNBDTensor(TestDTensor):
         return len(self.QNS)
 
     def test_qngenerate(self):
-        print
+        print()
         lqns,sqns,rqns=self.QNS**self.l,self.QNS**self.s,self.QNS**self.r
         tensor=random([Label('l',lqns,+1),Label('s',sqns,+1),Label('r',rqns,-1)])
         tensor.relabel(self.tensor.labels)
@@ -76,7 +76,7 @@ class TestNBDTensor(TestDTensor):
         tensor.qngenerate(+1,axes=[1,2],qnses=[sqns,rqns],flows=[+1,-1])
         tensor.qngenerate(+1,axes=[2,0],qnses=[rqns,lqns],flows=[-1,+1])
         etime=time()
-        print 'qngenerate time in total: %ss'%(etime-stime)
+        print('qngenerate time in total: %ss'%(etime-stime))
 
 class TestQNDTensor(TestDTensor):
     def setUp(self):
@@ -168,26 +168,26 @@ class TestSTensor(TestCase):
 
 class Test_contract(TestCase):
     def test_contract(self):
-        print
+        print()
         N,nmax=50,400
         stime=time()
-        mps=MPS.random(sites=[SPQNS(0.5)]*N,bonds=[SPQN((0.0,0.0)),SPQN((N,0.0))],cut=N/2,nmax=nmax)
-        m1,m2,m3=mps[N/2-1],mps[N/2],mps[N/2+1]
+        mps=MPS.random(sites=[SPQNS(0.5)]*N,bonds=[SPQN((0.0,0.0)),SPQN((N,0.0))],cut=N//2,nmax=nmax)
+        m1,m2,m3=mps[N//2-1],mps[N//2],mps[N//2+1]
         sm1,sm2,sm3=m1.tostensor(),m2.tostensor(),m3.tostensor()
-        print 'prepare time: %ss'%(time()-stime)
-        print 'tensor shape: %s, %s, %s'%(m1.shape,m2.shape,m3.shape)
+        print('prepare time: %ss'%(time()-stime))
+        print('tensor shape: %s, %s, %s'%(m1.shape,m2.shape,m3.shape))
         stime=time()
         contraction1=m1*(m2,'einsum')*(m3,'einsum')
-        print 'einsum time: %ss'%(time()-stime)
+        print('einsum time: %ss'%(time()-stime))
         stime=time()
         contraction2=m1*(m2,'tensordot')*(m3,'tensordot')
-        print 'tensordot time: %ss.'%(time()-stime)
+        print('tensordot time: %ss.'%(time()-stime))
         stime=time()
         contraction3=m1*(m2,'block')*(m3,'block')
-        print 'block time: %ss.'%(time()-stime)
+        print('block time: %ss.'%(time()-stime))
         stime=time()
         contraction4=sm1*sm2*sm3
-        print 'sparse time: %ss.'%(time()-stime)
+        print('sparse time: %ss.'%(time()-stime))
         contraction4=contraction4.todtensor()
         self.assertAlmostEqual((contraction1-contraction2).norm,0.0)
         self.assertAlmostEqual((contraction2-contraction3).norm,0.0)

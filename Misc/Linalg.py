@@ -18,7 +18,7 @@ import scipy.sparse.linalg as pl
 import scipy.linalg as sl
 import itertools as it
 from copy import copy
-from fkron import *
+from .fkron import *
 
 TOL=5*10**-12
 
@@ -125,7 +125,7 @@ class Lanczos(object):
                     self.P[self.niter,self.niter-self.nc+k+self.nv0]=overlap
                 vc-=overlap*self.vectors[self.niter]
             v=self.matrix.dot(self.vectors[self.niter])
-            for k in xrange(max(self.niter-self.nc-1,0),self.niter):
+            for k in range(max(self.niter-self.nc-1,0),self.niter):
                 self._T_[k,self.niter]=np.conjugate(self._T_[self.niter,k])
                 v-=self._T_[k,self.niter]*self.vectors[k]
             for k in it.chain(self.deflations,[self.niter]):
@@ -216,9 +216,9 @@ def kron(m1,m2,rcs=None,timers=None):
     else:
         assert m1.dtype==m2.dtype and m1.shape[0]==m1.shape[1] and m2.shape[0]==m2.shape[1]
         if isinstance(rcs,np.ndarray):
-            rcs1,rcs2=np.divide(rcs,m2.shape[1]),np.mod(rcs,m2.shape[1])
+            rcs1,rcs2=rcs//m2.shape[1],rcs%m2.shape[1]
             slices=np.zeros(m1.shape[1]*m2.shape[1],dtype=np.int64)
-            slices[rcs]=xrange(len(rcs))
+            slices[rcs]=range(len(rcs))
         else:
             rcs1,rcs2,slices=rcs
         def csr(m1,m2):
@@ -289,7 +289,7 @@ def reorder(array,axes=None,permutation=None):
     '''
     result=array
     if permutation is not None:
-        axes=xrange(array.ndim) if axes is None else axes
+        axes=range(array.ndim) if axes is None else axes
         for axis in axes:
             temp=[slice(None,None,None)]*array.ndim
             temp[axis]=permutation

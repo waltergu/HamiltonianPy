@@ -15,8 +15,8 @@ import itertools as it
 import matplotlib.pyplot as plt
 from numpy.linalg import norm
 from scipy import interpolate
-from collections import OrderedDict
-from Utilities import RZERO,Log,Timers,decimaltostr
+from collections import OrderedDict,Callable
+from .Utilities import RZERO,Log,Timers,decimaltostr
 
 class Parameters(OrderedDict):
     '''
@@ -27,7 +27,7 @@ class Parameters(OrderedDict):
         '''
         Judge whether a set of parameters matches another. True when their shared entries have the same values, otherwise False.
         '''
-        for key,value in self.iteritems():
+        for key,value in self.items():
             if key in other:
                 if norm(np.array(value)-np.array(other[key]))>RZERO:
                     return False
@@ -38,7 +38,7 @@ class Parameters(OrderedDict):
         '''
         Convert an instance to string.
         '''
-        return '_'.join(decimaltostr(value,Engine.NDECIMAL) for key,value in self.iteritems())
+        return '_'.join(decimaltostr(value,Engine.NDECIMAL) for key,value in self.items())
 
 class Boundary(object):
     '''
@@ -156,7 +156,7 @@ class Engine(object):
         '''
         The data of the engine.
         '''
-        return self.map(self.parameters) if callable(self.map) else self.parameters
+        return self.map(self.parameters) if isinstance(self.map,Callable) else self.parameters
 
     def logging(self):
         '''
@@ -182,7 +182,7 @@ class Engine(object):
         '''
         result=[]
         result.append(self.name)
-        result.append('_'.join(decimaltostr(value,ndecimal) for key,value in self.parameters.iteritems() if key not in mask))
+        result.append('_'.join(decimaltostr(value,ndecimal) for key,value in self.parameters.items() if key not in mask))
         result.append(self.__class__.__name__)
         return '_'.join(result)
 
@@ -196,7 +196,7 @@ class Engine(object):
         '''
         This method update the engine.
         '''
-        for key,value in paras.iteritems():
+        for key,value in paras.items():
             if key in self.parameters: self.parameters[key]=value
 
     def add(self,app):
@@ -358,8 +358,8 @@ class App(object):
         '''
         Update the attributes of the app.
         '''
-        if callable(self.map) and len(karg)>0:
-            for key,value in self.map(karg).iteritems():
+        if isinstance(self.map,Callable) and len(karg)>0:
+            for key,value in self.map(karg).items():
                 assert hasattr(self,key)
                 setattr(self,key,value)
         self.parameters.update(karg)
@@ -385,7 +385,7 @@ class App(object):
             if options.get('interpolate',False):
                 plt.plot(data[:,0],data[:,1],'r.')
                 X=np.linspace(data[:,0].min(),data[:,0].max(),10*data.shape[0])
-                for i in xrange(1,data.shape[1]):
+                for i in range(1,data.shape[1]):
                     tck=interpolate.splrep(data[:,0],data[:,i],k=3)
                     Y=interpolate.splev(X,tck,der=0)
                     plt.plot(X,Y,label=options['legend'][i-1] if 'legend' in options else None)

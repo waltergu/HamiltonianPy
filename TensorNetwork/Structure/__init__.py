@@ -12,4 +12,4 @@ MODULES         DESCRIPTION
 ===========     ====================================================
 '''
 
-from Structure import *
+from .Structure import *

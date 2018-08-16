@@ -32,7 +32,7 @@ class TestSquare(TestCase):
         t1=time.time()
         path=square.path([(0,self.a1/2),(self.a1/2,(self.a1+self.a2)/2),((self.a1+self.a2)/2,-(self.a1+self.a2)/2),(-(self.a1+self.a2)/2,-self.a2/2),(-self.a2/2,0)])
         t2=time.time()
-        print 'time,rank: %1.2fs,%s'%(t2-t1,path.rank('k'))
+        print('time,rank: %1.2fs,%s'%(t2-t1,path.rank('k')))
         path.plot(name='square(path)')
 
 class TestHexagon(TestCase):
@@ -56,7 +56,7 @@ class TestHexagon(TestCase):
         t1=time.time()
         path=hexagon.path([(0,self.a1/2),(self.a1/2,(self.a1+self.a2)/3),((self.a1+self.a2)/3,-(self.a1+self.a2)/3),(-(self.a1+self.a2)/3,-self.a2/2),(-self.a2/2,0)])
         t2=time.time()
-        print 'time,rank: %1.2fs,%s'%(t2-t1,path.rank('k'))
+        print('time,rank: %1.2fs,%s'%(t2-t1,path.rank('k')))
         path.plot(name='hexagon(path)')
 
 class TestBaseSpace(TestCase):
@@ -65,7 +65,7 @@ class TestBaseSpace(TestCase):
 
     def test_callable(self):
         for i,paras in enumerate(self.basespace('*')):
-            self.assertEqual(paras,OrderedDict([('k',i/4+1),('t',i%4+11)]))
+            self.assertEqual(paras,OrderedDict([('k',i//4+1),('t',i%4+11)]))
         for i,paras in enumerate(self.basespace('+')):
             self.assertEqual(paras,OrderedDict([('k',i+1),('t',i+11)]))
 

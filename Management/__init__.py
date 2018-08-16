@@ -5,7 +5,7 @@ This subpackage implements the construction and maintenance of a project through
 '''
 
 import os
-import Template
+from . import Template
 from argparse import ArgumentParser
 
 __all__=['Manager','init','add']
@@ -83,7 +83,7 @@ class Manager(object):
         Execute the command line commands this manager manages.
         '''
         namespace=self.parser.parse_args(self.args[1:] or ['-h'])
-        namespace.subcommand(**{key:value for key,value in vars(namespace).iteritems() if key!='subcommand'})
+        namespace.subcommand(**{key:value for key,value in vars(namespace).items() if key!='subcommand'})
 
     @classmethod
     def hasproject(cls):

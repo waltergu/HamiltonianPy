@@ -10,7 +10,7 @@ Exact diagonalization for fermionic/hard-core-bosonic systems, including:
 
 __all__=['FED','fedspgen','fedspcom','FGF']
 
-from ED import *
+from .ED import *
 from copy import deepcopy
 from collections import OrderedDict
 import HamiltonianPy as HP
@@ -29,7 +29,7 @@ class FED(ED):
 
         Parameters
         ----------
-        sectors : iterable of FBasis
+        sectors : set of FBasis
             The occupation number bases of the system.
         lattice : Lattice
             The lattice of the system.
@@ -41,7 +41,7 @@ class FED(ED):
             The data type of the matrix representation of the Hamiltonian.
         '''
         if len(terms)>0: assert len({term.statistics for term in terms})==1
-        self.sectors={sector.rep:sector for sector in sectors}
+        self.sectors=set(sectors)
         self.lattice=lattice
         self.config=config
         self.terms=terms
@@ -65,7 +65,7 @@ class FED(ED):
 
         Parameters
         ----------
-        sector : str
+        sector : FBasis
             The sector of the matrix representation of the Hamiltonian.
         reset : logical, optional
             True for resetting the matrix cache and False for not.
@@ -75,49 +75,42 @@ class FED(ED):
         csr_matrix
             The matrix representation of the Hamiltonian.
         '''
-        if reset: self.generator.setmatrix(sector,HP.foptrep,self.sectors[sector],transpose=False,dtype=self.dtype)
         self.sector=sector
+        if reset: self.generator.setmatrix(sector,HP.foptrep,sector,transpose=False,dtype=self.dtype)
         matrix=self.generator.matrix(sector)
         return matrix.T+matrix.conjugate()
 
-    def __replace_basis__(self,nambu,spin):
+    def newbasis(self,nambu,spin):
         '''
-        Return a new ED instance with the basis replaced.
+        Return a new basis with one more or one less particle.
 
         Parameters
         ----------
         nambu : CREATION or ANNIHILATION
-            CREATION for adding one electron and ANNIHILATION for subtracting one electron.
+            CREATION for adding one particle and ANNIHILATION for subtracting one particle.
         spin : 0 or 1
             0 for spin down and 1 for spin up.
 
         Returns
         -------
-        ED
-            The new ED instance with the wanted new basis.
+        FBasis
+            The new basis.
         '''
-        basis=self.sectors[self.sector]
+        basis=self.sector
         if basis.mode=='FG':
-            return self
+            result=basis
         elif basis.mode=='FP':
-            result=deepcopy(self)
-            new=basis.replace(nparticle=basis.nparticle+1) if nambu==HP.CREATION else basis.replace(nparticle=basis.nparticle-1)
-            result.sectors={new.rep:new}
-            result.sector=new.rep
-            return result
+            result=basis.replace(nparticle=basis.nparticle+1) if nambu==HP.CREATION else basis.replace(nparticle=basis.nparticle-1)
         else:
-            result=deepcopy(self)
             if nambu==HP.CREATION and spin==0:
-                new=basis.replace(nparticle=basis.nparticle+1,spinz=basis.spinz-0.5)
+                result=basis.replace(nparticle=basis.nparticle+1,spinz=basis.spinz-0.5)
             elif nambu==HP.ANNIHILATION and spin==0:
-                new=basis.replace(nparticle=basis.nparticle-1,spinz=basis.spinz+0.5)
+                result=basis.replace(nparticle=basis.nparticle-1,spinz=basis.spinz+0.5)
             elif nambu==HP.CREATION and spin==1:
-                new=basis.replace(nparticle=basis.nparticle+1,spinz=basis.spinz+0.5)
+                result=basis.replace(nparticle=basis.nparticle+1,spinz=basis.spinz+0.5)
             else:
-                new=basis.replace(nparticle=basis.nparticle-1,spinz=basis.spinz-0.5)
-            result.sectors={new.rep:new}
-            result.sector=new.rep
-            return result
+                result=basis.replace(nparticle=basis.nparticle-1,spinz=basis.spinz-0.5)
+        return result
 
     def totba(self):
         '''
@@ -158,26 +151,29 @@ def fedspgen(fed,operators,method='S'):
     When `method` is 'NB': int
         The number of blocks.
     '''
-    basis=fed.sectors[fed.sector]
+    oldbasis=fed.sector
     if method=='NB':
-        yield 4 if basis.mode=='FS' else 2
+        yield 4 if oldbasis.mode=='FS' else 2
     else:
-        blocks=[{'inds':[],'opts':[]} for i in xrange(4 if basis.mode=='FS' else 2)]
+        blocks=[{'inds':[],'opts':[]} for i in range(4 if oldbasis.mode=='FS' else 2)]
         for i,operator in enumerate(operators):
-            eindex=2 if basis.mode=='FS' and operator.indices[0].spin==1 else 0
-            hindex=3 if basis.mode=='FS' and operator.indices[0].spin==1 else 1
+            eindex=2 if oldbasis.mode=='FS' and operator.indices[0].spin==1 else 0
+            hindex=3 if oldbasis.mode=='FS' and operator.indices[0].spin==1 else 1
             blocks[eindex]['inds'].append(i)
             blocks[hindex]['inds'].append(i)
             blocks[eindex]['opts'].append(operator.dagger)
             blocks[hindex]['opts'].append(operator)
         for i,block in enumerate(blocks):
-            nfed=fed.__replace_basis__(nambu=HP.CREATION if i%2==0 else HP.ANNIHILATION,spin=0 if i<=1 else 1)
+            newbasis=fed.newbasis(nambu=HP.CREATION if i%2==0 else HP.ANNIHILATION,spin=0 if i<=1 else 1)
+            fed.addsector(newbasis,setcurrent=True)
+            matrix=fed.matrix(fed.sector,reset=True)
+            fed.removesector(fed.sector,newcurrent=oldbasis)
             yield BGF(
                     method=     method,
                     indices=    block['inds'],
                     sign=       (-1)**i,
-                    matrix=     nfed.matrix(nfed.sector,reset=True),
-                    operators=  [HP.foptrep(operator,basis=[basis,nfed.sectors[nfed.sector]],transpose=True,dtype=fed.dtype) for operator in block['opts']],
+                    matrix=     matrix,
+                    operators=  [HP.foptrep(operator,basis=[oldbasis,newbasis],transpose=True,dtype=fed.dtype) for operator in block['opts']],
                     )
 
 def fedspcom(blocks,omega):

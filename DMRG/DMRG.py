@@ -44,7 +44,7 @@ def DMRGMatVec(Hsys,Henv):
         sysod=Lsys.qns.toordereddict(protocol=QuantumNumbers.INDPTR)
         envod=Lenv.qns.toordereddict(protocol=QuantumNumbers.INDPTR)
         records,count={},0
-        for qn in it.ifilter(sysod.has_key,envod):
+        for qn in filter(lambda key: key in sysod,envod):
             sysslice,envslice=sysod[qn],envod[qn]
             inc=(sysslice.stop-sysslice.start)*(envslice.stop-envslice.start)
             records[qn]=slice(count,count+inc)
@@ -53,7 +53,7 @@ def DMRGMatVec(Hsys,Henv):
         if isinstance(Hsys,STensor):
             def matvec(v):
                 result=np.zeros(v.shape,dtype=dtype)
-                for qns in it.ifilter(Henv.data.has_key,Hsys.data):
+                for qns in filter(lambda key: key in Henv.data,Hsys.data):
                     newslice,oldslice=records[qns[1]],records[qns[2]]
                     for sysblock,envblock in zip(Hsys.data[qns],Henv.data[qns]):
                         result[newslice]+=sysblock.dot(v[oldslice].reshape((sysblock.shape[1],envblock.shape[1]))).dot(envblock.T).reshape(-1)
@@ -171,24 +171,31 @@ class Block(object):
         '''
         Used for pickle.
         '''
-        for key,value in state.iteritems(): setattr(self,key,value)
+        for key,value in state.items(): setattr(self,key,value)
         self.timers=Timers('Preparation','Diagonalization','Truncation')
         self.timers.add('Diagonalization','matvec')
 
-    def __getslice__(self,i,j):
+    def __getitem__(self,k):
         '''
         Operator "[]" for slicing.
         '''
-        result=object.__new__(type(self))
-        result.mpo=self.mpo[i:j]
-        result.mps=self.mps[i:j]
-        result.target=self.target
-        result.ttype=self.ttype
-        result.lcontracts=self.lcontracts[i:j+1]
-        result.rcontracts=self.rcontracts[i:j+1]
-        result.timers=self.timers
-        result.info=self.info
-        return result
+        if isinstance(k,slice):
+            assert k.step is None or k.step==1
+            i,j=k.start,k.stop
+            i=0 if i is None else len(self)+i if i<0 else i
+            j=len(self) if j is None else len(self)+j if j<0 else j
+            result=object.__new__(type(self))
+            result.mpo=self.mpo[i:j]
+            result.mps=self.mps[i:j]
+            result.target=self.target
+            result.ttype=self.ttype
+            result.lcontracts=self.lcontracts[i:j+1]
+            result.rcontracts=self.rcontracts[i:j+1]
+            result.timers=self.timers
+            result.info=self.info
+            return result
+        else:
+            raise ValueError('Block.__getitem__ error: only slice supported.')
 
     def reset(self,mpo=None,mps=None,target=None,LEND=None,REND=None,ttype=None):
         '''
@@ -237,7 +244,7 @@ class Block(object):
         '''
         self.mpo.relabel(sites,obonds)
         self.mps.relabel(sites,sbonds)
-        for pos in xrange(self.nsite+1):
+        for pos in range(self.nsite+1):
             self.setlcontract(pos,job='relabel')
             self.setrcontract(pos,job='relabel')
 
@@ -301,14 +308,14 @@ class Block(object):
         SL=1 if SL is None else SL
         SR=self.nsite-1 if SR is None else SR
         if LEND is None:
-            for pos in xrange(SL):
+            for pos in range(SL):
                 self.setlcontract(pos,job='relabel')
         else:
             self.lcontracts=[None]*(self.nsite+1)
             self.lcontracts[0]=LEND
             self.setlcontract(0,job='relabel')
         if REND is None:
-            for pos in xrange(self.nsite,SR,-1):
+            for pos in range(self.nsite,SR,-1):
                 self.setrcontract(pos,job='relabel')
         else:
             self.rcontracts=[None]*(self.nsite+1)
@@ -317,9 +324,9 @@ class Block(object):
         if self.cut is not None:
             EL=self.cut if EL is None else EL
             ER=self.cut if ER is None else ER
-            for pos in xrange(SL,EL+1):
+            for pos in range(SL,EL+1):
                 self.setlcontract(pos,job='contract')
-            for pos in xrange(SR,ER-1,-1):
+            for pos in range(SR,ER-1,-1):
                 self.setrcontract(pos,job='contract')
 
     def predict(self,sites,obonds,sbonds,osvs,qn=0):
@@ -339,8 +346,8 @@ class Block(object):
         qn : QuantumNumber, optional
             The injected quantum number of the block.
         '''
-        LEND=self.lcontracts[self.nsite/2]
-        REND=self.rcontracts[self.nsite/2]
+        LEND=self.lcontracts[self.nsite//2]
+        REND=self.rcontracts[self.nsite//2]
         self.mpo=self.mpo.impoprediction(sites,obonds)
         self.mps=self.mps.impsprediction(sites,sbonds,osvs,qn)
         self.target=qn+self.target if isinstance(qn,QuantumNumber) else None
@@ -368,16 +375,16 @@ class Block(object):
             The injected quantum number of the block.
         '''
         flag,onsite=self.nsite>0,self.nsite
-        if flag: oldlcontracts=self.lcontracts[0:onsite/2+1]
-        if flag: oldrcontracts=self.rcontracts[-onsite/2-1:]
+        if flag: oldlcontracts=self.lcontracts[0:onsite//2+1]
+        if flag: oldrcontracts=self.rcontracts[-onsite//2-1:]
         self.mpo=self.mpo.impogrowth(sites,obonds,ttype=self.ttype)
         self.mps=self.mps.impsgrowth(sites,sbonds,osvs,qn=qn,ttype=self.ttype)
         self.target=qn+self.target if isinstance(qn,QuantumNumber) else None
         self.lcontracts=[None]*(self.nsite+1)
         self.rcontracts=[None]*(self.nsite+1)
-        if flag: self.lcontracts[0:onsite/2+1]=oldlcontracts
-        if flag: self.rcontracts[-onsite/2-1:]=oldrcontracts
-        self.setcontractions(SL=onsite/2+1,EL=self.nsite/2,SR=self.nsite-onsite/2-1,ER=self.nsite/2)
+        if flag: self.lcontracts[0:onsite//2+1]=oldlcontracts
+        if flag: self.rcontracts[-onsite//2-1:]=oldrcontracts
+        self.setcontractions(SL=onsite//2+1,EL=self.nsite//2,SR=self.nsite-onsite//2-1,ER=self.nsite//2)
 
     def iterate(self,log,info='',sp=True,nmax=200,tol=10**-6,divisor=None,piechart=True):
         '''
@@ -600,7 +607,7 @@ class DMRG(Engine):
         '''
         config,degfres=deepcopy(config),deepcopy(degfres)
         config.reset(pids=(lattice(['__DMRG_NSPB__']) if isinstance(lattice,Cylinder) else lattice).pids)
-        degfres.reset(leaves=config.table(mask=mask).keys())
+        degfres.reset(leaves=list(config.table(mask=mask).keys()))
         return len(degfres.indices())
 
     @staticmethod
@@ -708,16 +715,16 @@ class TSG(App):
             The recover code.
         '''
         if engine.__class__.__name__=='fDMRG':
-            for niter in xrange(self.maxiter-1,-1,-1):
+            for niter in range(self.maxiter-1,-1,-1):
                 core=DMRG.load(din=engine.din,pattern='%s_%s_%s'%(engine,(niter+1)*engine.nspb*2,self.target(niter)),nmax=self.nmax)
                 if core: break
         else:
             core=DMRG.load(din=engine.din,pattern='%s_%s'%(engine,engine.nspb*2),nmax=self.nmax)
             niter=None
         if core:
-            for key,value in core.iteritems(): setattr(engine,key,value)
+            for key,value in core.items(): setattr(engine,key,value)
             engine.config.reset(pids=engine.lattice.pids)
-            engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
+            engine.degfres.reset(leaves=list(engine.config.table(mask=engine.mask).keys()))
             engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
             code=getattr(engine,'niter',niter)
             assert engine.block.target==self.target(code)
@@ -779,9 +786,9 @@ class TSS(App):
         for i,nmax in enumerate(reversed(self.nmaxs)):
             core=DMRG.load(din=engine.din,pattern='%s_%s_%s'%(engine,self.nsite,self.target),nmax=nmax)
             if core:
-                for key,value in core.iteritems(): setattr(engine,key,value)
+                for key,value in core.items(): setattr(engine,key,value)
                 engine.config.reset(pids=engine.lattice.pids)
-                engine.degfres.reset(leaves=engine.config.table(mask=engine.mask).keys())
+                engine.degfres.reset(leaves=list(engine.config.table(mask=engine.mask).keys()))
                 engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
                 engine.block.mps>>=1 if engine.block.cut==0 else -1 if engine.block.cut==engine.block.nsite else 0
                 code=len(self.nmaxs)-1-i

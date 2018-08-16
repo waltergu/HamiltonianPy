@@ -117,9 +117,9 @@ class Fock(Internal):
         '''
         result=[]
         pid=pid._replace(**{key:None for key in set(mask)&set(PID._fields)})
-        for nambu in (None,) if 'nambu' in mask else xrange(self.nnambu):
-            for spin in (None,) if 'spin' in mask else xrange(self.nspin):
-                for orbital in (None,) if 'orbital' in mask else xrange(self.norbital):
+        for nambu in (None,) if 'nambu' in mask else range(self.nnambu):
+            for spin in (None,) if 'spin' in mask else range(self.nspin):
+                for orbital in (None,) if 'orbital' in mask else range(self.norbital):
                     result.append(Index(pid=pid,iid=FID(orbital=orbital,spin=spin,nambu=nambu)))
         return result
 
@@ -283,21 +283,21 @@ class FockPack(IndexPack):
                     yield self.value,index1,index2
                 else:
                     assert edgr.norbital==sdgr.norbital
-                    for k in xrange(edgr.norbital):
+                    for k in range(edgr.norbital):
                         index1=Index(bond.epoint.pid,FID(k,self.spins[0],enambu))
                         index2=Index(bond.spoint.pid,FID(k,self.spins[1],snambu))
                         yield self.value,index1,index2
             else:
                 assert edgr.nspin==sdgr.nspin
                 if hasattr(self,'orbitals'):
-                    for k in xrange(edgr.nspin):
+                    for k in range(edgr.nspin):
                         index1=Index(bond.epoint.pid,FID(self.orbitals[0],k,enambu))
                         index2=Index(bond.spoint.pid,FID(self.orbitals[1],k,snambu))
                         yield self.value,index1,index2
                 else:
                     assert edgr.norbital==sdgr.norbital
-                    for k in xrange(edgr.nspin):
-                        for j in xrange(edgr.norbital):
+                    for k in range(edgr.nspin):
+                        for j in range(edgr.norbital):
                             index1=Index(bond.epoint.pid,FID(j,k,enambu))
                             index2=Index(bond.spoint.pid,FID(j,k,snambu))
                             yield self.value,index1,index2

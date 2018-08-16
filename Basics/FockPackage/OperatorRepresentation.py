@@ -10,8 +10,8 @@ Fermionic/Hard-core-bosonic operator representation, including:
 __all__=['foptrep']
 
 import numpy as np
-from Basis import *
-from Operator import FOperator,BOperator
+from .Basis import *
+from .Operator import FOperator,BOperator
 from scipy.sparse import *
 from numba import jit
 
@@ -54,20 +54,24 @@ def foptrep(operator,basis,transpose=False,dtype=np.complex128):
         result=csr_matrix(content,shape=(basis[0].nbasis,basis[1].nbasis))
     return result.T if transpose else result
 
-@jit
+@jit([  "Tuple((float32[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((float64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex128[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)"
+])
 def fermioptrep_even(value,nambus,seqs,table,nbasis,dtype):
-    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int32),np.zeros(nbasis+1,dtype=np.int32)
-    eye,temp=long(1),np.zeros(len(seqs)+1,dtype=np.int64)
-    for i in xrange(nbasis):
+    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int64),np.zeros(nbasis+1,dtype=np.int64)
+    eye,temp=int(1),np.zeros(len(seqs)+1,dtype=np.int64)
+    for i in range(nbasis):
         indptr[i]=ndata
         temp[0]=i if len(table)==0 else table[i]
-        for j in xrange(len(seqs)):
+        for j in range(len(seqs)):
             if bool(temp[j]&eye<<seqs[j])==nambus[j]: break
             temp[j+1]=temp[j]|eye<<seqs[j] if nambus[j] else temp[j]&~(eye<<seqs[j])
         else:
             nsign=0
-            for j in xrange(len(seqs)):
-                for k in xrange(seqs[j]):
+            for j in range(len(seqs)):
+                for k in range(seqs[j]):
                     if temp[j]&eye<<k: nsign+=1
             indices[ndata]=sequence(temp[-1],table)
             data[ndata]=(-1)**nsign*value
@@ -75,20 +79,24 @@ def fermioptrep_even(value,nambus,seqs,table,nbasis,dtype):
     indptr[-1]=ndata
     return data,indices,indptr
 
-@jit
+@jit([  "Tuple((float32[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((float64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex128[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)"
+])
 def fermioptrep_odd(value,nambus,seqs,table1,table2,nbasis,dtype):
-    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int32),np.zeros(nbasis+1,dtype=np.int32)
-    eye,temp=long(1),np.zeros(len(seqs)+1,dtype=np.int64)
-    for i in xrange(nbasis):
+    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int64),np.zeros(nbasis+1,dtype=np.int64)
+    eye,temp=int(1),np.zeros(len(seqs)+1,dtype=np.int64)
+    for i in range(nbasis):
         indptr[i]=ndata
         temp[0]=i if len(table1)==0 else table1[i]
-        for j in xrange(len(seqs)):
+        for j in range(len(seqs)):
             if bool(temp[j]&eye<<seqs[j])==nambus[j]: break
             temp[j+1]=temp[j]|eye<<seqs[j] if nambus[j] else temp[j]&~(eye<<seqs[j])
         else:
             nsign=0
-            for j in xrange(len(seqs)):
-                for k in xrange(seqs[j]):
+            for j in range(len(seqs)):
+                for k in range(seqs[j]):
                     if temp[j]&eye<<k: nsign+=1
             indices[ndata]=sequence(temp[-1],table2)
             data[ndata]=(-1)**nsign*value
@@ -96,14 +104,18 @@ def fermioptrep_odd(value,nambus,seqs,table1,table2,nbasis,dtype):
     indptr[-1]=ndata
     return data,indices,indptr
 
-@jit
+@jit([  "Tuple((float32[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((float64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex128[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,pyobject)"
+])
 def boseoptrep_even(value,nambus,seqs,table,nbasis,dtype):
-    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int32),np.zeros(nbasis+1,dtype=np.int32)
-    eye,temp=long(1),np.zeros(len(seqs)+1,dtype=np.int64)
-    for i in xrange(nbasis):
+    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int64),np.zeros(nbasis+1,dtype=np.int64)
+    eye,temp=int(1),np.zeros(len(seqs)+1,dtype=np.int64)
+    for i in range(nbasis):
         indptr[i]=ndata
         temp[0]=i if len(table)==0 else table[i]
-        for j in xrange(len(seqs)):
+        for j in range(len(seqs)):
             if bool(temp[j]&eye<<seqs[j])==nambus[j]: break
             temp[j+1]=temp[j]|eye<<seqs[j] if nambus[j] else temp[j]&~(eye<<seqs[j])
         else:
@@ -113,14 +125,18 @@ def boseoptrep_even(value,nambus,seqs,table,nbasis,dtype):
     indptr[-1]=ndata
     return data,indices,indptr
 
-@jit
+@jit([  "Tuple((float32[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((float64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex64[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)",
+        "Tuple((complex128[:],int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,pyobject)"
+])
 def boseoptrep_odd(value,nambus,seqs,table1,table2,nbasis,dtype):
-    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int32),np.zeros(nbasis+1,dtype=np.int32)
-    eye,temp=long(1),np.zeros(len(seqs)+1,dtype=np.int64)
-    for i in xrange(nbasis):
+    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=dtype),np.zeros(nbasis,dtype=np.int64),np.zeros(nbasis+1,dtype=np.int64)
+    eye,temp=int(1),np.zeros(len(seqs)+1,dtype=np.int64)
+    for i in range(nbasis):
         indptr[i]=ndata
         temp[0]=i if len(table1)==0 else table1[i]
-        for j in xrange(len(seqs)):
+        for j in range(len(seqs)):
             if bool(temp[j]&eye<<seqs[j])==nambus[j]: break
             temp[j+1]=temp[j]|eye<<seqs[j] if nambus[j] else temp[j]&~(eye<<seqs[j])
         else:

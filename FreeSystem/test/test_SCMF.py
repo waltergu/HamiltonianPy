@@ -11,7 +11,7 @@ from unittest import TestCase,TestLoader,TestSuite
 
 class TsetSCMF(TestCase):
     def test_scmf(self):
-        print
+        print()
         U,t1,t2=3.13,-1.0,0.1
         lattice=Hexagon(name='H2')('1P-1P',2)
         config=IDFConfig(priority=DEFAULT_FERMIONIC_PRIORITY,pids=lattice.pids,map=lambda pid: Fock(atom=pid.site%2,norbital=1,nspin=2,nnambu=1))

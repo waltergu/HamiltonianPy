@@ -9,7 +9,7 @@ Exact diagonalization for spin systems, including:
 
 __all__=['SED']
 
-from ED import *
+from .ED import *
 from collections import OrderedDict
 import numpy as np
 import HamiltonianPy as HP
@@ -24,7 +24,7 @@ class SED(ED):
         The configuration of the quantum numbers.
     '''
 
-    def __init__(self,lattice,config,qnses=None,sectors=(None,),terms=(),dtype=np.complex128,**karg):
+    def __init__(self,lattice,config,qnses=None,sectors=None,terms=(),dtype=np.complex128,**karg):
         '''
         Constructor.
 
@@ -43,13 +43,13 @@ class SED(ED):
         dtype : np.float32, np.float64, np.complex64, np.complex128
             The data type of the matrix representation of the Hamiltonian.
         '''
-        if sectors!=(None,):
+        if sectors is not None:
             assert isinstance(qnses,HP.QNSConfig)
             assert config.priority==qnses.priority
         self.lattice=lattice
         self.config=config
         self.qnses=qnses
-        self.sectors=sectors
+        self.sectors=set(sectors) if sectors is not None else {None}
         self.terms=terms
         self.dtype=dtype
         self.sector=None
@@ -76,15 +76,15 @@ class SED(ED):
         '''
         if reset:
             table=self.generator.table
-            if self.sectors==(None,) or len(table)<=1:
+            if self.sectors=={None} or len(table)<=1:
                 self.generator.setmatrix(sector,HP.soptrep,table)
             else:
                 assert sector is not None
-                cut,qnses=len(table)/2,[self.qnses[index] for index in sorted(table,key=table.get)]
+                cut,qnses=len(table)//2,[self.qnses[index] for index in sorted(table,key=table.get)]
                 lqns,lpermutation=HP.QuantumNumbers.kron(qnses[:cut]).sorted(history=True)
                 rqns,rpermutation=HP.QuantumNumbers.kron(qnses[cut:]).sorted(history=True)
                 subslice=HP.QuantumNumbers.kron([lqns,rqns]).subslice(targets=(sector,))
-                rcs=(np.divide(subslice,len(rqns)),np.mod(subslice,len(rqns)),np.zeros(len(lqns)*len(rqns),dtype=np.int64))
-                rcs[2][subslice]=xrange(len(subslice))
+                rcs=(subslice//len(rqns),subslice%len(rqns),np.zeros(len(lqns)*len(rqns),dtype=np.int64))
+                rcs[2][subslice]=range(len(subslice))
                 self.generator.setmatrix(sector,HP.soptrep,table,cut=cut,permutations=(lpermutation,rpermutation),rcs=rcs)
         return self.generator.matrix(sector)

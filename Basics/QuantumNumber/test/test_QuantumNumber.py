@@ -67,19 +67,19 @@ class TestQuantumNumbers(TestCase):
         self.assertEqual(QuantumNumbers.fromordereddict(od2,protocol=QuantumNumbers.COUNTS),result)
 
     def test_time(self):
-        print
+        print()
         N=6
         stime=time()
         qns=QuantumNumbers.kron([SQNS(1.0)]*N).sorted()
         etime=time()
-        print 'Summation form 1 to %s: %ss.'%(N,etime-stime)
+        print('Summation form 1 to %s: %ss.'%(N,etime-stime))
         stime=time()
         QuantumNumbers.kron([qns,qns]).sorted(history=True)
         etime=time()
-        print 'Summation of %s and %s: %ss.'%(N,N,etime-stime)
+        print('Summation of %s and %s: %ss.'%(N,N,etime-stime))
 
     def test_decomposition(self):
-        qnses,signs,indices=[SQNS(0.5)]*4,(+1,-1,+1,-1),[(1,1,0,0),(1,1,1,1),(0,1,1,0),(1,0,0,1),(0,0,0,0),(0,0,1,1)]
+        qnses,signs,indices=[SQNS(0.5)]*4,(+1,-1,+1,-1),[(1,1,0,0),(1,0,0,1),(1,1,1,1),(0,0,0,0),(0,1,1,0),(0,0,1,1)]
         for component,index in zip(QuantumNumbers.decomposition(qnses,signs=signs,target=SQN(0.0),method='exhaustion'),indices):
             self.assertEqual(component,index)
         qnses,signs=[SQNS(0.5)]*40,None

@@ -14,6 +14,6 @@ MODULES     DESCRIPTION
 =======     ===============================================
 '''
 
-from MPS import *
-from Vidal import *
-from Misc import *
+from .MPS import *
+from .Vidal import *
+from .Misc import *

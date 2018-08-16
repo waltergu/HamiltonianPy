@@ -1,2 +1,2 @@
-from test_FED import *
-from test_SED import *
+from .test_FED import *
+from .test_SED import *

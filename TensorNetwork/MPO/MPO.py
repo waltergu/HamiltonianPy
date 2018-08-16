@@ -58,7 +58,7 @@ class Opt(Arithmetic):
         '''
         The matrix of the single site operator.
         '''
-        return np.sum(coeff*matrix for coeff,matrix in self.content.itervalues())
+        return np.sum(coeff*matrix for coeff,matrix in self.content.values())
 
     @property
     def tensor(self):
@@ -116,14 +116,14 @@ class Opt(Arithmetic):
         '''
         Convert an instance to string.
         '''
-        return ''.join('%s%s%s'%('' if i==0 else '+' if coeff.real>0 else '-','' if coeff==1 else decimaltostr(coeff),tag) for i,(tag,(coeff,matrix)) in enumerate(self.content.iteritems()))
+        return ''.join('%s%s%s'%('' if i==0 else '+' if coeff.real>0 else '-','' if coeff==1 else decimaltostr(coeff),tag) for i,(tag,(coeff,matrix)) in enumerate(self.content.items()))
 
     def __iadd__(self,other):
         '''
         Overloaded self addition(+) operator, which supports the self addition by an instance of Opt.
         '''
         assert other.site==self.site
-        for tag,(coeff,matrix) in other.content.iteritems():
+        for tag,(coeff,matrix) in other.content.items():
             if tag in self.content:
                 self.content[tag][0]+=coeff
                 if norm(self.content[tag][0])<RZERO: self.content.pop(tag)
@@ -149,9 +149,9 @@ class Opt(Arithmetic):
         '''
         if isinstance(other,Opt):
             content={}
-            for tag1,(coeff1,matrix1) in self.content.iteritems():
+            for tag1,(coeff1,matrix1) in self.content.items():
                 if tag1!='0' and norm(coeff1)>RZERO:
-                    for tag2,(coeff2,matrix2) in self.content.iteritems():
+                    for tag2,(coeff2,matrix2) in self.content.items():
                         if tag2!='0' and norm (coeff2)>RZERO:
                             tag=tag2 if tag1=='i' else tag1 if tag2=='i' else '%s*%s'%(tag1,tag2)
                             if tag in content:
@@ -163,7 +163,7 @@ class Opt(Arithmetic):
             if norm(other)<RZERO:
                 self.content.clear()
             else:
-                for data in self.content.itervalues(): data[0]*=other
+                for data in self.content.values(): data[0]*=other
         return self
 
     def __mul__(self,other):
@@ -172,9 +172,9 @@ class Opt(Arithmetic):
         '''
         content={}
         if isinstance(other,Opt):
-            for tag1,(coeff1,matrix1) in self.content.iteritems():
+            for tag1,(coeff1,matrix1) in self.content.items():
                 if tag1!='0' and norm(coeff1)>RZERO:
-                    for tag2,(coeff2,matrix2) in self.content.iteritems():
+                    for tag2,(coeff2,matrix2) in self.content.items():
                         if tag2!='0' and norm (coeff2)>RZERO:
                             tag=tag2 if tag1=='i' else tag1 if tag2=='i' else '%s*%s'%(tag1,tag2)
                             if tag in content:
@@ -183,7 +183,7 @@ class Opt(Arithmetic):
                                 content[tag]=[coeff1*coeff2,matrix1.dot(matrix2)]
         else:
             if norm(other)>=RZERO:
-                for tag,(coeff,matrix) in self.content.iteritems(): content[tag]=[coeff*other,matrix]
+                for tag,(coeff,matrix) in self.content.items(): content[tag]=[coeff*other,matrix]
         return Opt(self.site,content if len(content)>0 else {'0':[1.0,np.zeros((self.site.dim,self.site.dim))]})
 
 class OptStr(Arithmetic,list):
@@ -230,7 +230,7 @@ class OptStr(Arithmetic,list):
             The corresponding OptStr.
         '''
         assert isinstance(operator,SOperator) or isinstance(operator,FockOperator)
-        layer=degfres.layers[layer] if type(layer) in (int,long) else layer
+        layer=degfres.layers[layer] if type(layer) is int else layer
         table,sites=degfres.table(degfres.layers[-1]),degfres.labels('S',degfres.layers[-1])
         operator=operator if isinstance(operator,SOperator) else JWBosonization(operator,table)
         opts=[]
@@ -350,7 +350,7 @@ class OptStr(Arithmetic,list):
         table,sites,bonds=degfres.table(layer),degfres.labels('S',layer),degfres.labels('O',layer)
         poses,matrices=set(table[opt.site.identifier] for opt in self),[opt.matrix for opt in self]
         ms,count=[],0
-        for pos in xrange(len(sites)):
+        for pos in range(len(sites)):
             ndegfre=sites[pos].dim
             if issubclass(type,QuantumNumbers):
                 L=Label(bonds[pos],qns=QuantumNumbers.mono(type.zero()) if pos==0 else ms[-1].labels[MPO.R].qns,flow=None)
@@ -388,7 +388,7 @@ class OptStr(Arithmetic,list):
         count,poses=0,[table[opt.site.identifier] for opt in self]
         for start,stop in zip(poses[:-1],poses[1:]):
             count+=1
-            for pos in xrange(start+1,stop):
+            for pos in range(start+1,stop):
                 self.insert(count,Opt.identity(sites[pos]))
                 count+=1
 
@@ -408,7 +408,7 @@ class OptStr(Arithmetic,list):
         OptStr
             The new optstr.
         '''
-        new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
+        new=layer if type(layer) is int else degfres.layers.index(layer)
         old=degfres.level(self[0].site.identifier)-1
         assert 0<=new<len(degfres.layers) and old>=new
         if old==new:
@@ -512,11 +512,11 @@ class OptMPO(list):
         np.set_printoptions(formatter={'all': lambda element: element})
         for m in self:
             M,lengths=np.zeros(m.shape,dtype=object),np.zeros(m.shape,dtype=np.int64)
-            for i,j in it.product(xrange(m.shape[0]),xrange(m.shape[1])):
+            for i,j in it.product(range(m.shape[0]),range(m.shape[1])):
                 M[i,j]=repr(m[i,j])
                 lengths[i,j]=len(M[i,j])
             lengths=lengths.max(axis=0)
-            for i,j in it.product(xrange(m.shape[0]),xrange(m.shape[1])):
+            for i,j in it.product(range(m.shape[0]),range(m.shape[1])):
                 M[i,j]=M[i,j].center(lengths[j])
             result.append(str(M))
         np.set_printoptions()
@@ -547,12 +547,12 @@ class OptMPO(list):
             D=self.sites[pos].replace(qns=dim,flow=0)
             R=Label(self.bonds[pos+1],qns=m.shape[1],flow=0)
             Ms.append(DTensor(np.zeros((m.shape[0],dim,dim,m.shape[1]),dtype=self.dtype),labels=[L,U,D,R]))
-            for i,j in it.product(xrange(m.shape[0]),xrange(m.shape[1])):
+            for i,j in it.product(range(m.shape[0]),range(m.shape[1])):
                 Ms[-1].data[i,:,:,j]=m[i,j].matrix
         result=MPO(Ms)
         result.compress(**karg)
         if type is not None:
-            for pos in xrange(len(result)):
+            for pos in range(len(result)):
                 lqns,sqns=QuantumNumbers.mono(type.zero()) if pos==0 else result[pos-1].labels[MPO.R].qns,self.sites[pos].qns
                 result[pos].qngenerate(flow=-1,axes=[MPO.L,MPO.U,MPO.D],qnses=[lqns,sqns,sqns],flows=[1,1,-1])
         if ttype=='S':
@@ -680,13 +680,17 @@ class MPO(Arithmetic,list):
         '''
         return OptMPO([OptStr.fromoperator(operator,degfres,layer) for operator in operators],degfres).tompo(ttype=ttype)
 
-    def __getslice__(self,i,j):
+    def __getitem__(self,k):
         '''
         Operator "[]" for slicing.
         '''
-        result=list.__new__(MPO)
-        result.extend(self[pos] for pos in xrange(i,min(j,len(self))))
-        return result
+        if isinstance(k,slice):
+            assert k.step is None or k.step==1
+            result=list.__new__(type(self))
+            result.extend(list.__getitem__(self,k))
+            return result
+        else:
+            return super(MPO,self).__getitem__(k)
 
     def __str__(self):
         '''
@@ -909,7 +913,7 @@ class MPO(Arithmetic,list):
         options=options or {}
         if method=='svd':
             tol=options.get('tol',5*RZERO)
-            for _ in xrange(nsweep):
+            for _ in range(nsweep):
                 for i,m in enumerate(self):
                     if i<self.nsite-1:
                         L,U,D,R=m.labels
@@ -931,7 +935,7 @@ class MPO(Arithmetic,list):
         else:
             assert all(isinstance(m,DTensor) for m in self)
             zero,tol=options.get('zero',10**-8),options.get('tol',10**-6)
-            for _ in xrange(nsweep):
+            for _ in range(nsweep):
                 for i,m in enumerate(reversed(self)):
                     if i<self.nsite-1:
                         L,U,D,R=m.labels
@@ -966,7 +970,7 @@ class MPO(Arithmetic,list):
             The predicted mpo.
         '''
         assert self.nsite==len(sites)==len(bonds)-1 and self.nsite%2==0 
-        assert self[0].labels[MPO.L].qns==self[self.nsite/2].labels[MPO.L].qns==self[-1].labels[MPO.R].qns
+        assert self[0].labels[MPO.L].qns==self[self.nsite//2].labels[MPO.L].qns==self[-1].labels[MPO.R].qns
         ms=[]
         for m,L,S,R in zip(self,bonds[:-1],sites,bonds[1:]):
             L=m.labels[MPO.L].replace(identifier=L.identifier if isinstance(L,Label) else L)
@@ -993,7 +997,7 @@ class MPO(Arithmetic,list):
             The mpo after growth.
         '''
         assert self.nsite>0 and self.nsite%2==0 and len(sites)+1==len(bonds)
-        ob,nb=self.nsite/2+1,(len(bonds)+1)/2
+        ob,nb=self.nsite//2+1,(len(bonds)+1)//2
         cms=self[2*ob-nb-1:nb-1].impoprediction(sites[ob-1:-ob+1],bonds[ob-1:-ob+1])
         lms=self[:ob-1]
         rms=self[ob-1:]
@@ -1022,7 +1026,7 @@ class MPO(Arithmetic,list):
             The new mpo.
         '''
         assert all(isinstance(m,DTensor) for m in self)
-        new=layer if type(layer) in (int,long) else degfres.layers.index(layer)
+        new=layer if type(layer) is int else degfres.layers.index(layer)
         old=degfres.level(next(iter(self)).labels[MPO.U].identifier)-1
         assert 0<=new<len(degfres.layers)
         if new==old:

@@ -62,7 +62,7 @@ class Pieces(object):
         '''
         result=Pieces()
         rnum,bnum=self.rcoordnum,self.bathnum
-        for i in xrange(np.product(ts)):
+        for i in range(np.product(ts)):
             for rcoords,baths in zip(self.rcoords,self.baths):
                 if rcoords is not None: result.rcoords.append(rcoords+i*rnum)
                 if baths is not None: result.baths.append(baths+i*bnum)
@@ -154,10 +154,10 @@ class Cluster(object):
         assert len(ts)==len(self.vectors)
         result=Cluster.__new__(self.__class__)
         result.name=self.name
-        result.rcoords=np.asarray(tiling(cluster=self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(t) for t in ts])))
+        result.rcoords=np.asarray(tiling(cluster=self.rcoords,vectors=self.vectors,translations=it.product(*[range(t) for t in ts])))
         result.vectors=np.asarray([self.vectors[i]*t for i,t in enumerate(ts)])
         result.tiles=['%s%s'%('' if self.tiles is None else self.tiles[i]+'^',str(t)) for t in ts]
-        result.baths=None if self.baths is None else np.asarray(tiling(cluster=self.baths,vectors=self.vectors,translations=it.product(*[xrange(t) for t in ts])))
+        result.baths=None if self.baths is None else np.asarray(tiling(cluster=self.baths,vectors=self.vectors,translations=it.product(*[range(t) for t in ts])))
         result.pieces=None if self.pieces is None else self.pieces.tiling(ts)
         return result
 
@@ -184,8 +184,8 @@ class Cluster(object):
         if cluster.baths is None:
             return Lattice(
                     name=           '%s(%s)'%(self.name,'-'.join('%s%s%s'%(tile,t,bc.upper()) for tile,t,bc in zip(tiles,ts,bcs))),
-                    pids=           [PID(cluster.name,i) for i in xrange(len(cluster.rcoords))] if cluster.pieces is None else
-                                    [PID('%s-%s'%(cluster.name,i),j) for i in xrange(len(cluster.pieces)) for j in xrange(len(cluster.pieces.rcoords[i]))],
+                    pids=           [PID(cluster.name,i) for i in range(len(cluster.rcoords))] if cluster.pieces is None else
+                                    [PID('%s-%s'%(cluster.name,i),j) for i in range(len(cluster.pieces)) for j in range(len(cluster.pieces.rcoords[i]))],
                     rcoords=        cluster.rcoords,
                     vectors=        [cluster.vectors[i] for i,bc in enumerate(bcs) if bc.lower()=='p'],
                     neighbours=     neighbours
@@ -193,16 +193,16 @@ class Cluster(object):
         else:
             lattice=Lattice(
                     name=           '%s-L'%self.name,
-                    pids=           [PID('%s-L'%cluster.name,i) for i in xrange(len(cluster.rcoords))] if cluster.pieces is None else
-                                    [PID('%s-L%s'%(cluster.name,i),j) for i in xrange(len(cluster.pieces)) for j in xrange(len(cluster.pieces.rcoords[i]))],
+                    pids=           [PID('%s-L'%cluster.name,i) for i in range(len(cluster.rcoords))] if cluster.pieces is None else
+                                    [PID('%s-L%s'%(cluster.name,i),j) for i in range(len(cluster.pieces)) for j in range(len(cluster.pieces.rcoords[i]))],
                     rcoords=        cluster.rcoords,
                     vectors=        [cluster.vectors[i] for i,bc in enumerate(bcs) if bc.lower()=='p'],
                     neighbours=     neighbours
                     )
             bath=Lattice(
                     name=           '%s-BATH'%self.name,
-                    pids=           [PID('%s-BATH'%cluster.name,i) for i in xrange(len(cluster.baths))] if cluster.pieces is None else
-                                    [PID('%s-BATH%s'%(cluster.name,i),j) for i in xrange(len(cluster.pieces)) for j in xrange(len(cluster.pieces.baths[i]))],
+                    pids=           [PID('%s-BATH'%cluster.name,i) for i in range(len(cluster.baths))] if cluster.pieces is None else
+                                    [PID('%s-BATH%s'%(cluster.name,i),j) for i in range(len(cluster.pieces)) for j in range(len(cluster.pieces.baths[i]))],
                     rcoords=        cluster.baths,
                     neighbours=     0
                     )
@@ -234,20 +234,20 @@ class Cluster(object):
         if self.baths is None:
             return Lattice(
                     name=           '%s%s-%s'%(self.name,'' if self.tiles is None else '(%s)'%('-'.join(str(tile) for tile in self.tiles)),index),
-                    pids=           [PID('%s-%s'%(self.name,index),i) for i in xrange(len(self.pieces.rcoords[index]))],
+                    pids=           [PID('%s-%s'%(self.name,index),i) for i in range(len(self.pieces.rcoords[index]))],
                     rcoords=        self.rcoords[self.pieces.rcoords[index]],
                     neighbours=     neighbours
                     )
         else:
             lattice=Lattice(
                     name=           '%s%s-L%s'%(self.name,'' if self.tiles is None else '(%s)'%('-'.join(str(tile) for tile in self.tiles)),index),
-                    pids=           [PID('%s-L%s'%(self.name,index),i) for i in xrange(len(self.pieces.rcoords[index]))],
+                    pids=           [PID('%s-L%s'%(self.name,index),i) for i in range(len(self.pieces.rcoords[index]))],
                     rcoords=        self.rcoords[self.pieces.rcoords[index]],
                     neighbours=     neighbours
                     )
             bath=Lattice(
                     name=           '%s%s-BATH%s'%(self.name,'' if self.tiles is None else '(%s)'%('-'.join(str(tile) for tile in self.tiles)),index),
-                    pids=           [PID('%s-BATH%s'%(self.name,index),i) for i in xrange(len(self.pieces.baths[index]))],
+                    pids=           [PID('%s-BATH%s'%(self.name,index),i) for i in range(len(self.pieces.baths[index]))],
                     rcoords=        self.baths[self.pieces.baths[index]],
                     neighbours= 0
                     )
@@ -285,7 +285,7 @@ class Cluster(object):
         tiles=['']*len(self.vectors) if self.tiles is None else ['%s^'%tile for tile in self.tiles]
         return Cylinder(
                     name=           '%s(%s)'%(self.name,'-'.join('%s%s^%s'%(tile,t,('+' if i==dt else '')+bc.upper()) for i,(tile,t,bc) in enumerate(zip(tiles,ts,bcs)))),
-                    block=          tiling(self.rcoords,vectors=self.vectors,translations=it.product(*[xrange(int(t)) for t in ts])),
+                    block=          tiling(self.rcoords,vectors=self.vectors,translations=it.product(*[range(int(t)) for t in ts])),
                     translation=    self.vectors[dt]*int(ts[dt]),
                     vectors=        [self.vectors[i]*int(t) for i,(t,bc) in enumerate(zip(ts,bcs)) if bc.upper()=='P'],
                     neighbours=     nneighbour
@@ -351,12 +351,12 @@ class Line(Cluster):
             rcoords=[[0.0,0.0]]
             vectors=[[1.0,0.0]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='L2':
             rcoords=[[0.0,0.0],[1.0,0.0]]
             vectors=[[2.0,0.0]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         super(Line,self).__init__(name,rcoords,vectors,baths=baths,pieces=pieces)
 
 class Square(Cluster):
@@ -383,50 +383,50 @@ class Square(Cluster):
             rcoords=[[0.0,0.0]]
             vectors=[[1.0,0.0],[0.0,1.0]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='S2x':
             rcoords=[[0.0,0.0],[1.0,0.0]]
             vectors=[[2.0,0.0],[0.0,1.0]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='S2y':
             rcoords=[[0.0,0.0],[0.0,1.0]]
             vectors=[[1.0,0.0],[0.0,2.0]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='S2xxy':
             rcoords=[[0.0,0.0],[1.0,0.0]]
             vectors=[[1.0,1.0],[1.0,-1.0]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='S2yxy':
             rcoords=[[0.0,0.0],[0.0,1.0]]
             vectors=[[1.0,1.0],[1.0,-1.0]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='S4' or name=='S4B4' or name=='S4B8':
             rcoords=[[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0]]
             vectors=[[2.0,0.0],[0.0,2.0]]
             if name=='S4':
                 baths=None
-                pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+                pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
             elif name=='S4B4':
                 baths=[[-np.sqrt(2)*3/20, -np.sqrt(2)*3/20],[np.sqrt(2)*3/20+1, -np.sqrt(2)*3/20],
                        [-np.sqrt(2)*3/20,np.sqrt(2)*3/20+1],[np.sqrt(2)*3/20+1,np.sqrt(2)*3/20+1]
                        ]
-                pieces=Pieces((range(len(rcoords)),range(len(baths)))) if pieces else None
+                pieces=Pieces((list(range(len(rcoords))),list(range(len(baths))))) if pieces else None
             else:
                 baths=[[-0.3,0.0],[0.0,-0.3],[1.0,-0.3],[ 1.3,0.0],
                        [ 1.3,1.0],[1.0, 1.3],[0.0, 1.3],[-0.3,1.0]
                        ]
-                pieces=Pieces((range(len(rcoords)),range(len(baths)))) if pieces else None
+                pieces=Pieces((list(range(len(rcoords))),list(range(len(baths))))) if pieces else None
         elif name=='S8':
             rcoords=[[0.0,0.0],[1.0,0.0],[2.0,0.0],[1.0,-1.0],
                      [0.0,1.0],[1.0,1.0],[2.0,1.0],[1.0, 2.0]
                      ]
             vectors=[[2.0,2.0],[2.0,-2.0]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='S10':
             rcoords=[[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0],
                      [0.0,2.0],[2.0,1.0],[1.0,2.0],[2.0,2.0],
@@ -434,7 +434,7 @@ class Square(Cluster):
                      ]
             vectors=[[3.0,1.0],[-1.0,3.0]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='S12':
             rcoords=[[ 0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0],
                      [-1.0,1.0],[2.0,1.0],[0.0,2.0],[1.0,2.0],
@@ -442,7 +442,7 @@ class Square(Cluster):
                      ]
             vectors=[[2.0,3.0],[-2.0,3.0]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='S13':
             rcoords=[[ 0.0, 0.0],[1.0,0.0],[-1.0,0.0],[0.0, 1.0],
                      [ 0.0,-1.0],[1.0,1.0],[-1.0,1.0],[1.0,-1.0],
@@ -451,7 +451,7 @@ class Square(Cluster):
                      ]
             vectors=[[3.0,2.0],[-2.0,3.0]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         super(Square,self).__init__(name,rcoords,vectors,baths=baths,pieces=pieces)
 
 class Hexagon(Cluster):
@@ -479,15 +479,15 @@ class Hexagon(Cluster):
             vectors=[[1.0,0.0],[0.5,np.sqrt(3)/2]]
             if name=='H2':
                 baths=None
-                pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+                pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
             else:
                 baths=[[-0.15,-np.sqrt(3)/20],[0.15,-np.sqrt(3)/20],[0.15,np.sqrt(3)*23/60],[-0.15,np.sqrt(3)*23/60]]
-                pieces=Pieces((range(len(rcoords)),range(len(baths)))) if pieces else None
+                pieces=Pieces((list(range(len(rcoords))),list(range(len(baths))))) if pieces else None
         elif name=='H4':
             rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3],[0.5,np.sqrt(3)/2],[0.5,-np.sqrt(3)/6]]
             vectors=[[1.0,0.0],[0.0,np.sqrt(3)]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='H6' or name=='H6B6':
             rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3],[0.5,np.sqrt(3)/2],[0.5,-np.sqrt(3)/6],
                      [1.0,0.0],[1.0,np.sqrt(3)/3]
@@ -495,26 +495,26 @@ class Hexagon(Cluster):
             vectors=[[1.5,np.sqrt(3)/2],[1.5,-np.sqrt(3)/2]]
             if name=='H6':
                 baths=None
-                pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+                pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
             else:
                 baths=[[-0.15,-np.sqrt(3)/20],[-0.15,np.sqrt(3)*23/60],[0.5,np.sqrt(3)*3/5],[0.5,-np.sqrt(3)*4/15],
                        [ 1.15,-np.sqrt(3)/20],[ 1.15,np.sqrt(3)*23/60]
                        ]
-                pieces=Pieces((range(len(rcoords)),range(len(baths)))) if pieces else None
+                pieces=Pieces((list(range(len(rcoords))),list(range(len(baths))))) if pieces else None
         elif name=='H8P':
             rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3],[0.5, np.sqrt(3)/2],[0.5, -np.sqrt(3)/6],
                      [1.0,0.0],[1.0,np.sqrt(3)/3],[0.5,-np.sqrt(3)/2],[0.5,np.sqrt(3)*5/6]
                      ]
             vectors=[[1.0,np.sqrt(3)],[1.5,-np.sqrt(3)/2]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='H8O':
             rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3],[0.5,np.sqrt(3)/2],[0.5,-np.sqrt(3)/6],
                      [1.0,0.0],[1.0,np.sqrt(3)/3],[1.5,np.sqrt(3)/2],[1.5,-np.sqrt(3)/6]
                      ]
             vectors=[[2.0,0.0],[0.0,np.sqrt(3)]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='H10':
             rcoords=[[0.0,0.0],[0.0,np.sqrt(3)/3],[0.5,np.sqrt(3)/2],[0.5,-np.sqrt(3)/6],
                      [1.0,0.0],[1.0,np.sqrt(3)/3],[1.5,np.sqrt(3)/2],[1.5,-np.sqrt(3)/6],
@@ -522,7 +522,7 @@ class Hexagon(Cluster):
                      ]
             vectors=[[2.5,np.sqrt(3)/2],[0.0,np.sqrt(3)]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='H24':
             rcoords=[[0.0,          0.0],[0.0,   np.sqrt(3)/3],[0.5, np.sqrt(3)/2],[0.5,  -np.sqrt(3)/6],
                      [1.0,          0.0],[1.0,   np.sqrt(3)/3],[1.5, np.sqrt(3)/2],[1.5,  -np.sqrt(3)/6],
@@ -533,7 +533,7 @@ class Hexagon(Cluster):
                      ]
             vectors=[[3.0,np.sqrt(3)],[3.0,-np.sqrt(3)]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='H4C' or name=='H4CB6C':
             rcoords=[[0.5,-np.sqrt(3)/6],[0.0,         0.0],[0.5,-np.sqrt(3)/2],[1.0,           0.0],
                      [0.5, np.sqrt(3)/2],[0.0,np.sqrt(3)/3],[1.0, np.sqrt(3)/3],[0.5,np.sqrt(3)*5/6]
@@ -573,12 +573,12 @@ class Triangle(Cluster):
             rcoords=[[0.0,0.0]]
             vectors=[[1.0,0.0],[0.5,np.sqrt(3)/2]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='T3':
             rcoords=[[0.0,0.0],[1.0,0.0],[0.5,np.sqrt(3)/2]]
             vectors=[[1.5,np.sqrt(3)/2],[1.5,-np.sqrt(3)/2]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='T12':
             rcoords=[[0.0,          0.0],[1.0,          0.0],[2.0,          0.0],[3.0,         0.0],
                      [0.5,-np.sqrt(3)/2],[1.5,-np.sqrt(3)/2],[2.5,-np.sqrt(3)/2],[1.0, -np.sqrt(3)],
@@ -586,7 +586,7 @@ class Triangle(Cluster):
                      ]
             vectors=[[0.0,2*np.sqrt(3)],[3.0,np.sqrt(3)]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         super(Triangle,self).__init__(name,rcoords,vectors,baths=baths,pieces=pieces)
 
 class Kagome(Cluster):
@@ -612,7 +612,7 @@ class Kagome(Cluster):
             rcoords=[[0.0,0.0],[0.5,0.0],[0.25,np.sqrt(3.0)/4]]
             vectors=[[1.0,0.0],[0.5,np.sqrt(3.0)/2]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='K9':
             rcoords=[[ 0.0,             0.0],[ 0.5,           0.0],[0.25,np.sqrt(3.0)/4],[1.0,           0.0],
                      [ 1.5,             0.0],[1.25,np.sqrt(3.0)/4],[ 0.5,np.sqrt(3.0)/2],[1.0,np.sqrt(3.0)/2],
@@ -620,7 +620,7 @@ class Kagome(Cluster):
                      ]
             vectors=[[1.5,np.sqrt(3.0)/2],[1.5,-np.sqrt(3.0)/2]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         elif name=='K12':
             rcoords=[[ 0.0,             0.0],[ 0.5,           0.0],[0.25,np.sqrt(3.0)/4],[ 1.0,            0.0],
                      [ 1.5,             0.0],[1.25,np.sqrt(3.0)/4],[ 0.5,np.sqrt(3.0)/2],[ 1.0, np.sqrt(3.0)/2],
@@ -628,5 +628,5 @@ class Kagome(Cluster):
                      ]
             vectors=[[2.0,0.0],[1.0,np.sqrt(3.0)]]
             baths=None
-            pieces=Pieces((range(len(rcoords)),None)) if pieces else None
+            pieces=Pieces((list(range(len(rcoords))),None)) if pieces else None
         super(Kagome,self).__init__(name,rcoords,vectors,baths=baths,pieces=pieces)

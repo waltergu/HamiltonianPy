@@ -9,7 +9,7 @@ This modulate defines the way to describe an operator and a set of operators, in
 
 __all__=['Operator','Operators']
 
-from Utilities import RZERO,Arithmetic
+from .Utilities import RZERO,Arithmetic
 from copy import copy
 from numpy.linalg import norm
 
@@ -160,7 +160,7 @@ class Operators(Arithmetic,dict):
         '''
         Overloaded self-multiplication(*=) operator, which supports the self multiplication by a scalar.
         '''
-        for obj in self.itervalues():
+        for obj in self.values():
             obj*=other
         return self
 
@@ -169,7 +169,7 @@ class Operators(Arithmetic,dict):
         Overloaded left multiplication(*) operator, which supports the left multiplication by a scalar.
         '''
         result=Operators()
-        for id,obj in self.iteritems():
+        for id,obj in self.items():
             result[id]=obj*other
         return result
 
@@ -198,4 +198,8 @@ class Operators(Arithmetic,dict):
             assert norm(other)==0
         return self
 
-    __iter__=dict.itervalues
+    def __iter__(self):
+        '''
+        Iteration.
+        '''
+        return iter(self.values())
