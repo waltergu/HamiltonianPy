@@ -9,7 +9,7 @@ import numpy as np
 import HamiltonianPy.ED as ED
 import HamiltonianPy.VCA as VCA
 from HamiltonianPy import *
-from config import *
+from .config import *
 
 __all__=['vcaconstruct']
 
@@ -41,7 +41,7 @@ import numpy as np
 import HamiltonianPy.ED as ED
 import HamiltonianPy.VCA as VCA
 from HamiltonianPy import *
-from config import *
+from .config import *
 
 __all__=['vcacctconstruct']
 

@@ -8,7 +8,7 @@ sed_template="""\
 import numpy as np
 import HamiltonianPy.ED as ED
 from HamiltonianPy import *
-from config import *
+from .config import *
 
 __all__=['edconstruct']
 
@@ -37,7 +37,7 @@ fed_template="""\
 import numpy as np
 import HamiltonianPy.ED as ED
 from HamiltonianPy import *
-from config import *
+from .config import *
 
 __all__=['edconstruct']
 

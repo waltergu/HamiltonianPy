@@ -137,7 +137,7 @@ def init(directory,project,authors,email,readme,license,gitignore):
     with open('%s/config.py'%sdir,'w') as fout:
         fout.write(Template.config())
     with open('%s/__init__.py'%sdir,'w') as fout:
-        fout.write('from config import *\n')
+        fout.write('from .config import *\n')
 
 def add(engine,**kargs):
     '''
@@ -156,7 +156,7 @@ def add(engine,**kargs):
         with open('source/__init__.py') as fin:
             content=set(fin.readlines())
         with open('source/__init__.py','a+') as fout:
-            line='from %s import *\n'%engine
+            line='from .%s import *\n'%engine
             if line not in content:
                 fout.write(line)
     else:

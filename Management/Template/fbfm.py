@@ -8,7 +8,7 @@ fbfm_template="""\
 import numpy as np
 import HamiltonianPy.FBFM as FB
 from HamiltonianPy import *
-from config import *
+from .config import *
 
 __all__=['fbfmconstruct']
 

@@ -9,20 +9,19 @@ import numpy as np
 import HamiltonianPy.DMRG as DMRG
 from HamiltonianPy import *
 from HamiltonianPy.TensorNetwork import *
-from config import *
+from .config import *
 
 __all__=['fdmrgconstruct']
 
 def fdmrgconstruct(name,parameters,lattice,terms,target,niter=None,{argumentstatistics}boundary=None,**karg):
-    priority,layers,mask=DEGFRE_{system}_PRIORITY,DEGFRE_{system}_LAYERS,[{mask}]
-    config=IDFConfig(priority=priority,map=idfmap)
-    degfres=DegFreTree(priority=priority,layers=layers,map=qnsmap)
+    config=IDFConfig(priority=DEFAULT_{system}_PRIORITY,map=idfmap)
+    degfres=DegFreTree(layers=DEGFRE_{system}_LAYERS,map=qnsmap)
     if isinstance(lattice,Cylinder):
         tsg=DMRG.TSG(name='GROWTH',target=target,maxiter=niter,nmax=100,plot=False,run=DMRG.fDMRGTSG)
-        tss=DMRG.TSS(name='SWEEP',target=target(niter-1),nsite=DMRG.NS(config,degfres,lattice,mask)*2*niter,nmaxs=[100,100],run=DMRG.fDMRGTSS)
+        tss=DMRG.TSS(name='SWEEP',target=target(niter-1),nsite=DMRG.NS(config,degfres,lattice,[{mask}])*2*niter,nmaxs=[100,100],run=DMRG.fDMRGTSS)
     else:
         tsg=None
-        tss=DMRG.TSS(name='SWEEP',target=target,nsite=DMRG.NS(config,degfres,lattice,mask),nmaxs=[100,100],run=DMRG.fDMRGTSS)
+        tss=DMRG.TSS(name='SWEEP',target=target,nsite=DMRG.NS(config,degfres,lattice,[{mask}]),nmaxs=[100,100],run=DMRG.fDMRGTSS)
     dmrg=DMRG.fDMRG(
         dlog=       'log',
         din=        'data',
@@ -36,7 +35,7 @@ def fdmrgconstruct(name,parameters,lattice,terms,target,niter=None,{argumentstat
         config=     config,
         degfres=    degfres,
         terms=      [term({termstatistics}**parameters) for term in terms],
-        mask=       mask,
+        mask=       [{mask}],
         boundary=   boundary,
         ttype=      ttype,
         dtype=      np.complex128
@@ -49,12 +48,11 @@ import numpy as np
 import HamiltonianPy.DMRG as DMRG
 from HamiltonianPy import *
 from HamiltonianPy.TensorNetwork import *
-from config import *
+from .config import *
 
 __all__=['idmrgconstruct']
 
 def idmrgconstruct(name,parameters,lattice,terms,target,{argumentstatistics}boundary=None,**karg):
-    priority,layers,mask=DEGFRE_{system}_PRIORITY,DEGFRE_{system}_LAYERS,[{mask}]
     dmrg=DMRG.iDMRG(
         dlog=       'log',
         din=        'data',
@@ -64,10 +62,10 @@ def idmrgconstruct(name,parameters,lattice,terms,target,{argumentstatistics}boun
         parameters= parameters,
         map=        parametermap,
         lattice=    lattice,
-        config=     IDFConfig(priority=priority,map=idfmap),
-        degfres=    DegFreTree(priority=priority,layers=layers,map=qnsmap),
+        config=     IDFConfig(priority=DEFAULT_{system}_PRIORITY,map=idfmap),
+        degfres=    DegFreTree(layers=DEGFRE_{system}_LAYERS,map=qnsmap),
         terms=      [term({termstatistics}**parameters) for term in terms],
-        mask=       mask,
+        mask=       [{mask}],
         boundary=   boundary,
         ttype=      ttype,
         dtype=      np.complex128

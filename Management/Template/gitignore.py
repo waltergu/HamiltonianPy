@@ -6,6 +6,7 @@ __all__=['gitignore']
 
 gitignore_template="""\
 # python
+__pycache__/
 *.py[cod]
 build/
 data/

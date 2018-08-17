@@ -8,7 +8,7 @@ tba_template="""\
 import numpy as np
 import HamiltonianPy.FreeSystem as TBA
 from HamiltonianPy import *
-from config import *
+from .config import *
 
 __all__=['tbaconstruct']
 
