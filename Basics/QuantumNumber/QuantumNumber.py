@@ -591,7 +591,7 @@ class QuantumNumbers(Arithmetic):
         assert isinstance(other,int)
         return QuantumNumbers.kron([self]*other,signs=[1]*other)
 
-    def iteritems(self,protocol=INDPTR):
+    def items(self,protocol=INDPTR):
         '''
         An iteration over the (qn,slice) or (qn,count) pairs.
 

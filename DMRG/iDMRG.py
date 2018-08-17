@@ -4,11 +4,11 @@ Infinite density matrix renormalization group
 =============================================
 
 iDMRG, including:
-    * classes: iDMRG, QP
-    * function: iDMRGTSG, iDMRGQP, iDMRGGSE
+    * classes: iDMRG
+    * function: iDMRGTSG, iDMRGQP
 '''
 
-__all__=['iDMRG','iDMRGTSG','iDMRGGSE','QP','iDMRGQP']
+__all__=['iDMRG','iDMRGTSG','iDMRGQP']
 
 from .DMRG import *
 import time
@@ -67,9 +67,14 @@ class iDMRG(DMRG):
             if self.niter==0:
                 self.cache['shiftedsites']=[]
             else:
-                nsite,nspb=self.block.nsite,self.nspb
-                sites=self.degfres.labels('S')[nsite//2-nspb:nsite//2+nspb]
+                sites=self.degfres.labels('S')
+                nsite,nspb=len(sites),self.nspb
+                sites=sites[nsite//2-min(2,self.niter)*nspb:nsite//2+min(2,self.niter)*nspb]
                 if self.block.ttype=='S': sites=[site.replace(qns=site.qns.sorted()) for site in sites]
+                if self.niter>1:
+                    for i,site in enumerate(it.chain(sites[:nspb],sites[-nspb:])):
+                        self.cache['shiftedsites'][-nspb*2+i][0].site=site
+                    sites=sites[nspb:3*nspb]
                 self.cache['shiftedsites'].extend(OptStr([Opt.identity(site,self.dtype)*(-self.block.info['Esite'])]) for site in sites)
             mpo=OptMPO(self.cache['optstrs']+self.cache['shiftedsites'],self.degfres).tompo(ttype=self.block.ttype)
         else:
@@ -91,6 +96,25 @@ class iDMRG(DMRG):
         if len(karg)>0 and len(self.generator.operators)>0:
             self.block.reset(mpo=self.mpo,LEND=self.block.lcontracts[0],REND=self.block.rcontracts[-1])
 
+    def resetgenerator(self):
+        '''
+        Reset the generator of the engine.
+        '''
+        self.config.reset(pids=self.lattice.pids)
+        self.degfres.reset(leaves=list(self.config.table(mask=self.mask,maps={'scope':iDMRG.scopemap}).keys()))
+        self.generator.reset(bonds=self.lattice.bonds,config=self.config)
+
+    @staticmethod
+    def scopemap(scope):
+        '''
+        '''
+        if isinstance(scope,str):
+            assert scope in {'A','B'}
+            return (1,) if scope=='A' else (2,)
+        else:
+            assert isinstance(scope,tuple) and len(scope)==2
+            return (0,scope[1]) if scope[0]=='L' else (2,-scope[1])
+
     def iterate(self,target=None):
         '''
         Iterate the block of the DMRG.
@@ -111,12 +135,11 @@ class iDMRG(DMRG):
             qn=target-self.block.target if isinstance(target,QuantumNumber) else 0
             self.block.predict(sites,obonds,sbonds,osvs,qn)
         else:
-            ls=['iDMRG_K%s'%i for i in range(self.niter)]
-            rs=['iDMRG_S%s'%i for i in range(self.niter)]
-            self.lattice.insert('iDMRG_L','iDMRG_R',news=ls+rs)
-            self.config.reset(pids=self.lattice.pids)
-            self.degfres.reset(leaves=list(self.config.table(mask=self.mask).keys()))
-            self.generator.reset(bonds=self.lattice.bonds,config=self.config)
+            A,B=(('L',0),('R',0)) if self.niter==0 else ('A','B')
+            ls=[('L',i) for i in range(self.niter)]
+            rs=[('R',i) for i in reversed(range(self.niter))]
+            self.lattice.insert(A,B,news=ls+rs)
+            self.resetgenerator()
             mpo=self.mpo
             sites,bonds=self.degfres.labels('S'),self.degfres.labels('B')
             if self.block.ttype=='S': sites=[site.replace(qns=site.qns.sorted()) for site in sites]
@@ -132,6 +155,11 @@ class iDMRG(DMRG):
 def iDMRGTSG(engine,app):
     '''
     This method iterative update the iDMRG (two-site update).
+
+    Parameters
+    ----------
+    engine : iDMRG
+    app : TSG
     '''
     niter=app.recover(engine)
     if niter<0:
@@ -148,7 +176,7 @@ def iDMRGTSG(engine,app):
         for i in range(app.maxiter):
             seold=engine.block.info['Esite']
             engine.iterate(target=app.target(getattr(engine,'niter',i-1)+1))
-            engine.block.iterate(engine.log,info='%s_%s(%s++)'%(engine,engine.block,i),sp=i>0,divisor=2*nspb,nmax=app.nmax,piechart=app.plot)
+            engine.block.iterate(engine.log,info='%s_%s(%s++)'%(engine,engine.block,i),sp=i>0 or engine.niter>0,divisor=2*nspb,nmax=app.nmax,piechart=app.plot)
             TSGSWEEP(app.npresweep if engine.niter==0 else app.nsweep,i)
             senew=engine.block.info['Esite']
             if i>=app.miniter-1 and seold is not None and norm(seold-senew)/norm(seold+senew)<10*app.tol: break
@@ -160,51 +188,14 @@ def iDMRGTSG(engine,app):
         if app.savedata: engine.dump()
         engine.log.close()
 
-def iDMRGGSE(engine,app):
-    '''
-    This method calculates the ground state energy.
-    '''
-    result=np.zeros((app.path.rank(0),2))
-    for i,parameters in enumerate(app.path('+')):
-        engine.update(**parameters)
-        engine.log<<'::<parameters>:: %s\n'%(', '.join('%s=%s'%(key,decimaltostr(value)) for key,value in engine.parameters.items()))
-        engine.rundependences(app.name)
-        result[i,0]=list(parameters.values())[0] if len(parameters)==1 else i
-        result[i,1]=engine.block.info['Esite']
-    name='%s_%s'%(engine.tostr(mask=app.path.tags),app.name)
-    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
-    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
-    if app.returndata: return result
-
-class QP(App):
-    '''
-    Quantum pump of an adiabatic process.
-
-    Attributes
-    ----------
-    path : BaseSpace
-        The path of the varing parameters during the quantum pump.
-    qnname : str
-        The name of the pumped quantum number.
-    '''
-
-    def __init__(self,path,qnname,**karg):
-        '''
-        Constructor.
-
-        Parameters
-        ----------
-        path : BaseSpace
-            The path of the varing parameters during the quantum pump.
-        qnname : str
-            The name of the pumped quantum number.
-        '''
-        self.path=path
-        self.qnname=qnname
-
 def iDMRGQP(engine,app):
     '''
     This function calculate the pumped charge during an adiabatic process.
+
+    Parameters
+    ----------
+    engine : iDMRG
+    app : QP
     '''
     def pumpedcharge(parameters):
         t1=time.time()

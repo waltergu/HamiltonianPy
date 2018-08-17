@@ -4,11 +4,11 @@ Density matrix renormalization group
 ====================================
 
 DMRG, including:
-    * classes: Block, DMRG, TSG, TSS, GSE
-    * functions: DMRGMatVec
+    * classes: Block, DMRG, TSG, TSS, GSE, QP
+    * functions: DMRGMatVec, DMRGGSE
 '''
 
-__all__=['DMRGMatVec','Block','DMRG','TSG','TSS','GSE']
+__all__=['DMRGMatVec','Block','DMRG','TSG','TSS','GSE','DMRGGSE','QP']
 
 import os,re
 import numpy as np
@@ -504,7 +504,6 @@ class DMRG(Engine):
         target : QuantumNumber, optional
             The target of the block of the DMRG.
         '''
-        assert config.priority==degfres.priority
         self.lattice=lattice
         self.terms=terms
         self.config=config
@@ -557,6 +556,12 @@ class DMRG(Engine):
             mps=MPS()
         self.block=Block(mpo,mps,target=target,ttype=ttype)
 
+    def resetgenerator(self):
+        '''
+        Reset the generator of the engine.
+        '''
+        raise NotImplementedError('%s resetgenerator error: not implemented.'%type(self).__name__)
+
     def sweep(self,info='',path=None,**karg):
         '''
         Perform a sweep over the mps of the dmrg under the guidance of `path`.
@@ -606,7 +611,7 @@ class DMRG(Engine):
         When lattice is a lattice, return the number of site labels for the whole lattice.
         '''
         config,degfres=deepcopy(config),deepcopy(degfres)
-        config.reset(pids=(lattice(['__DMRG_NSPB__']) if isinstance(lattice,Cylinder) else lattice).pids)
+        config.reset(pids=(lattice(['__DMRG_NS__']) if isinstance(lattice,Cylinder) else lattice).pids)
         degfres.reset(leaves=list(config.table(mask=mask).keys()))
         return len(degfres.indices())
 
@@ -723,9 +728,7 @@ class TSG(App):
             niter=None
         if core:
             for key,value in core.items(): setattr(engine,key,value)
-            engine.config.reset(pids=engine.lattice.pids)
-            engine.degfres.reset(leaves=list(engine.config.table(mask=engine.mask).keys()))
-            engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
+            engine.resetgenerator()
             code=getattr(engine,'niter',niter)
             assert engine.block.target==self.target(code)
         else:
@@ -787,9 +790,7 @@ class TSS(App):
             core=DMRG.load(din=engine.din,pattern='%s_%s_%s'%(engine,self.nsite,self.target),nmax=nmax)
             if core:
                 for key,value in core.items(): setattr(engine,key,value)
-                engine.config.reset(pids=engine.lattice.pids)
-                engine.degfres.reset(leaves=list(engine.config.table(mask=engine.mask).keys()))
-                engine.generator.reset(bonds=engine.lattice.bonds,config=engine.config)
+                engine.resetgenerator()
                 engine.block.mps>>=1 if engine.block.cut==0 else -1 if engine.block.cut==engine.block.nsite else 0
                 code=len(self.nmaxs)-1-i
                 if engine.block.mps.nmax<nmax: code-=1
@@ -818,3 +819,50 @@ class GSE(App):
             The path in the parameter space to calculate the ground state energy.
         '''
         self.path=path
+
+def DMRGGSE(engine,app):
+    '''
+    This method calculates the ground state energy.
+
+    Parameters
+    ----------
+    engine : DMRG
+    app : GSE
+    '''
+    result=np.zeros((app.path.rank(0),2))
+    for i,parameters in enumerate(app.path('+')):
+        engine.update(**parameters)
+        engine.log<<'::<parameters>:: %s\n'%(', '.join('%s=%s'%(key,decimaltostr(value)) for key,value in engine.parameters.items()))
+        engine.rundependences(app.name)
+        result[i,0]=list(parameters.values())[0] if len(parameters)==1 else i
+        result[i,1]=engine.block.info['Esite']
+    name='%s_%s'%(engine.tostr(mask=app.path.tags),app.name)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result
+
+class QP(App):
+    '''
+    Quantum pump of an adiabatic process.
+
+    Attributes
+    ----------
+    path : BaseSpace
+        The path of the varing parameters during the quantum pump.
+    qnname : str
+        The name of the pumped quantum number.
+    '''
+
+    def __init__(self,path,qnname,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        path : BaseSpace
+            The path of the varing parameters during the quantum pump.
+        qnname : str
+            The name of the pumped quantum number.
+        '''
+        self.path=path
+        self.qnname=qnname

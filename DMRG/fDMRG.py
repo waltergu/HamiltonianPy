@@ -5,10 +5,10 @@ Finite density matrix renormalization group
 
 fDMRG, including:
     * classes: fDMRG
-    * function: fDMRGTSG, fDMRGTSS
+    * function: fDMRGTSG, fDMRGTSS, fDMRGQP
 '''
 
-__all__=['fDMRG','fDMRGTSG','fDMRGTSS']
+__all__=['fDMRG','fDMRGTSG','fDMRGTSS','fDMRGQP']
 
 import numpy as np
 import itertools as it
@@ -65,6 +65,14 @@ class fDMRG(DMRG):
         if len(karg)>0:
             self.block.reset(mpo=MPO.fromoperators(self.generator.operators,self.degfres,ttype=self.block.ttype))
 
+    def resetgenerator(self):
+        '''
+        Reset the generator of the engine.
+        '''
+        self.config.reset(pids=self.lattice.pids)
+        self.degfres.reset(leaves=list(self.config.table(mask=self.mask).keys()))
+        self.generator.reset(bonds=self.lattice.bonds,config=self.config)
+
     def insert(self,A,B,news=None,target=None):
         '''
         Insert two blocks of points into the center of the lattice.
@@ -79,9 +87,7 @@ class fDMRG(DMRG):
             The new target of the DMRG.
         '''
         self.lattice.insert(A,B,news=news)
-        self.config.reset(pids=self.lattice.pids)
-        self.degfres.reset(leaves=list(self.config.table(mask=self.mask).keys()))
-        self.generator.reset(bonds=self.lattice.bonds,config=self.config)
+        self.resetgenerator()
         niter=len(self.lattice)//len(self.lattice.block)//2
         sites,obonds,sbonds=self.degfres.labels('S'),self.degfres.labels('O'),self.degfres.labels('B')
         if self.block.ttype=='S': sites=[site.replace(qns=site.qns.sorted()) for site in sites]
@@ -100,6 +106,11 @@ class fDMRG(DMRG):
 def fDMRGTSG(engine,app):
     '''
     This method iterative update the fDMRG by increasing its lattice in the center by 2 blocks at each iteration.
+
+    Parameters
+    ---------
+    engine : fDMRG
+    app : TSG
     '''
     engine.log.open()
     niter=app.recover(engine)
@@ -129,6 +140,11 @@ def fDMRGTSG(engine,app):
 def fDMRGTSS(engine,app):
     '''
     This method iterative sweep the fDMRG with 2 sites updated at each iteration.
+
+    Parameters
+    ----------
+    engine : fDMRG
+    app : TSS
     '''
     engine.log.open()
     niter=app.recover(engine)
@@ -142,3 +158,38 @@ def fDMRGTSS(engine,app):
         plt.savefig('%s/%s_%s_%s.png'%(engine.log.dir,engine,engine.block.target,app.name))
         plt.close()
     engine.log.close()
+
+def fDMRGQP(engine,app):
+    '''
+    This function calculate the pumped charge during an adiabatic process.
+
+    Parameters
+    ----------
+    engine : fDMRG
+    app : QP
+    '''
+    count=0
+    def pumpedcharge(parameters):
+        t1=time.time()
+        engine.update(**parameters)
+        engine.rundependences(app.name,mask={engine.TSG.name} if count>0 and engine.TSG is not None else None)
+        def averagedcharge(mps,statistics):
+            ps=mps.Lambda.data**2
+            qnindex=mps.Lambda.labels[0].qns.type.names.index(app.qnname)
+            qns=mps.Lambda.labels[0].qns.expansion()[:,qnindex]
+            if statistics=='f': qns*=(-1)**(qns-1)
+            return ps.dot(qns)/ps.sum()
+        result=averagedcharge(engine.block.mps,'f' if tuple(engine.mask)==('nambu',) else 'b')-getattr(engine.block.target,app.qnname)/2
+        t2=time.time()
+        engine.log<<'::<parameters>:: %s\n'%(', '.join('%s=%s'%(key,decimaltostr(value)) for key,value in engine.parameters.items()))
+        engine.log<<'::<informtation>:: pumped charge=%.6f, time=%.4es\n\n'%(result,t2-t1)
+        return result
+    result=np.zeros((app.path.rank(0),2))
+    for parameters in app.path('+'):
+        result[count,0]=list(parameters.values())[0] if len(parameters)==1 else count
+        result[count,1]=pumpedcharge(parameters)
+        count+=1
+    name='%s_%s'%(engine.tostr(mask=app.path.tags),app.name)
+    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+    if app.returndata: return result

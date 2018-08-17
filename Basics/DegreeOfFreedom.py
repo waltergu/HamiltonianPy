@@ -146,7 +146,7 @@ class Index(tuple):
         '''
         Convert an instance to string.
         '''
-        return (':'.join(['%s']*len(self)))%self
+        return ':'.join('*'.join(str(part) for part in value) if type(value) is tuple else str(value) for value in self)
 
     def __str__(self):
         '''
@@ -217,7 +217,7 @@ class Index(tuple):
         '''
         return self.mask(*[key for key in self.names if key not in arg])
 
-    def totuple(self,priority):
+    def totuple(self,priority,maps=None):
         '''
         Convert an instance to tuple according to the parameter priority.
 
@@ -226,6 +226,9 @@ class Index(tuple):
         priority : list of str
             Every element of this list should correspond to a name of an attribute of self.
             The elements should have no duplicates and its length should be equal to the number of self's attributes.
+        maps : dict in the form {name:function}, optional
+            * name: str, the name of the attribute whose value will be modified by function
+            * function: callbale, the function used to modify the value of the attribute.
 
         Returns
         -------
@@ -237,7 +240,11 @@ class Index(tuple):
             raise ValueError('Index totuple error: the priority has duplicates.')
         if len(priority)!=len(self.names):
             raise ValueError("Index totuple error: the priority doesn't cover all the attributes.")
-        return tuple([getattr(self,name) for name in priority])
+        if maps is None:
+            result=tuple(getattr(self,name) for name in priority)
+        else:
+            result=tuple(maps[name](getattr(self,name)) if name in maps else getattr(self,name) for name in priority)
+        return result
 
 class Internal(object):
     '''
@@ -347,11 +354,18 @@ class IDFConfig(dict):
             if select(pid): result[pid]=interanl
         return result
 
-    def table(self,mask=()):
+    def table(self,mask=(),maps=None):
         '''
         Return a Table instance that contains all the allowed indices which can be defined on a lattice.
+
+        Parameters
+        ----------
+        mask : iterable of str, optional
+            The attributes of the indices that will be masked to None.
+        maps : dict in the form {str:callable}, optional
+            See Index.totuple for details.
         '''
-        return Table([index for key,value in self.items() for index in value.indices(key,mask)],key=lambda index: index.totuple(priority=self.priority))
+        return Table([index for key,value in self.items() for index in value.indices(key,mask)],key=lambda index: index.totuple(priority=self.priority,maps=maps))
 
 class QNSConfig(dict):
     '''

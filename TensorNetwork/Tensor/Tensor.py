@@ -804,7 +804,7 @@ class STensor(TensorBase,Arithmetic):
         counts=[label.qns.toordereddict(protocol=QuantumNumbers.COUNTS) for label in labels]
         data={}
         for qns,block in self.data.items():
-            for content in it.product(*[iter(record[qns[axis]].items()) for axis,record in zip(axes,records)]):
+            for content in it.product(*[record[qns[axis]].items() for axis,record in zip(axes,records)]):
                 new=tuple(it.chain(*[content[table[axis]][0] if axis in table else [qn] for axis,qn in enumerate(qns)]))
                 slices=[content[table[axis]][1] if axis in table else slice(None) for axis in range(len(qns))]
                 assert new not in data

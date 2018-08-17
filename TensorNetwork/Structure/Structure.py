@@ -4,32 +4,21 @@ The structure of tensor networks
 ================================
 
 The structure of tensor networks, including:
-    * constants:    DEGFRE_FOCK_PRIORITY,DEGFRE_FOCK_LAYERS,
-                    DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS,
-                    DEGFRE_BOSONIC_PRIORITY,DEGFRE_BOSONIC_LAYERS
-                    DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
+    * constants: DEGFRE_FOCK_LAYERS, DEGFRE_FERMIONIC_LAYERS, DEGFRE_BOSONIC_LAYERS, DEGFRE_SPIN_LAYERS
     * classes: DegFreTree
 '''
 
-__all__=[   'DEGFRE_FOCK_PRIORITY','DEGFRE_FOCK_LAYERS',
-            'DEGFRE_FERMIONIC_PRIORITY','DEGFRE_FERMIONIC_LAYERS',
-            'DEGFRE_BOSONIC_PRIORITY','DEGFRE_BOSONIC_LAYERS',
-            'DEGFRE_SPIN_PRIORITY','DEGFRE_SPIN_LAYERS',
-            'DegFreTree'
-            ]
+__all__=['DEGFRE_FOCK_LAYERS','DEGFRE_FERMIONIC_LAYERS','DEGFRE_BOSONIC_LAYERS','DEGFRE_SPIN_LAYERS','DegFreTree']
 
 import numpy as np
 from HamiltonianPy import PID,Table,QuantumNumbers
 from HamiltonianPy.Misc import Tree
 from HamiltonianPy.TensorNetwork.Tensor import Label
+from collections import OrderedDict
 
-DEGFRE_FOCK_PRIORITY=('scope','site','orbital','spin','nambu')
 DEGFRE_FOCK_LAYERS=[('scope','site','orbital'),('spin',)]
-DEGFRE_FERMIONIC_PRIORITY=('scope','site','orbital','spin','nambu')
 DEGFRE_FERMIONIC_LAYERS=[('scope','site','orbital'),('spin',)]
-DEGFRE_BOSONIC_PRIORITY=('scope','site','orbital','spin','nambu')
 DEGFRE_BOSONIC_LAYERS=[('scope','site','orbital'),('spin',)]
-DEGFRE_SPIN_PRIORITY=['scope','site','orbital','S']
 DEGFRE_SPIN_LAYERS=[('scope','site','orbital','S')]
 
 class DegFreTree(Tree):
@@ -46,15 +35,13 @@ class DegFreTree(Tree):
     ----------
     layers : list of tuples of str
         The tag of each layer of indices.
-    priority : list of str
-        The sequence priority of the allowed indices.
     map : callable
         This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
     cache : dict
         The cache of the degfretree.
     '''
 
-    def __init__(self,layers,priority,leaves=(),map=None):
+    def __init__(self,layers,leaves=(),map=None):
         '''
         Constructor.
 
@@ -62,14 +49,12 @@ class DegFreTree(Tree):
         ----------
         layers : list of tuples of str
             The tag of each layer of indices.
-        priority : list of str
-            The sequence priority of the allowed indices.
         leaves : list of Index, optional
             The leaves (bottom indices) of the DegFreTree.
         map : callable, optional
             This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
         '''
-        self.reset(layers=layers,priority=priority,leaves=leaves,map=map)
+        self.reset(layers=layers,leaves=leaves,map=map)
 
     @property
     def dtype(self):
@@ -78,19 +63,18 @@ class DegFreTree(Tree):
         '''
         return type(self[self.indices(-1)[0]]) if len(self)>0 else None
 
-    def reset(self,layers=None,priority=None,leaves=(),map=None):
+    def reset(self,layers=None,leaves=(),map=None):
         '''
         Reset the DegFreTree.
 
         Parameters
         ----------
-        layers,priority,leaves,map :
+        layers,leaves,map :
             Please see DegFreTree.__init__ for details.
         '''
         self.clear()
         Tree.__init__(self)
         if layers is not None: self.layers=layers
-        if priority is not None: self.priority=priority
         if map is not None: self.map=map
         self.cache={}
         if len(leaves)>0:
@@ -100,8 +84,7 @@ class DegFreTree(Tree):
             self.addleaf(parent=None,leaf=tuple([None]*len(leaves[0])),data=None)
             for layer in self.layers:
                 temp-=set(layer)
-                indices=set([index.replace(**{key:None for key in temp}) for index in leaves])
-                self.cache[('indices',layer)]=sorted(indices,key=lambda index: index.totuple(priority=self.priority))
+                self.cache[('indices',layer)]=list(OrderedDict([(index.replace(**{key:None for key in temp}),None) for index in leaves]).keys())
                 self.cache[('table',layer)]=Table(self.indices(layer=layer))
                 for index in self.indices(layer=layer):
                     self.addleaf(parent=index.replace(**{key:None for key in layer}),leaf=index,data=None)

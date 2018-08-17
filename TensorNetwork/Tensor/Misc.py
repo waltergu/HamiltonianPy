@@ -124,7 +124,7 @@ def directsum(tensors,labels,axes=()):
         data,counts={},{alter:{} for alter in alters}
         for tensor in tensors:
             for alter in alters:
-                for qn,count in tensor.labels[alter].qns.iteritems(protocol=QuantumNumbers.COUNTS):
+                for qn,count in tensor.labels[alter].qns.items(protocol=QuantumNumbers.COUNTS):
                     counts[alter][qn]=counts[alter].get(qn,0)+count
             for qns,block in tensor.data.items():
                 if qns not in data:

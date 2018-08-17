@@ -13,13 +13,13 @@ from unittest import TestCase,TestLoader,TestSuite
 
 mkl.set_num_threads(1)
 Engine.DEBUG=True
-ttype,savedata,qnon='S',False,True
+ttype,savedata,qnon='S',True,True
 
 class TestSpin(TestCase):
     def test_fdmrg(self):
         print()
         J,spin,N=1.0,0.5,30
-        priority,layers=DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
+        priority,layers=DEFAULT_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
         target=lambda niter: SQN(0.0) if qnon else None
         dmrg=fDMRG(
                 name=       'spin-%s'%spin,
@@ -28,7 +28,7 @@ class TestSpin(TestCase):
                 lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0]),neighbours=1),
                 terms=      [SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())],
                 config=     IDFConfig(priority=priority,map=lambda pid: Spin(S=spin)),
-                degfres=    DegFreTree(layers=layers,priority=priority,map=lambda index: SQNS(S=spin) if qnon else int(spin*2+1)),
+                degfres=    DegFreTree(layers=layers,map=lambda index: SQNS(S=spin) if qnon else int(spin*2+1)),
                 mask=       [],
                 ttype=      ttype,
                 dtype=      np.float64
@@ -40,7 +40,7 @@ class TestSpinlessFermion(TestCase):
     def test_fdmrg(self):
         print()
         t,N=-0.5,30
-        priority,layers=DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS
+        priority,layers=DEFAULT_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS
         target=lambda niter: PQN(niter+1) if qnon else None
         dmrg=fDMRG(
                 name=       'fermion-spinless',
@@ -49,7 +49,7 @@ class TestSpinlessFermion(TestCase):
                 lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
                 terms=      [Hopping('t',t,neighbour=1)],
                 config=     IDFConfig(priority=priority,map=lambda pid: Fock(atom=0,norbital=1,nspin=1,nnambu=1)),
-                degfres=    DegFreTree(layers=layers,priority=priority,map=lambda index: PQNS(1) if qnon else 2),
+                degfres=    DegFreTree(layers=layers,map=lambda index: PQNS(1) if qnon else 2),
                 mask=       ['nambu'],
                 ttype=      ttype,
                 dtype=      np.float64
@@ -61,7 +61,7 @@ class TestSpinfulFermion(TestCase):
     def test_fdmrg(self):
         print()
         t,U,N=-1.0,1.0,20
-        priority,layers=DEGFRE_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS
+        priority,layers=DEFAULT_FERMIONIC_PRIORITY,DEGFRE_FERMIONIC_LAYERS
         target=lambda niter: SPQN((2.0*(niter+1),0.0)) if qnon else None
         dmrg=fDMRG(
                 name=       'fermion-spinful',
@@ -70,7 +70,7 @@ class TestSpinfulFermion(TestCase):
                 lattice=    Cylinder(name='WG',block=[np.array([0.0,0.0])],translation=np.array([1.0,0.0])),
                 terms=      [Hopping('t',t,neighbour=1),Hubbard('U',U)],
                 config=     IDFConfig(priority=priority,map=lambda pid: Fock(atom=0,norbital=1,nspin=2,nnambu=1)),
-                degfres=    DegFreTree(layers=layers,priority=priority,map=lambda index: SzPQNS(index.spin-0.5) if qnon else 2),
+                degfres=    DegFreTree(layers=layers,map=lambda index: SzPQNS(index.spin-0.5) if qnon else 2),
                 mask=       ['nambu'],
                 ttype=      ttype,
                 dtype=      np.float64
@@ -82,7 +82,7 @@ class TestHoneycombHeisenberg(TestCase):
     def test_fdmrg(self):
         print()
         J,N=1.0,10
-        h4,priority,layers=Hexagon(name='H4'),DEGFRE_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
+        h4,priority,layers=Hexagon(name='H4'),DEFAULT_SPIN_PRIORITY,DEGFRE_SPIN_LAYERS
         target=lambda niter: SQN(0.0) if qnon else None
         dmrg=fDMRG(
                 name=       'honeycomb-heisenberg',
@@ -91,7 +91,7 @@ class TestHoneycombHeisenberg(TestCase):
                 lattice=    h4.cylinder(0,'1O-1P',nneighbour=1),
                 terms=      [SpinTerm('J',J,neighbour=1,indexpacks=Heisenberg())],
                 config=     IDFConfig(priority=priority,map=lambda pid: Spin(S=0.5)),
-                degfres=    DegFreTree(layers=layers,priority=priority,map=lambda index: SQNS(S=0.5) if qnon else 2),
+                degfres=    DegFreTree(layers=layers,map=lambda index: SQNS(S=0.5) if qnon else 2),
                 mask=       [],
                 ttype=      ttype,
                 dtype=      np.float64

@@ -263,7 +263,7 @@ class Engine(object):
         self.add(app)
         self.run(app.name,clock=True)
 
-    def rundependences(self,name):
+    def rundependences(self,name,mask=None):
         '''
         This method runs the dependences of the app specified by name.
 
@@ -271,19 +271,22 @@ class Engine(object):
         ----------
         name : any hashable object
             The name to specify whose dependences to be run.
+        mask : iterable of any hashable object
+            The masked dependency.
         '''
         try:
             index=self.preloads.index(name)
         except:
             index=len(self.preloads)
         for app in it.chain(self.preloads[:index],self.apps[name].dependences):
-            app=self.apps[app]
-            match=self.parameters.match(app.parameters)
-            if app.virgin or not match:
-                app.update(**self.parameters)
-                if app.prepare is not None: app.prepare(self,app)
-                if app.run is not None: self.records[app.name]=app.run(self,app)
-                app.virgin=False
+            if mask is None or app not in mask:
+                app=self.apps[app]
+                match=self.parameters.match(app.parameters)
+                if app.virgin or not match:
+                    app.update(**self.parameters)
+                    if app.prepare is not None: app.prepare(self,app)
+                    if app.run is not None: self.records[app.name]=app.run(self,app)
+                    app.virgin=False
 
     def summary(self):
         '''
