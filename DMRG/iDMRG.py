@@ -205,7 +205,7 @@ def iDMRGQP(engine,app):
             ps=mps.Lambda.data**2
             qnindex=mps.Lambda.labels[0].qns.type.names.index(app.qnname)
             qns=mps.Lambda.labels[0].qns.expansion()[:,qnindex]
-            if statistics=='f': qns*=(-1)**(qns-1)
+            #if statistics=='f': qns*=(-1)**(qns-1)
             return ps.dot(qns)/ps.sum()
         result=averagedcharge(engine.block.mps,'f' if tuple(engine.mask)==('nambu',) else 'b')-getattr(engine.block.target,app.qnname)/2
         t2=time.time()

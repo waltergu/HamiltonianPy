@@ -234,7 +234,6 @@ class GSE(HP.App):
         kspace : BaseSpace, optional
             The first Brillouin zone.
         '''
-        super(GSE,self).__init__(**karg)
         self.filling=filling
         self.kspace=kspace
 

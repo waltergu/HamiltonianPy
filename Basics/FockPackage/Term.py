@@ -133,7 +133,7 @@ class Quadratic(Term):
         -----
         No matter whether or not ``half`` is True, for the BdG case, only the electron part of the hopping terms and onsite terms are contained.
         '''
-        def expansion(bond,config,half):
+        def expansion(bond,config):
             result={}
             if self.neighbour==bond.neighbour:
                 value=self.value*(1 if self.amplitude is None else self.amplitude(bond))
@@ -144,15 +144,10 @@ class Quadratic(Term):
                         assert not hasattr(fpack,'nambus')
                     for coeff,index1,index2 in fpack.expand(bond,config[bond.spoint.pid],config[bond.epoint.pid]):
                         dagger1,dagger2=index1.replace(nambu=1-index1.nambu),index2.replace(nambu=1-index2.nambu)
-                        if half:
-                            if self.mode=='st' and index1==dagger2:
-                                result[(index1,index2)]=value*coeff/2+result.get((index1,index2),0.0)
-                            elif self.mode in ('hp','pr') or (self.mode=='st' and (dagger2,dagger1) not in result):
-                                result[(index1,index2)]=value*coeff+result.get((index1,index2),0.0)
-                        else:
+                        if self.mode=='st' and index1==dagger2:
+                            result[(index1,index2)]=value*coeff/2+result.get((index1,index2),0.0)
+                        elif self.mode in ('hp','pr') or (self.mode=='st' and (dagger2,dagger1) not in result):
                             result[(index1,index2)]=value*coeff+result.get((index1,index2),0.0)
-                            if self.mode in ('hp','pr'):
-                                result[(dagger2,dagger1)]=np.conjugate(value*coeff)+result.get((dagger2,dagger1),0.0)
             return result
         CONSTRUCTOR=FQuadratic if self.statistics=='f' else BQuadratic
         def operators(expansion,bond,table):
@@ -168,9 +163,9 @@ class Quadratic(Term):
                         if stemp in table and etemp in table:
                             result+=CONSTRUCTOR(value=dtype(value),indices=(eindex,sindex),seqs=(table[etemp],table[stemp]),rcoord=bond.rcoord,icoord=bond.icoord)
             return result
-        result=operators(expansion(bond,config,half),bond,table)
-        if self.mode=='pr':
-            result+=operators(expansion(bond.reversed,config,half),bond.reversed,table)
+        result=operators(expansion(bond,config),bond,table)
+        if self.mode=='pr': result+=operators(expansion(bond.reversed,config),bond.reversed,table)
+        if not half: result+=result.dagger
         return result
 
     @property
@@ -508,18 +503,15 @@ class Coulomb(Term):
             eindexpacks,sindexpacks=self.indexpacks(bond) if isinstance(self.indexpacks,Callable) else self.indexpacks
             for epack in eindexpacks:
                 for ecoeff,index1,index2 in epack.expand(Bond(0,bond.epoint,bond.epoint),config[bond.epoint.pid],config[bond.epoint.pid]):
-                    dagger1,dagger2=index1.replace(nambu=1-index1.nambu),index2.replace(nambu=1-index2.nambu)
+                    dagger2=index2.replace(nambu=1-index2.nambu)
                     for spack in sindexpacks:
                         for scoeff,index3,index4 in spack.expand(Bond(0,bond.spoint,bond.spoint),config[bond.spoint.pid],config[bond.spoint.pid]):
-                            dagger3,dagger4=index3.replace(nambu=1-index3.nambu),index4.replace(nambu=1-index4.nambu)
+                            dagger4=index4.replace(nambu=1-index4.nambu)
                             coeff,key=value*ecoeff*scoeff,(index1,index2,index3,index4)
                             if index1==dagger2 and index3==dagger4:
-                                expansion[key]=coeff/(2.0 if half else 1.0)+expansion.get(key,0.0)
+                                expansion[key]=coeff/2.0+expansion.get(key,0.0)
                             else:
                                 expansion[key]=coeff+expansion.get(key,0.0)
-                                if not half:
-                                    key=(dagger4,dagger3,dagger2,dagger1) if self.neighbour==0 else (dagger2,dagger1,dagger4,dagger3)
-                                    expansion[key]=np.conjugate(coeff)+expansion.get(key,0.0)
             CONSTRUCTOR=FCoulomb if self.statistics=='f' else BCoulomb
             for (index1,index2,index3,index4),value in expansion.items():
                 if np.abs(value)>RZERO:
@@ -545,6 +537,7 @@ class Coulomb(Term):
                                 rcoord=     bond.rcoord,
                                 icoord=     bond.icoord
                                 )
+            if not half: result+=result.dagger
         return result
 
     @property

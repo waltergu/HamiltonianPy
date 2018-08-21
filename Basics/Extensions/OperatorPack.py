@@ -122,8 +122,9 @@ def twisttransformation(operator,vectors,thetas):
     assert isinstance(operator,FockOperator)
     assert len(vectors) in {1,2}
     if len(vectors)==1:
-        assert isparallel(operator.icoord,vectors[0])
-        icoord=np.array([np.linalg.norm(operator.icoord)/np.linalg.norm(vectors[0])])
+        isparallelcode=isparallel(operator.icoord,vectors[0])
+        assert isparallelcode
+        icoord=np.array([np.linalg.norm(operator.icoord)/np.linalg.norm(vectors[0])*isparallelcode])
     else:
         icoord=np.linalg.inv(np.asarray(vectors).T).dot(operator.icoord)
         assert np.max(np.abs(icoord-np.around(icoord)))<RZERO
