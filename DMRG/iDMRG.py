@@ -101,7 +101,7 @@ class iDMRG(DMRG):
         Reset the generator of the engine.
         '''
         self.config.reset(pids=self.lattice.pids)
-        self.degfres.reset(leaves=list(self.config.table(mask=self.mask,maps={'scope':iDMRG.scopemap}).keys()))
+        self.degfres.reset(leaves=self.config.table(mask=self.mask,maps={'scope':iDMRG.scopemap}))
         self.generator.reset(bonds=self.lattice.bonds,config=self.config)
 
     @staticmethod
@@ -201,13 +201,12 @@ def iDMRGQP(engine,app):
         t1=time.time()
         engine.update(**parameters)
         engine.rundependences(app.name)
-        def averagedcharge(mps,statistics):
+        def averagedcharge(mps):
             ps=mps.Lambda.data**2
             qnindex=mps.Lambda.labels[0].qns.type.names.index(app.qnname)
             qns=mps.Lambda.labels[0].qns.expansion()[:,qnindex]
-            #if statistics=='f': qns*=(-1)**(qns-1)
             return ps.dot(qns)/ps.sum()
-        result=averagedcharge(engine.block.mps,'f' if tuple(engine.mask)==('nambu',) else 'b')-getattr(engine.block.target,app.qnname)/2
+        result=averagedcharge(engine.block.mps)-getattr(engine.block.target,app.qnname)/2
         t2=time.time()
         engine.log<<'::<parameters>:: %s\n'%(', '.join('%s=%s'%(key,decimaltostr(value)) for key,value in engine.parameters.items()))
         engine.log<<'::<informtation>:: pumped charge=%.6f, time=%.4es\n\n'%(result,t2-t1)

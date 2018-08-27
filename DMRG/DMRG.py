@@ -612,7 +612,7 @@ class DMRG(Engine):
         '''
         config,degfres=deepcopy(config),deepcopy(degfres)
         config.reset(pids=(lattice(['__DMRG_NS__']) if isinstance(lattice,Cylinder) else lattice).pids)
-        degfres.reset(leaves=list(config.table(mask=mask).keys()))
+        degfres.reset(leaves=config.table(mask=mask))
         return len(degfres.indices())
 
     @staticmethod

@@ -49,7 +49,7 @@ class DegFreTree(Tree):
         ----------
         layers : list of tuples of str
             The tag of each layer of indices.
-        leaves : list of Index, optional
+        leaves : iterable of Index, optional
             The leaves (bottom indices) of the DegFreTree.
         map : callable, optional
             This function maps a leaf (bottom index) of the DegFreTree to its corresponding data.
@@ -78,6 +78,7 @@ class DegFreTree(Tree):
         if map is not None: self.map=map
         self.cache={}
         if len(leaves)>0:
+            if isinstance(leaves,dict): leaves=sorted(leaves,key=leaves.get)
             temp=[key for layer in self.layers for key in layer]
             assert set(range(len(PID._fields)))==set([temp.index(key) for key in PID._fields])
             temp=set(temp)

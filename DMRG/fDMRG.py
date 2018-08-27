@@ -70,7 +70,7 @@ class fDMRG(DMRG):
         Reset the generator of the engine.
         '''
         self.config.reset(pids=self.lattice.pids)
-        self.degfres.reset(leaves=list(self.config.table(mask=self.mask).keys()))
+        self.degfres.reset(leaves=self.config.table(mask=self.mask))
         self.generator.reset(bonds=self.lattice.bonds,config=self.config)
 
     def insert(self,A,B,news=None,target=None):

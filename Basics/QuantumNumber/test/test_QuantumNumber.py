@@ -79,8 +79,8 @@ class TestQuantumNumbers(TestCase):
         print('Summation of %s and %s: %ss.'%(N,N,etime-stime))
 
     def test_decomposition(self):
-        qnses,signs,indices=[SQNS(0.5)]*4,(+1,-1,+1,-1),[(1,1,0,0),(1,0,0,1),(1,1,1,1),(0,0,0,0),(0,1,1,0),(0,0,1,1)]
-        for component,index in zip(QuantumNumbers.decomposition(qnses,signs=signs,target=SQN(0.0),method='exhaustion'),indices):
+        qnses,signs,indices=[SQNS(0.5)]*4,(+1,-1,+1,-1),[(0,0,0,0),(0,0,1,1),(0,1,1,0),(1,0,0,1),(1,1,0,0),(1,1,1,1)]
+        for component,index in zip(sorted(QuantumNumbers.decomposition(qnses,signs=signs,target=SQN(0.0),method='exhaustion')),indices):
             self.assertEqual(component,index)
         qnses,signs=[SQNS(0.5)]*40,None
         for index in QuantumNumbers.decomposition(qnses,signs=signs,target=SQN(1.0),method='monte carlo',nmax=10):

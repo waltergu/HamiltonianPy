@@ -20,7 +20,7 @@ class TestDegFreTree(TestCase):
     def test_fermi_int(self):
         print()
         degmap=lambda index: 2
-        tree=DegFreTree(layers=self.flayers,leaves=list(self.fconfig.table(mask=['nambu']).keys()),map=degmap)
+        tree=DegFreTree(layers=self.flayers,leaves=self.fconfig.table(mask=['nambu']),map=degmap)
         for layer in self.flayers:
             print('layer: %s'%(layer,))
             for i,index in enumerate(tree.indices(layer)):
@@ -30,7 +30,7 @@ class TestDegFreTree(TestCase):
     def test_fermi_qns(self):
         print()
         degmap=lambda index: SzPQNS(-0.5 if index.spin==0 else 0.5)
-        tree=DegFreTree(layers=self.flayers,leaves=list(self.fconfig.table(mask=['nambu']).keys()),map=degmap)
+        tree=DegFreTree(layers=self.flayers,leaves=self.fconfig.table(mask=['nambu']),map=degmap)
         for layer in self.flayers:
             print('layer: %s'%(layer,))
             for i,index in enumerate(tree.indices(layer)):
@@ -40,7 +40,7 @@ class TestDegFreTree(TestCase):
     def test_spin_int(self):
         print()
         degmap=lambda index: 2
-        tree=DegFreTree(layers=self.slayers,leaves=list(self.sconfig.table(mask=[]).keys()),map=degmap)
+        tree=DegFreTree(layers=self.slayers,leaves=self.sconfig.table(mask=[]),map=degmap)
         for layer in self.slayers:
             print('layer: %s'%(layer,))
             for i,index in enumerate(tree.indices(layer)):
@@ -50,7 +50,7 @@ class TestDegFreTree(TestCase):
     def test_spin_qns(self):
         print()
         degmap=lambda index: SQNS(0.5)
-        tree=DegFreTree(layers=self.slayers,leaves=list(self.sconfig.table(mask=[]).keys()),map=degmap)
+        tree=DegFreTree(layers=self.slayers,leaves=self.sconfig.table(mask=[]),map=degmap)
         for layer in self.slayers:
             print('layer: %s'%(layer,))
             for i,index in enumerate(tree.indices(layer)):

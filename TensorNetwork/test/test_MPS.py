@@ -74,7 +74,7 @@ class TestMPS(TestCase):
         Nsite,Nscope,S=2,2,1.0
         priority,layers=['scope','site','orbital','S'],[('scope',),('site','orbital','S')]
         config=IDFConfig(priority=priority,pids=[PID(scope,site) for scope in range(Nscope) for site in range(Nsite)],map=lambda pid: Spin(S=S))
-        tree=DegFreTree(layers=layers,leaves=list(config.table(mask=[]).keys()),map=lambda index: SQNS(S))
+        tree=DegFreTree(layers=layers,leaves=config.table(mask=[]),map=lambda index: SQNS(S))
         sites=tree.labels(mode='S',layer=layers[-1])
         bonds=tree.labels(mode='B',layer=layers[-1])
         bonds[+0]=Label(bonds[+0],QuantumNumbers.mono(SQN(0.0)),None)
