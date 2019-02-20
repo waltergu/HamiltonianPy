@@ -891,7 +891,7 @@ class Lattice(object):
         ax.set_title(self.name)
         for bond in self.bonds:
             nb=bond.neighbour if 0<=bond.neighbour<np.inf else self.nneighbour+(2 if bond.neighbour<0 else 1)
-            color='k' if nb==1 else 'r' if nb==2 else 3 if nb==3 else str(nb*1.0/(self.nneighbour+10))
+            color='k' if nb==1 else 'r' if nb==2 else 'b' if nb==3 else str(nb*1.0/(self.nneighbour+10))
             if nb==0:
                 pid,x,y=bond.spoint.pid,bond.spoint.rcoord[0],bond.spoint.rcoord[1]
                 ax.scatter(x,y)
