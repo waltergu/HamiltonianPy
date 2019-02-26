@@ -916,6 +916,7 @@ def decimaltostr(number,n=5):
         temp=[]
         if real!='0.': temp.append('%s%s'%(real,'0' if real[-1]=='.' else ''))
         if imag!='0.': temp.append('%s%s%sj'%('+' if number.imag>0 and len(temp)>0 else '',imag,'0' if imag[-1]=='.' else ''))
+        if len(temp)==0: temp.append('0.0')
         result=''.join(temp)
     else:
         raise TypeError('decimaltostr error: not supported class(%s).'%number.__class__.__name__)
