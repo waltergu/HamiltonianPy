@@ -670,7 +670,7 @@ def VCABC(engine,app):
     '''
     engine.rundependences(app.name)
     mu,app.mu=app.mu,0.0
-    engine.gf(omega=mu)
+    engine.cgf(omega=mu)
     bc,cn=app.set(H=lambda kx,ky: -inv(engine.gf(k=[kx,ky])))
     app.mu=mu
     engine.log<<'Chern number(mu): %s(%s)\n'%(cn,app.mu)
@@ -689,7 +689,7 @@ def VCATEB(engine,app):
     '''
     if isinstance(app.path,str): app.path=HP.KPath(HP.KMap(engine.lattice.reciprocals,path),nk=100)
     engine.rundependences(app.name)
-    engine.gf(omega=app.mu)
+    engine.cgf(omega=app.mu)
     H=lambda kx,ky: -inv(engine.gf(k=[kx,ky]))
     result=np.zeros((app.path.rank('k'),engine.nopt+1))
     for i,paras in enumerate(app.path('+')):
