@@ -8,7 +8,7 @@ Tight Binding Approximation for fermionic systems, including:
     * functions: TBAEB, TBAGSE, TBADOS, TBABC
 '''
 
-__all__=['TBA','GSE','TBAGSE','TBAEB','TBADOS','TBABC']
+__all__=['TBA','GSE','TBAGSE','TBAEB','TBADOS','TBABC','TBACN']
 
 from ..Basics import *
 from numpy import *
@@ -301,3 +301,10 @@ def TBABC(engine,app):
         if app.savedata: savetxt('%s/%s.dat'%(engine.dout,name),result)
         if app.plot: app.figure('P',result.reshape((int(sqrt(result.shape[0])),int(sqrt(result.shape[0])),3)),'%s/%s'%(engine.dout,name),axis='equal')
         if app.returndata: return cn if app.bcoff else cn,result
+
+def TBACN(engine,app):
+    '''
+    This method calculates the Chern numbers of the assigned energy bands of the Hamiltonian.
+    '''
+    phases=app.set(lambda i,j: engine.matrix(k=app.BZ.kcoord((i,j))))
+    engine.log<<'Chern numbers: %s'%(", ".join("%s(%s)"%(phase,n) for n,phase in zip(app.ns,phases)))<<'\n'

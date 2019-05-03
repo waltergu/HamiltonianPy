@@ -4,12 +4,14 @@ App pack
 --------
 
 App pack, including:
-    * classes: EB, POS, DOS, GF, FS, BC, BP, GP, CPFF
+    * classes: EB, POS, DOS, GF, FS, BC, CN, BP, GP, CPFF
 '''
 
-__all__=['EB','POS','DOS','GF','FS','BC','BP','GP','CPFF']
+__all__=['EB','POS','DOS','GF','FS','BC','CN','BP','GP','CPFF']
 
 import numpy as np
+import itertools as it
+from scipy.linalg import eigh
 from ..EngineApp import App
 from ..Utilities import berrycurvature,berryphase
 
@@ -241,6 +243,61 @@ class BC(App):
             bc[i]=berrycurvature(H,ks['k'][0],ks['k'][1],self.mu,d=self.d)
         cn=np.sum(bc)*self.BZ.volume('k')/len(bc)/2/np.pi
         return bc,cn
+
+class CN(App):
+    '''
+    Chern number.
+
+    Attributes
+    ----------
+    BZ : FBZ
+        The first Brillouin zone.
+    ns : Tuple of int
+        The energy bands whose Chern numbers are to be computed.
+    '''
+
+    def __init__(self,BZ,ns,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        BZ : FBZ
+            The first Brillouin zone.
+        ns : Tuple of int
+            The energy bands whose Chern numbers are to be computed.
+        '''
+        self.BZ=BZ
+        self.ns=ns
+
+    def set(self,H):
+        '''
+        Using the plaquette integral method to calculate the Chern number of energy bands.
+
+        Parameters
+        ----------
+        H : Callable
+            Input function which returns the Hamiltonian as a 2D ndarray.
+
+        Returns
+        -------
+        Tuple of float
+            The calculated Chern numbers of the inquired energy bands.
+        '''
+        assert len(self.BZ.type.periods)==2
+        smesh={}
+        N1,N2=self.BZ.type.periods
+        for i,j in it.product(range(N1),range(N2)):
+            vs=eigh(H(i,j))[1]
+            smesh[(i,j)]=vs[:,self.ns]
+        phases=np.zeros(len(self.ns),dtype=np.float64)
+        for i,j in it.product(range(N1),range(N2)):
+            i1,j1=i,j
+            i2,j2=(i+1)%N1,(j+1)%N2
+            vs1,vs2,vs3,vs4=smesh[(i1,j1)],smesh[(i2,j1)],smesh[(i2,j2)],smesh[(i1,j2)]
+            for k in range(len(self.ns)):
+                phases[k]+=np.angle(np.vdot(vs1[:,k],vs2[:,k])*np.vdot(vs2[:,k],vs3[:,k])*np.vdot(vs3[:,k],vs4[:,k])*np.vdot(vs4[:,k],vs1[:,k]))
+        return phases/np.pi/2
 
 class BP(App):
     '''
