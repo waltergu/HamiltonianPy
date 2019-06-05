@@ -105,7 +105,7 @@ def trfoptrep(operator,k,basis,dtype=np.complex128):
     data,indices,indptr,dim=_trfoptrep_(k,value,nambus,sequences,table,seqs,maps,translations,signs,masks,nk,dtype)
     return csr_matrix((data,indices,indptr),shape=(dim,dim)).T
 
-@jit("Tuple((pyoject,int64[:],int64[:],int64))(int64,pyobject,boolean[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64,pyobject)")
+@jit("Tuple((pyobject,int64[:],int64[:],int64))(int64,pyobject,boolean[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64[:],int64,pyobject)")
 def _trfoptrep_(k,value,nambus,sequences,table,seqs,maps,translations,signs,masks,nk,dtype):
     ndata,data,indices,indptr=0,np.zeros(len(seqs),dtype=dtype),np.zeros(len(seqs),dtype=np.int64),np.zeros(len(seqs)+1,dtype=np.int64)
     dim,eye,temp=0,int(1),np.zeros(len(sequences)+1,dtype=np.int64)
