@@ -9,7 +9,7 @@ Spin excitations for flat band ferromagnets, including:
     * functions: optrep, FBFMEB, FBFMPOS, FBFMBP, FBFMCN
 '''
 
-__all__=['FBFM_PRIORITY','FBFMBasis','optrep','FBFM','EB','FBFMEB','FBFMPOS','FBFMBP','FBFMCN']
+__all__=['FBFM_PRIORITY','FBFMBasis','optrep','FBFM','EB','FBFMEB','FBFMPOS','FBFMBP','CN','FBFMCN']
 
 import numpy as np
 import HamiltonianPy as HP
@@ -460,6 +460,31 @@ def FBFMBP(engine,app):
     engine.log<<'Berry phases: %s\n'%(', '.join('%s(%s)'%(HP.decimaltostr(bp),n) for bp,n in zip(bps,app.ns)))
     if app.returndata: return bps
 
+class CN(HP.CN):
+    '''
+    Chern number of energy bands.
+
+    Attributes
+    ----------
+    scalefree : float
+        The scaling parameter for the free part of the Hamiltonian.
+    scaleint : float
+        The scaling parameter for the interaction part of the Hamiltonian.
+    '''
+
+    def __init__(self,scalefree=1.0,scaleint=1.0,**karg):
+        '''
+        Constructor.
+
+        Parameters
+        ----------
+        scalefree/scaleint : float, optional
+            The scaling parameter for the free/interaction part of the Hamiltonian.
+        '''
+        super(CN,self).__init__(**karg)
+        self.scalefree=scalefree
+        self.scaleint=scaleint
+
 def FBFMCN(engine,app):
     '''
     This method calculates the Chern numbers of the assigned energy bands of the Hamiltonian.
@@ -468,7 +493,8 @@ def FBFMCN(engine,app):
     engine.log<<'%s: '%app.BZ.rank('k')
     def matrix(i,j):
         engine.log<<'%s-%s%s'%(i,j,'..' if (i+1,j+1)!=app.BZ.type.periods else '')
-        return engine.matrix(k=[i,j])
+        return engine.matrix(k=[i,j],scalefree=app.scalefree,scaleint=app.scaleint)
     phases=app.set(matrix)
     engine.log<<'\n'
     engine.log<<'Chern numbers: %s'%(", ".join("%s(%s)"%(phase,n) for n,phase in zip(app.ns,phases)))<<'\n'
+    if app.returndata: return phases

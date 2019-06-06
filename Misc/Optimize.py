@@ -44,7 +44,7 @@ def bisect(f,xs,args=()):
     else:
         assert fdw*fup<0
     while True:
-        xnew=(xup+xdw)/2
+        xnew=(xup+xdw)//2
         if xnew==xdw or xnew==xup: return xs[xdw],xs[xup]
         fnew=f(xs[xnew],*args)
         if fdw*fnew<0:
