@@ -238,9 +238,11 @@ class Hubbard(Term):
         The statistics of the particles involved in the Hubbard term, 'f' for fermionic and 'b' for bosonic.
     atom : int
         The atom index of the point where the Hubbard interactions are defined.
+    amplitude : function which returns float or complex
+        This function returns bond dependent coefficient as needed.
     '''
 
-    def __init__(self,id,value=1.0,atom=None,modulate=None,statistics='f'):
+    def __init__(self,id,value=1.0,atom=None,amplitude=None,modulate=None,statistics='f'):
         '''
         Constructor.
         '''
@@ -248,6 +250,7 @@ class Hubbard(Term):
         super(Hubbard,self).__init__(id=id,value=value,modulate=modulate)
         self.statistics=statistics
         self.atom=atom
+        self.amplitude=amplitude
 
     def __repr__(self):
         '''
@@ -294,12 +297,13 @@ class Hubbard(Term):
         '''
         result=Operators()
         nv,pid,dgr=len(self),bond.epoint.pid,config[bond.epoint.pid]
-        if bond.neighbour==0 and self.atom in (None,dgr.atom):
+        coeff=1 if self.amplitude is None else self.amplitude(bond)
+        if bond.neighbour==0 and self.atom in (None,dgr.atom) and np.abs(coeff)>RZERO:
             assert nv in (1,4) and dgr.nspin==2 and order in ('normal','density')
             expansion=[]
             if nv>=1:
                 for h in range(dgr.norbital):
-                    value=self.value/2 if nv==1 else self.value[0]/2
+                    value=(self.value/2 if nv==1 else self.value[0]/2)*coeff
                     index1=Index(pid,FID(h,1,CREATION))
                     index2=Index(pid,FID(h,0,CREATION))
                     index3=Index(pid,FID(h,0,ANNIHILATION))
@@ -309,7 +313,7 @@ class Hubbard(Term):
                 for h in range(dgr.norbital):
                     for g in range(dgr.norbital):
                         if g!=h:
-                            value=self.value[1]/2
+                            value=self.value[1]/2*coeff
                             index1=Index(pid,FID(g,1,CREATION))
                             index2=Index(pid,FID(h,0,CREATION))
                             index3=Index(pid,FID(h,0,ANNIHILATION))
@@ -318,7 +322,7 @@ class Hubbard(Term):
                 for h in range(dgr.norbital):
                     for g in range(h):
                         for f in range(2):
-                            value=(self.value[1]-self.value[2])/2
+                            value=(self.value[1]-self.value[2])/2*coeff
                             index1=Index(pid,FID(g,f,CREATION))
                             index2=Index(pid,FID(h,f,CREATION))
                             index3=Index(pid,FID(h,f,ANNIHILATION))
@@ -326,7 +330,7 @@ class Hubbard(Term):
                             expansion.append((value,index1,index2,index3,index4))
                 for h in range(dgr.norbital):
                     for g in range(h):
-                        value=self.value[2]
+                        value=self.value[2]*coeff
                         index1=Index(pid,FID(g,1,CREATION))
                         index2=Index(pid,FID(h,0,CREATION))
                         index3=Index(pid,FID(g,0,ANNIHILATION))
@@ -334,7 +338,7 @@ class Hubbard(Term):
                         expansion.append((value,index1,index2,index3,index4))
                 for h in range(dgr.norbital):
                     for g in range(h):
-                        value=self.value[3]
+                        value=self.value[3]*coeff
                         index1=Index(pid,FID(g,1,CREATION))
                         index2=Index(pid,FID(g,0,CREATION))
                         index3=Index(pid,FID(h,0,ANNIHILATION))
@@ -395,8 +399,9 @@ class Hubbard(Term):
         str
             The string representation of the term on the bond.
         '''
-        if bond.neighbour==0 and self.atom in (None,config[bond.epoint.pid].atom):
-            return '%shb:%s'%(self.statistics,'_'.join(decimaltostr(value,Term.NDECIMAL) for value in (self.value if len(self)==4 else [self.value])))
+        coeff=1 if self.amplitude is None else self.amplitude(bond)
+        if bond.neighbour==0 and self.atom in (None,config[bond.epoint.pid].atom) and np.abs(coeff)>RZERO:
+            return '%shb:%s'%(self.statistics,'_'.join(decimaltostr(value*coeff,Term.NDECIMAL) for value in (self.value if len(self)==4 else [self.value])))
         else:
             return ''
 

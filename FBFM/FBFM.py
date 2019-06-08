@@ -165,8 +165,8 @@ def optrep(operator,k,basis):
         result=np.zeros((nk,nsp,nsp,nk,nsp,nsp),dtype=basis.dtype)
         for i in range(nk):
             for j in range(nsp):
-                for k in range(nsp):
-                    result[i,j,k,i,j,k]=basis.E1[permutation[i],j]-basis.E2[i,k]
+                for l in range(nsp):
+                    result[i,j,l,i,j,l]=basis.E1[permutation[i],j]-basis.E2[i,l]
         return result.reshape((nk*nsp**2,nk*nsp**2))
     elif isinstance(operator,HP.FQuadratic):
         (index1,index2),(seq1,seq2)=operator.indices,operator.seqs
@@ -415,7 +415,7 @@ def FBFMEB(engine,app):
         for i,paras in enumerate(path('+')):
             engine.log<<'%s%s'%(i,'..' if i<path.rank(0)-1 else '')
             m=engine.matrix(scalefree=app.scalefree,scaleint=app.scaleint,**paras)
-            result[i,1:]=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,evon=False)
+            result[i,1:]=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,which='SA',evon=False)
         engine.log<<'\n'
     else:
         result=np.zeros((2,ne+1))
