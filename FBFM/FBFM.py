@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 from .fmatrix import *
 from collections import OrderedDict
 from fractions import Fraction
+from copy import deepcopy
 
 FBFM_PRIORITY=('spin','scope','nambu','site','orbital')
 
@@ -405,28 +406,40 @@ def FBFMEB(engine,app):
     '''
     This method calculates the energy spectrums of the spin excitations.
     '''
+    from mpi4py import MPI
+    rank=MPI.COMM_WORLD.Get_rank()
     path,ne=app.path,min(app.ne or engine.nmatrix,engine.nmatrix)
     if path is not None:
         bz,reciprocals=engine.basis.BZ,engine.lattice.reciprocals
         if not isinstance(path,HP.BaseSpace): path=bz.path(HP.KMap(reciprocals,path) if isinstance(path,str) else path,mode='Q')
         result=np.zeros((path.rank(0),ne+1))
         result[:,0]=path.mesh(0) if path.mesh(0).ndim==1 else np.array(range(path.rank(0)))
-        engine.log<<'%s: '%path.rank(0)
-        for i,paras in enumerate(path('+')):
-            engine.log<<'%s%s'%(i,'..' if i<path.rank(0)-1 else '')
-            m=engine.matrix(scalefree=app.scalefree,scaleint=app.scaleint,**paras)
-            result[i,1:]=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,which='SA',evon=False)
-        engine.log<<'\n'
+        if rank==0: engine.log<<'%s: '%path.rank(0)
+        if app.np in (0,1,None):
+            for i,paras in enumerate(path('+')):
+                engine.log<<'%s%s'%(i,'..' if i<path.rank(0)-1 else '')
+                m=engine.matrix(scalefree=app.scalefree,scaleint=app.scaleint,**paras)
+                result[i,1:]=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,which='SA',evon=False)
+        else:
+            def kenergy(paras,engine,app,i):
+                engine.log<<'%s%s'%(i,'..')
+                m=engine.matrix(scalefree=app.scalefree,scaleint=app.scaleint,**paras)
+                result=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,which='SA',evon=False)
+                return result
+            for i,data in enumerate(HP.mpirun(kenergy,[(paras,engine,app,i) for i,paras in enumerate(path('+'))])):
+                result[i,1:]=data
+        if rank==0: engine.log<<'\n'
     else:
         result=np.zeros((2,ne+1))
         result[:,0]=np.array(range(2))
         m=engine.matrix(scalefree=app.scalefree,scaleint=app.scaleint)
         result[0,1:]=nl.eigvalsh(m)[:ne] if app.method=='eigvalsh' else HM.eigsh(m,k=ne,evon=False)
         result[1,1:]=result[0,1:]
-    name='%s_%s%s'%(engine.tostr(mask=path.tags),app.name,app.suffix)
-    if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
-    if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
-    if app.returndata: return result
+    if rank==0:
+        name='%s_%s%s'%(engine.tostr(mask=path.tags),app.name,app.suffix)
+        if app.savedata: np.savetxt('%s/%s.dat'%(engine.dout,name),result)
+        if app.plot: app.figure('L',result,'%s/%s'%(engine.dout,name))
+        if app.returndata: return result
 
 def FBFMPOS(engine,app):
     '''
