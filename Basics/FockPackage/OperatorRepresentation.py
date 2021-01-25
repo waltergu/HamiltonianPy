@@ -52,9 +52,9 @@ def foptrep(operator,basis,transpose=False,dtype=np.complex128):
         result=csr_matrix(content,shape=(basis[0].nbasis,basis[1].nbasis))
     return result.T if transpose else result
 
-@jit("Tuple((pyobject,int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,int64)")
+@jit#("Tuple((pyobject,int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64,int64)", nopython=False)
 def foptrepeven(value,nambus,seqs,table,nbasis,mode):
-    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=value.dtype),np.zeros(nbasis,dtype=np.int64),np.zeros(nbasis+1,dtype=np.int64)
+    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=type(value)),np.zeros(nbasis,dtype=np.int64),np.zeros(nbasis+1,dtype=np.int64)
     eye,temp=int(1),np.zeros(len(seqs)+1,dtype=np.int64)
     for i in range(nbasis):
         indptr[i]=ndata
@@ -74,9 +74,9 @@ def foptrepeven(value,nambus,seqs,table,nbasis,mode):
     indptr[-1]=ndata
     return data,indices,indptr
 
-@jit("Tuple((pyobject,int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,int64)")
+@jit#("Tuple((pyobject,int64[:],int64[:]))(pyobject,boolean[:],int64[:],int64[:],int64[:],int64,int64)", nopython=False)
 def foptrepodd(value,nambus,seqs,table1,table2,nbasis,mode):
-    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=value.dtype),np.zeros(nbasis,dtype=np.int64),np.zeros(nbasis+1,dtype=np.int64)
+    ndata,data,indices,indptr=0,np.zeros(nbasis,dtype=type(value)),np.zeros(nbasis,dtype=np.int64),np.zeros(nbasis+1,dtype=np.int64)
     eye,temp=int(1),np.zeros(len(seqs)+1,dtype=np.int64)
     for i in range(nbasis):
         indptr[i]=ndata
