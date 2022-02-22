@@ -12,11 +12,11 @@ subroutine mhubbard_r4(value,seq,permutation,u1,u2,matrix,ns,nk,nsp)
         do j=1,nk
             do k=1,nsp
                 do l=1,nsp
-                    A(k,l)=u1(seq,i,k)*u1(seq,j,l)
+                    A(k,l)=u1(seq,permutation(i),k)*u1(seq,permutation(j),l)
                     if(i==j.and.k==l)then
-                        B(k,l)=diagsum-u2(seq,permutation(i),k)*u2(seq,permutation(j),l)
+                        B(k,l)=diagsum-u2(seq,i,k)*u2(seq,j,l)
                     else
-                        B(k,l)=-u2(seq,permutation(i),k)*u2(seq,permutation(j),l)
+                        B(k,l)=-u2(seq,i,k)*u2(seq,j,l)
                     end if
                 end do
             end do
@@ -47,11 +47,11 @@ subroutine mhubbard_r8(value,seq,permutation,u1,u2,matrix,ns,nk,nsp)
         do j=1,nk
             do k=1,nsp
                 do l=1,nsp
-                    A(k,l)=u1(seq,i,k)*u1(seq,j,l)
+                    A(k,l)=u1(seq,permutation(i),k)*u1(seq,permutation(j),l)
                     if(i==j.and.k==l)then
-                        B(k,l)=diagsum-u2(seq,permutation(i),k)*u2(seq,permutation(j),l)
+                        B(k,l)=diagsum-u2(seq,i,k)*u2(seq,j,l)
                     else
-                        B(k,l)=-u2(seq,permutation(i),k)*u2(seq,permutation(j),l)
+                        B(k,l)=-u2(seq,i,k)*u2(seq,j,l)
                     end if
                 end do
             end do
@@ -82,11 +82,11 @@ subroutine mhubbard_c4(value,seq,permutation,u1,u2,matrix,ns,nk,nsp)
         do j=1,nk
             do k=1,nsp
                 do l=1,nsp
-                    A(k,l)=u1(seq,i,k)*conjg(u1(seq,j,l))
+                    A(k,l)=u1(seq,permutation(i),k)*conjg(u1(seq,permutation(j),l))
                     if(i==j.and.k==l)then
-                        B(k,l)=diagsum-conjg(u2(seq,permutation(i),k))*u2(seq,permutation(j),l)
+                        B(k,l)=diagsum-conjg(u2(seq,i,k))*u2(seq,j,l)
                     else
-                        B(k,l)=-conjg(u2(seq,permutation(i),k))*u2(seq,permutation(j),l)
+                        B(k,l)=-conjg(u2(seq,i,k))*u2(seq,j,l)
                     end if
                 end do
             end do
@@ -117,11 +117,11 @@ subroutine mhubbard_c8(value,seq,permutation,u1,u2,matrix,ns,nk,nsp)
         do j=1,nk
             do k=1,nsp
                 do l=1,nsp
-                    A(k,l)=u1(seq,i,k)*conjg(u1(seq,j,l))
+                    A(k,l)=u1(seq,permutation(i),k)*conjg(u1(seq,permutation(j),l))
                     if(i==j.and.k==l)then
-                        B(k,l)=diagsum-conjg(u2(seq,permutation(i),k))*u2(seq,permutation(j),l)
+                        B(k,l)=diagsum-conjg(u2(seq,i,k))*u2(seq,j,l)
                     else
-                        B(k,l)=-conjg(u2(seq,permutation(i),k))*u2(seq,permutation(j),l)
+                        B(k,l)=-conjg(u2(seq,i,k))*u2(seq,j,l)
                     end if
                 end do
             end do

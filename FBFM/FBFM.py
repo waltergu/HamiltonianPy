@@ -319,6 +319,31 @@ class FBFM(HP.Engine):
                 result+=optrep(operator*scaleint,k,self.basis)
         return result
 
+    def effectiveH(self,k=None,scalefree=1.0,scaleint=1.0):
+        '''
+        The effective Hamiltonian of the spin excitations.
+
+        Parameters
+        ----------
+        k : QuantumNumber/tuple, optional
+            The k point in FBZ.
+        scalefree/scaleint : float, optional
+            The scaling parameter for the free/interaction part of the Hamiltonian.
+
+        Returns
+        -------
+        2d ndarray
+            The matrix representation of the effective Hamiltonian.
+        '''
+        assert self.basis.nsp==1
+        permutation=np.argsort((self.basis.BZ-self.basis.BZ.type(k)).sorted(history=True)[1])
+        vs=nl.qr(np.asarray([udw[permutation]*uup.conjugate() for (uup,udw) in zip(self.basis.U2[:,:,0],self.basis.U1[:,:,0])]).T)[0].T
+        m=self.matrix(k=k,scalefree=scalefree,scaleint=scaleint)
+        M=np.zeros((len(vs),len(vs)),dtype=m.dtype)
+        for (i,j) in it.product(range(len(vs)),range(len(vs))):
+            M[i,j]=np.vdot(vs[i],m.dot(vs[j]))
+        return M
+
     def view(self,mode='P',path=None,show=True,suspend=False,close=True):
         '''
         View the single particle energy levels along a path in the k space.
