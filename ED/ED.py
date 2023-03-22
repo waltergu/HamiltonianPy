@@ -524,7 +524,7 @@ def EDGFP(engine,app):
         return
     sectors,es,vs=engine.eigs(sector=None,v0=app.v0,k=1,evon=True,resetmatrix=True,resettimers=True)
     engine.sector,app.gse,app.v0=sectors[0],es[0],vs[0]
-    if len(engine.sectors)>1: engine.log<<'::<Information>:: sector=%s, gse=%.8f.\n'%(engine.sector,app.gse)
+    if len(engine.sectors)>1: engine.log<<'::<Information>:: sector=%s, gse=%.8f.\n'%(repr(engine.sector),app.gse)
     app.blocks,nb,blocks=[],next(iter(app.generate(engine,app.operators,'NB'))),app.generate(engine,app.operators,app.method)
     timers=HP.Timers('Preparation','Iteration','Diagonalization',root='Total')
     info=HP.Sheet(corner='GF Block',cols=['Preparation','Iteration','Diagonalization','Total'],rows=['# %s'%(i+1) for i in range(nb)]+['Summary'],widths=[8,11,11,15,11])

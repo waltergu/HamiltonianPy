@@ -15,7 +15,7 @@ subroutine gf_contract_4(k,mgf,seqs,coords,gf,ndim,ncgf,ngf,nclmap)
                     do h=1,ndim
                       coords_buff(h)=coords(j,n,h)-coords(i,m,h)
                     end do
-                    gf(i,j)=gf(i,j)+mgf(seqs(i,m),seqs(j,n))*exp((0.0_8,1.0_8)*dot_product(k,coords_buff))
+                    gf(i,j)=gf(i,j)+mgf(seqs(i,m),seqs(j,n))*exp((0.0_4,1.0_4)*dot_product(k,coords_buff))
                 end do
             end do
         end do
