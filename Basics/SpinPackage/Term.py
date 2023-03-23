@@ -15,7 +15,7 @@ from ..DegreeOfFreedom import *
 from ..Operator import * 
 from .DegreeOfFreedom import *
 from .Operator import *
-from collections import Callable
+from _collections_abc import Callable
 import numpy as np
 
 class SpinTerm(Term):

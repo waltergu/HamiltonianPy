@@ -15,7 +15,8 @@ import itertools as it
 import matplotlib.pyplot as plt
 from numpy.linalg import norm
 from scipy import interpolate
-from collections import OrderedDict,Callable
+from collections import OrderedDict
+from _collections_abc import Callable
 from .Utilities import RZERO,Log,Timers,decimaltostr
 
 class Parameters(OrderedDict):

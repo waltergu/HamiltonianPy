@@ -17,7 +17,7 @@ from ..Operator import *
 from ..Geometry import Bond
 from .DegreeOfFreedom import *
 from .Operator import *
-from collections import Callable
+from _collections_abc import Callable
 import numpy as np
 
 class Quadratic(Term):

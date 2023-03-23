@@ -11,7 +11,7 @@ __all__=['Term']
 
 from numpy import ndarray,complex128
 from .Utilities import Arithmetic
-from collections import Iterable,Callable
+from _collections_abc import Iterable,Callable
 from copy import copy
 
 class Term(Arithmetic):

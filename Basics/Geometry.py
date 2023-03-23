@@ -15,7 +15,8 @@ __all__=[   'azimuthd','azimuth','polard','polar','volume',
             ]
 
 from .Utilities import RZERO
-from collections import namedtuple,Iterable
+from collections import namedtuple
+from _collections_abc import Iterable
 from scipy.spatial import cKDTree
 import numpy as np
 import numpy.linalg as nl
